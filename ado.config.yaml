@@ -1,0 +1,73 @@
+# ADO Configuration
+# See https://github.com/dxheroes/ado for documentation
+version: "1.1"
+
+# Project identification
+project:
+  id: "authlane"
+  repository: ""
+
+# Provider configuration
+providers:
+  claude-code:
+    enabled: true
+    contextFile: "CLAUDE.md"
+    
+    accessModes:
+      - mode: subscription
+        priority: 1
+        enabled: true
+        subscription:
+          plan: "max"
+          rateLimits:
+            requestsPerDay: 500
+            tokensPerDay: 5000000
+          resetTime: "00:00 UTC"
+    
+    capabilities:
+      codeGeneration: true
+      codeReview: true
+      refactoring: true
+      testing: true
+      documentation: true
+      debugging: true
+      languages: ["typescript", "python", "go", "rust", "java"]
+      maxContextTokens: 200000
+      supportsStreaming: true
+      supportsMCP: true
+      supportsResume: true
+    
+    defaultOptions:
+      model: "claude-sonnet-4-20250514"
+      maxTurns: 50
+      permissionMode: "acceptEdits"
+
+# Routing configuration
+routing:
+  strategy: "subscription-first"
+  failover:
+    enabled: true
+    onErrors: ["rate_limit", "timeout", "server_error"]
+    maxRetries: 3
+    retryDelay: 1000
+  apiFallback:
+    enabled: false
+    confirmAboveCost: 1.00
+    maxCostPerTask: 10.00
+    maxDailyCost: 50.00
+
+# Storage configuration
+storage:
+  driver: "sqlite"
+  path: ".ado/state.db"
+  rateLimitTracking:
+    driver: "memory"
+
+# Observability
+observability:
+  logging:
+    level: "info"
+    format: "pretty"
+  costTracking:
+    enabled: true
+    reportInterval: "daily"

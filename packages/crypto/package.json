@@ -1,0 +1,20 @@
+{
+  "name": "@authlane/crypto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@types/node": "^24.10.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

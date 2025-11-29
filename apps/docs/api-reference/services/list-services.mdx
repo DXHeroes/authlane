@@ -1,0 +1,75 @@
+---
+title: 'List Services'
+api: 'GET /api/v1/services'
+description: 'Get all available integrations'
+---
+
+## Request
+
+```bash
+curl https://api.authlane.com/api/v1/services \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+## Response
+
+<ResponseField name="data" type="Service[]">
+  Array of available services
+
+  <Expandable title="Service Object">
+    <ResponseField name="id" type="string">
+      Service identifier (e.g., "github", "slack")
+    </ResponseField>
+
+    <ResponseField name="name" type="string">
+      Human-readable service name
+    </ResponseField>
+
+    <ResponseField name="category" type="string">
+      Service category: `developer_tools`, `communication`, `productivity`, `crm`, `other`
+    </ResponseField>
+
+    <ResponseField name="authType" type="string">
+      Authentication type: `oauth2`, `oauth1`, `api_key`
+    </ResponseField>
+
+    <ResponseField name="enabled" type="boolean">
+      Whether service is currently enabled
+    </ResponseField>
+
+    <ResponseField name="config" type="object">
+      Service-specific configuration
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "data": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "category": "developer_tools",
+      "authType": "oauth2",
+      "enabled": true,
+      "config": {
+        "scopes": ["repo", "user", "read:org"],
+        "authorizationUrl": "https://github.com/login/oauth/authorize",
+        "tokenUrl": "https://github.com/login/oauth/access_token"
+      }
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "category": "communication",
+      "authType": "oauth2",
+      "enabled": true,
+      "config": {
+        "scopes": ["chat:write", "channels:read"]
+      }
+    }
+  ]
+}
+```

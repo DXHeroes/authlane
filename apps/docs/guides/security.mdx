@@ -1,0 +1,659 @@
+---
+title: 'Security Guide'
+description: 'Security best practices for Authlane deployments'
+---
+
+## Overview
+
+Authlane handles sensitive OAuth credentials and API tokens. This guide covers security best practices for production deployments.
+
+## Architecture Security
+
+### Defense in Depth
+
+Authlane implements multiple security layers:
+
+```
+┌─────────────────────────────────────┐
+│   Application Layer                 │
+│   - Rate limiting                   │
+│   - Input validation                │
+│   - CORS policies                   │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   Authentication Layer              │
+│   - API key verification            │
+│   - JWT validation                  │
+│   - Tenant isolation                │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   Encryption Layer                  │
+│   - AES-256-GCM                     │
+│   - Key derivation (PBKDF2)         │
+│   - Secure key storage              │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   Database Layer                    │
+│   - Row-Level Security (RLS)        │
+│   - Encrypted columns               │
+│   - Audit logs                      │
+└─────────────────────────────────────┘
+```
+
+## Credential Encryption
+
+### AES-256-GCM
+
+All OAuth credentials are encrypted using **AES-256-GCM** (Galois/Counter Mode):
+
+- **Encryption key**: 256-bit (32 bytes)
+- **Initialization vector (IV)**: 96-bit random
+- **Authentication tag**: 128-bit
+- **Algorithm**: AES-GCM
+
+#### Key Generation
+
+```bash
+# Generate secure encryption key
+openssl rand -hex 32
+
+# Output: 64 hex characters (32 bytes)
+# Example: a1b2c3d4e5f6...
+```
+
+<Warning>
+  **NEVER reuse encryption keys across environments!** Generate unique keys for dev, staging, and production.
+</Warning>
+
+#### Key Storage
+
+Store encryption keys securely:
+
+<CodeGroup>
+
+```bash Environment Variables (Development)
+# .env
+ENCRYPTION_KEY=a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
+```
+
+```bash AWS Secrets Manager (Production)
+# Store key in AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name authlane/encryption-key \
+  --secret-string "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+
+# Retrieve in application
+aws secretsmanager get-secret-value \
+  --secret-id authlane/encryption-key \
+  --query SecretString \
+  --output text
+```
+
+```bash Google Secret Manager (Production)
+# Store key in Google Secret Manager
+echo -n "a1b2c3d4e5f6..." | gcloud secrets create authlane-encryption-key \
+  --data-file=-
+
+# Retrieve in application
+gcloud secrets versions access latest \
+  --secret="authlane-encryption-key"
+```
+
+```bash HashiCorp Vault (Production)
+# Store key in Vault
+vault kv put secret/authlane/encryption-key \
+  value=a1b2c3d4e5f6...
+
+# Retrieve in application
+vault kv get -field=value secret/authlane/encryption-key
+```
+
+</CodeGroup>
+
+### Key Rotation
+
+To rotate encryption keys:
+
+<Steps>
+  <Step title="Generate New Key">
+    ```bash
+    NEW_KEY=$(openssl rand -hex 32)
+    echo $NEW_KEY
+    ```
+  </Step>
+
+  <Step title="Re-encrypt Data">
+    ```typescript
+    // migration-script.ts
+    import { decrypt, encrypt } from '@authlane/crypto';
+
+    const OLD_KEY = process.env.OLD_ENCRYPTION_KEY!;
+    const NEW_KEY = process.env.NEW_ENCRYPTION_KEY!;
+
+    async function rotateKeys() {
+      const connections = await db.select().from(connections);
+
+      for (const connection of connections) {
+        // Decrypt with old key
+        const credentials = decrypt(connection.encryptedCredentials, OLD_KEY);
+
+        // Re-encrypt with new key
+        const newEncrypted = encrypt(credentials, NEW_KEY);
+
+        // Update database
+        await db.update(connections)
+          .set({ encryptedCredentials: newEncrypted })
+          .where(eq(connections.id, connection.id));
+      }
+
+      console.log(`Rotated ${connections.length} credentials`);
+    }
+
+    rotateKeys();
+    ```
+  </Step>
+
+  <Step title="Update Environment">
+    ```bash
+    # Update ENCRYPTION_KEY to new value
+    export ENCRYPTION_KEY=$NEW_KEY
+    ```
+  </Step>
+
+  <Step title="Verify">
+    ```bash
+    # Test decryption with new key
+    curl http://localhost:3000/api/v1/users/test_user/connections/github/credentials \
+      -H "Authorization: Bearer $API_KEY"
+    ```
+  </Step>
+</Steps>
+
+## Authentication
+
+### API Keys
+
+Authlane uses API keys for authentication:
+
+#### Key Format
+
+```
+sk_live_<your-production-key>  # Production
+sk_test_<your-test-key>  # Testing
+```
+
+#### Permissions
+
+API keys have different permission levels:
+
+| Type | Prefix | Permissions |
+|------|--------|-------------|
+| **Admin** | `sk_admin_` | Full access (create tenants, rotate keys) |
+| **Live** | `sk_live_` | Production operations (OAuth, credentials) |
+| **Test** | `sk_test_` | Testing only (sandboxed data) |
+| **Read-only** | `sk_readonly_` | View-only access (no mutations) |
+
+#### Creation
+
+```bash
+# Create new API key
+curl -X POST https://api.authlane.com/api/v1/admin/api-keys \
+  -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "tenant_123",
+    "name": "Production API Key",
+    "type": "live"
+  }'
+
+# Response:
+{
+  "key": "sk_live_...",  # SAVE THIS - shown once only!
+  "id": "key_abc",
+  "createdAt": "2025-11-27T..."
+}
+```
+
+<Warning>
+  API keys are shown **only once** at creation. Store them securely immediately.
+</Warning>
+
+#### Revocation
+
+```bash
+# Revoke compromised key
+curl -X DELETE https://api.authlane.com/api/v1/admin/api-keys/key_abc \
+  -H "Authorization: Bearer $ADMIN_API_KEY"
+```
+
+### Multi-Tenancy Isolation
+
+#### Row-Level Security (RLS)
+
+PostgreSQL RLS ensures tenant isolation:
+
+```sql
+-- Enable RLS
+ALTER TABLE connections ENABLE ROW LEVEL SECURITY;
+
+-- Tenant isolation policy
+CREATE POLICY tenant_isolation ON connections
+  FOR ALL
+  USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+```
+
+Application sets tenant context:
+
+```typescript
+// Before each query
+await db.execute(sql`SET app.current_tenant = ${tenantId}`);
+
+// Now all queries are automatically filtered by tenant_id
+const connections = await db.select().from(connections);
+```
+
+#### API Key to Tenant Mapping
+
+Each API key is scoped to a single tenant:
+
+```typescript
+// Middleware validates API key and sets tenant
+export async function authMiddleware(c: Context, next: Next) {
+  const apiKey = c.req.header('Authorization')?.replace('Bearer ', '');
+
+  const key = await db.query.apiKeys.findFirst({
+    where: eq(apiKeys.key, apiKey),
+  });
+
+  if (!key || key.revokedAt) {
+    return c.json({ error: 'Invalid API key' }, 401);
+  }
+
+  // Set tenant context
+  c.set('tenantId', key.tenantId);
+  c.set('apiKeyId', key.id);
+
+  await next();
+}
+```
+
+## Network Security
+
+### HTTPS Only
+
+<Warning>
+  **NEVER use HTTP in production!** All communication must use HTTPS.
+</Warning>
+
+#### Nginx Configuration
+
+```nginx
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name api.authlane.com;
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS server
+server {
+    listen 443 ssl http2;
+    server_name api.authlane.com;
+
+    # SSL certificates
+    ssl_certificate /etc/letsencrypt/live/api.authlane.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.authlane.com/privkey.pem;
+
+    # Modern SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
+    ssl_prefer_server_ciphers off;
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### CORS Configuration
+
+Restrict CORS to trusted origins:
+
+```typescript
+// apps/api/src/middleware/cors.ts
+export function corsMiddleware() {
+  return cors({
+    origin: (origin) => {
+      const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+      return allowedOrigins.includes(origin);
+    },
+    credentials: true,
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400, // 24 hours
+  });
+}
+```
+
+### Rate Limiting
+
+Prevent abuse with rate limiting:
+
+```typescript
+// apps/api/src/middleware/rate-limit.ts
+import { rateLimit } from 'hono-rate-limiter';
+
+export const rateLimitMiddleware = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  message: 'Too many requests, please try again later',
+  keyGenerator: (c) => {
+    // Rate limit by API key instead of IP
+    const apiKey = c.get('apiKeyId');
+    return apiKey || c.req.header('x-forwarded-for') || 'unknown';
+  },
+});
+```
+
+## Database Security
+
+### Connection Security
+
+```bash
+# Use SSL for database connections
+DATABASE_URL=postgresql://user:pass@host:5432/db?sslmode=require
+```
+
+### Prepared Statements
+
+Drizzle ORM uses prepared statements by default (prevents SQL injection):
+
+```typescript
+// ✅ SAFE - Prepared statement
+const user = await db.query.users.findFirst({
+  where: eq(users.id, userId),
+});
+
+// ❌ UNSAFE - String interpolation (DON'T DO THIS)
+const result = await db.execute(sql`SELECT * FROM users WHERE id = '${userId}'`);
+```
+
+### Sensitive Data Masking
+
+Mask sensitive data in logs and error messages:
+
+```typescript
+function maskCredentials(credentials: Record<string, any>) {
+  return Object.fromEntries(
+    Object.entries(credentials).map(([key, value]) => {
+      if (typeof value === 'string' && value.length > 8) {
+        // Show first 4 and last 4 characters
+        return [key, `${value.slice(0, 4)}...${value.slice(-4)}`];
+      }
+      return [key, '***'];
+    })
+  );
+}
+
+// Log masked credentials
+console.log('Retrieved credentials:', maskCredentials(credentials));
+// Output: { access_token: "ghp_...xyz" }
+```
+
+## OAuth Security
+
+### PKCE (Proof Key for Code Exchange)
+
+Authlane implements PKCE for all OAuth flows:
+
+```typescript
+// Generate code verifier (43-128 random characters)
+const codeVerifier = crypto.randomBytes(32).toString('base64url');
+
+// Generate code challenge (SHA256 hash)
+const codeChallenge = crypto
+  .createHash('sha256')
+  .update(codeVerifier)
+  .digest('base64url');
+
+// Send challenge in authorization request
+const authUrl = new URL('https://github.com/login/oauth/authorize');
+authUrl.searchParams.set('code_challenge', codeChallenge);
+authUrl.searchParams.set('code_challenge_method', 'S256');
+
+// Later, send verifier in token exchange
+const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+  method: 'POST',
+  body: JSON.stringify({
+    code,
+    code_verifier: codeVerifier,
+  }),
+});
+```
+
+### State Parameter Validation
+
+Prevent CSRF attacks with state validation:
+
+```typescript
+// Generate random state
+const state = crypto.randomBytes(16).toString('hex');
+
+// Store state with user session
+await redis.set(`oauth:state:${state}`, userId, 'EX', 600); // 10 min expiry
+
+// Validate on callback
+const storedUserId = await redis.get(`oauth:state:${receivedState}`);
+if (!storedUserId || storedUserId !== userId) {
+  throw new Error('Invalid state parameter');
+}
+
+// Delete used state (prevent replay)
+await redis.del(`oauth:state:${receivedState}`);
+```
+
+### Redirect URI Validation
+
+Exact matching of redirect URIs:
+
+```typescript
+const ALLOWED_REDIRECT_URIS = [
+  'https://api.authlane.com/api/v1/oauth/callback',
+  'http://localhost:3000/api/v1/oauth/callback', // Dev only
+];
+
+function validateRedirectUri(uri: string): boolean {
+  return ALLOWED_REDIRECT_URIS.includes(uri);
+}
+```
+
+## Monitoring & Incident Response
+
+### Audit Logging
+
+Log all security-relevant events:
+
+```typescript
+interface AuditLog {
+  timestamp: Date;
+  event: string;
+  userId?: string;
+  tenantId: string;
+  apiKeyId: string;
+  ipAddress: string;
+  metadata: Record<string, any>;
+}
+
+async function logAuditEvent(event: AuditLog) {
+  await db.insert(auditLogs).values(event);
+
+  // Also send to external service (Datadog, CloudWatch, etc.)
+  logger.info('Audit event', event);
+}
+
+// Log credential access
+await logAuditEvent({
+  timestamp: new Date(),
+  event: 'credentials.accessed',
+  userId: 'user_123',
+  tenantId: 'tenant_abc',
+  apiKeyId: 'key_xyz',
+  ipAddress: c.req.header('x-forwarded-for'),
+  metadata: { serviceId: 'github' },
+});
+```
+
+### Security Alerts
+
+Set up alerts for suspicious activity:
+
+```typescript
+// Alert on multiple failed auth attempts
+if (failedAttempts > 5) {
+  await sendAlert({
+    severity: 'high',
+    message: `Multiple failed auth attempts for API key ${apiKeyId}`,
+    metadata: { attempts: failedAttempts, ipAddress },
+  });
+
+  // Temporarily block API key
+  await db.update(apiKeys)
+    .set({ blockedUntil: new Date(Date.now() + 3600000) }) // 1 hour
+    .where(eq(apiKeys.id, apiKeyId));
+}
+```
+
+### Incident Response Checklist
+
+If a security incident occurs:
+
+- [ ] **Immediately revoke** compromised API keys
+- [ ] **Rotate** encryption keys if needed
+- [ ] **Audit** access logs to determine scope
+- [ ] **Notify** affected tenants/users
+- [ ] **Patch** vulnerabilities
+- [ ] **Document** incident and response
+- [ ] **Review** and improve security measures
+
+## Compliance
+
+### GDPR
+
+For GDPR compliance:
+
+- **Data minimization**: Only store necessary OAuth tokens
+- **Right to deletion**: Implement hard-delete endpoint
+- **Data portability**: Provide export functionality
+- **Encryption**: All personal data encrypted at rest
+
+```typescript
+// GDPR deletion endpoint
+app.delete('/api/v1/users/:userId/data', async (c) => {
+  const userId = c.req.param('userId');
+
+  // Delete all connections
+  await db.delete(connections).where(eq(connections.userId, userId));
+
+  // Delete from audit logs
+  await db.delete(auditLogs).where(eq(auditLogs.userId, userId));
+
+  return c.json({ message: 'User data deleted' });
+});
+```
+
+### SOC 2
+
+For SOC 2 compliance:
+
+- **Access controls**: Role-based API keys
+- **Audit logging**: All credential access logged
+- **Encryption**: AES-256-GCM for data at rest
+- **Change management**: Track all schema migrations
+- **Incident response**: Documented process
+
+## Security Checklist
+
+Production deployment security checklist:
+
+### Infrastructure
+- [ ] HTTPS enforced (no HTTP)
+- [ ] SSL/TLS 1.2+ only
+- [ ] Firewall configured (only expose ports 80, 443)
+- [ ] Database not publicly accessible
+- [ ] Redis not publicly accessible
+
+### Application
+- [ ] Unique encryption keys per environment
+- [ ] Encryption keys in secret manager (not env files)
+- [ ] API keys revocable
+- [ ] Rate limiting enabled
+- [ ] CORS restricted to trusted origins
+- [ ] Input validation on all endpoints
+- [ ] SQL injection prevention (prepared statements)
+
+### OAuth
+- [ ] PKCE enabled for all flows
+- [ ] State parameter validated
+- [ ] Redirect URI exact matching
+- [ ] Minimal OAuth scopes requested
+- [ ] Token refresh automated
+
+### Monitoring
+- [ ] Audit logging enabled
+- [ ] Security alerts configured
+- [ ] Error tracking (Sentry/Rollbar)
+- [ ] Uptime monitoring
+- [ ] Log aggregation (CloudWatch/Datadog)
+
+### Compliance
+- [ ] GDPR data deletion implemented
+- [ ] Privacy policy published
+- [ ] Terms of service published
+- [ ] Data processing agreement (if applicable)
+- [ ] Security questionnaire ready
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Self-Hosting Guide"
+    icon="server"
+    href="/guides/self-hosting"
+  >
+    Deploy Authlane securely
+  </Card>
+  <Card
+    title="OAuth Setup"
+    icon="key"
+    href="/guides/oauth-setup"
+  >
+    Configure OAuth apps
+  </Card>
+  <Card
+    title="Webhooks"
+    icon="webhook"
+    href="/guides/webhooks"
+  >
+    Monitor security events
+  </Card>
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api-reference"
+  >
+    Explore the API
+  </Card>
+</CardGroup>

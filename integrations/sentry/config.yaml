@@ -1,0 +1,15 @@
+id: sentry
+name: Sentry
+auth_type: oauth2
+config:
+  authorization_url: https://sentry.io/oauth/authorize/
+  token_url: https://sentry.io/oauth/token/
+  scopes:
+    - project:read
+    - project:write
+    - event:read
+    - event:write
+  default_scopes:
+    - project:read
+    - event:read
+    - event:write

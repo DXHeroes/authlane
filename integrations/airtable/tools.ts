@@ -1,0 +1,411 @@
+/**
+ * Airtable integration tool definitions
+ * Supports both MCP and OpenAI function calling formats
+ */
+
+import type { ToolFormat } from '@authlane/shared';
+
+export interface AirtableTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+}
+
+const airtableTools: AirtableTool[] = [
+  {
+    name: 'airtable_list_records',
+    description: 'Lists records from an Airtable table with optional filtering and sorting',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name to list records from',
+        },
+        fields: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of field names to return (returns all fields if not specified)',
+        },
+        filter_by_formula: {
+          type: 'string',
+          description: 'Airtable formula to filter records (e.g., "{Status} = \'Done\'")',
+        },
+        max_records: {
+          type: 'number',
+          description: 'Maximum number of records to return (default: 100, max: 100)',
+          default: 100,
+          maximum: 100,
+        },
+        page_size: {
+          type: 'number',
+          description: 'Number of records to return per page (default: 100, max: 100)',
+          default: 100,
+          maximum: 100,
+        },
+        sort: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              field: {
+                type: 'string',
+                description: 'Field name to sort by',
+              },
+              direction: {
+                type: 'string',
+                enum: ['asc', 'desc'],
+                description: 'Sort direction',
+              },
+            },
+          },
+          description: 'Array of sort objects',
+        },
+        view: {
+          type: 'string',
+          description: 'Name or ID of a view to use for filtering/sorting',
+        },
+        cell_format: {
+          type: 'string',
+          enum: ['json', 'string'],
+          description: 'How to format cell values (default: json)',
+          default: 'json',
+        },
+        time_zone: {
+          type: 'string',
+          description: 'Timezone for date fields (e.g., "America/New_York")',
+        },
+        user_locale: {
+          type: 'string',
+          description: 'Locale for formatting (e.g., "en-us")',
+        },
+        offset: {
+          type: 'string',
+          description: 'Pagination offset from previous response',
+        },
+      },
+      required: ['base_id', 'table_id'],
+    },
+  },
+  {
+    name: 'airtable_create_record',
+    description: 'Creates a new record in an Airtable table',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name to create record in',
+        },
+        fields: {
+          type: 'object',
+          description: 'Object containing field names and their values',
+          additionalProperties: true,
+        },
+        typecast: {
+          type: 'boolean',
+          description: 'Automatically convert values to correct field types (default: false)',
+          default: false,
+        },
+      },
+      required: ['base_id', 'table_id', 'fields'],
+    },
+  },
+  {
+    name: 'airtable_update_record',
+    description: 'Updates an existing record in an Airtable table',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name containing the record',
+        },
+        record_id: {
+          type: 'string',
+          description: 'ID of the record to update (starts with "rec")',
+        },
+        fields: {
+          type: 'object',
+          description: 'Object containing field names and their updated values',
+          additionalProperties: true,
+        },
+        typecast: {
+          type: 'boolean',
+          description: 'Automatically convert values to correct field types (default: false)',
+          default: false,
+        },
+        replace: {
+          type: 'boolean',
+          description: 'If true, replaces all fields (unspecified fields cleared). If false, merges (default: false)',
+          default: false,
+        },
+      },
+      required: ['base_id', 'table_id', 'record_id', 'fields'],
+    },
+  },
+  {
+    name: 'airtable_get_record',
+    description: 'Retrieves a single record by ID from an Airtable table',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name containing the record',
+        },
+        record_id: {
+          type: 'string',
+          description: 'ID of the record to retrieve (starts with "rec")',
+        },
+        cell_format: {
+          type: 'string',
+          enum: ['json', 'string'],
+          description: 'How to format cell values (default: json)',
+          default: 'json',
+        },
+        time_zone: {
+          type: 'string',
+          description: 'Timezone for date fields (e.g., "America/New_York")',
+        },
+        user_locale: {
+          type: 'string',
+          description: 'Locale for formatting (e.g., "en-us")',
+        },
+      },
+      required: ['base_id', 'table_id', 'record_id'],
+    },
+  },
+  {
+    name: 'airtable_delete_record',
+    description: 'Deletes a record from an Airtable table',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name containing the record',
+        },
+        record_id: {
+          type: 'string',
+          description: 'ID of the record to delete (starts with "rec")',
+        },
+      },
+      required: ['base_id', 'table_id', 'record_id'],
+    },
+  },
+  {
+    name: 'airtable_create_records_batch',
+    description: 'Creates multiple records in an Airtable table (up to 10 at once)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name to create records in',
+        },
+        records: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              fields: {
+                type: 'object',
+                description: 'Object containing field names and their values',
+                additionalProperties: true,
+              },
+            },
+            required: ['fields'],
+          },
+          description: 'Array of record objects to create (max 10)',
+          maxItems: 10,
+        },
+        typecast: {
+          type: 'boolean',
+          description: 'Automatically convert values to correct field types (default: false)',
+          default: false,
+        },
+      },
+      required: ['base_id', 'table_id', 'records'],
+    },
+  },
+  {
+    name: 'airtable_update_records_batch',
+    description: 'Updates multiple records in an Airtable table (up to 10 at once)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name containing the records',
+        },
+        records: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: {
+                type: 'string',
+                description: 'ID of the record to update (starts with "rec")',
+              },
+              fields: {
+                type: 'object',
+                description: 'Object containing field names and their updated values',
+                additionalProperties: true,
+              },
+            },
+            required: ['id', 'fields'],
+          },
+          description: 'Array of record objects to update (max 10)',
+          maxItems: 10,
+        },
+        typecast: {
+          type: 'boolean',
+          description: 'Automatically convert values to correct field types (default: false)',
+          default: false,
+        },
+        replace: {
+          type: 'boolean',
+          description: 'If true, replaces all fields (unspecified fields cleared). If false, merges (default: false)',
+          default: false,
+        },
+      },
+      required: ['base_id', 'table_id', 'records'],
+    },
+  },
+  {
+    name: 'airtable_delete_records_batch',
+    description: 'Deletes multiple records from an Airtable table (up to 10 at once)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name containing the records',
+        },
+        record_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of record IDs to delete (max 10)',
+          maxItems: 10,
+        },
+      },
+      required: ['base_id', 'table_id', 'record_ids'],
+    },
+  },
+  {
+    name: 'airtable_list_bases',
+    description: 'Lists all bases (workspaces) accessible by the user',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        offset: {
+          type: 'string',
+          description: 'Pagination offset from previous response',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'airtable_get_base_schema',
+    description: 'Retrieves the schema (structure) of an Airtable base including all tables and fields',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+      },
+      required: ['base_id'],
+    },
+  },
+  {
+    name: 'airtable_get_table_schema',
+    description: 'Retrieves the schema (structure) of a specific table including all fields',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base_id: {
+          type: 'string',
+          description: 'ID of the Airtable base (starts with "app")',
+        },
+        table_id: {
+          type: 'string',
+          description: 'Table ID or name to get schema for',
+        },
+      },
+      required: ['base_id', 'table_id'],
+    },
+  },
+];
+
+/**
+ * Converts tools to MCP format
+ */
+export function getToolsMCP(): { tools: AirtableTool[] } {
+  return { tools: airtableTools };
+}
+
+/**
+ * Converts tools to OpenAI function calling format
+ */
+export function getToolsOpenAI(): {
+  functions: Array<{
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  }>;
+} {
+  return {
+    functions: airtableTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    })),
+  };
+}
+
+/**
+ * Gets tools in the specified format
+ */
+export function getTools(format: ToolFormat) {
+  return format === 'mcp' ? getToolsMCP() : getToolsOpenAI();
+}

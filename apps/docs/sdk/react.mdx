@@ -1,0 +1,287 @@
+---
+title: 'React Components'
+description: 'Pre-built React components for OAuth flows'
+---
+
+## Installation
+
+```bash
+npm install @authlane/react @authlane/sdk
+```
+
+## Setup
+
+Wrap your app with `AuthlaneProvider`:
+
+```tsx
+import { AuthlaneProvider } from '@authlane/react';
+
+function App() {
+  return (
+    <AuthlaneProvider
+      publicKey="pk_live_..."
+      userId={currentUser.id}
+      baseUrl="https://api.authlane.com"
+    >
+      <YourApp />
+    </AuthlaneProvider>
+  );
+}
+```
+
+## Components
+
+### ConnectionButton
+
+Pre-built button that handles OAuth flow:
+
+```tsx
+import { ConnectionButton } from '@authlane/react';
+
+function Dashboard() {
+  return (
+    <ConnectionButton
+      service="github"
+      onSuccess={(connection) => {
+        console.log('Connected!', connection);
+      }}
+      onError={(error) => {
+        console.error('Failed:', error);
+      }}
+    />
+  );
+}
+```
+
+**Props:**
+
+<ParamField path="service" type="string" required>
+  Service ID (e.g., "github", "slack")
+</ParamField>
+
+<ParamField path="onSuccess" type="(connection: Connection) => void">
+  Callback when connection succeeds
+</ParamField>
+
+<ParamField path="onError" type="(error: Error) => void">
+  Callback when connection fails
+</ParamField>
+
+<ParamField path="mode" type="'popup' | 'redirect'" default="popup">
+  OAuth flow mode
+</ParamField>
+
+### ConnectionList
+
+Display all user connections:
+
+```tsx
+import { ConnectionList } from '@authlane/react';
+
+function Settings() {
+  return (
+    <ConnectionList
+      onDisconnect={(service) => {
+        console.log('Disconnected:', service);
+      }}
+    />
+  );
+}
+```
+
+### ConnectionStatus
+
+Show connection status badge:
+
+```tsx
+import { ConnectionStatus } from '@authlane/react';
+
+function IntegrationCard() {
+  return (
+    <div>
+      <h3>GitHub</h3>
+      <ConnectionStatus serviceId="github" />
+    </div>
+  );
+}
+```
+
+## Hooks
+
+### useConnection
+
+Get connection state:
+
+```tsx
+import { useConnection } from '@authlane/react';
+
+function GitHubIntegration() {
+  const { connection, loading, error, connect, disconnect } = useConnection('github');
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      {connection ? (
+        <>
+          <p>Connected as {connection.metadata.username}</p>
+          <button onClick={disconnect}>Disconnect</button>
+        </>
+      ) : (
+        <button onClick={connect}>Connect GitHub</button>
+      )}
+    </div>
+  );
+}
+```
+
+### useConnections
+
+Get all connections:
+
+```tsx
+import { useConnections } from '@authlane/react';
+
+function ConnectionsPage() {
+  const { connections, loading, refresh } = useConnections();
+
+  return (
+    <div>
+      {connections.map(conn => (
+        <div key={conn.id}>
+          {conn.serviceId}: {conn.status}
+        </div>
+      ))}
+      <button onClick={refresh}>Refresh</button>
+    </div>
+  );
+}
+```
+
+### useAuthlane
+
+Access Authlane SDK instance:
+
+```tsx
+import { useAuthlane } from '@authlane/react';
+
+function CustomComponent() {
+  const authlane = useAuthlane();
+
+  async function fetchCredentials() {
+    const { data } = await authlane.connections.getCredentials({
+      userId: 'user_123',
+      serviceId: 'github',
+    });
+    console.log(data);
+  }
+
+  return <button onClick={fetchCredentials}>Get Credentials</button>;
+}
+```
+
+## Customization
+
+### Styling
+
+Use className prop for custom styling:
+
+```tsx
+<ConnectionButton
+  service="github"
+  className="my-custom-button"
+/>
+```
+
+Or use CSS variables:
+
+```css
+:root {
+  --authlane-primary: #0D9373;
+  --authlane-error: #EF4444;
+  --authlane-border-radius: 8px;
+}
+```
+
+### Custom UI
+
+Build custom UI with hooks:
+
+```tsx
+function CustomConnectionButton({ service }: { service: string }) {
+  const { connection, connect, disconnect, loading } = useConnection(service);
+
+  return (
+    <button
+      onClick={connection ? disconnect : connect}
+      disabled={loading}
+      style={{ /* your styles */ }}
+    >
+      {loading ? 'Loading...' : connection ? 'Disconnect' : `Connect ${service}`}
+    </button>
+  );
+}
+```
+
+## Examples
+
+<CodeGroup>
+
+```tsx Full Integration Page
+import { ConnectionList, ConnectionButton } from '@authlane/react';
+
+function IntegrationsPage() {
+  return (
+    <div>
+      <h1>Connected Services</h1>
+      <ConnectionList />
+
+      <h2>Available Integrations</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <ConnectionButton service="github" />
+        <ConnectionButton service="slack" />
+        <ConnectionButton service="linear" />
+        <ConnectionButton service="notion" />
+      </div>
+    </div>
+  );
+}
+```
+
+```tsx Conditional Rendering
+import { useConnection } from '@authlane/react';
+
+function ProtectedFeature() {
+  const { connection } = useConnection('github');
+
+  if (!connection) {
+    return (
+      <div>
+        <p>Connect GitHub to use this feature</p>
+        <ConnectionButton service="github" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2>GitHub Features</h2>
+      {/* Feature content */}
+    </div>
+  );
+}
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="TypeScript SDK" icon="code" href="/sdk/typescript">
+    Use SDK directly
+  </Card>
+  <Card title="Examples" icon="code-branch" href="https://github.com/authlane/examples">
+    See full examples
+  </Card>
+</CardGroup>

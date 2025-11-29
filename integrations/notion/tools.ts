@@ -1,0 +1,491 @@
+/**
+ * Notion integration tool definitions
+ * Supports both MCP and OpenAI function calling formats
+ */
+
+import type { ToolFormat } from '@authlane/shared';
+
+export interface NotionTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+}
+
+const notionTools: NotionTool[] = [
+  {
+    name: 'notion_create_page',
+    description: 'Creates a new page in a Notion database or as a child of another page',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        parent: {
+          type: 'object',
+          description: 'Parent database or page where the new page will be created',
+          properties: {
+            database_id: {
+              type: 'string',
+              description: 'ID of the parent database (use this OR page_id)',
+            },
+            page_id: {
+              type: 'string',
+              description: 'ID of the parent page (use this OR database_id)',
+            },
+          },
+        },
+        properties: {
+          type: 'object',
+          description: 'Page properties (structure varies by database schema)',
+          additionalProperties: true,
+        },
+        children: {
+          type: 'array',
+          items: { type: 'object' },
+          description: 'Array of block objects for page content',
+        },
+        icon: {
+          type: 'object',
+          description: 'Page icon (emoji or external URL)',
+          properties: {
+            type: {
+              type: 'string',
+              enum: ['emoji', 'external'],
+            },
+            emoji: {
+              type: 'string',
+              description: 'Emoji character (when type is emoji)',
+            },
+            external: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+              },
+              description: 'External URL (when type is external)',
+            },
+          },
+        },
+        cover: {
+          type: 'object',
+          description: 'Page cover image',
+          properties: {
+            type: {
+              type: 'string',
+              enum: ['external'],
+            },
+            external: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+      required: ['parent'],
+    },
+  },
+  {
+    name: 'notion_query_database',
+    description: 'Queries a Notion database with optional filters and sorting',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        database_id: {
+          type: 'string',
+          description: 'ID of the database to query',
+        },
+        filter: {
+          type: 'object',
+          description: 'Filter conditions (supports property filters, compound filters with AND/OR)',
+          additionalProperties: true,
+        },
+        sorts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              property: {
+                type: 'string',
+                description: 'Property name to sort by',
+              },
+              direction: {
+                type: 'string',
+                enum: ['ascending', 'descending'],
+                description: 'Sort direction',
+              },
+              timestamp: {
+                type: 'string',
+                enum: ['created_time', 'last_edited_time'],
+                description: 'Timestamp to sort by (alternative to property)',
+              },
+            },
+          },
+          description: 'Array of sort objects',
+        },
+        start_cursor: {
+          type: 'string',
+          description: 'Pagination cursor from previous response',
+        },
+        page_size: {
+          type: 'number',
+          description: 'Number of results to return (default: 100, max: 100)',
+          default: 100,
+          maximum: 100,
+        },
+        filter_properties: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of property IDs to return (returns all if not specified)',
+        },
+      },
+      required: ['database_id'],
+    },
+  },
+  {
+    name: 'notion_update_page',
+    description: 'Updates properties of an existing Notion page',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        page_id: {
+          type: 'string',
+          description: 'ID of the page to update',
+        },
+        properties: {
+          type: 'object',
+          description: 'Page properties to update (only specified properties will be changed)',
+          additionalProperties: true,
+        },
+        archived: {
+          type: 'boolean',
+          description: 'Whether to archive (delete) the page',
+        },
+        icon: {
+          type: 'object',
+          description: 'Page icon (emoji or external URL)',
+          properties: {
+            type: {
+              type: 'string',
+              enum: ['emoji', 'external'],
+            },
+            emoji: {
+              type: 'string',
+              description: 'Emoji character (when type is emoji)',
+            },
+            external: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+              },
+              description: 'External URL (when type is external)',
+            },
+          },
+        },
+        cover: {
+          type: 'object',
+          description: 'Page cover image',
+          properties: {
+            type: {
+              type: 'string',
+              enum: ['external'],
+            },
+            external: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+      required: ['page_id'],
+    },
+  },
+  {
+    name: 'notion_get_page',
+    description: 'Retrieves a page from Notion by ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        page_id: {
+          type: 'string',
+          description: 'ID of the page to retrieve',
+        },
+        filter_properties: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of property IDs to return (returns all if not specified)',
+        },
+      },
+      required: ['page_id'],
+    },
+  },
+  {
+    name: 'notion_get_database',
+    description: 'Retrieves database information including schema',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        database_id: {
+          type: 'string',
+          description: 'ID of the database to retrieve',
+        },
+      },
+      required: ['database_id'],
+    },
+  },
+  {
+    name: 'notion_list_databases',
+    description: 'Lists all databases that the integration has access to',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        start_cursor: {
+          type: 'string',
+          description: 'Pagination cursor from previous response',
+        },
+        page_size: {
+          type: 'number',
+          description: 'Number of results to return (default: 100, max: 100)',
+          default: 100,
+          maximum: 100,
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'notion_search',
+    description: 'Searches all pages and databases that the integration has access to',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Text to search for (searches title property)',
+        },
+        filter: {
+          type: 'object',
+          description: 'Filter by object type',
+          properties: {
+            value: {
+              type: 'string',
+              enum: ['page', 'database'],
+              description: 'Type of object to filter by',
+            },
+            property: {
+              type: 'string',
+              enum: ['object'],
+              description: 'Property to filter (always "object")',
+              default: 'object',
+            },
+          },
+        },
+        sort: {
+          type: 'object',
+          description: 'Sort results',
+          properties: {
+            direction: {
+              type: 'string',
+              enum: ['ascending', 'descending'],
+              description: 'Sort direction',
+            },
+            timestamp: {
+              type: 'string',
+              enum: ['last_edited_time'],
+              description: 'Timestamp to sort by',
+            },
+          },
+        },
+        start_cursor: {
+          type: 'string',
+          description: 'Pagination cursor from previous response',
+        },
+        page_size: {
+          type: 'number',
+          description: 'Number of results to return (default: 100, max: 100)',
+          default: 100,
+          maximum: 100,
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'notion_append_block_children',
+    description: 'Appends new block children to a page or block',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        block_id: {
+          type: 'string',
+          description: 'ID of the block or page to append children to',
+        },
+        children: {
+          type: 'array',
+          items: { type: 'object' },
+          description: 'Array of block objects to append',
+        },
+        after: {
+          type: 'string',
+          description: 'ID of block to insert after (optional)',
+        },
+      },
+      required: ['block_id', 'children'],
+    },
+  },
+  {
+    name: 'notion_get_block',
+    description: 'Retrieves a block by ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        block_id: {
+          type: 'string',
+          description: 'ID of the block to retrieve',
+        },
+      },
+      required: ['block_id'],
+    },
+  },
+  {
+    name: 'notion_get_block_children',
+    description: 'Retrieves children blocks of a page or block',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        block_id: {
+          type: 'string',
+          description: 'ID of the parent block or page',
+        },
+        start_cursor: {
+          type: 'string',
+          description: 'Pagination cursor from previous response',
+        },
+        page_size: {
+          type: 'number',
+          description: 'Number of results to return (default: 100, max: 100)',
+          default: 100,
+          maximum: 100,
+        },
+      },
+      required: ['block_id'],
+    },
+  },
+  {
+    name: 'notion_update_block',
+    description: 'Updates a block by ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        block_id: {
+          type: 'string',
+          description: 'ID of the block to update',
+        },
+        archived: {
+          type: 'boolean',
+          description: 'Whether to archive (delete) the block',
+        },
+        content: {
+          type: 'object',
+          description: 'Updated block content (structure varies by block type)',
+          additionalProperties: true,
+        },
+      },
+      required: ['block_id'],
+    },
+  },
+  {
+    name: 'notion_delete_block',
+    description: 'Deletes (archives) a block by ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        block_id: {
+          type: 'string',
+          description: 'ID of the block to delete',
+        },
+      },
+      required: ['block_id'],
+    },
+  },
+  {
+    name: 'notion_get_user',
+    description: 'Retrieves a user by ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'ID of the user to retrieve',
+        },
+      },
+      required: ['user_id'],
+    },
+  },
+  {
+    name: 'notion_list_users',
+    description: 'Lists all users in the workspace',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        start_cursor: {
+          type: 'string',
+          description: 'Pagination cursor from previous response',
+        },
+        page_size: {
+          type: 'number',
+          description: 'Number of results to return (default: 100, max: 100)',
+          default: 100,
+          maximum: 100,
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'notion_get_bot_user',
+    description: 'Retrieves the bot user associated with the integration',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+];
+
+/**
+ * Converts tools to MCP format
+ */
+export function getToolsMCP(): { tools: NotionTool[] } {
+  return { tools: notionTools };
+}
+
+/**
+ * Converts tools to OpenAI function calling format
+ */
+export function getToolsOpenAI(): {
+  functions: Array<{
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  }>;
+} {
+  return {
+    functions: notionTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    })),
+  };
+}
+
+/**
+ * Gets tools in the specified format
+ */
+export function getTools(format: ToolFormat) {
+  return format === 'mcp' ? getToolsMCP() : getToolsOpenAI();
+}

@@ -1,0 +1,17 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.production.example
+*.md
+!README.md
+.turbo
+coverage
+.next
+.vercel
+*.log
+.DS_Store
+apps/*/dist
+packages/*/dist

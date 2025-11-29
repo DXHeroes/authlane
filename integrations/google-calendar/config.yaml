@@ -1,0 +1,14 @@
+id: google-calendar
+name: Google Calendar
+auth_type: oauth2
+config:
+  authorization_url: https://accounts.google.com/o/oauth2/v2/auth
+  token_url: https://oauth2.googleapis.com/token
+  scopes:
+    - https://www.googleapis.com/auth/calendar
+    - https://www.googleapis.com/auth/calendar.readonly
+    - https://www.googleapis.com/auth/calendar.events
+    - https://www.googleapis.com/auth/calendar.events.readonly
+  default_scopes:
+    - https://www.googleapis.com/auth/calendar.events
+    - https://www.googleapis.com/auth/calendar.readonly

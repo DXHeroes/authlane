@@ -1,0 +1,13 @@
+id: linear
+name: Linear
+auth_type: oauth2
+config:
+  authorization_url: https://linear.app/oauth/authorize
+  token_url: https://api.linear.app/oauth/token
+  scopes:
+    - read
+    - write
+    - issues:create
+  default_scopes:
+    - read
+    - write

@@ -1,0 +1,44 @@
+id: pipedrive
+name: Pipedrive
+auth_type: oauth2
+config:
+  authorization_url: https://oauth.pipedrive.com/oauth/authorize
+  token_url: https://oauth.pipedrive.com/oauth/token
+  # Pipedrive OAuth scopes
+  scopes:
+    - deals:read
+    - deals:write
+    - deals:delete
+    - contacts:read
+    - contacts:write
+    - contacts:delete
+    - persons:read
+    - persons:write
+    - persons:delete
+    - organizations:read
+    - organizations:write
+    - organizations:delete
+    - activities:read
+    - activities:write
+    - activities:delete
+    - pipelines:read
+    - users:read
+    - notes:read
+    - notes:write
+    - products:read
+    - products:write
+  default_scopes:
+    - deals:read
+    - deals:write
+    - contacts:read
+    - contacts:write
+    - persons:read
+    - persons:write
+  # Pipedrive uses company-specific API domains
+  # The API domain is returned during OAuth as api_domain (e.g., mycompany.pipedrive.com)
+  # API requests go to https://{api_domain}/v1/
+  features:
+    rest_api: true
+    webhooks: true
+    custom_fields: true
+  api_version: v1

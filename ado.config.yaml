@@ -11,7 +11,7 @@ project:
 providers:
   claude-code:
     enabled: true
-    contextFile: "CLAUDE.md"
+    contextFile: "AGENTS.md"
     
     accessModes:
       - mode: subscription
@@ -31,14 +31,14 @@ providers:
       testing: true
       documentation: true
       debugging: true
-      languages: ["typescript", "python", "go", "rust", "java"]
+      languages: ["typescript"]
       maxContextTokens: 200000
       supportsStreaming: true
       supportsMCP: true
       supportsResume: true
     
     defaultOptions:
-      model: "claude-sonnet-4-20250514"
+      model: "claude-opus-4-5-20251101"
       maxTurns: 50
       permissionMode: "acceptEdits"
 

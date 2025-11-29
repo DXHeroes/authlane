@@ -1,9 +1,12 @@
 /**
  * Database schema for Authlane
- * Uses Drizzle ORM with PostgreSQL Row-Level Security (RLS) for multi-tenancy
+ * Uses Drizzle ORM with PostgreSQL
  */
 
+// Better Auth tables (user, session, account, organization, member, invitation)
+export * from './auth.js';
+
+// Application tables
 export * from './connections.js';
 export * from './services.js';
-export * from './tenant-services.js';
-export * from './tenants.js';
+export * from './organization-services.js';

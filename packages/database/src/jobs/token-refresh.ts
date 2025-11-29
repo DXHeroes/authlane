@@ -10,8 +10,9 @@ import { connections, services } from '../schema/index.js';
 
 export interface TokenRefreshData {
   connectionId: string;
-  tenantId: string;
   serviceId: string;
+  userId?: string; // For user-scoped connections
+  organizationId?: string; // For organization-scoped connections
 }
 
 /**

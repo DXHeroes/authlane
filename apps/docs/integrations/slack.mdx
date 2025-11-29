@@ -1,0 +1,44 @@
+---
+title: 'Slack'
+description: 'Send messages and manage channels in Slack'
+---
+
+## Overview
+
+**Category:** Communication
+**Auth Type:** OAuth 2.0
+**Scopes:** `chat:write`, `channels:read`, `users:read`
+
+## Setup
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click **Create New App** → **From scratch**
+3. Add redirect URL: `https://api.authlane.com/api/v1/oauth/callback`
+4. Add scopes: `chat:write`, `channels:read`, `users:read`
+5. Install to workspace
+
+## Tools
+
+### slack_send_message
+
+Send a message to a channel.
+
+```typescript
+await authlane.tools.execute({
+  userId: 'user_123',
+  serviceId: 'slack',
+  toolName: 'slack_send_message',
+  parameters: {
+    channel: '#engineering',
+    text: 'Deployment successful!',
+  },
+});
+```
+
+### slack_list_channels
+
+List all channels in workspace.
+
+### slack_create_channel
+
+Create a new channel.

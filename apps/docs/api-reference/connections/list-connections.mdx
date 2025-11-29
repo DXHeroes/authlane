@@ -1,0 +1,94 @@
+---
+title: 'List Connections'
+api: 'GET /api/v1/users/{userId}/connections'
+description: 'Get all connections for a user'
+---
+
+## Path Parameters
+
+<ParamField path="userId" type="string" required>
+  The unique identifier for the user
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="serviceId" type="string">
+  Filter by specific service (optional)
+</ParamField>
+
+## Request
+
+```bash
+curl https://api.authlane.com/api/v1/users/user_123/connections \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+## Response
+
+<ResponseField name="data" type="Connection[]">
+  Array of user connections
+
+  <Expandable title="Connection Object">
+    <ResponseField name="id" type="string">
+      Unique connection identifier
+    </ResponseField>
+
+    <ResponseField name="userId" type="string">
+      User who owns this connection
+    </ResponseField>
+
+    <ResponseField name="serviceId" type="string">
+      Connected service identifier
+    </ResponseField>
+
+    <ResponseField name="status" type="string">
+      Connection status: `connected`, `expired`, `error`
+    </ResponseField>
+
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+
+    <ResponseField name="lastRefreshedAt" type="string">
+      Last token refresh timestamp
+    </ResponseField>
+
+    <ResponseField name="expiresAt" type="string">
+      Token expiration timestamp (if applicable)
+    </ResponseField>
+
+    <ResponseField name="metadata" type="object">
+      Service-specific metadata (e.g., username, email)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "data": [
+    {
+      "id": "conn_abc123",
+      "userId": "user_123",
+      "serviceId": "github",
+      "tenantId": "tenant_xyz",
+      "status": "connected",
+      "createdAt": "2025-11-27T10:00:00.000Z",
+      "lastRefreshedAt": "2025-11-27T12:00:00.000Z",
+      "expiresAt": null,
+      "metadata": {
+        "username": "johndoe",
+        "email": "john@example.com"
+      }
+    }
+  ]
+}
+```
+
+## Filter by Service
+
+```bash
+curl https://api.authlane.com/api/v1/users/user_123/connections?serviceId=github \
+  -H "Authorization: Bearer sk_live_..."
+```

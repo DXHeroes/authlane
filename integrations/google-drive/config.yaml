@@ -1,0 +1,16 @@
+id: google-drive
+name: Google Drive
+auth_type: oauth2
+config:
+  authorization_url: https://accounts.google.com/o/oauth2/v2/auth
+  token_url: https://oauth2.googleapis.com/token
+  scopes:
+    - https://www.googleapis.com/auth/drive
+    - https://www.googleapis.com/auth/drive.file
+    - https://www.googleapis.com/auth/drive.readonly
+    - https://www.googleapis.com/auth/drive.metadata
+    - https://www.googleapis.com/auth/drive.metadata.readonly
+    - https://www.googleapis.com/auth/drive.appdata
+  default_scopes:
+    - https://www.googleapis.com/auth/drive.file
+    - https://www.googleapis.com/auth/drive.readonly

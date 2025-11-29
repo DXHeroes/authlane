@@ -1,0 +1,423 @@
+openapi: 3.0.0
+info:
+  title: Authlane API
+  description: OAuth and integration management platform for AI agents
+  version: 1.0.0
+  contact:
+    name: Authlane Support
+    email: support@authlane.com
+    url: https://authlane.com
+
+servers:
+  - url: https://api.authlane.com
+    description: Production
+  - url: http://localhost:3000
+    description: Development
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /api/v1/services:
+    get:
+      summary: List Services
+      description: Get all available integrations
+      operationId: listServices
+      tags:
+        - Services
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+
+  /api/v1/users/{userId}/connections:
+    get:
+      summary: List Connections
+      description: Get all connections for a user
+      operationId: listConnections
+      tags:
+        - Connections
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: serviceId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Connection'
+
+  /api/v1/users/{userId}/connections/{serviceId}:
+    get:
+      summary: Get Connection
+      description: Get a specific connection
+      operationId: getConnection
+      tags:
+        - Connections
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Connection details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Connection'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete Connection
+      description: Remove a connection
+      operationId: deleteConnection
+      tags:
+        - Connections
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Connection deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/users/{userId}/connections/{serviceId}/credentials:
+    get:
+      summary: Get Credentials
+      description: Get decrypted credentials for a connection
+      operationId: getCredentials
+      tags:
+        - Connections
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Decrypted credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Credentials'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/users/{userId}/connections/{serviceId}/health:
+    get:
+      summary: Health Check
+      description: Check connection health status
+      operationId: healthCheck
+      tags:
+        - Connections
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HealthStatus'
+
+  /api/v1/oauth/authorize:
+    get:
+      summary: Start OAuth Flow
+      description: Get OAuth authorization URL
+      operationId: authorize
+      tags:
+        - OAuth
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: service_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                      state:
+                        type: string
+
+  /api/v1/oauth/callback:
+    post:
+      summary: OAuth Callback
+      description: Handle OAuth callback and exchange code for token
+      operationId: callback
+      tags:
+        - OAuth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                state:
+                  type: string
+              required:
+                - code
+                - state
+      responses:
+        '200':
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Connection'
+
+  /api/v1/users/{userId}/tools:
+    get:
+      summary: List Tools
+      description: Get available tools for user's connections
+      operationId: listTools
+      tags:
+        - Tools
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [mcp, openai]
+            default: mcp
+      responses:
+        '200':
+          description: List of tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tool'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: API key with 'Bearer ' prefix
+
+  schemas:
+    Service:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum: [developer_tools, communication, productivity, crm, other]
+        authType:
+          type: string
+          enum: [oauth2, oauth1, api_key]
+        enabled:
+          type: boolean
+        config:
+          type: object
+
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        serviceId:
+          type: string
+        tenantId:
+          type: string
+        status:
+          type: string
+          enum: [connected, expired, error]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastRefreshedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    Credentials:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_at:
+          type: integer
+        token_type:
+          type: string
+        scope:
+          type: string
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [connected, expired, error]
+        lastRefreshed:
+          type: string
+          format: date-time
+        nextRefresh:
+          type: string
+          format: date-time
+        error:
+          type: string
+
+    Tool:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        inputSchema:
+          type: object
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        hint:
+          type: string
+        details:
+          type: object
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Services
+    description: Available integrations
+  - name: Connections
+    description: User connections
+  - name: OAuth
+    description: OAuth flows
+  - name: Tools
+    description: Integration tools

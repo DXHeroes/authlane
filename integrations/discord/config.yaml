@@ -1,0 +1,15 @@
+id: discord
+name: Discord
+auth_type: oauth2
+config:
+  authorization_url: https://discord.com/api/oauth2/authorize
+  token_url: https://discord.com/api/oauth2/token
+  scopes:
+    - bot
+    - messages.read
+    - messages.write
+    - guilds
+    - guilds.members.read
+  default_scopes:
+    - bot
+    - messages.write

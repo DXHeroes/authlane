@@ -10,18 +10,21 @@
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "migrate": "tsx src/migrate.ts",
+    "migrate": "dotenv -e ../../.env -- tsx src/migrate.ts",
     "generate": "drizzle-kit generate --config=drizzle.config.ts",
     "studio": "drizzle-kit studio",
-    "seed": "tsx src/seed.ts"
+    "seed": "dotenv -e ../../.env -- tsx src/seed.ts"
   },
   "dependencies": {
     "@authlane/crypto": "workspace:*",
     "@authlane/shared": "workspace:*",
+    "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.44.7",
     "postgres": "^3.4.7"
   },
   "devDependencies": {
+    "@better-auth/cli": "^1.4.3",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^24.10.1",
     "drizzle-kit": "^0.31.7",
     "tsx": "^4.20.6",

@@ -1,0 +1,159 @@
+---
+title: 'API Reference'
+description: 'REST API documentation for Authlane'
+---
+
+## Base URL
+
+```
+https://api.authlane.com
+```
+
+For self-hosted instances, use your own base URL.
+
+## Authentication
+
+All API requests require authentication via API key in the `Authorization` header:
+
+```bash
+Authorization: Bearer sk_live_...
+```
+
+### Getting an API Key
+
+1. Log in to [Authlane Dashboard](https://app.authlane.com)
+2. Navigate to **Settings** → **API Keys**
+3. Click **Create API Key**
+4. Copy the key (shown once only!)
+
+### API Key Types
+
+| Type | Prefix | Permissions |
+|------|--------|-------------|
+| Live | `sk_live_` | Full production access |
+| Test | `sk_test_` | Sandbox environment |
+| Admin | `sk_admin_` | Tenant management |
+
+## Request Format
+
+### Headers
+
+```
+Content-Type: application/json
+Authorization: Bearer YOUR_API_KEY
+```
+
+### Example Request
+
+```bash
+curl https://api.authlane.com/api/v1/services \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+## Response Format
+
+All responses follow a consistent format:
+
+### Success Response
+
+```json
+{
+  "data": {
+    "id": "service_123",
+    "name": "GitHub",
+    ...
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": {
+    "code": "invalid_api_key",
+    "message": "The API key provided is invalid",
+    "hint": "Check that your API key is correct and not revoked"
+  }
+}
+```
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| `invalid_api_key` | API key is invalid or revoked |
+| `unauthorized` | Missing or invalid authorization |
+| `not_found` | Resource not found |
+| `validation_error` | Request validation failed |
+| `rate_limit_exceeded` | Too many requests |
+| `internal_error` | Server error |
+
+## Rate Limiting
+
+API requests are rate-limited per API key:
+
+- **Default**: 100 requests per 15 minutes
+- **Headers**:
+  - `X-RateLimit-Limit`: Request limit
+  - `X-RateLimit-Remaining`: Remaining requests
+  - `X-RateLimit-Reset`: Reset timestamp
+
+### Rate Limit Response
+
+```json
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "Rate limit exceeded. Try again in 15 minutes."
+  }
+}
+```
+
+## Pagination
+
+List endpoints support pagination:
+
+```bash
+GET /api/v1/users/user_123/connections?page=1&per_page=50
+```
+
+**Parameters:**
+- `page` (default: 1)
+- `per_page` (default: 50, max: 100)
+
+**Response:**
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "perPage": 50,
+    "total": 150,
+    "totalPages": 3,
+    "hasNext": true
+  }
+}
+```
+
+## Versioning
+
+The API is versioned via URL path:
+
+```
+/api/v1/...
+```
+
+Current version: **v1**
+
+## SDKs
+
+<CardGroup cols={2}>
+  <Card title="TypeScript" icon="code" href="/sdk/typescript">
+    Official TypeScript SDK
+  </Card>
+  <Card title="React" icon="react" href="/sdk/react">
+    React components
+  </Card>
+</CardGroup>

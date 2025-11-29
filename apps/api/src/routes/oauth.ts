@@ -3,10 +3,9 @@
  * Handles OAuth authorization and callback flows
  */
 
-import { randomUUID } from 'node:crypto';
 import { decrypt, encrypt, getEncryptionKey } from '@authlane/crypto';
 import type { Database } from '@authlane/database';
-import { connections, services, tenantServices } from '@authlane/database';
+import { connections, organizationServices, services, and, eq } from '@authlane/database';
 import {
   Errors,
   generatePKCE,
@@ -14,9 +13,7 @@ import {
   isValidServiceId,
   isValidUserId,
 } from '@authlane/shared';
-import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { getTenantId } from '../utils/tenant-context.js';
 
 export function createOAuthRouter(db: Database) {
   const router = new Hono();
@@ -26,11 +23,15 @@ export function createOAuthRouter(db: Database) {
    * Initiates OAuth2 authorization flow
    */
   router.get('/:userId/connections/:serviceId/authorize', async (c) => {
-    const userId = c.req.param('userId');
+    const externalUserId = c.req.param('userId');
     const serviceId = c.req.param('serviceId');
-    const tenantId = getTenantId(c);
+    const user = c.get('user');
+    const org = c.get('organization');
+    
+    // Determine scope from query param, default to 'user'
+    const scope = (c.req.query('scope') as 'user' | 'organization') || 'user';
 
-    if (!isValidUserId(userId)) {
+    if (!isValidUserId(externalUserId)) {
       return c.json(
         Errors.validationError('Invalid user ID', 'User ID must be a non-empty string'),
         400
@@ -58,15 +59,19 @@ export function createOAuthRouter(db: Database) {
       return c.json(Errors.oauthError('Service does not support OAuth2'), 400);
     }
 
-    // Check for tenant-specific configuration
-    const [tenantService] = await db
-      .select()
-      .from(tenantServices)
-      .where(and(eq(tenantServices.tenantId, tenantId), eq(tenantServices.serviceId, serviceId)))
-      .limit(1);
+    // Check for organization-specific configuration
+    let orgService = null;
+    if (org) {
+      const [found] = await db
+        .select()
+        .from(organizationServices)
+        .where(and(eq(organizationServices.organizationId, org.id), eq(organizationServices.serviceId, serviceId)))
+        .limit(1);
+      orgService = found;
+    }
 
-    if (tenantService && !tenantService.enabled) {
-      return c.json(Errors.oauthError('Service is disabled for this tenant'), 403);
+    if (orgService && !orgService.enabled) {
+      return c.json(Errors.oauthError('Service is disabled for this organization'), 403);
     }
 
     const config = service.config as {
@@ -79,23 +84,24 @@ export function createOAuthRouter(db: Database) {
       return c.json(Errors.oauthError('Service missing authorization URL'), 400);
     }
 
-    // Use tenant-specific OAuth client if configured, otherwise use query param
-    const clientId = tenantService?.oauthClientId || c.req.query('client_id') || '';
-    const scopes = tenantService?.customScopes || config.scopes || [];
+    // Use organization-specific OAuth client if configured, otherwise use query param
+    const clientId = orgService?.oauthClientId || c.req.query('client_id') || '';
+    const scopes = orgService?.customScopes || config.scopes || [];
 
     // Generate PKCE and state
     const { codeVerifier, codeChallenge } = generatePKCE();
     const state = generateState();
 
     // Store PKCE verifier and state in connection (temporary)
-    // In production, use Redis or session storage
-    const connectionId = randomUUID();
+    const connectionId = crypto.randomUUID();
     const redirectUri = c.req.query('redirect_uri') || `${c.req.url.split('?')[0]}/callback`;
 
     await db.insert(connections).values({
       id: connectionId,
-      tenantId,
-      externalUserId: userId,
+      scope,
+      userId: user?.id || null,
+      organizationId: scope === 'organization' ? org?.id : null,
+      externalUserId,
       serviceId,
       status: 'pending',
       metadata: {
@@ -108,7 +114,7 @@ export function createOAuthRouter(db: Database) {
     if (!clientId) {
       return c.json(
         Errors.oauthError(
-          'OAuth client ID required. Provide via query parameter or configure tenant service.'
+          'OAuth client ID required. Provide via query parameter or configure organization service.'
         ),
         400
       );
@@ -139,9 +145,11 @@ export function createOAuthRouter(db: Database) {
    * Handles OAuth2 callback
    */
   router.get('/:userId/connections/:serviceId/callback', async (c) => {
-    const userId = c.req.param('userId');
+    const externalUserId = c.req.param('userId');
     const serviceId = c.req.param('serviceId');
-    const tenantId = getTenantId(c);
+    // User and org context available from middleware for authorization
+    void c.get('user');
+    const org = c.get('organization');
     const code = c.req.query('code');
     const state = c.req.query('state');
     const error = c.req.query('error');
@@ -160,8 +168,7 @@ export function createOAuthRouter(db: Database) {
       .from(connections)
       .where(
         and(
-          eq(connections.tenantId, tenantId),
-          eq(connections.externalUserId, userId),
+          eq(connections.externalUserId, externalUserId),
           eq(connections.serviceId, serviceId),
           eq(connections.status, 'pending')
         )
@@ -169,7 +176,7 @@ export function createOAuthRouter(db: Database) {
       .limit(1);
 
     if (!connection) {
-      return c.json(Errors.notFound('Connection', `${userId}/${serviceId}`), 404);
+      return c.json(Errors.notFound('Connection', `${externalUserId}/${serviceId}`), 404);
     }
 
     const metadata = connection.metadata as {
@@ -190,12 +197,16 @@ export function createOAuthRouter(db: Database) {
       return c.json(Errors.notFound('Service', serviceId), 404);
     }
 
-    // Check for tenant-specific configuration
-    const [tenantService] = await db
-      .select()
-      .from(tenantServices)
-      .where(and(eq(tenantServices.tenantId, tenantId), eq(tenantServices.serviceId, serviceId)))
-      .limit(1);
+    // Check for organization-specific configuration
+    let orgService = null;
+    if (org) {
+      const [found] = await db
+        .select()
+        .from(organizationServices)
+        .where(and(eq(organizationServices.organizationId, org.id), eq(organizationServices.serviceId, serviceId)))
+        .limit(1);
+      orgService = found;
+    }
 
     const config = service.config as {
       token_url?: string;
@@ -205,18 +216,18 @@ export function createOAuthRouter(db: Database) {
       return c.json(Errors.oauthError('Service missing token URL'), 400);
     }
 
-    // Get client credentials (tenant-specific or from query)
+    // Get client credentials (organization-specific or from query)
     let clientId = c.req.query('client_id') || '';
     let clientSecret = c.req.query('client_secret') || '';
 
-    if (tenantService?.oauthClientId) {
-      clientId = tenantService.oauthClientId;
-      if (tenantService.oauthClientSecretEnc) {
+    if (orgService?.oauthClientId) {
+      clientId = orgService.oauthClientId;
+      if (orgService.oauthClientSecretEnc) {
         const encryptionKey = getEncryptionKey();
         try {
-          clientSecret = decrypt(tenantService.oauthClientSecretEnc, encryptionKey);
+          clientSecret = decrypt(orgService.oauthClientSecretEnc, encryptionKey);
         } catch (_error) {
-          return c.json(Errors.oauthError('Failed to decrypt tenant OAuth client secret'), 500);
+          return c.json(Errors.oauthError('Failed to decrypt organization OAuth client secret'), 500);
         }
       }
     }
@@ -294,9 +305,15 @@ export function createOAuthRouter(db: Database) {
       if (expiresAt && process.env.REDIS_URL) {
         try {
           const { scheduleTokenRefresh } = await import('../jobs/setup.js');
-          await scheduleTokenRefresh(connection.id, tenantId, serviceId, expiresAt);
-        } catch (error) {
-          console.warn('Failed to schedule token refresh:', error);
+          await scheduleTokenRefresh(
+            connection.id, 
+            serviceId, 
+            connection.userId || undefined, 
+            connection.organizationId || undefined, 
+            expiresAt
+          );
+        } catch (err) {
+          console.warn('Failed to schedule token refresh:', err);
           // Non-critical, continue
         }
       }
@@ -309,10 +326,10 @@ export function createOAuthRouter(db: Database) {
         },
         error: null,
       });
-    } catch (error) {
-      console.error('OAuth token exchange error:', error);
+    } catch (err) {
+      console.error('OAuth token exchange error:', err);
       return c.json(
-        Errors.oauthTokenExchangeFailed(error instanceof Error ? error.message : 'Unknown error'),
+        Errors.oauthTokenExchangeFailed(err instanceof Error ? err.message : 'Unknown error'),
         500
       );
     }

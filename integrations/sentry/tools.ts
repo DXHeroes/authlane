@@ -1,0 +1,213 @@
+/**
+ * Sentry integration tool definitions
+ * Supports both MCP and OpenAI function calling formats
+ */
+
+import type { ToolFormat } from '@authlane/shared';
+
+export interface SentryTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+}
+
+const sentryTools: SentryTool[] = [
+  {
+    name: 'sentry_list_issues',
+    description: 'Lists issues from Sentry with optional filters',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        organizationSlug: {
+          type: 'string',
+          description: 'Organization slug (e.g., "my-organization")',
+        },
+        projectSlug: {
+          type: 'string',
+          description: 'Project slug to filter issues (optional)',
+        },
+        query: {
+          type: 'string',
+          description: 'Search query using Sentry query syntax (e.g., "is:unresolved", "level:error")',
+        },
+        status: {
+          type: 'string',
+          description: 'Filter by issue status',
+          enum: ['resolved', 'unresolved', 'ignored', 'reprocessing'],
+        },
+        statsPeriod: {
+          type: 'string',
+          description: 'Time period for issue statistics (e.g., "14d", "24h", "30d")',
+          default: '14d',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of issues to return (default: 25, max: 100)',
+          default: 25,
+          maximum: 100,
+        },
+        cursor: {
+          type: 'string',
+          description: 'Pagination cursor from previous response',
+        },
+        sortBy: {
+          type: 'string',
+          description: 'Sort order for issues',
+          enum: ['date', 'new', 'priority', 'freq', 'user'],
+          default: 'date',
+        },
+      },
+      required: ['organizationSlug'],
+    },
+  },
+  {
+    name: 'sentry_resolve_issue',
+    description: 'Resolves or updates the status of a Sentry issue',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        issueId: {
+          type: 'string',
+          description: 'Sentry issue ID',
+        },
+        status: {
+          type: 'string',
+          description: 'New status for the issue',
+          enum: ['resolved', 'unresolved', 'ignored'],
+        },
+        statusDetails: {
+          type: 'object',
+          description: 'Additional details for the status change',
+          properties: {
+            inNextRelease: {
+              type: 'boolean',
+              description: 'Mark as resolved in next release',
+            },
+            inRelease: {
+              type: 'string',
+              description: 'Version number to mark as resolved in',
+            },
+            inCommit: {
+              type: 'string',
+              description: 'Commit hash that resolves this issue',
+            },
+            ignoreDuration: {
+              type: 'number',
+              description: 'Minutes to ignore the issue',
+            },
+            ignoreCount: {
+              type: 'number',
+              description: 'Number of events before unignoring',
+            },
+            ignoreUserCount: {
+              type: 'number',
+              description: 'Number of users affected before unignoring',
+            },
+            ignoreWindow: {
+              type: 'number',
+              description: 'Time window in minutes for ignore conditions',
+            },
+          },
+        },
+        assignedTo: {
+          type: 'string',
+          description: 'User ID or team slug to assign the issue to',
+        },
+      },
+      required: ['issueId', 'status'],
+    },
+  },
+  {
+    name: 'sentry_get_issue',
+    description: 'Gets detailed information about a specific Sentry issue',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        issueId: {
+          type: 'string',
+          description: 'Sentry issue ID',
+        },
+      },
+      required: ['issueId'],
+    },
+  },
+  {
+    name: 'sentry_list_events',
+    description: 'Lists events for a specific issue',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        issueId: {
+          type: 'string',
+          description: 'Sentry issue ID',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of events to return (default: 25, max: 100)',
+          default: 25,
+          maximum: 100,
+        },
+        cursor: {
+          type: 'string',
+          description: 'Pagination cursor from previous response',
+        },
+      },
+      required: ['issueId'],
+    },
+  },
+  {
+    name: 'sentry_add_comment',
+    description: 'Adds a comment to a Sentry issue',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        issueId: {
+          type: 'string',
+          description: 'Sentry issue ID',
+        },
+        comment: {
+          type: 'string',
+          description: 'Comment text to add to the issue',
+        },
+      },
+      required: ['issueId', 'comment'],
+    },
+  },
+];
+
+/**
+ * Converts tools to MCP format
+ */
+export function getToolsMCP(): { tools: SentryTool[] } {
+  return { tools: sentryTools };
+}
+
+/**
+ * Converts tools to OpenAI function calling format
+ */
+export function getToolsOpenAI(): {
+  functions: Array<{
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  }>;
+} {
+  return {
+    functions: sentryTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    })),
+  };
+}
+
+/**
+ * Gets tools in the specified format
+ */
+export function getTools(format: ToolFormat) {
+  return format === 'mcp' ? getToolsMCP() : getToolsOpenAI();
+}

@@ -6,6 +6,7 @@
 export * from './env.js';
 export * from './errors.js';
 export * from './hash.js';
+export * from './integration-loader.js';
 export * from './oauth.js';
 export * from './types.js';
 export * from './utils.js';

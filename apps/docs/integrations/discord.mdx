@@ -1,0 +1,70 @@
+---
+title: 'Discord'
+description: 'Integration guide for Discord'
+---
+
+## Overview
+
+Connect to Discord via OAuth 2.0.
+
+**Category:** Communication
+**Auth Type:** OAuth 2.0
+
+## Setup
+
+<Steps>
+  <Step title="Create OAuth App">
+    Create an OAuth application in Discord developer portal.
+  </Step>
+
+  <Step title="Configure Callback">
+    Set redirect URL: `https://api.authlane.com/api/v1/oauth/callback`
+  </Step>
+
+  <Step title="Add to Authlane">
+    ```bash
+    curl -X POST https://api.authlane.com/api/v1/admin/services/discord/credentials \
+      -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "tenantId": "your-tenant-id",
+        "clientId": "YOUR_CLIENT_ID",
+        "clientSecret": "YOUR_CLIENT_SECRET"
+      }'
+    ```
+  </Step>
+</Steps>
+
+## Available Tools
+
+Tools available for Discord integration:
+
+See `/integrations/discord/tools.ts` for complete list.
+
+## Example Usage
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
+
+const { data } = await authlane.tools.execute({
+  userId: 'user_123',
+  serviceId: 'discord',
+  toolName: 'discord_example_tool',
+  parameters: {
+    // Tool-specific parameters
+  },
+});
+```
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="OAuth Setup" icon="key" href="/guides/oauth-setup">
+    Configure OAuth applications
+  </Card>
+  <Card title="TypeScript SDK" icon="code" href="/sdk/typescript">
+    Use with Authlane SDK
+  </Card>
+</CardGroup>

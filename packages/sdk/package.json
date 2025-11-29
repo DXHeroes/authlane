@@ -1,0 +1,45 @@
+{
+  "name": "@authlane/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Authlane - OAuth connections for AI agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "keywords": [
+    "authlane",
+    "oauth",
+    "ai",
+    "agents",
+    "integrations",
+    "sdk",
+    "typescript"
+  ],
+  "author": "Authlane",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/authlane/authlane.git",
+    "directory": "packages/sdk"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

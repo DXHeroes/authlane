@@ -1,0 +1,119 @@
+{
+  "dashboard": {
+    "title": "Authlane Metrics",
+    "tags": ["authlane", "oauth", "api"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "HTTP Request Rate",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(authlane_http_requests_total[5m])",
+            "legendFormat": "{{method}} {{route}} {{status_code}}"
+          }
+        ]
+      },
+      {
+        "title": "HTTP Request Duration (p95)",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(authlane_http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{method}} {{route}}"
+          }
+        ]
+      },
+      {
+        "title": "OAuth Flow Success Rate",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(authlane_oauth_flows_total{status=\"success\"}[5m]) / rate(authlane_oauth_flows_total[5m])",
+            "legendFormat": "{{provider}}"
+          }
+        ]
+      },
+      {
+        "title": "Active Connections by Provider",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "authlane_active_connections",
+            "legendFormat": "{{provider}}"
+          }
+        ]
+      },
+      {
+        "title": "Database Query Duration (p95)",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(authlane_database_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{operation}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(authlane_errors_total[5m])",
+            "legendFormat": "{{type}} - {{endpoint}}"
+          }
+        ]
+      },
+      {
+        "title": "Token Refresh Success Rate",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(authlane_token_refresh_total{status=\"success\"}[5m]) / rate(authlane_token_refresh_total[5m])",
+            "legendFormat": "{{provider}}"
+          }
+        ]
+      },
+      {
+        "title": "Rate Limit Hits",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(authlane_rate_limit_hits_total[5m])",
+            "legendFormat": "{{endpoint}}"
+          }
+        ]
+      },
+      {
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(authlane_cache_hits_total[5m]) / (rate(authlane_cache_hits_total[5m]) + rate(authlane_cache_misses_total[5m]))",
+            "legendFormat": "{{key_pattern}}"
+          }
+        ]
+      },
+      {
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"authlane-api\"}",
+            "legendFormat": "RSS Memory"
+          }
+        ]
+      }
+    ]
+  }
+}

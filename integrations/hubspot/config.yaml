@@ -1,0 +1,18 @@
+id: hubspot
+name: HubSpot
+auth_type: oauth2
+config:
+  authorization_url: https://app.hubspot.com/oauth/authorize
+  token_url: https://api.hubapi.com/oauth/v1/token
+  scopes:
+    - crm.objects.contacts.read
+    - crm.objects.contacts.write
+    - crm.objects.deals.read
+    - crm.objects.deals.write
+    - crm.objects.companies.read
+    - crm.objects.companies.write
+  default_scopes:
+    - crm.objects.contacts.read
+    - crm.objects.contacts.write
+    - crm.objects.deals.read
+    - crm.objects.deals.write

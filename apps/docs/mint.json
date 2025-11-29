@@ -1,0 +1,122 @@
+{
+  "name": "Authlane",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@authlane.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://app.authlane.com"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Integrations",
+      "url": "integrations"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/authlane/authlane"
+    },
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://discord.gg/authlane"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/oauth-setup",
+        "guides/self-hosting",
+        "guides/custom-integrations",
+        "guides/security",
+        "guides/webhooks"
+      ]
+    },
+    {
+      "group": "SDK",
+      "pages": [
+        "sdk/typescript",
+        "sdk/react",
+        "sdk/mcp-server"
+      ]
+    },
+    {
+      "group": "API Documentation",
+      "pages": [
+        "api-reference/introduction",
+        "api-reference/authentication"
+      ]
+    },
+    {
+      "group": "Endpoints",
+      "pages": [
+        "api-reference/services/list-services",
+        "api-reference/connections/list-connections",
+        "api-reference/connections/get-connection",
+        "api-reference/connections/get-credentials",
+        "api-reference/connections/health-check",
+        "api-reference/connections/delete-connection",
+        "api-reference/oauth/authorize",
+        "api-reference/oauth/callback",
+        "api-reference/tools/list-tools"
+      ]
+    },
+    {
+      "group": "Integrations",
+      "pages": [
+        "integrations/github",
+        "integrations/linear",
+        "integrations/jira",
+        "integrations/sentry",
+        "integrations/slack",
+        "integrations/discord",
+        "integrations/gmail",
+        "integrations/notion",
+        "integrations/google-drive",
+        "integrations/google-calendar",
+        "integrations/hubspot",
+        "integrations/salesforce",
+        "integrations/pipedrive",
+        "integrations/stripe",
+        "integrations/airtable"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/authlane/authlane",
+    "discord": "https://discord.gg/authlane",
+    "twitter": "https://twitter.com/authlane"
+  }
+}

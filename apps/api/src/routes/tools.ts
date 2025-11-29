@@ -4,11 +4,14 @@
  */
 
 import type { Database } from '@authlane/database';
-import { connections } from '@authlane/database';
-import { Errors, isValidUserId, type ToolFormat } from '@authlane/shared';
-import { and, eq } from 'drizzle-orm';
+import { connections, and, eq, or } from '@authlane/database';
+import {
+  Errors,
+  isValidUserId,
+  loadMultipleIntegrationTools,
+  type ToolFormat,
+} from '@authlane/shared';
 import { Hono } from 'hono';
-import { getTenantId } from '../utils/tenant-context.js';
 
 export function createToolsRouter(db: Database) {
   const router = new Hono();
@@ -20,11 +23,12 @@ export function createToolsRouter(db: Database) {
    */
   router.get('/:userId/tools', async (c) => {
     try {
-      const userId = c.req.param('userId');
-      const tenantId = getTenantId(c);
+      const externalUserId = c.req.param('userId');
+      const user = c.get('user');
+      const org = c.get('organization');
       const format = (c.req.query('format') || 'mcp') as ToolFormat;
 
-      if (!isValidUserId(userId)) {
+      if (!isValidUserId(externalUserId)) {
         return c.json(
           Errors.validationError('Invalid user ID', 'User ID must be a non-empty string'),
           400
@@ -38,14 +42,24 @@ export function createToolsRouter(db: Database) {
         );
       }
 
-      // Get all connected services for the user
+      // Build filter for connections based on auth context
+      const userId = user?.id;
+      const orgId = org?.id;
+
+      // Get all connected services for the user (both user-scoped and org-scoped)
+      const connectionsFilter = orgId 
+        ? or(
+            and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
+            and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''), eq(connections.externalUserId, externalUserId))
+          )
+        : and(eq(connections.userId, userId || ''), eq(connections.externalUserId, externalUserId));
+
       const userConnections = await db
         .select()
         .from(connections)
         .where(
           and(
-            eq(connections.tenantId, tenantId),
-            eq(connections.externalUserId, userId),
+            connectionsFilter,
             eq(connections.status, 'connected')
           )
         );
@@ -60,82 +74,17 @@ export function createToolsRouter(db: Database) {
         });
       }
 
-    // Load tools for each service
-    // For now, we'll use a simple approach - in production, load from integrations
-    const allTools: unknown[] = [];
+      // Dynamically load tools for all connected services
+      const toolsData = await loadMultipleIntegrationTools(serviceIds, format);
 
-    // Example: Load GitHub tools if GitHub is connected
-    // In production, this would dynamically load from the integrations directory
-    if (serviceIds.includes('github')) {
-      // For now, return basic GitHub tools structure
-      // In production, load from integrations/github/tools.ts
-      if (format === 'mcp') {
-        allTools.push(
-          {
-            name: 'github_create_issue',
-            description: 'Creates a new issue in a GitHub repository',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                owner: { type: 'string', description: 'Repository owner' },
-                repo: { type: 'string', description: 'Repository name' },
-                title: { type: 'string', description: 'Issue title' },
-                body: { type: 'string', description: 'Issue body' },
-              },
-              required: ['owner', 'repo', 'title'],
-            },
-          },
-          {
-            name: 'github_list_issues',
-            description: 'Lists issues in a GitHub repository',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                owner: { type: 'string', description: 'Repository owner' },
-                repo: { type: 'string', description: 'Repository name' },
-                state: { type: 'string', enum: ['open', 'closed', 'all'] },
-              },
-              required: ['owner', 'repo'],
-            },
-          }
-        );
-      } else {
-        allTools.push(
-          {
-            name: 'github_create_issue',
-            description: 'Creates a new issue in a GitHub repository',
-            parameters: {
-              type: 'object',
-              properties: {
-                owner: { type: 'string', description: 'Repository owner' },
-                repo: { type: 'string', description: 'Repository name' },
-                title: { type: 'string', description: 'Issue title' },
-                body: { type: 'string', description: 'Issue body' },
-              },
-              required: ['owner', 'repo', 'title'],
-            },
-          },
-          {
-            name: 'github_list_issues',
-            description: 'Lists issues in a GitHub repository',
-            parameters: {
-              type: 'object',
-              properties: {
-                owner: { type: 'string', description: 'Repository owner' },
-                repo: { type: 'string', description: 'Repository name' },
-                state: { type: 'string', enum: ['open', 'closed', 'all'] },
-              },
-              required: ['owner', 'repo'],
-            },
-          }
-        );
-      }
+      return c.json({
+        data: toolsData,
+        error: null,
+      });
+    } catch (error) {
+      console.error('Error fetching tools:', error);
+      return c.json(Errors.internalError('Failed to fetch tools'), 500);
     }
-
-    return c.json({
-      data: format === 'mcp' ? { tools: allTools } : { functions: allTools },
-      error: null,
-    });
   });
 
   return router;

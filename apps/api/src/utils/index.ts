@@ -2,4 +2,4 @@
  * Utility exports
  */
 
-export * from './tenant-context.js';
+export * from './auth-context.js';

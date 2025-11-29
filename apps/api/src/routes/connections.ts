@@ -4,14 +4,45 @@
 
 import { decrypt, getEncryptionKey } from '@authlane/crypto';
 import type { Database } from '@authlane/database';
-import { connections } from '@authlane/database';
+import { connections, and, eq, or } from '@authlane/database';
+import type { SQL } from 'drizzle-orm';
 import { Errors, isValidServiceId, isValidUserId } from '@authlane/shared';
-import { and, eq } from 'drizzle-orm';
+import type { Context } from 'hono';
 import { Hono } from 'hono';
-import { getTenantId } from '../utils/tenant-context.js';
 
 export function createConnectionsRouter(db: Database) {
   const router = new Hono();
+
+  /**
+   * Build filter condition for connections based on auth context
+   * Supports both user-scoped and organization-scoped connections
+   */
+  function buildConnectionsFilter(c: Context, externalUserId?: string): SQL | undefined {
+    const user = c.get('user');
+    const org = c.get('organization');
+    const userId = user?.id;
+    const orgId = org?.id;
+
+    // Build filter based on available context
+    if (orgId && externalUserId) {
+      // Filter by organization or user scope
+      return or(
+        and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
+        and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''), eq(connections.externalUserId, externalUserId))
+      );
+    } else if (orgId) {
+      return or(
+        and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
+        and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''))
+      );
+    } else if (userId && externalUserId) {
+      return and(eq(connections.userId, userId), eq(connections.externalUserId, externalUserId));
+    } else if (userId) {
+      return eq(connections.userId, userId);
+    }
+    
+    return undefined;
+  }
 
   /**
    * GET /api/v1/users/:userId/connections
@@ -19,20 +50,24 @@ export function createConnectionsRouter(db: Database) {
    */
   router.get('/:userId/connections', async (c) => {
     try {
-      const userId = c.req.param('userId');
-      const tenantId = getTenantId(c);
+      const externalUserId = c.req.param('userId');
 
-      if (!isValidUserId(userId)) {
+      if (!isValidUserId(externalUserId)) {
         return c.json(
           Errors.validationError('Invalid user ID', 'User ID must be a non-empty string'),
           400
         );
       }
 
+      const filter = buildConnectionsFilter(c, externalUserId);
+      if (!filter) {
+        return c.json(Errors.unauthorized('Authentication required'), 401);
+      }
+
       const userConnections = await db
         .select()
         .from(connections)
-        .where(and(eq(connections.tenantId, tenantId), eq(connections.externalUserId, userId)));
+        .where(and(filter, eq(connections.externalUserId, externalUserId)));
 
       return c.json({
         data: userConnections,
@@ -50,11 +85,10 @@ export function createConnectionsRouter(db: Database) {
    */
   router.get('/:userId/connections/:serviceId', async (c) => {
     try {
-      const userId = c.req.param('userId');
+      const externalUserId = c.req.param('userId');
       const serviceId = c.req.param('serviceId');
-      const tenantId = getTenantId(c);
 
-      if (!isValidUserId(userId)) {
+      if (!isValidUserId(externalUserId)) {
         return c.json(
           Errors.validationError('Invalid user ID', 'User ID must be a non-empty string'),
           400
@@ -71,20 +105,25 @@ export function createConnectionsRouter(db: Database) {
         );
       }
 
+      const filter = buildConnectionsFilter(c, externalUserId);
+      if (!filter) {
+        return c.json(Errors.unauthorized('Authentication required'), 401);
+      }
+
       const [connection] = await db
         .select()
         .from(connections)
         .where(
           and(
-            eq(connections.tenantId, tenantId),
-            eq(connections.externalUserId, userId),
+            filter,
+            eq(connections.externalUserId, externalUserId),
             eq(connections.serviceId, serviceId)
           )
         )
         .limit(1);
 
       if (!connection) {
-        return c.json(Errors.notFound('Connection', `${userId}/${serviceId}`), 404);
+        return c.json(Errors.notFound('Connection', `${externalUserId}/${serviceId}`), 404);
       }
 
       return c.json({
@@ -102,11 +141,10 @@ export function createConnectionsRouter(db: Database) {
    * Get decrypted credentials for a connection
    */
   router.get('/:userId/connections/:serviceId/credentials', async (c) => {
-    const userId = c.req.param('userId');
+    const externalUserId = c.req.param('userId');
     const serviceId = c.req.param('serviceId');
-    const tenantId = getTenantId(c);
 
-    if (!isValidUserId(userId)) {
+    if (!isValidUserId(externalUserId)) {
       return c.json(
         Errors.validationError('Invalid user ID', 'User ID must be a non-empty string'),
         400
@@ -123,20 +161,25 @@ export function createConnectionsRouter(db: Database) {
       );
     }
 
+    const filter = buildConnectionsFilter(c, externalUserId);
+    if (!filter) {
+      return c.json(Errors.unauthorized('Authentication required'), 401);
+    }
+
     const [connection] = await db
       .select()
       .from(connections)
       .where(
         and(
-          eq(connections.tenantId, tenantId),
-          eq(connections.externalUserId, userId),
+          filter,
+          eq(connections.externalUserId, externalUserId),
           eq(connections.serviceId, serviceId)
         )
       )
       .limit(1);
 
     if (!connection) {
-      return c.json(Errors.notFound('Connection', `${userId}/${serviceId}`), 404);
+      return c.json(Errors.notFound('Connection', `${externalUserId}/${serviceId}`), 404);
     }
 
     if (connection.status !== 'connected') {
@@ -173,11 +216,10 @@ export function createConnectionsRouter(db: Database) {
    */
   router.get('/:userId/connections/:serviceId/health', async (c) => {
     try {
-      const userId = c.req.param('userId');
+      const externalUserId = c.req.param('userId');
       const serviceId = c.req.param('serviceId');
-      const tenantId = getTenantId(c);
 
-      if (!isValidUserId(userId)) {
+      if (!isValidUserId(externalUserId)) {
         return c.json(
           Errors.validationError('Invalid user ID', 'User ID must be a non-empty string'),
           400
@@ -194,20 +236,25 @@ export function createConnectionsRouter(db: Database) {
         );
       }
 
+      const filter = buildConnectionsFilter(c, externalUserId);
+      if (!filter) {
+        return c.json(Errors.unauthorized('Authentication required'), 401);
+      }
+
       const [connection] = await db
         .select()
         .from(connections)
         .where(
           and(
-            eq(connections.tenantId, tenantId),
-            eq(connections.externalUserId, userId),
+            filter,
+            eq(connections.externalUserId, externalUserId),
             eq(connections.serviceId, serviceId)
           )
         )
         .limit(1);
 
       if (!connection) {
-        return c.json(Errors.notFound('Connection', `${userId}/${serviceId}`), 404);
+        return c.json(Errors.notFound('Connection', `${externalUserId}/${serviceId}`), 404);
       }
 
       const isHealthy = connection.status === 'connected';
@@ -233,11 +280,10 @@ export function createConnectionsRouter(db: Database) {
    * Disconnect a service (delete connection)
    */
   router.delete('/:userId/connections/:serviceId', async (c) => {
-    const userId = c.req.param('userId');
+    const externalUserId = c.req.param('userId');
     const serviceId = c.req.param('serviceId');
-    const tenantId = getTenantId(c);
 
-    if (!isValidUserId(userId)) {
+    if (!isValidUserId(externalUserId)) {
       return c.json(
         Errors.validationError('Invalid user ID', 'User ID must be a non-empty string'),
         400
@@ -254,21 +300,26 @@ export function createConnectionsRouter(db: Database) {
       );
     }
 
+    const filter = buildConnectionsFilter(c, externalUserId);
+    if (!filter) {
+      return c.json(Errors.unauthorized('Authentication required'), 401);
+    }
+
     // Find and delete connection
     const [connection] = await db
       .select()
       .from(connections)
       .where(
         and(
-          eq(connections.tenantId, tenantId),
-          eq(connections.externalUserId, userId),
+          filter,
+          eq(connections.externalUserId, externalUserId),
           eq(connections.serviceId, serviceId)
         )
       )
       .limit(1);
 
     if (!connection) {
-      return c.json(Errors.notFound('Connection', `${userId}/${serviceId}`), 404);
+      return c.json(Errors.notFound('Connection', `${externalUserId}/${serviceId}`), 404);
     }
 
     await db.delete(connections).where(eq(connections.id, connection.id));

@@ -15,7 +15,8 @@ export async function errorHandler(c: Context, next: Next) {
   } catch (error) {
     // Handle tenant context errors
     if (error instanceof Error && error.message === 'TENANT_NOT_FOUND') {
-      return c.json(Errors.unauthorized('Tenant context not found'), 401);
+      const tenantError = Errors.unauthorized('Tenant context not found');
+      return c.json({ error: tenantError }, 401);
     }
 
     console.error('Unhandled error:', error);
@@ -28,6 +29,6 @@ export async function errorHandler(c: Context, next: Next) {
     }
 
     const statusCode = (authlaneError.statusCode || 500) as 200 | 201 | 400 | 401 | 404 | 500;
-    return c.json(authlaneError, statusCode);
+    return c.json({ error: authlaneError }, statusCode);
   }
 }

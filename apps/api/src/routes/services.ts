@@ -3,9 +3,8 @@
  */
 
 import type { Database } from '@authlane/database';
-import { services } from '@authlane/database';
+import { services, eq } from '@authlane/database';
 import { Errors } from '@authlane/shared';
-import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 export function createServicesRouter(db: Database) {

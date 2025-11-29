@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authlane Widget - Example</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: #f9fafb;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #1f2937;
+      margin-bottom: 2rem;
+    }
+    .widget-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1rem;
+      margin-bottom: 2rem;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    button {
+      padding: 0.625rem 1.25rem;
+      border: none;
+      border-radius: 6px;
+      background: #3b82f6;
+      color: white;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 150ms;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .events {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+    }
+    .events h2 {
+      margin-top: 0;
+      color: #1f2937;
+    }
+    .event-log {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+    }
+    .event-item {
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .event-item:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+    .event-time {
+      color: #6b7280;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Authlane Connection Widget Demo</h1>
+
+    <div class="controls">
+      <button id="showWidget">Show Widget</button>
+      <button id="hideWidget">Hide Widget</button>
+      <button id="updateTheme">Change Theme</button>
+    </div>
+
+    <div id="widget-container" class="widget-container"></div>
+
+    <div class="events">
+      <h2>Event Log</h2>
+      <div id="event-log" class="event-log"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { AuthlaneWidget } from '/src/embed.ts';
+
+    const eventLog = document.getElementById('event-log');
+    let widget;
+
+    function logEvent(type, data = {}) {
+      const item = document.createElement('div');
+      item.className = 'event-item';
+      item.innerHTML = `
+        <div class="event-time">${new Date().toLocaleTimeString()}</div>
+        <div><strong>${type}</strong></div>
+        ${Object.keys(data).length > 0 ? `<div>${JSON.stringify(data, null, 2)}</div>` : ''}
+      `;
+      eventLog.insertBefore(item, eventLog.firstChild);
+    }
+
+    const config = {
+      apiUrl: 'http://localhost:3000',
+      apiKey: 'demo-api-key',
+      userId: 'demo-user-123',
+      theme: {
+        primaryColor: '#3b82f6',
+        backgroundColor: '#ffffff',
+        textColor: '#1f2937',
+        borderRadius: '8px'
+      },
+      onConnect: (serviceId) => {
+        logEvent('onConnect', { serviceId });
+      },
+      onDisconnect: (serviceId) => {
+        logEvent('onDisconnect', { serviceId });
+      },
+      onError: (error) => {
+        logEvent('onError', { error: error.message });
+      }
+    };
+
+    const widgetInstance = new AuthlaneWidget(config);
+    widget = widgetInstance.mount('widget-container');
+
+    logEvent('Widget Initialized');
+
+    document.getElementById('showWidget').addEventListener('click', () => {
+      widget.open();
+      logEvent('Widget Shown');
+    });
+
+    document.getElementById('hideWidget').addEventListener('click', () => {
+      widget.close();
+      logEvent('Widget Hidden');
+    });
+
+    let darkTheme = false;
+    document.getElementById('updateTheme').addEventListener('click', () => {
+      darkTheme = !darkTheme;
+      widget.updateConfig({
+        theme: darkTheme ? {
+          primaryColor: '#8b5cf6',
+          backgroundColor: '#1f2937',
+          textColor: '#f9fafb',
+          borderRadius: '12px'
+        } : {
+          primaryColor: '#3b82f6',
+          backgroundColor: '#ffffff',
+          textColor: '#1f2937',
+          borderRadius: '8px'
+        }
+      });
+      logEvent('Theme Updated', { darkTheme });
+    });
+  </script>
+</body>
+</html>

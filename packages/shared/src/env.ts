@@ -45,7 +45,7 @@ export function getEnv(): Env {
     API_PORT: process.env.API_PORT ? Number(process.env.API_PORT) : 3000,
     API_HOST: process.env.API_HOST || '0.0.0.0',
     NODE_ENV: process.env.NODE_ENV || 'development',
-    CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173',
     RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED !== 'false',
     RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS
       ? Number(process.env.RATE_LIMIT_MAX_REQUESTS)

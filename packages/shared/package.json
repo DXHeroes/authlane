@@ -12,7 +12,11 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0"
   }
 }

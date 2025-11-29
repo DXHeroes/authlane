@@ -5,7 +5,6 @@
 
 import type { Database } from '@authlane/database';
 import type { Context, Next } from 'hono';
-import { getTenantId } from '../utils/tenant-context.js';
 
 interface RateLimitOptions {
   maxRequests: number;
@@ -18,7 +17,7 @@ const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
 /**
  * Rate limiting middleware
- * Limits requests per tenant based on configuration
+ * Limits requests per user/organization/IP based on configuration
  */
 export function rateLimitMiddleware(_db: Database, options: RateLimitOptions) {
   return async (c: Context, next: Next) => {
@@ -26,13 +25,25 @@ export function rateLimitMiddleware(_db: Database, options: RateLimitOptions) {
       return next();
     }
 
-    const tenantId = getTenantId(c);
-    if (!tenantId) {
-      return next();
+    // Build rate limit key based on available context
+    const user = c.get('user');
+    const org = c.get('organization');
+    const apiKey = c.get('apiKey');
+    const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+
+    // Prioritize: organization > user > api key > IP
+    let key: string;
+    if (org) {
+      key = `org:${org.id}`;
+    } else if (user) {
+      key = `user:${user.id}`;
+    } else if (apiKey) {
+      key = `apikey:${apiKey.substring(0, 10)}`;
+    } else {
+      key = `ip:${ip}`;
     }
 
     const now = Date.now();
-    const key = `tenant:${tenantId}`;
     const record = rateLimitStore.get(key);
 
     // Reset if window expired

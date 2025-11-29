@@ -1,0 +1,10 @@
+id: stripe
+name: Stripe
+auth_type: oauth2
+config:
+  authorization_url: https://connect.stripe.com/oauth/authorize
+  token_url: https://connect.stripe.com/oauth/token
+  scopes:
+    - read_only
+  default_scopes:
+    - read_only

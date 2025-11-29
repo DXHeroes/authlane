@@ -1,0 +1,328 @@
+---
+title: 'GitHub'
+description: 'Connect to GitHub to manage repositories, issues, and pull requests'
+---
+
+## Overview
+
+The GitHub integration allows AI agents and applications to interact with GitHub repositories, issues, pull requests, and more.
+
+**Category:** Developer Tools
+**Auth Type:** OAuth 2.0
+**Scopes Required:** `repo`, `user`, `read:org`
+
+## Setup
+
+<Steps>
+  <Step title="Create GitHub OAuth App">
+    1. Go to [github.com/settings/developers](https://github.com/settings/developers)
+    2. Click **New OAuth App**
+    3. Fill in details:
+       - **Application name**: `Your App Name`
+       - **Homepage URL**: `https://yourapp.com`
+       - **Authorization callback URL**: `https://api.authlane.com/api/v1/oauth/callback`
+    4. Click **Register application**
+  </Step>
+
+  <Step title="Get Credentials">
+    - Copy **Client ID**
+    - Generate and copy **Client Secret**
+  </Step>
+
+  <Step title="Configure in Authlane">
+    ```bash
+    curl -X POST https://api.authlane.com/api/v1/admin/services/github/credentials \
+      -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "tenantId": "your-tenant-id",
+        "clientId": "YOUR_GITHUB_CLIENT_ID",
+        "clientSecret": "YOUR_GITHUB_CLIENT_SECRET"
+      }'
+    ```
+  </Step>
+</Steps>
+
+## Available Tools
+
+### github_create_issue
+
+Create a new issue in a repository.
+
+**Parameters:**
+
+<ParamField path="owner" type="string" required>
+  Repository owner (username or organization)
+</ParamField>
+
+<ParamField path="repo" type="string" required>
+  Repository name
+</ParamField>
+
+<ParamField path="title" type="string" required>
+  Issue title
+</ParamField>
+
+<ParamField path="body" type="string">
+  Issue description (supports Markdown)
+</ParamField>
+
+<ParamField path="labels" type="string[]">
+  Labels to apply to the issue
+</ParamField>
+
+**Example:**
+
+```typescript
+const { data } = await authlane.tools.execute({
+  userId: 'user_123',
+  serviceId: 'github',
+  toolName: 'github_create_issue',
+  parameters: {
+    owner: 'authlane',
+    repo: 'authlane',
+    title: 'Bug: Login fails with SSO',
+    body: 'When trying to log in with SSO, the page redirects to a 404 error.',
+    labels: ['bug', 'priority-high'],
+  },
+});
+
+console.log(`Issue created: ${data.html_url}`);
+```
+
+### github_list_issues
+
+List issues in a repository.
+
+**Parameters:**
+
+<ParamField path="owner" type="string" required>
+  Repository owner
+</ParamField>
+
+<ParamField path="repo" type="string" required>
+  Repository name
+</ParamField>
+
+<ParamField path="state" type="'open' | 'closed' | 'all'" default="open">
+  Issue state filter
+</ParamField>
+
+<ParamField path="labels" type="string">
+  Comma-separated list of label names
+</ParamField>
+
+**Example:**
+
+```typescript
+const { data } = await authlane.tools.execute({
+  userId: 'user_123',
+  serviceId: 'github',
+  toolName: 'github_list_issues',
+  parameters: {
+    owner: 'authlane',
+    repo: 'authlane',
+    state: 'open',
+    labels: 'bug,priority-high',
+  },
+});
+```
+
+### github_create_pr
+
+Create a pull request.
+
+**Parameters:**
+
+<ParamField path="owner" type="string" required>
+  Repository owner
+</ParamField>
+
+<ParamField path="repo" type="string" required>
+  Repository name
+</ParamField>
+
+<ParamField path="title" type="string" required>
+  Pull request title
+</ParamField>
+
+<ParamField path="head" type="string" required>
+  The name of the branch where your changes are implemented
+</ParamField>
+
+<ParamField path="base" type="string" required>
+  The name of the branch you want the changes pulled into
+</ParamField>
+
+<ParamField path="body" type="string">
+  Pull request description
+</ParamField>
+
+**Example:**
+
+```typescript
+const { data } = await authlane.tools.execute({
+  userId: 'user_123',
+  serviceId: 'github',
+  toolName: 'github_create_pr',
+  parameters: {
+    owner: 'authlane',
+    repo: 'authlane',
+    title: 'Add webhook support',
+    head: 'feature/webhooks',
+    base: 'main',
+    body: 'This PR adds webhook support for connection events.',
+  },
+});
+```
+
+### github_search_code
+
+Search for code across repositories.
+
+**Parameters:**
+
+<ParamField path="query" type="string" required>
+  Search query (supports GitHub search syntax)
+</ParamField>
+
+<ParamField path="sort" type="'indexed'" default="indexed">
+  Sort field
+</ParamField>
+
+<ParamField path="order" type="'asc' | 'desc'" default="desc">
+  Sort order
+</ParamField>
+
+**Example:**
+
+```typescript
+const { data } = await authlane.tools.execute({
+  userId: 'user_123',
+  serviceId: 'github',
+  toolName: 'github_search_code',
+  parameters: {
+    query: 'createConnection repo:authlane/authlane language:typescript',
+  },
+});
+```
+
+## Usage Examples
+
+### With Claude Desktop (MCP)
+
+```
+You: Create an issue in authlane/authlane repo titled "Add rate limiting to API"
+
+Claude: I'll create that issue for you using the GitHub integration.
+
+[Uses github_create_issue tool]
+
+Done! I've created issue #42: https://github.com/authlane/authlane/issues/42
+```
+
+### With TypeScript SDK
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
+
+// Create issue
+const { data: issue } = await authlane.tools.execute({
+  userId: 'user_123',
+  serviceId: 'github',
+  toolName: 'github_create_issue',
+  parameters: {
+    owner: 'authlane',
+    repo: 'authlane',
+    title: 'Feature request: Add GitHub webhooks',
+    body: 'Would be great to receive webhooks from GitHub.',
+    labels: ['enhancement'],
+  },
+});
+
+console.log(`Issue #${issue.number} created`);
+```
+
+### With LangChain
+
+```typescript
+import { AutolaneToolkit } from '@authlane/mcp-server/langchain';
+import { ChatOpenAI } from '@langchain/openai';
+
+const toolkit = new AutolaneToolkit({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  userId: 'user_123',
+});
+
+const tools = await toolkit.getTools(['github']);
+
+const agent = /* create agent with tools */;
+
+const result = await agent.invoke({
+  input: 'Create a GitHub issue for the bug we just discussed',
+});
+```
+
+## Scopes
+
+The GitHub integration requests these OAuth scopes:
+
+- **`repo`**: Full control of private repositories
+  - Required for: Creating issues, PRs, accessing private repos
+- **`user`**: Read user profile data
+  - Required for: Identifying the authenticated user
+- **`read:org`**: Read organization membership
+  - Required for: Accessing organization repositories
+
+<Note>
+  You can customize scopes when configuring the OAuth app. Reduce scopes if you don't need all features.
+</Note>
+
+## Rate Limits
+
+GitHub API has rate limits:
+
+- **Authenticated requests**: 5,000 requests/hour
+- **Search API**: 30 requests/minute
+
+Authlane handles rate limiting automatically with exponential backoff.
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Permission denied when creating issues">
+    Ensure the OAuth app has `repo` scope and the user has write access to the repository.
+  </Accordion>
+
+  <Accordion title="Repository not found">
+    Check that:
+    - Repository name is correct (case-sensitive)
+    - Repository is accessible with current permissions
+    - Private repos require `repo` scope
+  </Accordion>
+
+  <Accordion title="Token expired">
+    GitHub tokens don't expire by default, but can be revoked. If you see this error:
+    1. User needs to reconnect their GitHub account
+    2. Check OAuth app hasn't been suspended
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="OAuth Setup" icon="key" href="/guides/oauth-setup">
+    Detailed OAuth configuration
+  </Card>
+  <Card title="TypeScript SDK" icon="code" href="/sdk/typescript">
+    Use GitHub tools with SDK
+  </Card>
+  <Card title="MCP Server" icon="robot" href="/sdk/mcp-server">
+    Use with Claude Desktop
+  </Card>
+  <Card title="GitHub API Docs" icon="book" href="https://docs.github.com/en/rest">
+    Official GitHub API documentation
+  </Card>
+</CardGroup>

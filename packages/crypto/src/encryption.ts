@@ -57,7 +57,7 @@ export function decrypt(encryptedData: string, keyHex: string): string {
 
   const [ivBase64, authTagBase64, encryptedBase64] = parts;
 
-  if (!ivBase64 || !authTagBase64 || !encryptedBase64) {
+  if (!ivBase64 || !authTagBase64 || encryptedBase64 === undefined) {
     throw new Error('Invalid encrypted data format. Missing required parts');
   }
 

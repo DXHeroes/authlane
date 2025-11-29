@@ -1,0 +1,21 @@
+id: slack
+name: Slack
+auth_type: oauth2
+config:
+  authorization_url: https://slack.com/oauth/v2/authorize
+  token_url: https://slack.com/api/oauth.v2.access
+  scopes:
+    - chat:write
+    - channels:read
+    - channels:manage
+    - channels:write
+    - groups:read
+    - groups:write
+    - im:read
+    - im:write
+    - mpim:read
+    - mpim:write
+    - users:read
+  default_scopes:
+    - chat:write
+    - channels:read

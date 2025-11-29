@@ -9,6 +9,19 @@ import { Queue, Worker } from 'bullmq';
 
 let tokenRefreshQueue: Queue<TokenRefreshData> | null = null;
 let tokenRefreshWorker: Worker<TokenRefreshData> | null = null;
+let redisConnectionFailed = false;
+
+/**
+ * Suppress repeated Redis errors - only log once
+ */
+function handleRedisError(_err: Error) {
+  if (!redisConnectionFailed) {
+    redisConnectionFailed = true;
+    console.log('⚠️  Redis connection failed. Token refresh jobs disabled.');
+    console.log('💡 To enable: Start Redis with `docker run -d -p 6379:6379 redis`');
+    console.log('💡 Or comment out REDIS_URL in .env to disable this feature');
+  }
+}
 
 /**
  * Sets up the token refresh queue and worker
@@ -19,41 +32,74 @@ export function setupJobs(db: Database, redisUrl?: string) {
     return;
   }
 
-  // Create queue
-  tokenRefreshQueue = new Queue<TokenRefreshData>('token-refresh', {
-    connection: {
-      host: new URL(redisUrl).hostname,
-      port: parseInt(new URL(redisUrl).port || '6379', 10),
-    },
-  });
+  // In development, skip Redis setup entirely if REDIS_OPTIONAL is set
+  // This prevents error spam when Redis isn't running
+  if (process.env.NODE_ENV !== 'production' && process.env.REDIS_OPTIONAL === 'true') {
+    console.log('⚠️  REDIS_OPTIONAL=true, skipping Redis setup');
+    return;
+  }
 
-  // Create worker
-  tokenRefreshWorker = new Worker<TokenRefreshData>(
-    'token-refresh',
-    async (job) => {
-      const result = await refreshToken(db, job.data);
-      if (!result.success) {
-        throw new Error(result.error || 'Token refresh failed');
-      }
-      return result;
-    },
-    {
-      connection: {
-        host: new URL(redisUrl).hostname,
-        port: parseInt(new URL(redisUrl).port || '6379', 10),
+  try {
+    const redisHost = new URL(redisUrl).hostname;
+    const redisPort = parseInt(new URL(redisUrl).port || '6379', 10);
+
+    // Common Redis connection options with error handling
+    const connectionOptions = {
+      host: redisHost,
+      port: redisPort,
+      maxRetriesPerRequest: null as null, // Required by BullMQ
+      retryStrategy: (times: number) => {
+        handleRedisError(new Error('Connection failed'));
+        // Stop retrying in development
+        if (process.env.NODE_ENV !== 'production') {
+          return null; // Stop retrying
+        }
+        // In production, retry with exponential backoff (max 30 seconds)
+        return Math.min(times * 1000, 30000);
       },
-    }
-  );
+      enableOfflineQueue: false, // Don't queue commands when disconnected
+      lazyConnect: true, // Don't connect immediately
+    };
 
-  tokenRefreshWorker.on('completed', (job) => {
-    console.log(`✅ Token refresh completed for connection ${job.data.connectionId}`);
-  });
+    // Create queue
+    tokenRefreshQueue = new Queue<TokenRefreshData>('token-refresh', {
+      connection: connectionOptions,
+    });
 
-  tokenRefreshWorker.on('failed', (job, err) => {
-    console.error(`❌ Token refresh failed for connection ${job?.data.connectionId}:`, err.message);
-  });
+    // Handle queue errors silently after first message
+    tokenRefreshQueue.on('error', handleRedisError);
 
-  console.log('✅ Token refresh queue and worker initialized');
+    // Create worker
+    tokenRefreshWorker = new Worker<TokenRefreshData>(
+      'token-refresh',
+      async (job) => {
+        const result = await refreshToken(db, job.data);
+        if (!result.success) {
+          throw new Error(result.error || 'Token refresh failed');
+        }
+        return result;
+      },
+      {
+        connection: connectionOptions,
+      }
+    );
+
+    // Handle worker errors silently after first message
+    tokenRefreshWorker.on('error', handleRedisError);
+
+    tokenRefreshWorker.on('completed', (job) => {
+      console.log(`✅ Token refresh completed for connection ${job.data.connectionId}`);
+    });
+
+    tokenRefreshWorker.on('failed', (job, err) => {
+      console.error(`❌ Token refresh failed for connection ${job?.data.connectionId}:`, err.message);
+    });
+
+    console.log('✅ Token refresh queue and worker initialized');
+  } catch (error) {
+    console.log('⚠️  Failed to setup Redis jobs:', error instanceof Error ? error.message : error);
+    console.log('💡 Token refresh jobs disabled. App will continue without background jobs.');
+  }
 }
 
 /**
@@ -61,9 +107,10 @@ export function setupJobs(db: Database, redisUrl?: string) {
  */
 export async function scheduleTokenRefresh(
   connectionId: string,
-  tenantId: string,
   serviceId: string,
-  expiresAt: Date | null
+  userId?: string,
+  organizationId?: string,
+  expiresAt?: Date | null
 ): Promise<void> {
   if (!tokenRefreshQueue) {
     return; // Redis not configured
@@ -81,8 +128,9 @@ export async function scheduleTokenRefresh(
     'refresh',
     {
       connectionId,
-      tenantId,
       serviceId,
+      userId,
+      organizationId,
     },
     {
       delay,

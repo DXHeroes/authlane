@@ -35,16 +35,49 @@ Make sure PostgreSQL 16+ is running locally.
 ## Step 3: Configure Environment
 
 ```bash
-# Copy example env file
-cp .env.example .env
+# Create .env file with required variables
+cat > .env << 'EOF'
+# Database
+DATABASE_URL=postgresql://authlane:authlane@localhost:5432/authlane
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# Security (generate your own!)
+ENCRYPTION_KEY=
+JWT_SECRET=
+
+# Better Auth
+BETTER_AUTH_URL=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000,http://localhost:5173
+
+# Email (optional - leave empty to disable)
+RESEND_API_KEY=
+EMAIL_FROM=Authlane <noreply@authlane.dev>
+APP_URL=http://localhost:5173
+EOF
 
 # Generate encryption key
 echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
 
-# Update DATABASE_URL in .env
-# For Docker: DATABASE_URL=postgresql://authlane:authlane@localhost:5432/authlane
-# For local: DATABASE_URL=postgresql://user:password@localhost:5432/authlane
+# Generate JWT secret
+echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
 ```
+
+### Email Configuration (Optional)
+
+To enable email features (organization invitations, email verification, password reset):
+
+1. Sign up at [Resend](https://resend.com)
+2. Create an API key
+3. Add to your `.env`:
+   ```bash
+   RESEND_API_KEY=re_your_api_key
+   EMAIL_FROM=Your App <noreply@yourdomain.com>
+   APP_URL=https://your-app-url.com
+   ```
+
+Note: Email features work without Resend configured, but emails won't be sent.
 
 ## Step 4: Database Setup
 

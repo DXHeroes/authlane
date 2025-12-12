@@ -128,3 +128,10 @@ export type NewMember = typeof member.$inferInsert;
 export type Invitation = typeof invitation.$inferSelect;
 export type NewInvitation = typeof invitation.$inferInsert;
 
+
+
+
+
+
+
+

@@ -48,3 +48,10 @@ echo "2. Run migrations: pnpm --filter @authlane/database migrate"
 echo "3. Seed database: pnpm --filter @authlane/database seed"
 echo "4. Start API: pnpm --filter @authlane/api dev"
 
+
+
+
+
+
+
+

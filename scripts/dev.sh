@@ -56,3 +56,10 @@ echo "2. Seed database: pnpm --filter @authlane/database seed"
 echo "3. Start API: pnpm --filter @authlane/api dev"
 echo ""
 
+
+
+
+
+
+
+

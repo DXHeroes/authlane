@@ -60,3 +60,10 @@ curl -H "Authorization: Bearer $API_KEY" \
 
 **🎉 Ready to go!** Start with `./scripts/run.sh`
 
+
+
+
+
+
+
+

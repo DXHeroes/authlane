@@ -75,3 +75,10 @@ export interface ServiceConfig {
   scopes?: string[];
   [key: string]: unknown;
 }
+
+
+
+
+
+
+

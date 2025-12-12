@@ -59,3 +59,10 @@ db-down:
 # Full setup and start
 all: setup db-up migrate seed dev
 
+
+
+
+
+
+
+

@@ -142,3 +142,10 @@ export function getToolsOpenAI(): {
 export function getTools(format: ToolFormat) {
   return format === 'mcp' ? getToolsMCP() : getToolsOpenAI();
 }
+
+
+
+
+
+
+

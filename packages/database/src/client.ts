@@ -13,3 +13,10 @@ export function createDatabaseClient(connectionString: string) {
 }
 
 export type Database = ReturnType<typeof createDatabaseClient>;
+
+
+
+
+
+
+

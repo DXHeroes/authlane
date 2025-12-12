@@ -71,3 +71,10 @@ echo "   Health check: http://localhost:3000/health"
 echo ""
 pnpm --filter @authlane/api dev
 
+
+
+
+
+
+
+

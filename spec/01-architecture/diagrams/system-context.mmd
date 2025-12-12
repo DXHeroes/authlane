@@ -1,0 +1,73 @@
+%% Authlane System Context Diagram
+%% Render with: https://mermaid.live or any Mermaid-compatible viewer
+
+graph TB
+    subgraph External["External Actors"]
+        SaaSDev["SaaS Developer<br/>(Builds AI apps)"]
+        EndUser["End User<br/>(Uses SaaS apps)"]
+        Admin["Admin<br/>(Manages organization)"]
+    end
+
+    subgraph SaaSApp["SaaS Application"]
+        Frontend["Frontend"]
+        Backend["Backend API"]
+        AIAgent["AI Agent"]
+    end
+
+    subgraph Authlane["Authlane Platform"]
+        API["API Server"]
+        Dashboard["Dashboard"]
+        Widget["Connection Widget"]
+        DB[(PostgreSQL)]
+        Cache[(Redis)]
+    end
+
+    subgraph ExternalServices["External Services"]
+        GitHub["GitHub"]
+        Slack["Slack"]
+        Google["Google"]
+        More["...50+ more"]
+    end
+
+    %% Developer interactions
+    SaaSDev -->|"Configure"| Dashboard
+    SaaSDev -->|"Integrate SDK"| Backend
+
+    %% Admin interactions
+    Admin -->|"Manage org"| Dashboard
+
+    %% End user interactions
+    EndUser -->|"Uses"| Frontend
+    Frontend -->|"Embed"| Widget
+    Widget -->|"OAuth flow"| API
+
+    %% SaaS App to Authlane
+    Backend -->|"Get credentials"| API
+    AIAgent -->|"Get tools"| API
+
+    %% Authlane internal
+    API --> DB
+    API --> Cache
+    Dashboard --> API
+
+    %% External OAuth
+    API -->|"OAuth 2.0"| GitHub
+    API -->|"OAuth 2.0"| Slack
+    API -->|"OAuth 2.0"| Google
+    API -->|"OAuth 2.0"| More
+
+    %% Direct API calls (not through Authlane)
+    AIAgent -.->|"Direct API calls<br/>with credentials"| GitHub
+    AIAgent -.->|"Direct API calls"| Slack
+    AIAgent -.->|"Direct API calls"| Google
+
+    %% Styling
+    classDef external fill:#e1f5fe,stroke:#01579b
+    classDef saas fill:#fff3e0,stroke:#e65100
+    classDef authlane fill:#e8f5e9,stroke:#2e7d32
+    classDef services fill:#fce4ec,stroke:#880e4f
+
+    class SaaSDev,EndUser,Admin external
+    class Frontend,Backend,AIAgent saas
+    class API,Dashboard,Widget,DB,Cache authlane
+    class GitHub,Slack,Google,More services

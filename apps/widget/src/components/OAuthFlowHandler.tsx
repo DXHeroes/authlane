@@ -97,9 +97,16 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
 
   return (
     <div className="oauth-flow">
-      <div className="oauth-flow__overlay" onClick={onClose} />
+      <div
+        className="oauth-flow__overlay"
+        onClick={onClose}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        role="button"
+        tabIndex={0}
+        aria-label="Close modal"
+      />
       <div className="oauth-flow__modal">
-        <button className="oauth-flow__close" onClick={onClose}>
+        <button type="button" className="oauth-flow__close" onClick={onClose} aria-label="Close">
           <X size={20} />
         </button>
 
@@ -118,7 +125,7 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
             <div className="oauth-flow__error">
               <AlertTriangle size={32} className="oauth-flow__error-icon" />
               <p className="oauth-flow__error-message">{errorMessage}</p>
-              <button className="oauth-flow__retry" onClick={handleRetry}>
+              <button type="button" className="oauth-flow__retry" onClick={handleRetry}>
                 Try Again
               </button>
             </div>

@@ -3,7 +3,7 @@
  * Handles OAuth flow for connecting services
  */
 
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useAuthlaneContext } from '../context.js';
 import type { ConnectionButtonProps } from '../types.js';
 import { startOAuthPopupFlow, startOAuthRedirectFlow } from '../utils/oauth.js';

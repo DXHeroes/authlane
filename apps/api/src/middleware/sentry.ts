@@ -35,14 +35,13 @@ export function sentryErrorHandler() {
       await next();
     } catch (error) {
       // Capture error in Sentry
-      const status = error instanceof Error && 'status' in error 
-        ? (error as { status: number }).status 
-        : 500;
-      
+      const status =
+        error instanceof Error && 'status' in error ? (error as { status: number }).status : 500;
+
       if (status >= 500) {
         Sentry.captureException(error);
       }
-      
+
       throw error;
     }
   };

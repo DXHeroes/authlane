@@ -17,11 +17,10 @@
  * ```
  */
 
-// Context and Provider
-export { AuthlaneProvider, useAuthlaneContext } from './context.js';
-
 // Components
 export { ConnectionButton, ConnectionList } from './components/index.js';
+// Context and Provider
+export { AuthlaneProvider, useAuthlaneContext } from './context.js';
 
 // Hooks
 export { useAuthlane, useConnection, useConnections } from './hooks/index.js';
@@ -29,21 +28,21 @@ export { useAuthlane, useConnection, useConnections } from './hooks/index.js';
 // Types
 export type {
   AuthlaneConfig,
-  ConnectionStatus,
-  OAuthMode,
   ConnectionButtonProps,
-  ConnectionListProps,
   ConnectionItemState,
-  OAuthWindowOptions,
+  ConnectionListProps,
+  ConnectionStatus,
   OAuthCallbackData,
+  OAuthMode,
+  OAuthWindowOptions,
 } from './types.js';
 
 // Utilities
 export {
   generateAuthorizeUrl,
   openOAuthPopup,
-  startOAuthPopupFlow,
-  startOAuthRedirectFlow,
   parseOAuthCallback,
   sendOAuthCallbackToParent,
+  startOAuthPopupFlow,
+  startOAuthRedirectFlow,
 } from './utils/index.js';

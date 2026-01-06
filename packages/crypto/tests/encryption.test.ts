@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { encrypt, decrypt, generateKey } from '../src/encryption';
+import { decrypt, encrypt, generateKey } from '../src/encryption';
 
 describe('encryption', () => {
   const testKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'; // 64 hex chars

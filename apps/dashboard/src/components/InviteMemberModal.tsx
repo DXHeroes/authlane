@@ -1,40 +1,43 @@
-import { useState } from 'react'
-import { authClient } from '@/lib/auth-client'
+import { useState } from 'react';
+import { authClient } from '@/lib/auth-client';
 
 interface InviteMemberModalProps {
-  onClose: () => void
-  onSuccess: () => void
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
 export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberModalProps) {
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<'admin' | 'member'>('member')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'admin' | 'member'>('member');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email.trim()) return
+    e.preventDefault();
+    if (!email.trim()) return;
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
       await authClient.organization.inviteMember({
         email: email.trim(),
         role,
-      })
-      setSuccess(true)
+      });
+      setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send invitation')
+      setError(err instanceof Error ? err.message : 'Failed to send invitation');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
@@ -49,7 +52,12 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
             aria-label="Close"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -65,9 +73,9 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={() => {
-                  setEmail('')
-                  setRole('member')
-                  setSuccess(false)
+                  setEmail('');
+                  setRole('member');
+                  setSuccess(false);
                 }}
                 className="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
               >
@@ -75,8 +83,8 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
               </button>
               <button
                 onClick={() => {
-                  onSuccess()
-                  onClose()
+                  onSuccess();
+                  onClose();
                 }}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
@@ -168,12 +176,8 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
         )}
       </div>
     </div>
-  )
+  );
 }
-
-
-
-
 
 
 

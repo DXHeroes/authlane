@@ -7,10 +7,10 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
   type CallToolRequest,
+  CallToolRequestSchema,
   type ListToolsRequest,
+  ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { createAuthlaneClient } from './client.js';
@@ -34,7 +34,7 @@ function loadConfig(): Config {
   // In development mode, use defaults if not set
   const isDev = process.env.NODE_ENV !== 'production';
   const defaultBaseUrl = process.env.AUTHLANE_BASE_URL || 'http://localhost:3000';
-  
+
   const config = {
     apiKey: process.env.AUTHLANE_API_KEY || (isDev ? 'test_api_key_dev' : ''),
     baseUrl: defaultBaseUrl,

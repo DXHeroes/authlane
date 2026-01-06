@@ -2,8 +2,8 @@
  * Tenant context utility tests
  */
 
-import { describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
+import { describe, expect, it } from 'vitest';
 import { getTenantId } from '../../src/utils/tenant-context';
 
 describe('tenant context utilities', () => {

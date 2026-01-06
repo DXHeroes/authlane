@@ -2,14 +2,14 @@
  * Integration tests for OAuth API routes
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { Hono } from 'hono';
-import { createOAuthRouter } from '../../src/routes/oauth.js';
-import { getTestDb, cleanDatabase } from '../setup/test-db.js';
-import { testTenantMiddleware } from '../setup/test-helpers.js';
-import { connections, services, tenants, tenantServices } from '@authlane/database';
 import { encrypt, getEncryptionKey } from '@authlane/crypto';
+import { connections, services, tenantServices, tenants } from '@authlane/database';
 import { eq } from 'drizzle-orm';
+import { Hono } from 'hono';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createOAuthRouter } from '../../src/routes/oauth.js';
+import { cleanDatabase, getTestDb } from '../setup/test-db.js';
+import { testTenantMiddleware } from '../setup/test-helpers.js';
 
 // Mock fetch for OAuth token exchange
 const mockFetch = vi.fn();
@@ -281,7 +281,7 @@ describe('OAuth API Routes', () => {
         })
         .returning();
 
-      connectionId = result[0]!.id;
+      connectionId = result[0]?.id;
       state = 'test-state-123';
     });
 
@@ -371,12 +371,9 @@ describe('OAuth API Routes', () => {
     });
 
     it('should return 400 if code is missing', async () => {
-      const res = await app.request(
-        `/${testUserId}/connections/github/callback?state=${state}`,
-        {
-          headers: { 'x-tenant-id': testTenantId },
-        }
-      );
+      const res = await app.request(`/${testUserId}/connections/github/callback?state=${state}`, {
+        headers: { 'x-tenant-id': testTenantId },
+      });
 
       expect(res.status).toBe(400);
       const body = await res.json();

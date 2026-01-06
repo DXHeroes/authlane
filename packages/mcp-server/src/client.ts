@@ -81,7 +81,10 @@ export function createAuthlaneClient(config: AuthlaneConfig): AuthlaneClient {
             data: null,
             error: {
               message: error instanceof Error ? error.message : 'Unknown error occurred',
-              code: error instanceof Error && error.name === 'AbortError' ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR',
+              code:
+                error instanceof Error && error.name === 'AbortError'
+                  ? 'TIMEOUT_ERROR'
+                  : 'NETWORK_ERROR',
             },
           };
         }

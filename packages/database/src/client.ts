@@ -17,6 +17,3 @@ export type Database = ReturnType<typeof createDatabaseClient>;
 
 
 
-
-
-

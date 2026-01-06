@@ -2,10 +2,7 @@
   "mcpServers": {
     "authlane": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@authlane/mcp-server"
-      ],
+      "args": ["-y", "@authlane/mcp-server"],
       "env": {
         "AUTHLANE_API_KEY": "your_api_key_here",
         "AUTHLANE_USER_ID": "your_user_id_here",

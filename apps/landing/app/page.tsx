@@ -29,9 +29,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-6xl font-bold text-gray-900 mb-6">
-          OAuth Made Simple
-        </h1>
+        <h1 className="text-6xl font-bold text-gray-900 mb-6">OAuth Made Simple</h1>
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
           Unified OAuth infrastructure for your apps. Connect to 50+ services with a single API.
           Built for developers who value simplicity and security.
@@ -61,7 +59,8 @@ export default function Home() {
             <div className="text-4xl mb-4">🔐</div>
             <h3 className="text-2xl font-semibold mb-3">Secure by Default</h3>
             <p className="text-gray-600">
-              Enterprise-grade encryption, automatic token refresh, and best-in-class security practices built in.
+              Enterprise-grade encryption, automatic token refresh, and best-in-class security
+              practices built in.
             </p>
           </div>
           <div className="bg-white p-8 rounded-xl shadow-sm">
@@ -107,19 +106,36 @@ export default function Home() {
         <h2 className="text-4xl font-bold text-center mb-16">Supported Integrations</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {[
-            'GitHub', 'Google', 'Slack', 'Notion', 'Linear',
-            'Jira', 'HubSpot', 'Salesforce', 'Stripe', 'Discord',
-            'Gmail', 'Google Calendar', 'Google Drive', 'Airtable', 'Sentry',
-            'Pipedrive', 'Microsoft', 'Zoom', 'Dropbox', 'Figma'
+            'GitHub',
+            'Google',
+            'Slack',
+            'Notion',
+            'Linear',
+            'Jira',
+            'HubSpot',
+            'Salesforce',
+            'Stripe',
+            'Discord',
+            'Gmail',
+            'Google Calendar',
+            'Google Drive',
+            'Airtable',
+            'Sentry',
+            'Pipedrive',
+            'Microsoft',
+            'Zoom',
+            'Dropbox',
+            'Figma',
           ].map((integration) => (
-            <div key={integration} className="flex items-center justify-center p-4 border rounded-lg hover:shadow-md transition">
+            <div
+              key={integration}
+              className="flex items-center justify-center p-4 border rounded-lg hover:shadow-md transition"
+            >
               <span className="font-semibold text-gray-700">{integration}</span>
             </div>
           ))}
         </div>
-        <p className="text-center mt-8 text-gray-600">
-          + 30 more integrations and growing
-        </p>
+        <p className="text-center mt-8 text-gray-600">+ 30 more integrations and growing</p>
       </section>
 
       {/* Code Example Section */}
@@ -229,27 +245,49 @@ const repos = await authlane.tools.execute({
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="#features">Features</Link></li>
-                <li><Link href="#integrations">Integrations</Link></li>
-                <li><Link href="/pricing">Pricing</Link></li>
-                <li><Link href="https://docs.authlane.com">Documentation</Link></li>
+                <li>
+                  <Link href="#features">Features</Link>
+                </li>
+                <li>
+                  <Link href="#integrations">Integrations</Link>
+                </li>
+                <li>
+                  <Link href="/pricing">Pricing</Link>
+                </li>
+                <li>
+                  <Link href="https://docs.authlane.com">Documentation</Link>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="/about">About</Link></li>
-                <li><Link href="/blog">Blog</Link></li>
-                <li><Link href="/careers">Careers</Link></li>
-                <li><Link href="/contact">Contact</Link></li>
+                <li>
+                  <Link href="/about">About</Link>
+                </li>
+                <li>
+                  <Link href="/blog">Blog</Link>
+                </li>
+                <li>
+                  <Link href="/careers">Careers</Link>
+                </li>
+                <li>
+                  <Link href="/contact">Contact</Link>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="/privacy">Privacy</Link></li>
-                <li><Link href="/terms">Terms</Link></li>
-                <li><Link href="/security">Security</Link></li>
+                <li>
+                  <Link href="/privacy">Privacy</Link>
+                </li>
+                <li>
+                  <Link href="/terms">Terms</Link>
+                </li>
+                <li>
+                  <Link href="/security">Security</Link>
+                </li>
               </ul>
             </div>
           </div>

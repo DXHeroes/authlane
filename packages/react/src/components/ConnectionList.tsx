@@ -3,11 +3,11 @@
  * Displays all user connections with status and disconnect functionality
  */
 
-import { useState } from 'react';
-import { useConnections } from '../hooks/useConnections.js';
-import { useAuthlaneContext } from '../context.js';
-import type { ConnectionListProps, ConnectionStatus } from '../types.js';
 import type { Connection } from '@authlane/sdk';
+import { useState } from 'react';
+import { useAuthlaneContext } from '../context.js';
+import { useConnections } from '../hooks/useConnections.js';
+import type { ConnectionListProps, ConnectionStatus } from '../types.js';
 
 /**
  * Component for displaying a list of user connections
@@ -54,9 +54,7 @@ export function ConnectionList({
   if (filteredConnections.length === 0) {
     return (
       <div className={listClass}>
-        {emptyState || (
-          <div className="authlane-connection-list__empty">No connections found</div>
-        )}
+        {emptyState || <div className="authlane-connection-list__empty">No connections found</div>}
       </div>
     );
   }
@@ -150,10 +148,9 @@ interface StatusBadgeProps {
 }
 
 function ConnectionStatusBadge({ status }: StatusBadgeProps) {
-  const badgeClass = [
-    'authlane-connection-status',
-    `authlane-connection-status--${status}`,
-  ].join(' ');
+  const badgeClass = ['authlane-connection-status', `authlane-connection-status--${status}`].join(
+    ' '
+  );
 
   const labels: Record<ConnectionStatus, string> = {
     connected: 'Connected',
@@ -162,11 +159,7 @@ function ConnectionStatusBadge({ status }: StatusBadgeProps) {
     error: 'Error',
   };
 
-  return (
-    <span className={badgeClass}>
-      {labels[status]}
-    </span>
-  );
+  return <span className={badgeClass}>{labels[status]}</span>;
 }
 
 /**

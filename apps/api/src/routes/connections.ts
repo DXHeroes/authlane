@@ -4,9 +4,9 @@
 
 import { decrypt, getEncryptionKey } from '@authlane/crypto';
 import type { Database } from '@authlane/database';
-import { connections, and, eq, or } from '@authlane/database';
-import type { SQL } from 'drizzle-orm';
+import { and, connections, eq, or } from '@authlane/database';
 import { Errors, isValidServiceId, isValidUserId } from '@authlane/shared';
+import type { SQL } from 'drizzle-orm';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 
@@ -28,7 +28,11 @@ export function createConnectionsRouter(db: Database) {
       // Filter by organization or user scope
       return or(
         and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
-        and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''), eq(connections.externalUserId, externalUserId))
+        and(
+          eq(connections.scope, 'user'),
+          eq(connections.userId, userId || ''),
+          eq(connections.externalUserId, externalUserId)
+        )
       );
     } else if (orgId) {
       return or(
@@ -40,7 +44,7 @@ export function createConnectionsRouter(db: Database) {
     } else if (userId) {
       return eq(connections.userId, userId);
     }
-    
+
     return undefined;
   }
 

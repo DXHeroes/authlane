@@ -5,7 +5,7 @@
 
 import { decrypt, encrypt, getEncryptionKey } from '@authlane/crypto';
 import type { Database } from '@authlane/database';
-import { connections, organizationServices, services, and, eq } from '@authlane/database';
+import { and, connections, eq, organizationServices, services } from '@authlane/database';
 import {
   Errors,
   generatePKCE,
@@ -27,7 +27,7 @@ export function createOAuthRouter(db: Database) {
     const serviceId = c.req.param('serviceId');
     const user = c.get('user');
     const org = c.get('organization');
-    
+
     // Determine scope from query param, default to 'user'
     const scope = (c.req.query('scope') as 'user' | 'organization') || 'user';
 
@@ -65,7 +65,12 @@ export function createOAuthRouter(db: Database) {
       const [found] = await db
         .select()
         .from(organizationServices)
-        .where(and(eq(organizationServices.organizationId, org.id), eq(organizationServices.serviceId, serviceId)))
+        .where(
+          and(
+            eq(organizationServices.organizationId, org.id),
+            eq(organizationServices.serviceId, serviceId)
+          )
+        )
         .limit(1);
       orgService = found;
     }
@@ -203,7 +208,12 @@ export function createOAuthRouter(db: Database) {
       const [found] = await db
         .select()
         .from(organizationServices)
-        .where(and(eq(organizationServices.organizationId, org.id), eq(organizationServices.serviceId, serviceId)))
+        .where(
+          and(
+            eq(organizationServices.organizationId, org.id),
+            eq(organizationServices.serviceId, serviceId)
+          )
+        )
         .limit(1);
       orgService = found;
     }
@@ -227,7 +237,10 @@ export function createOAuthRouter(db: Database) {
         try {
           clientSecret = decrypt(orgService.oauthClientSecretEnc, encryptionKey);
         } catch (_error) {
-          return c.json(Errors.oauthError('Failed to decrypt organization OAuth client secret'), 500);
+          return c.json(
+            Errors.oauthError('Failed to decrypt organization OAuth client secret'),
+            500
+          );
         }
       }
     }
@@ -306,10 +319,10 @@ export function createOAuthRouter(db: Database) {
         try {
           const { scheduleTokenRefresh } = await import('../jobs/setup.js');
           await scheduleTokenRefresh(
-            connection.id, 
-            serviceId, 
-            connection.userId || undefined, 
-            connection.organizationId || undefined, 
+            connection.id,
+            serviceId,
+            connection.userId || undefined,
+            connection.organizationId || undefined,
             expiresAt
           );
         } catch (err) {

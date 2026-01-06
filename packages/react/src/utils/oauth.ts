@@ -2,7 +2,7 @@
  * OAuth utilities for handling OAuth flow in browser
  */
 
-import type { OAuthWindowOptions, OAuthCallbackData } from '../types.js';
+import type { OAuthCallbackData, OAuthWindowOptions } from '../types.js';
 
 /**
  * Default OAuth popup window options
@@ -44,10 +44,7 @@ export function generateAuthorizeUrl(params: {
 /**
  * Open OAuth popup window
  */
-export function openOAuthPopup(
-  url: string,
-  options: OAuthWindowOptions = {}
-): Window | null {
+export function openOAuthPopup(url: string, options: OAuthWindowOptions = {}): Window | null {
   const opts = { ...DEFAULT_OAUTH_WINDOW_OPTIONS, ...options };
 
   // Center popup on screen if top/left not specified

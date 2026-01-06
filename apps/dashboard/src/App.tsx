@@ -1,18 +1,18 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import { AuthProvider, useAuth } from '@/contexts/AuthContext'
-import LoginPage from '@/pages/LoginPage'
-import RegisterPage from '@/pages/RegisterPage'
-import DashboardLayout from '@/components/DashboardLayout'
-import DashboardHome from '@/pages/DashboardHome'
-import ConnectionsPage from '@/pages/ConnectionsPage'
-import ServicesPage from '@/pages/ServicesPage'
-import ServiceDetailPage from '@/pages/ServiceDetailPage'
-import ApiKeysPage from '@/pages/ApiKeysPage'
-import SettingsPage from '@/pages/SettingsPage'
-import MembersPage from '@/pages/MembersPage'
-import OrganizationPage from '@/pages/OrganizationPage'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import DashboardLayout from '@/components/DashboardLayout';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import ApiKeysPage from '@/pages/ApiKeysPage';
+import ConnectionsPage from '@/pages/ConnectionsPage';
+import DashboardHome from '@/pages/DashboardHome';
+import LoginPage from '@/pages/LoginPage';
+import MembersPage from '@/pages/MembersPage';
+import OrganizationPage from '@/pages/OrganizationPage';
+import RegisterPage from '@/pages/RegisterPage';
+import ServiceDetailPage from '@/pages/ServiceDetailPage';
+import ServicesPage from '@/pages/ServicesPage';
+import SettingsPage from '@/pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,28 +21,28 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
     },
   },
-})
+});
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
       </div>
-    )
+    );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth();
 
   return (
     <Routes>
@@ -73,7 +73,7 @@ function AppRoutes() {
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
     </Routes>
-  )
+  );
 }
 
 export default function App() {
@@ -86,5 +86,5 @@ export default function App() {
       </BrowserRouter>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
-  )
+  );
 }

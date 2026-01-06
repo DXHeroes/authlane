@@ -1,24 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { ServiceSelector } from './ServiceSelector';
-import { OAuthFlowHandler } from './OAuthFlowHandler';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { useWidget } from '../hooks/useWidget';
 import type { Service, WidgetConfig } from '../types';
 import { postMessageBridge } from '../utils/postMessage';
+import { OAuthFlowHandler } from './OAuthFlowHandler';
+import { ServiceSelector } from './ServiceSelector';
 
 interface WidgetProps {
   config?: WidgetConfig;
 }
 
 export const Widget: React.FC<WidgetProps> = ({ config: initialConfig }) => {
-  const {
-    config,
-    services,
-    loading,
-    error,
-    initiateOAuth,
-    handleConnect,
-    handleOAuthSuccess
-  } = useWidget(initialConfig);
+  const { config, services, loading, error, initiateOAuth, handleConnect, handleOAuthSuccess } =
+    useWidget(initialConfig);
 
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [oauthUrl, setOauthUrl] = useState<string>('');
@@ -28,7 +22,7 @@ export const Widget: React.FC<WidgetProps> = ({ config: initialConfig }) => {
       const height = document.body.scrollHeight;
       postMessageBridge.sendToParent({
         type: 'widget:resize',
-        height
+        height,
       });
     };
 
@@ -66,9 +60,7 @@ export const Widget: React.FC<WidgetProps> = ({ config: initialConfig }) => {
   if (!config) {
     return (
       <div className="widget widget--loading">
-        <div className="widget__loading-message">
-          Initializing widget...
-        </div>
+        <div className="widget__loading-message">Initializing widget...</div>
       </div>
     );
   }

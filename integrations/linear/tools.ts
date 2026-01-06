@@ -1,166 +1,386 @@
 /**
- * Linear integration tool definitions
- * Supports both MCP and OpenAI function calling formats
+ * Linear Integration Tools
+ * Executable tool handlers with credential injection
  */
 
-import type { ToolFormat } from '@authlane/shared';
-
-export interface LinearTool {
-  name: string;
-  description: string;
-  inputSchema: {
-    type: 'object';
-    properties: Record<string, unknown>;
-    required: string[];
-  };
-}
-
-const linearTools: LinearTool[] = [
-  {
-    name: 'linear_create_issue',
-    description: 'Creates a new issue in a Linear team',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        teamId: {
-          type: 'string',
-          description: 'Team ID where the issue will be created',
-        },
-        title: {
-          type: 'string',
-          description: 'Issue title',
-        },
-        description: {
-          type: 'string',
-          description: 'Issue description (supports markdown)',
-        },
-        priority: {
-          type: 'number',
-          description: 'Issue priority (0-4, where 0 is no priority and 4 is urgent)',
-          minimum: 0,
-          maximum: 4,
-        },
-        stateId: {
-          type: 'string',
-          description: 'State ID for the issue (e.g., backlog, todo, in progress)',
-        },
-        assigneeId: {
-          type: 'string',
-          description: 'User ID to assign the issue to',
-        },
-        labelIds: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Array of label IDs to apply to the issue',
-        },
-      },
-      required: ['teamId', 'title'],
-    },
-  },
-  {
-    name: 'linear_list_issues',
-    description: 'Lists issues from Linear workspace with optional filters',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        teamId: {
-          type: 'string',
-          description: 'Filter issues by team ID',
-        },
-        assigneeId: {
-          type: 'string',
-          description: 'Filter issues by assignee ID',
-        },
-        state: {
-          type: 'string',
-          description: 'Filter by state name (e.g., "Todo", "In Progress", "Done")',
-        },
-        limit: {
-          type: 'number',
-          description: 'Maximum number of issues to return (default: 50)',
-          default: 50,
-        },
-        includeArchived: {
-          type: 'boolean',
-          description: 'Include archived issues in results',
-          default: false,
-        },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'linear_update_issue',
-    description: 'Updates an existing Linear issue',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        issueId: {
-          type: 'string',
-          description: 'Issue ID to update',
-        },
-        title: {
-          type: 'string',
-          description: 'New issue title',
-        },
-        description: {
-          type: 'string',
-          description: 'New issue description',
-        },
-        priority: {
-          type: 'number',
-          description: 'New priority (0-4)',
-          minimum: 0,
-          maximum: 4,
-        },
-        stateId: {
-          type: 'string',
-          description: 'New state ID',
-        },
-        assigneeId: {
-          type: 'string',
-          description: 'New assignee ID (set to null to unassign)',
-        },
-        labelIds: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'New array of label IDs',
-        },
-      },
-      required: ['issueId'],
-    },
-  },
-];
+import type { OAuth2Credentials } from '@authlane/shared';
+import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
 
 /**
- * Converts tools to MCP format
+ * Make Linear API request with OAuth token
+ * Linear uses GraphQL API
  */
-export function getToolsMCP(): { tools: LinearTool[] } {
-  return { tools: linearTools };
+async function linearRequest(
+  query: string,
+  credentials: OAuth2Credentials,
+  variables?: Record<string, unknown>
+): Promise<unknown> {
+  const response = await fetch('https://api.linear.app/graphql', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${credentials.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  const result = (await response.json()) as { data?: unknown; errors?: Array<{ message: string }> };
+
+  if (result.errors && result.errors.length > 0) {
+    throw new Error(`Linear API error: ${result.errors[0].message}`);
+  }
+
+  return result.data;
 }
 
 /**
- * Converts tools to OpenAI function calling format
+ * Linear Tools
  */
-export function getToolsOpenAI(): {
-  functions: Array<{
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  }>;
-} {
-  return {
-    functions: linearTools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.inputSchema,
-    })),
-  };
-}
+export const tools: Record<string, ToolHandler> = {
+  linear_create_issue: {
+    definition: {
+      name: 'linear_create_issue',
+      description: 'Creates a new issue in Linear',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: {
+            type: 'string',
+            description: 'Issue title',
+          },
+          description: {
+            type: 'string',
+            description: 'Issue description (markdown supported)',
+          },
+          teamId: {
+            type: 'string',
+            description: 'Team ID to create issue in',
+          },
+          priority: {
+            type: 'number',
+            description:
+              'Priority level (0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low)',
+          },
+          assigneeId: {
+            type: 'string',
+            description: 'User ID to assign the issue to',
+          },
+          labelIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of label IDs to apply',
+          },
+        },
+        required: ['title', 'teamId'],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { title, description, teamId, priority, assigneeId, labelIds } = params as {
+        title: string;
+        description?: string;
+        teamId: string;
+        priority?: number;
+        assigneeId?: string;
+        labelIds?: string[];
+      };
 
-/**
- * Gets tools in the specified format
- */
-export function getTools(format: ToolFormat) {
-  return format === 'mcp' ? getToolsMCP() : getToolsOpenAI();
-}
+      const query = `
+        mutation IssueCreate($input: IssueCreateInput!) {
+          issueCreate(input: $input) {
+            success
+            issue {
+              id
+              identifier
+              title
+              url
+            }
+          }
+        }
+      `;
+
+      const input: Record<string, unknown> = {
+        title,
+        teamId,
+      };
+
+      if (description) input.description = description;
+      if (priority !== undefined) input.priority = priority;
+      if (assigneeId) input.assigneeId = assigneeId;
+      if (labelIds) input.labelIds = labelIds;
+
+      return linearRequest(query, credentials, { input });
+    },
+  },
+
+  linear_list_issues: {
+    definition: {
+      name: 'linear_list_issues',
+      description: 'Lists issues in Linear with optional filters',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          teamId: {
+            type: 'string',
+            description: 'Filter by team ID',
+          },
+          assigneeId: {
+            type: 'string',
+            description: 'Filter by assignee user ID',
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of issues to return (max 250)',
+          },
+        },
+        required: [],
+      },
+    },
+    handler: async (params, credentials) => {
+      const {
+        teamId,
+        assigneeId,
+        limit = 50,
+      } = params as {
+        teamId?: string;
+        assigneeId?: string;
+        limit?: number;
+      };
+
+      // Build filter
+      const filters: string[] = [];
+      if (teamId) filters.push(`team: { id: { eq: "${teamId}" } }`);
+      if (assigneeId) filters.push(`assignee: { id: { eq: "${assigneeId}" } }`);
+
+      const filterString = filters.length > 0 ? `filter: { ${filters.join(', ')} }` : '';
+
+      const query = `
+        query Issues {
+          issues(${filterString}, first: ${Math.min(limit, 250)}) {
+            nodes {
+              id
+              identifier
+              title
+              description
+              priority
+              state {
+                name
+                type
+              }
+              assignee {
+                id
+                name
+                email
+              }
+              team {
+                id
+                name
+              }
+              url
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      `;
+
+      return linearRequest(query, credentials);
+    },
+  },
+
+  linear_update_issue: {
+    definition: {
+      name: 'linear_update_issue',
+      description: 'Updates an existing issue in Linear',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          issueId: {
+            type: 'string',
+            description: 'Issue ID to update',
+          },
+          title: {
+            type: 'string',
+            description: 'New title',
+          },
+          description: {
+            type: 'string',
+            description: 'New description',
+          },
+          priority: {
+            type: 'number',
+            description: 'New priority level (0-4)',
+          },
+          assigneeId: {
+            type: 'string',
+            description: 'New assignee user ID',
+          },
+          stateId: {
+            type: 'string',
+            description: 'New workflow state ID',
+          },
+        },
+        required: ['issueId'],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { issueId, title, description, priority, assigneeId, stateId } = params as {
+        issueId: string;
+        title?: string;
+        description?: string;
+        priority?: number;
+        assigneeId?: string;
+        stateId?: string;
+      };
+
+      const query = `
+        mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) {
+          issueUpdate(id: $id, input: $input) {
+            success
+            issue {
+              id
+              identifier
+              title
+              url
+            }
+          }
+        }
+      `;
+
+      const input: Record<string, unknown> = {};
+      if (title) input.title = title;
+      if (description) input.description = description;
+      if (priority !== undefined) input.priority = priority;
+      if (assigneeId) input.assigneeId = assigneeId;
+      if (stateId) input.stateId = stateId;
+
+      return linearRequest(query, credentials, { id: issueId, input });
+    },
+  },
+
+  linear_list_projects: {
+    definition: {
+      name: 'linear_list_projects',
+      description: 'Lists projects in Linear',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          teamId: {
+            type: 'string',
+            description: 'Filter by team ID',
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of projects to return (max 250)',
+          },
+        },
+        required: [],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { teamId, limit = 50 } = params as {
+        teamId?: string;
+        limit?: number;
+      };
+
+      const filterString = teamId ? `filter: { team: { id: { eq: "${teamId}" } } }` : '';
+
+      const query = `
+        query Projects {
+          projects(${filterString}, first: ${Math.min(limit, 250)}) {
+            nodes {
+              id
+              name
+              description
+              state
+              priority
+              progress
+              targetDate
+              lead {
+                id
+                name
+              }
+              teams {
+                nodes {
+                  id
+                  name
+                }
+              }
+              url
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      `;
+
+      return linearRequest(query, credentials);
+    },
+  },
+
+  linear_create_project: {
+    definition: {
+      name: 'linear_create_project',
+      description: 'Creates a new project in Linear',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Project name',
+          },
+          description: {
+            type: 'string',
+            description: 'Project description',
+          },
+          teamIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of team IDs to associate with the project',
+          },
+          leadId: {
+            type: 'string',
+            description: 'User ID of project lead',
+          },
+          targetDate: {
+            type: 'string',
+            description: 'Target completion date (ISO 8601 format)',
+          },
+        },
+        required: ['name', 'teamIds'],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { name, description, teamIds, leadId, targetDate } = params as {
+        name: string;
+        description?: string;
+        teamIds: string[];
+        leadId?: string;
+        targetDate?: string;
+      };
+
+      const query = `
+        mutation ProjectCreate($input: ProjectCreateInput!) {
+          projectCreate(input: $input) {
+            success
+            project {
+              id
+              name
+              url
+            }
+          }
+        }
+      `;
+
+      const input: Record<string, unknown> = {
+        name,
+        teamIds,
+      };
+
+      if (description) input.description = description;
+      if (leadId) input.leadId = leadId;
+      if (targetDate) input.targetDate = targetDate;
+
+      return linearRequest(query, credentials, { input });
+    },
+  },
+};

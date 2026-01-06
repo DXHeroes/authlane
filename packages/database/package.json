@@ -10,8 +10,9 @@
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "db:create": "dotenv -e ../../.env -- tsx src/create.ts",
     "migrate": "dotenv -e ../../.env -- tsx src/migrate.ts",
-    "generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "generate": "drizzle-kit generate",
     "studio": "drizzle-kit studio",
     "seed": "dotenv -e ../../.env -- tsx src/seed.ts"
   },

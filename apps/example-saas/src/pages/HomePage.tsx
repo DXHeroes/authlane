@@ -1,17 +1,15 @@
-import ConnectionStatus from '@/components/ConnectionStatus'
+import ConnectionStatus from '@/components/ConnectionStatus';
 
 export default function HomePage() {
   return (
     <div className="space-y-8">
       {/* Hero */}
       <div className="text-center py-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
-          Welcome to AI Assistant Hub
-        </h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Welcome to AI Assistant Hub</h2>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          This is an example SaaS application that demonstrates how to integrate with 
-          <span className="font-semibold text-indigo-600"> Authlane</span> for managing 
-          third-party service connections.
+          This is an example SaaS application that demonstrates how to integrate with
+          <span className="font-semibold text-indigo-600"> Authlane</span> for managing third-party
+          service connections.
         </p>
       </div>
 
@@ -23,8 +21,8 @@ export default function HomePage() {
           </div>
           <h3 className="font-semibold text-gray-900 mb-2">Connect Services</h3>
           <p className="text-sm text-gray-600">
-            Connect your GitHub, Slack, and other services using OAuth. Authlane handles 
-            the authentication flow securely.
+            Connect your GitHub, Slack, and other services using OAuth. Authlane handles the
+            authentication flow securely.
           </p>
         </div>
 
@@ -34,8 +32,8 @@ export default function HomePage() {
           </div>
           <h3 className="font-semibold text-gray-900 mb-2">Public APIs</h3>
           <p className="text-sm text-gray-600">
-            Use public APIs like JSONPlaceholder without any authentication. 
-            Perfect for testing and demos.
+            Use public APIs like JSONPlaceholder without any authentication. Perfect for testing and
+            demos.
           </p>
         </div>
 
@@ -45,8 +43,8 @@ export default function HomePage() {
           </div>
           <h3 className="font-semibold text-gray-900 mb-2">Secure Credentials</h3>
           <p className="text-sm text-gray-600">
-            All credentials are encrypted at rest. Access tokens are automatically 
-            refreshed when needed.
+            All credentials are encrypted at rest. Access tokens are automatically refreshed when
+            needed.
           </p>
         </div>
       </div>
@@ -62,16 +60,31 @@ export default function HomePage() {
         <h2 className="text-xl font-bold text-gray-900 mb-4">How Authlane Integration Works</h2>
         <div className="space-y-4 text-sm text-gray-700">
           <div className="flex gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
-            <p><strong>Configure services</strong> in the Authlane dashboard - enable services and add OAuth credentials</p>
+            <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              1
+            </span>
+            <p>
+              <strong>Configure services</strong> in the Authlane dashboard - enable services and
+              add OAuth credentials
+            </p>
           </div>
           <div className="flex gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
-            <p><strong>Connect services</strong> from this app - users click "Connect" and complete OAuth flow</p>
+            <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              2
+            </span>
+            <p>
+              <strong>Connect services</strong> from this app - users click "Connect" and complete
+              OAuth flow
+            </p>
           </div>
           <div className="flex gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
-            <p><strong>Use credentials</strong> via Authlane API - fetch access tokens and call external APIs directly</p>
+            <span className="flex-shrink-0 w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              3
+            </span>
+            <p>
+              <strong>Use credentials</strong> via Authlane API - fetch access tokens and call
+              external APIs directly
+            </p>
           </div>
         </div>
       </div>
@@ -109,12 +122,8 @@ export default function HomePage() {
         </a>
       </div>
     </div>
-  )
+  );
 }
-
-
-
-
 
 
 

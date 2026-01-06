@@ -6,35 +6,31 @@
 // Client exports
 export {
   createEmailClient,
+  type EmailConfig,
   getEmailClient,
   getEmailConfig,
-  type EmailConfig,
 } from './client';
 
 // Send function exports
 export {
-  sendOrganizationInvitation,
+  type EmailResult,
   sendEmailVerification,
+  sendOrganizationInvitation,
   sendPasswordReset,
   sendWelcomeEmail,
-  type EmailResult,
 } from './send';
 
 // Template exports for customization
 export {
-  OrganizationInvitation,
-  type OrganizationInvitationProps,
   EmailVerification,
   type EmailVerificationProps,
+  OrganizationInvitation,
+  type OrganizationInvitationProps,
   PasswordReset,
   type PasswordResetProps,
   WelcomeEmail,
   type WelcomeEmailProps,
 } from './templates';
-
-
-
-
 
 
 

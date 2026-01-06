@@ -1,53 +1,59 @@
-import { useState } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateOrganizationModalProps {
-  onClose: () => void
-  onSuccess: () => void
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
-export default function CreateOrganizationModal({ onClose, onSuccess }: CreateOrganizationModalProps) {
-  const { createOrganization, switchOrganization } = useAuth()
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export default function CreateOrganizationModal({
+  onClose,
+  onSuccess,
+}: CreateOrganizationModalProps) {
+  const { createOrganization, switchOrganization } = useAuth();
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Auto-generate slug from name
   const handleNameChange = (value: string) => {
-    setName(value)
+    setName(value);
     // Generate slug from name
     const generatedSlug = value
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
-      .trim()
-    setSlug(generatedSlug)
-  }
+      .trim();
+    setSlug(generatedSlug);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim() || !slug.trim()) return
+    e.preventDefault();
+    if (!name.trim() || !slug.trim()) return;
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const org = await createOrganization(name.trim(), slug.trim())
+      const org = await createOrganization(name.trim(), slug.trim());
       // Automatically switch to the new organization
-      await switchOrganization(org.id)
-      onSuccess()
-      onClose()
+      await switchOrganization(org.id);
+      onSuccess();
+      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create organization')
+      setError(err instanceof Error ? err.message : 'Failed to create organization');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
@@ -60,7 +66,12 @@ export default function CreateOrganizationModal({ onClose, onSuccess }: CreateOr
             aria-label="Close"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -125,12 +136,8 @@ export default function CreateOrganizationModal({ onClose, onSuccess }: CreateOr
         </form>
       </div>
     </div>
-  )
+  );
 }
-
-
-
-
 
 
 

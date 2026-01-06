@@ -7,8 +7,20 @@
   "pnpm": {
     "overrides": {
       "react": "19.1.1",
-      "react-dom": "19.1.1"
-    }
+      "react-dom": "19.1.1",
+      "drizzle-orm": "0.44.7"
+    },
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@sentry-internal/node-cpu-profiler",
+      "bcrypt",
+      "better-sqlite3",
+      "esbuild",
+      "msgpackr-extract",
+      "msw",
+      "puppeteer",
+      "sharp"
+    ]
   },
   "scripts": {
     "dev": "turbo run dev",
@@ -23,7 +35,12 @@
     "format:check": "biome format .",
     "type-check": "turbo run type-check",
     "clean": "turbo run clean && rm -rf node_modules",
-    "setup": "./scripts/setup.sh"
+    "setup": "./scripts/setup.sh",
+    "db:create": "pnpm --filter @authlane/database db:create",
+    "db:migrate": "pnpm --filter @authlane/database migrate",
+    "db:generate": "pnpm --filter @authlane/database generate",
+    "db:seed": "pnpm --filter @authlane/database seed",
+    "db:studio": "pnpm --filter @authlane/database studio"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.7",

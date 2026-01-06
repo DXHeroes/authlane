@@ -2,8 +2,8 @@
  * Authentication context utilities
  */
 
+import type { Organization, User } from '@authlane/database';
 import type { Context } from 'hono';
-import type { User, Organization } from '@authlane/database';
 
 /**
  * Gets user from context, throws if not found
@@ -69,10 +69,6 @@ export function getApiKey(c: Context): string | null {
 export function isApiKeyAuth(c: Context): boolean {
   return !!c.get('apiKey');
 }
-
-
-
-
 
 
 

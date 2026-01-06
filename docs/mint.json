@@ -54,11 +54,7 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": [
-        "introduction",
-        "quickstart",
-        "authentication"
-      ]
+      "pages": ["introduction", "quickstart", "authentication"]
     },
     {
       "group": "Guides",
@@ -72,11 +68,7 @@
     },
     {
       "group": "Security",
-      "pages": [
-        "security/overview",
-        "security/encryption",
-        "security/best-practices"
-      ]
+      "pages": ["security/overview", "security/encryption", "security/best-practices"]
     },
     {
       "group": "API Documentation",

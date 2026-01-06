@@ -1,5 +1,5 @@
-import React from 'react';
-import { Check, X, Clock, RefreshCw } from 'lucide-react';
+import { Check, Clock, RefreshCw, X } from 'lucide-react';
+import type React from 'react';
 
 interface ConnectionStatusProps {
   status: 'connected' | 'disconnected' | 'expired';
@@ -12,7 +12,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   status,
   onReconnect,
   compact = false,
-  expiresAt
+  expiresAt,
 }) => {
   const getStatusConfig = () => {
     switch (status) {
@@ -20,20 +20,19 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
         return {
           icon: <Check size={16} />,
           label: 'Connected',
-          className: 'connection-status--connected'
+          className: 'connection-status--connected',
         };
       case 'expired':
         return {
           icon: <Clock size={16} />,
           label: 'Expired',
-          className: 'connection-status--expired'
+          className: 'connection-status--expired',
         };
-      case 'disconnected':
       default:
         return {
           icon: <X size={16} />,
           label: 'Disconnected',
-          className: 'connection-status--disconnected'
+          className: 'connection-status--disconnected',
         };
     }
   };
@@ -63,10 +62,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
       )}
 
       {(status === 'expired' || status === 'disconnected') && onReconnect && (
-        <button
-          className="connection-status__reconnect"
-          onClick={onReconnect}
-        >
+        <button className="connection-status__reconnect" onClick={onReconnect}>
           <RefreshCw size={14} />
           Reconnect
         </button>

@@ -1,4 +1,4 @@
-import type { WidgetMessage, ParentMessage } from '../types';
+import type { ParentMessage, WidgetMessage } from '../types';
 
 export class PostMessageBridge {
   private targetOrigin: string;

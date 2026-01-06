@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Grid3x3 } from 'lucide-react';
+import { Grid3x3, Search } from 'lucide-react';
+import type React from 'react';
+import { useMemo, useState } from 'react';
 import type { Service } from '../types';
 import { ServiceCard } from './ServiceCard';
 
@@ -16,20 +17,21 @@ const CATEGORIES = [
   'development',
   'productivity',
   'storage',
-  'other'
+  'other',
 ];
 
 export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
   services,
   onServiceSelect,
-  loading = false
+  loading = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const filteredServices = useMemo(() => {
-    return services.filter(service => {
-      const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return services.filter((service) => {
+      const matchesSearch =
+        service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         service.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || service.category === selectedCategory;
       return matchesSearch && matchesCategory;
@@ -43,9 +45,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
           <Grid3x3 size={20} />
           Connect Services
         </h2>
-        <p className="service-selector__subtitle">
-          Choose a service to connect to your account
-        </p>
+        <p className="service-selector__subtitle">Choose a service to connect to your account</p>
       </div>
 
       <div className="service-selector__search">
@@ -60,7 +60,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
       </div>
 
       <div className="service-selector__categories">
-        {CATEGORIES.map(category => (
+        {CATEGORIES.map((category) => (
           <button
             key={category}
             className={`service-selector__category ${
@@ -78,7 +78,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
       ) : (
         <div className="service-selector__grid">
           {filteredServices.length > 0 ? (
-            filteredServices.map(service => (
+            filteredServices.map((service) => (
               <ServiceCard
                 key={service.id}
                 service={service}
@@ -86,9 +86,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
               />
             ))
           ) : (
-            <div className="service-selector__empty">
-              No services found matching your criteria
-            </div>
+            <div className="service-selector__empty">No services found matching your criteria</div>
           )}
         </div>
       )}

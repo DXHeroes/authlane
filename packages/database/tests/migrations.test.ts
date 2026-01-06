@@ -3,10 +3,10 @@
  * Tests for schema migrations and RLS policies
  */
 
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const { Pool } = pg;
 
@@ -171,8 +171,9 @@ describe('database migrations', () => {
       `);
 
       const uniqueIndexes = result.rows.map((row: any) => row.indexdef);
-      const hasCompositeUnique = uniqueIndexes.some((def: string) =>
-        def.includes('tenant_id') && def.includes('user_id') && def.includes('service_id')
+      const hasCompositeUnique = uniqueIndexes.some(
+        (def: string) =>
+          def.includes('tenant_id') && def.includes('user_id') && def.includes('service_id')
       );
 
       expect(hasCompositeUnique).toBe(true);
@@ -187,8 +188,8 @@ describe('database migrations', () => {
       `);
 
       const uniqueIndexes = result.rows.map((row: any) => row.indexdef);
-      const hasCompositeUnique = uniqueIndexes.some((def: string) =>
-        def.includes('tenant_id') && def.includes('service_id')
+      const hasCompositeUnique = uniqueIndexes.some(
+        (def: string) => def.includes('tenant_id') && def.includes('service_id')
       );
 
       expect(hasCompositeUnique).toBe(true);
@@ -277,12 +278,14 @@ describe('database migrations', () => {
       const tables = ['tenants', 'services', 'connections', 'tenant_services'];
 
       for (const table of tables) {
-        const result = await db.execute(sql.raw(`
+        const result = await db.execute(
+          sql.raw(`
           SELECT column_default
           FROM information_schema.columns
           WHERE table_name = '${table}'
           AND column_name = 'created_at';
-        `));
+        `)
+        );
 
         const defaultValue = result.rows[0]?.column_default;
         expect(defaultValue).toBeTruthy();
@@ -294,12 +297,14 @@ describe('database migrations', () => {
       const tables = ['connections', 'tenant_services'];
 
       for (const table of tables) {
-        const result = await db.execute(sql.raw(`
+        const result = await db.execute(
+          sql.raw(`
           SELECT column_default
           FROM information_schema.columns
           WHERE table_name = '${table}'
           AND column_name = 'updated_at';
-        `));
+        `)
+        );
 
         const defaultValue = result.rows[0]?.column_default;
         expect(defaultValue).toBeTruthy();
@@ -339,12 +344,14 @@ describe('database migrations', () => {
       const tables = ['tenants', 'services', 'connections', 'tenant_services'];
 
       for (const table of tables) {
-        const result = await db.execute(sql.raw(`
+        const result = await db.execute(
+          sql.raw(`
           SELECT data_type
           FROM information_schema.columns
           WHERE table_name = '${table}'
           AND column_name = 'id';
-        `));
+        `)
+        );
 
         expect(result.rows[0]?.data_type).toBe('uuid');
       }

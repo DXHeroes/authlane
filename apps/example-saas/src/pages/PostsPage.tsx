@@ -1,41 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react';
 
 interface Post {
-  id: number
-  title: string
-  body: string
-  userId: number
+  id: number;
+  title: string;
+  body: string;
+  userId: number;
 }
 
 export default function PostsPage() {
-  const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPosts()
-  }, [])
-
-  async function fetchPosts() {
-    setLoading(true)
-    setError(null)
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
     try {
       // JSONPlaceholder is a public API - no authentication needed
-      const response = await fetch('https://jsonplaceholder.typicode.com/posts?_limit=12')
-      
+      const response = await fetch('https://jsonplaceholder.typicode.com/posts?_limit=12');
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
+        throw new Error(`API error: ${response.status}`);
       }
 
-      const data = await response.json()
-      setPosts(data)
+      const data = await response.json();
+      setPosts(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch posts')
+      setError(err instanceof Error ? err.message : 'Failed to fetch posts');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   return (
     <div className="space-y-6">
@@ -43,9 +43,7 @@ export default function PostsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Public API Demo</h2>
-          <p className="text-gray-600 mt-1">
-            JSONPlaceholder - No authentication required
-          </p>
+          <p className="text-gray-600 mt-1">JSONPlaceholder - No authentication required</p>
         </div>
         <button
           onClick={fetchPosts}
@@ -60,9 +58,10 @@ export default function PostsPage() {
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <h3 className="font-semibold text-green-800 mb-2">Public APIs in Authlane</h3>
         <p className="text-sm text-green-700">
-          Some services like JSONPlaceholder, REST Countries, or PokéAPI don't require any 
-          authentication. Authlane lists them with <code className="bg-green-100 px-1 rounded">authType: "none"</code> so 
-          your users know they can use them immediately without any setup.
+          Some services like JSONPlaceholder, REST Countries, or PokéAPI don't require any
+          authentication. Authlane lists them with{' '}
+          <code className="bg-green-100 px-1 rounded">authType: "none"</code> so your users know
+          they can use them immediately without any setup.
         </p>
       </div>
 
@@ -105,16 +104,10 @@ export default function PostsPage() {
                 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
                   Post #{post.id}
                 </span>
-                <span className="text-xs text-gray-400">
-                  User {post.userId}
-                </span>
+                <span className="text-xs text-gray-400">User {post.userId}</span>
               </div>
-              <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">
-                {post.title}
-              </h3>
-              <p className="text-sm text-gray-600 line-clamp-3">
-                {post.body}
-              </p>
+              <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">{post.title}</h3>
+              <p className="text-sm text-gray-600 line-clamp-3">{post.body}</p>
             </div>
           ))}
         </div>
@@ -127,12 +120,8 @@ export default function PostsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
-
-
-
-
 
 
 

@@ -1,26 +1,26 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 class ApiClient {
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-    }
+    };
 
-    return headers
+    return headers;
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
     const json = await response.json().catch(() => ({
       error: { message: 'An error occurred' },
       data: null,
-    }))
+    }));
 
     if (!response.ok || json.error) {
-      throw new Error(json.error?.message || json.message || `HTTP ${response.status}`)
+      throw new Error(json.error?.message || json.message || `HTTP ${response.status}`);
     }
 
     // API returns { data, error } format - unwrap the data
-    return json.data as T
+    return json.data as T;
   }
 
   async get<T>(path: string): Promise<T> {
@@ -28,8 +28,8 @@ class ApiClient {
       method: 'GET',
       headers: this.getHeaders(),
       credentials: 'include', // Include cookies for better-auth session
-    })
-    return this.handleResponse<T>(response)
+    });
+    return this.handleResponse<T>(response);
   }
 
   async post<T>(path: string, data?: unknown): Promise<T> {
@@ -38,8 +38,8 @@ class ApiClient {
       headers: this.getHeaders(),
       body: data ? JSON.stringify(data) : undefined,
       credentials: 'include',
-    })
-    return this.handleResponse<T>(response)
+    });
+    return this.handleResponse<T>(response);
   }
 
   async put<T>(path: string, data?: unknown): Promise<T> {
@@ -48,8 +48,8 @@ class ApiClient {
       headers: this.getHeaders(),
       body: data ? JSON.stringify(data) : undefined,
       credentials: 'include',
-    })
-    return this.handleResponse<T>(response)
+    });
+    return this.handleResponse<T>(response);
   }
 
   async delete<T>(path: string): Promise<T> {
@@ -57,9 +57,9 @@ class ApiClient {
       method: 'DELETE',
       headers: this.getHeaders(),
       credentials: 'include',
-    })
-    return this.handleResponse<T>(response)
+    });
+    return this.handleResponse<T>(response);
   }
 }
 
-export const api = new ApiClient()
+export const api = new ApiClient();

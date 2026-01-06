@@ -33,4 +33,3 @@ export const organizationServices = pgTable(
 
 export type OrganizationService = typeof organizationServices.$inferSelect;
 export type NewOrganizationService = typeof organizationServices.$inferInsert;
-

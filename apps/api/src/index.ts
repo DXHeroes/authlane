@@ -8,7 +8,10 @@
 let redisErrorLogged = false;
 process.on('uncaughtException', (err: Error & { code?: string }) => {
   // Handle Redis connection errors gracefully
-  if (err.code === 'ECONNREFUSED' && (err.message?.includes('6379') || String(err).includes('6379'))) {
+  if (
+    err.code === 'ECONNREFUSED' &&
+    (err.message?.includes('6379') || String(err).includes('6379'))
+  ) {
     if (!redisErrorLogged) {
       redisErrorLogged = true;
       console.log('⚠️  Redis connection refused. Token refresh jobs will not work.');
@@ -24,6 +27,7 @@ process.on('uncaughtException', (err: Error & { code?: string }) => {
 
 // Initialize Sentry as early as possible
 import { initSentry, sentryMiddleware } from './lib/sentry.js';
+
 initSentry();
 
 import { createDatabaseClient, type Database } from '@authlane/database';
@@ -41,19 +45,22 @@ import { createApiRouter } from './routes/index.js';
  * Create Hono app with routes and middleware
  * Exported for testing purposes
  */
-export function createApp(db: Database, options?: {
-  corsOrigin?: string | string[];
-  rateLimitMaxRequests?: number;
-  rateLimitWindowMs?: number;
-  rateLimitEnabled?: boolean;
-}) {
+export function createApp(
+  db: Database,
+  options?: {
+    corsOrigin?: string | string[];
+    rateLimitMaxRequests?: number;
+    rateLimitWindowMs?: number;
+    rateLimitEnabled?: boolean;
+  }
+) {
   const app = new Hono();
 
   // Create Better Auth instance
   const auth = createAuth(db, {
     baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
-    trustedOrigins: Array.isArray(options?.corsOrigin) 
-      ? options.corsOrigin 
+    trustedOrigins: Array.isArray(options?.corsOrigin)
+      ? options.corsOrigin
       : [options?.corsOrigin || 'http://localhost:5173'].filter(Boolean),
   });
 
@@ -64,7 +71,8 @@ export function createApp(db: Database, options?: {
   app.use(
     '*',
     cors({
-      origin: options?.corsOrigin || process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://localhost:5173'],
+      origin: options?.corsOrigin ||
+        process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://localhost:5173'],
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization'],
       credentials: true, // Required for better-auth cookies
@@ -86,8 +94,23 @@ export function createApp(db: Database, options?: {
   });
 
   // Better Auth routes (public)
-  app.on(['POST', 'GET'], '/api/auth/*', (c) => {
-    return auth.handler(c.req.raw);
+  app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
+    try {
+      return await auth.handler(c.req.raw);
+    } catch (error) {
+      console.error('[Auth Handler Error]:', error);
+      console.error(
+        '[Auth Handler Error Stack]:',
+        error instanceof Error ? error.stack : 'No stack trace'
+      );
+      return c.json(
+        {
+          error: 'Authentication error',
+          details: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
   });
 
   // API routes (require authentication and rate limiting)
@@ -139,12 +162,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Create app
   // Parse comma-separated CORS origins into array
   // Always include localhost:5173 (dashboard) in development
-  const baseOrigins = env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || [];
-  const corsOrigins = [...new Set([
-    ...baseOrigins,
-    'http://localhost:3000',
-    'http://localhost:5173', // Dashboard dev server
-  ])];
+  const baseOrigins =
+    env.CORS_ORIGIN?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) || [];
+  const corsOrigins = [
+    ...new Set([
+      ...baseOrigins,
+      'http://localhost:3000',
+      'http://localhost:5173', // Dashboard dev server
+    ]),
+  ];
   const app = createApp(db, {
     corsOrigin: corsOrigins,
     rateLimitMaxRequests: env.RATE_LIMIT_MAX_REQUESTS,

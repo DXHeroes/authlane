@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 import { Widget } from './components/Widget';
 import './styles/index.css';
 

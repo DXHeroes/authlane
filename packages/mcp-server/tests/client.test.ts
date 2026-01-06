@@ -2,7 +2,7 @@
  * Tests for Authlane client wrapper
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAuthlaneClient } from '../src/client.js';
 
 describe('Authlane Client', () => {

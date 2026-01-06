@@ -48,7 +48,7 @@ describe('hash functions', () => {
     });
 
     it('should hash long API keys', async () => {
-      const longKey = 'sk_test_' + 'a'.repeat(1000);
+      const longKey = `sk_test_${'a'.repeat(1000)}`;
       const hash = await hashPassword(longKey);
 
       expect(hash).toBeTruthy();
@@ -143,7 +143,7 @@ describe('hash functions', () => {
       'sk_prod_1234567890',
       'sk_test_with_special!@#$%',
       'sk_test_🔐_emoji',
-      'sk_test_' + 'long'.repeat(50),
+      `sk_test_${'long'.repeat(50)}`,
       '',
     ];
 

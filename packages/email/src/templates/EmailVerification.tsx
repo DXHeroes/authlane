@@ -39,44 +39,40 @@ export function EmailVerification({
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>
-            Verify your email address
-          </Heading>
-          
+          <Heading style={heading}>Verify your email address</Heading>
+
+          <Text style={paragraph}>Hi {userName},</Text>
+
           <Text style={paragraph}>
-            Hi {userName},
+            Thanks for signing up for Authlane! Please verify your email address by clicking the
+            button below.
           </Text>
-          
-          <Text style={paragraph}>
-            Thanks for signing up for Authlane! Please verify your email address by clicking
-            the button below.
-          </Text>
-          
+
           <Section style={buttonContainer}>
             <Button style={button} href={verificationLink}>
               Verify Email Address
             </Button>
           </Section>
-          
+
           <Text style={paragraph}>
             This link will expire in {expiresIn}. If you didn&apos;t create an account on Authlane,
             you can safely ignore this email.
           </Text>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footer}>
             If the button above doesn&apos;t work, copy and paste this link into your browser:
           </Text>
           <Link href={verificationLink} style={link}>
             {verificationLink}
           </Link>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footerSmall}>
-            This email was sent by Authlane. If you didn&apos;t sign up for an account,
-            you can ignore this email.
+            This email was sent by Authlane. If you didn&apos;t sign up for an account, you can
+            ignore this email.
           </Text>
         </Container>
       </Body>
@@ -159,4 +155,3 @@ const footerSmall = {
   lineHeight: '1.5',
   margin: '0',
 };
-

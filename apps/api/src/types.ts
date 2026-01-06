@@ -2,7 +2,7 @@
  * Type definitions for API context
  */
 
-import type { User, Organization } from '@authlane/database';
+import type { Organization, User } from '@authlane/database';
 
 /**
  * Extended Hono context with authentication information

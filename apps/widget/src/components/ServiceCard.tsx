@@ -1,5 +1,5 @@
-import React from 'react';
 import { Check, Clock } from 'lucide-react';
+import type React from 'react';
 import type { Service } from '../types';
 import { ConnectionStatus } from './ConnectionStatus';
 
@@ -12,10 +12,19 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
   const getStatusIcon = () => {
     switch (service.status) {
       case 'connected':
-        return <Check className="service-card__status-icon service-card__status-icon--connected" size={16} />;
+        return (
+          <Check
+            className="service-card__status-icon service-card__status-icon--connected"
+            size={16}
+          />
+        );
       case 'expired':
-        return <Clock className="service-card__status-icon service-card__status-icon--expired" size={16} />;
-      case 'disconnected':
+        return (
+          <Clock
+            className="service-card__status-icon service-card__status-icon--expired"
+            size={16}
+          />
+        );
       default:
         return null;
     }
@@ -33,20 +42,14 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
             </div>
           )}
         </div>
-        {service.status && (
-          <div className="service-card__status-badge">
-            {getStatusIcon()}
-          </div>
-        )}
+        {service.status && <div className="service-card__status-badge">{getStatusIcon()}</div>}
       </div>
 
       <div className="service-card__content">
         <h3 className="service-card__name">{service.name}</h3>
         <p className="service-card__description">{service.description}</p>
 
-        {service.status && (
-          <ConnectionStatus status={service.status} compact />
-        )}
+        {service.status && <ConnectionStatus status={service.status} compact />}
       </div>
     </button>
   );

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "mintlify dev --port 3004",
-    "build": "mintlify build",
+    "build": "echo 'Mintlify docs do not require building'",
     "preview": "mintlify preview"
   },
   "devDependencies": {

@@ -1,30 +1,34 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { ApiKey } from '@/types'
-import CreateApiKeyModal from '@/components/CreateApiKeyModal'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import CreateApiKeyModal from '@/components/CreateApiKeyModal';
+import { api } from '@/lib/api';
+import type { ApiKey } from '@/types';
 
 export default function ApiKeysPage() {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const queryClient = useQueryClient()
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: apiKeys, isLoading } = useQuery({
     queryKey: ['api-keys'],
     queryFn: () => api.get<ApiKey[]>('/api-keys'),
-  })
+  });
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => api.delete(`/api-keys/${keyId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-keys'] })
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
     },
-  })
+  });
 
   const handleRevoke = (keyId: string, name: string) => {
-    if (confirm(`Are you sure you want to revoke the API key "${name}"? This action cannot be undone.`)) {
-      revokeMutation.mutate(keyId)
+    if (
+      confirm(
+        `Are you sure you want to revoke the API key "${name}"? This action cannot be undone.`
+      )
+    ) {
+      revokeMutation.mutate(keyId);
     }
-  }
+  };
 
   return (
     <div className="p-8">
@@ -76,7 +80,7 @@ export default function ApiKeysPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {apiKeys.map((key) => {
-                    const isExpired = key.expiresAt && new Date(key.expiresAt) < new Date()
+                    const isExpired = key.expiresAt && new Date(key.expiresAt) < new Date();
                     return (
                       <tr key={key.id} className="hover:bg-accent/50">
                         <td className="px-6 py-4 text-sm font-medium">{key.name}</td>
@@ -107,7 +111,7 @@ export default function ApiKeysPage() {
                           </button>
                         </td>
                       </tr>
-                    )
+                    );
                   })}
                 </tbody>
               </table>
@@ -140,11 +144,11 @@ export default function ApiKeysPage() {
         <CreateApiKeyModal
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={() => {
-            setIsCreateModalOpen(false)
-            queryClient.invalidateQueries({ queryKey: ['api-keys'] })
+            setIsCreateModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['api-keys'] });
           }}
         />
       )}
     </div>
-  )
+  );
 }

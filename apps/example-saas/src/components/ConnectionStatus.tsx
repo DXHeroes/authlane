@@ -1,54 +1,54 @@
-import { useEffect, useState } from 'react'
-import { authlane, type Connection, type Service } from '@/lib/authlane'
+import { useCallback, useEffect, useState } from 'react';
+import { authlane, type Connection, type Service } from '@/lib/authlane';
 
 interface ConnectionWithService extends Connection {
-  service?: Service
+  service?: Service;
 }
 
 export default function ConnectionStatus() {
-  const [connections, setConnections] = useState<ConnectionWithService[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [connections, setConnections] = useState<ConnectionWithService[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  async function loadData() {
-    setLoading(true)
-    setError(null)
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
     const [connectionsRes, servicesRes] = await Promise.all([
       authlane.listConnections(),
       authlane.listServices(),
-    ])
+    ]);
 
     if (servicesRes.error) {
-      setError(servicesRes.error.message)
-      setLoading(false)
-      return
+      setError(servicesRes.error.message);
+      setLoading(false);
+      return;
     }
 
-    const serviceMap = new Map(servicesRes.data?.map((s) => [s.id, s]) ?? [])
-    
+    const serviceMap = new Map(servicesRes.data?.map((s) => [s.id, s]) ?? []);
+
     // Merge connections with service info
     const connectionsWithServices = (connectionsRes.data ?? []).map((conn) => ({
       ...conn,
       service: serviceMap.get(conn.serviceId),
-    }))
+    }));
 
-    setServices(servicesRes.data ?? [])
-    setConnections(connectionsWithServices)
-    setLoading(false)
-  }
+    setServices(servicesRes.data ?? []);
+    setConnections(connectionsWithServices);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function handleConnect(serviceId: string) {
-    const result = await authlane.getAuthUrl(serviceId)
+    const result = await authlane.getAuthUrl(serviceId);
     if (result.data?.url) {
-      window.open(result.data.url, '_blank', 'width=600,height=700')
+      window.open(result.data.url, '_blank', 'width=600,height=700');
     } else {
-      alert('Failed to get authorization URL: ' + (result.error?.message || 'Unknown error'))
+      alert(`Failed to get authorization URL: ${result.error?.message || 'Unknown error'}`);
     }
   }
 
@@ -59,7 +59,7 @@ export default function ConnectionStatus() {
           <div key={i} className="h-16 bg-gray-200 rounded-lg" />
         ))}
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -67,19 +67,16 @@ export default function ConnectionStatus() {
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
         <p className="font-medium">Failed to load connections</p>
         <p className="text-sm">{error}</p>
-        <button 
-          onClick={loadData}
-          className="mt-2 text-sm underline"
-        >
+        <button onClick={loadData} className="mt-2 text-sm underline">
           Retry
         </button>
       </div>
-    )
+    );
   }
 
   // Group services by type
-  const oauthServices = services.filter(s => s.authType === 'oauth2')
-  const publicApis = services.filter(s => s.authType === 'none')
+  const oauthServices = services.filter((s) => s.authType === 'oauth2');
+  const publicApis = services.filter((s) => s.authType === 'none');
 
   return (
     <div className="space-y-6">
@@ -88,8 +85,8 @@ export default function ConnectionStatus() {
         <h3 className="text-lg font-semibold text-gray-800 mb-3">OAuth Services</h3>
         <div className="grid gap-3 md:grid-cols-2">
           {oauthServices.map((service) => {
-            const connection = connections.find((c) => c.serviceId === service.id)
-            const isConnected = connection?.status === 'connected'
+            const connection = connections.find((c) => c.serviceId === service.id);
+            const isConnected = connection?.status === 'connected';
 
             return (
               <div
@@ -122,7 +119,7 @@ export default function ConnectionStatus() {
                   {isConnected ? 'Reconnect' : 'Connect'}
                 </button>
               </div>
-            )
+            );
           })}
         </div>
       </div>
@@ -152,20 +149,13 @@ export default function ConnectionStatus() {
 
       {/* Refresh button */}
       <div className="flex justify-center pt-4">
-        <button
-          onClick={loadData}
-          className="text-sm text-indigo-600 hover:text-indigo-700"
-        >
+        <button onClick={loadData} className="text-sm text-indigo-600 hover:text-indigo-700">
           ↻ Refresh connections
         </button>
       </div>
     </div>
-  )
+  );
 }
-
-
-
-
 
 
 

@@ -9,12 +9,12 @@
  * 4. Service configurations are tenant-specific
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { connections, organizationServices, organizations, users } from '@authlane/database';
+import { hashPassword } from '@authlane/shared';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/index.js';
 import { cleanDatabase, getTestDb } from '../setup/test-db.js';
-import { organizations, connections, organizationServices, users } from '@authlane/database';
-import { randomUUID } from 'node:crypto';
-import { hashPassword } from '@authlane/shared';
 
 describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
   const db = getTestDb();
@@ -25,7 +25,7 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
   let org1User1Id: string;
   let org1User1Email: string;
   let org1User1Password: string;
-  let org1ApiKeyId: string;
+  let _org1ApiKeyId: string;
   let org1ApiKey: string;
 
   // Organization 2
@@ -33,7 +33,7 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
   let org2User1Id: string;
   let org2User1Email: string;
   let org2User1Password: string;
-  let org2ApiKeyId: string;
+  let _org2ApiKeyId: string;
   let org2ApiKey: string;
 
   beforeAll(async () => {
@@ -44,48 +44,60 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
     org1User1Email = 'org1-user@example.com';
     org1User1Password = 'SecurePassword123!';
 
-    const [org1] = await db.insert(organizations).values({
-      id: org1Id,
-      name: 'Organization 1',
-      slug: 'org-1',
-    }).returning();
+    const [_org1] = await db
+      .insert(organizations)
+      .values({
+        id: org1Id,
+        name: 'Organization 1',
+        slug: 'org-1',
+      })
+      .returning();
 
-    const [org1User] = await db.insert(users).values({
-      id: randomUUID(),
-      email: org1User1Email,
-      name: 'Org 1 User',
-      emailVerified: true,
-      passwordHash: await hashPassword(org1User1Password),
-    }).returning();
+    const [org1User] = await db
+      .insert(users)
+      .values({
+        id: randomUUID(),
+        email: org1User1Email,
+        name: 'Org 1 User',
+        emailVerified: true,
+        passwordHash: await hashPassword(org1User1Password),
+      })
+      .returning();
     org1User1Id = org1User.id;
 
     // Create API key for Org 1
     org1ApiKey = `sk_test_${randomUUID()}`;
-    org1ApiKeyId = randomUUID();
+    _org1ApiKeyId = randomUUID();
 
     // Setup Organization 2
     org2Id = randomUUID();
     org2User1Email = 'org2-user@example.com';
     org2User1Password = 'AnotherSecure123!';
 
-    const [org2] = await db.insert(organizations).values({
-      id: org2Id,
-      name: 'Organization 2',
-      slug: 'org-2',
-    }).returning();
+    const [_org2] = await db
+      .insert(organizations)
+      .values({
+        id: org2Id,
+        name: 'Organization 2',
+        slug: 'org-2',
+      })
+      .returning();
 
-    const [org2User] = await db.insert(users).values({
-      id: randomUUID(),
-      email: org2User1Email,
-      name: 'Org 2 User',
-      emailVerified: true,
-      passwordHash: await hashPassword(org2User1Password),
-    }).returning();
+    const [org2User] = await db
+      .insert(users)
+      .values({
+        id: randomUUID(),
+        email: org2User1Email,
+        name: 'Org 2 User',
+        emailVerified: true,
+        passwordHash: await hashPassword(org2User1Password),
+      })
+      .returning();
     org2User1Id = org2User.id;
 
     // Create API key for Org 2
     org2ApiKey = `sk_test_${randomUUID()}`;
-    org2ApiKeyId = randomUUID();
+    _org2ApiKeyId = randomUUID();
   });
 
   afterAll(async () => {
@@ -111,14 +123,11 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       });
 
       // Try to access Org 2's connection using Org 1's API key
-      const response = await app.request(
-        `/api/v1/connections/${org2ConnectionId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-          },
-        }
-      );
+      const response = await app.request(`/api/v1/connections/${org2ConnectionId}`, {
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+        },
+      });
 
       expect(response.status).toBe(404); // Should not be found (not 403 to avoid enumeration)
       const data = await response.json();
@@ -147,14 +156,11 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       ]);
 
       // List connections using Org 1's API key
-      const response = await app.request(
-        '/api/v1/connections',
-        {
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-          },
-        }
-      );
+      const response = await app.request('/api/v1/connections', {
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+        },
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -177,15 +183,12 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       });
 
       // Try to delete Org 2's connection using Org 1's API key
-      const response = await app.request(
-        `/api/v1/connections/${org2ConnectionId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-          },
-        }
-      );
+      const response = await app.request(`/api/v1/connections/${org2ConnectionId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+        },
+      });
 
       expect(response.status).toBe(404);
 
@@ -211,27 +214,21 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       });
 
       // Try to access with wrong organization's API key
-      const response = await app.request(
-        `/api/v1/connections/${org1ConnectionId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${org2ApiKey}`,
-          },
-        }
-      );
+      const response = await app.request(`/api/v1/connections/${org1ConnectionId}`, {
+        headers: {
+          Authorization: `Bearer ${org2ApiKey}`,
+        },
+      });
 
       expect(response.status).toBe(404);
     });
 
     it('should reject invalid API key format', async () => {
-      const response = await app.request(
-        '/api/v1/connections',
-        {
-          headers: {
-            'Authorization': 'Bearer invalid_key_format',
-          },
-        }
-      );
+      const response = await app.request('/api/v1/connections', {
+        headers: {
+          Authorization: 'Bearer invalid_key_format',
+        },
+      });
 
       expect(response.status).toBe(401);
       const data = await response.json();
@@ -260,14 +257,11 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       });
 
       // Try to access service config using Org 1's credentials
-      const response = await app.request(
-        '/api/v1/services/github/config',
-        {
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-          },
-        }
-      );
+      const response = await app.request('/api/v1/services/github/config', {
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+        },
+      });
 
       // Should not expose Org 2's configuration
       expect(response.status).toBeOneOf([404, 401]);
@@ -295,14 +289,11 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       ]);
 
       // Verify Org 1 gets its own config
-      const org1Response = await app.request(
-        '/api/v1/services/github/config',
-        {
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-          },
-        }
-      );
+      const org1Response = await app.request('/api/v1/services/github/config', {
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+        },
+      });
 
       expect(org1Response.status).toBe(200);
       const org1Config = await org1Response.json();
@@ -310,14 +301,11 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       expect(org1Config.oauthClientSecret).toBeUndefined(); // Should never expose
 
       // Verify Org 2 gets its own config
-      const org2Response = await app.request(
-        '/api/v1/services/github/config',
-        {
-          headers: {
-            'Authorization': `Bearer ${org2ApiKey}`,
-          },
-        }
-      );
+      const org2Response = await app.request('/api/v1/services/github/config', {
+        headers: {
+          Authorization: `Bearer ${org2ApiKey}`,
+        },
+      });
 
       expect(org2Response.status).toBe(200);
       const org2Config = await org2Response.json();
@@ -360,14 +348,11 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       ]);
 
       // List all org connections (admin view)
-      const response = await app.request(
-        '/api/v1/connections',
-        {
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-          },
-        }
-      );
+      const response = await app.request('/api/v1/connections', {
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+        },
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -381,23 +366,29 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
   describe('Credential Encryption Isolation', () => {
     it('should encrypt credentials per organization', async () => {
       // Create connections with same service for different orgs
-      const org1Connection = await db.insert(connections).values({
-        id: randomUUID(),
-        organizationId: org1Id,
-        userId: org1User1Id,
-        serviceId: 'github',
-        status: 'connected',
-        credentials: { access_token: 'same_token_value' },
-      }).returning();
+      const org1Connection = await db
+        .insert(connections)
+        .values({
+          id: randomUUID(),
+          organizationId: org1Id,
+          userId: org1User1Id,
+          serviceId: 'github',
+          status: 'connected',
+          credentials: { access_token: 'same_token_value' },
+        })
+        .returning();
 
-      const org2Connection = await db.insert(connections).values({
-        id: randomUUID(),
-        organizationId: org2Id,
-        userId: org2User1Id,
-        serviceId: 'github',
-        status: 'connected',
-        credentials: { access_token: 'same_token_value' },
-      }).returning();
+      const org2Connection = await db
+        .insert(connections)
+        .values({
+          id: randomUUID(),
+          organizationId: org2Id,
+          userId: org2User1Id,
+          serviceId: 'github',
+          status: 'connected',
+          credentials: { access_token: 'same_token_value' },
+        })
+        .returning();
 
       // Verify encrypted credentials are different (different encryption keys)
       // This assumes credentials are encrypted at the database level
@@ -408,15 +399,12 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
   describe('Organization Switching', () => {
     it('should prevent API key from switching to unauthorized organization', async () => {
       // Attempt to access resources by manipulating organization context
-      const response = await app.request(
-        '/api/v1/connections',
-        {
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-            'X-Organization-Id': org2Id, // Attempt to switch context
-          },
-        }
-      );
+      const response = await app.request('/api/v1/connections', {
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+          'X-Organization-Id': org2Id, // Attempt to switch context
+        },
+      });
 
       // Should either ignore the header or reject
       const data = await response.json();
@@ -436,46 +424,37 @@ describe('Multi-Tenancy Isolation - Critical Security Tests', () => {
       // This test assumes audit logging is implemented
 
       // Org 1 creates a connection
-      await app.request(
-        '/api/v1/connections',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            serviceId: 'github',
-            userId: org1User1Id,
-          }),
-        }
-      );
+      await app.request('/api/v1/connections', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serviceId: 'github',
+          userId: org1User1Id,
+        }),
+      });
 
       // Org 2 creates a connection
-      await app.request(
-        '/api/v1/connections',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${org2ApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            serviceId: 'github',
-            userId: org2User1Id,
-          }),
-        }
-      );
+      await app.request('/api/v1/connections', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${org2ApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serviceId: 'github',
+          userId: org2User1Id,
+        }),
+      });
 
       // Try to access audit logs (if endpoint exists)
-      const auditResponse = await app.request(
-        '/api/v1/audit-logs',
-        {
-          headers: {
-            'Authorization': `Bearer ${org1ApiKey}`,
-          },
-        }
-      );
+      const auditResponse = await app.request('/api/v1/audit-logs', {
+        headers: {
+          Authorization: `Bearer ${org1ApiKey}`,
+        },
+      });
 
       // Should only see Org 1's audit logs
       if (auditResponse.status === 200) {

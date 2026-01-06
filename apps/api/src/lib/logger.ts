@@ -61,35 +61,50 @@ export function logDebug(message: string, context?: Record<string, unknown>) {
 }
 
 // Request logging
-export function logRequest(method: string, path: string, statusCode: number, duration: number, context?: Record<string, unknown>) {
-  logger.info({
-    ...context,
-    method,
-    path,
-    statusCode,
-    duration,
-    type: 'request',
-  }, `${method} ${path} ${statusCode} ${duration}ms`);
+export function logRequest(
+  method: string,
+  path: string,
+  statusCode: number,
+  duration: number,
+  context?: Record<string, unknown>
+) {
+  logger.info(
+    {
+      ...context,
+      method,
+      path,
+      statusCode,
+      duration,
+      type: 'request',
+    },
+    `${method} ${path} ${statusCode} ${duration}ms`
+  );
 }
 
 // Database query logging
 export function logQuery(query: string, duration: number, context?: Record<string, unknown>) {
-  logger.debug({
-    ...context,
-    query,
-    duration,
-    type: 'database',
-  }, `Query executed in ${duration}ms`);
+  logger.debug(
+    {
+      ...context,
+      query,
+      duration,
+      type: 'database',
+    },
+    `Query executed in ${duration}ms`
+  );
 }
 
 // OAuth flow logging
 export function logOAuth(provider: string, action: string, context?: Record<string, unknown>) {
-  logger.info({
-    ...context,
-    provider,
-    action,
-    type: 'oauth',
-  }, `OAuth ${action} for ${provider}`);
+  logger.info(
+    {
+      ...context,
+      provider,
+      action,
+      type: 'oauth',
+    },
+    `OAuth ${action} for ${provider}`
+  );
 }
 
 export default logger;

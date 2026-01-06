@@ -2,9 +2,9 @@
  * Tests for tool executor
  */
 
-import { describe, it, expect } from 'vitest';
-import { executeTool } from '../src/tool-executor.js';
+import { describe, expect, it } from 'vitest';
 import { createAuthlaneClient } from '../src/client.js';
+import { executeTool } from '../src/tool-executor.js';
 
 describe('Tool Executor', () => {
   describe('executeTool', () => {

@@ -1,101 +1,99 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { authClient } from '@/lib/auth-client'
-import InviteMemberModal from '@/components/InviteMemberModal'
+import { useCallback, useEffect, useState } from 'react';
+import InviteMemberModal from '@/components/InviteMemberModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { authClient } from '@/lib/auth-client';
 
 interface Member {
-  id: string
-  userId: string
-  organizationId: string
-  role: 'owner' | 'admin' | 'member'
-  createdAt: Date
+  id: string;
+  userId: string;
+  organizationId: string;
+  role: 'owner' | 'admin' | 'member';
+  createdAt: Date;
   user: {
-    id: string
-    name: string
-    email: string
-    image?: string
-  }
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+  };
 }
 
 export default function MembersPage() {
-  const { organization, user } = useAuth()
-  const [members, setMembers] = useState<Member[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const { organization, user } = useAuth();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const loadMembers = async () => {
-    if (!organization) return
+  const loadMembers = useCallback(async () => {
+    if (!organization) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const result = await authClient.organization.listMembers()
+      const result = await authClient.organization.listMembers();
       if (result.data) {
         // The response might be { members: [...] } or just an array
-        const responseData = result.data as { members?: Member[] } | Member[]
-        const memberList = Array.isArray(responseData) 
-          ? responseData 
-          : (responseData.members || [])
-        
-        setMembers(memberList as Member[])
-        
+        const responseData = result.data as { members?: Member[] } | Member[];
+        const memberList = Array.isArray(responseData) ? responseData : responseData.members || [];
+
+        setMembers(memberList as Member[]);
+
         // Find current user's role
-        const currentMember = memberList.find((m: Member) => m.userId === user?.id)
+        const currentMember = memberList.find((m: Member) => m.userId === user?.id);
         if (currentMember) {
-          setCurrentUserRole(currentMember.role)
+          setCurrentUserRole(currentMember.role);
         }
       }
     } catch (err) {
-      console.error('Failed to load members:', err)
-      setError('Failed to load members')
+      console.error('Failed to load members:', err);
+      setError('Failed to load members');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  }, [organization, user?.id]);
 
   useEffect(() => {
-    loadMembers()
-  }, [organization, user])
+    loadMembers();
+  }, [loadMembers]);
 
-  const isOwner = currentUserRole === 'owner'
-  const isAdmin = currentUserRole === 'admin'
-  const canManageMembers = isOwner || isAdmin
+  const isOwner = currentUserRole === 'owner';
+  const isAdmin = currentUserRole === 'admin';
+  const canManageMembers = isOwner || isAdmin;
 
   const handleRoleChange = async (memberId: string, newRole: 'admin' | 'member') => {
-    if (!canManageMembers) return
+    if (!canManageMembers) return;
 
-    setActionLoading(memberId)
+    setActionLoading(memberId);
     try {
       await authClient.organization.updateMemberRole({
         memberId,
         role: newRole,
-      })
-      await loadMembers()
+      });
+      await loadMembers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update role')
+      setError(err instanceof Error ? err.message : 'Failed to update role');
     } finally {
-      setActionLoading(null)
+      setActionLoading(null);
     }
-  }
+  };
 
   const handleRemoveMember = async (memberId: string, memberName: string) => {
-    if (!canManageMembers) return
-    if (!confirm(`Are you sure you want to remove ${memberName} from the organization?`)) return
+    if (!canManageMembers) return;
+    if (!confirm(`Are you sure you want to remove ${memberName} from the organization?`)) return;
 
-    setActionLoading(memberId)
+    setActionLoading(memberId);
     try {
       await authClient.organization.removeMember({
         memberIdOrEmail: memberId,
-      })
-      await loadMembers()
+      });
+      await loadMembers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove member')
+      setError(err instanceof Error ? err.message : 'Failed to remove member');
     } finally {
-      setActionLoading(null)
+      setActionLoading(null);
     }
-  }
+  };
 
   if (!organization) {
     return (
@@ -104,7 +102,7 @@ export default function MembersPage() {
           No organization selected. Please select or create an organization.
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -122,7 +120,12 @@ export default function MembersPage() {
             className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             Invite Member
           </button>
@@ -180,10 +183,10 @@ export default function MembersPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {members.map((member) => {
-                const isCurrentUser = member.userId === user?.id
-                const isMemberOwner = member.role === 'owner'
-                const canModify = canManageMembers && !isCurrentUser && !isMemberOwner
-                const isActionLoading = actionLoading === member.id
+                const isCurrentUser = member.userId === user?.id;
+                const isMemberOwner = member.role === 'owner';
+                const canModify = canManageMembers && !isCurrentUser && !isMemberOwner;
+                const isActionLoading = actionLoading === member.id;
 
                 return (
                   <tr key={member.id} className="hover:bg-muted/30">
@@ -246,7 +249,7 @@ export default function MembersPage() {
                       </td>
                     )}
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
@@ -258,12 +261,11 @@ export default function MembersPage() {
         <InviteMemberModal
           onClose={() => setShowInviteModal(false)}
           onSuccess={() => {
-            setShowInviteModal(false)
-            loadMembers()
+            setShowInviteModal(false);
+            loadMembers();
           }}
         />
       )}
     </div>
-  )
+  );
 }
-

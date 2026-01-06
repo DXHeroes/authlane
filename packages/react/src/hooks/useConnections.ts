@@ -2,8 +2,8 @@
  * Hook for managing multiple connections
  */
 
-import { useState, useEffect, useCallback } from 'react';
 import type { Connection } from '@authlane/sdk';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthlaneContext } from '../context.js';
 
 interface UseConnectionsOptions {
@@ -48,9 +48,7 @@ interface UseConnectionsReturn {
  * }
  * ```
  */
-export function useConnections(
-  options: UseConnectionsOptions = {}
-): UseConnectionsReturn {
+export function useConnections(options: UseConnectionsOptions = {}): UseConnectionsReturn {
   const { autoFetch = true, pollInterval } = options;
   const { client, userId } = useAuthlaneContext();
 

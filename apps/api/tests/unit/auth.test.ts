@@ -2,12 +2,12 @@
  * Unit tests for authentication middleware
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { Hono } from 'hono';
-import { authMiddleware } from '../../src/middleware/auth.js';
-import { getTestDb, cleanDatabase } from '../setup/test-db.js';
 import { tenants } from '@authlane/database';
 import { hashApiKey } from '@authlane/shared';
+import { Hono } from 'hono';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { authMiddleware } from '../../src/middleware/auth.js';
+import { cleanDatabase, getTestDb } from '../setup/test-db.js';
 
 describe('Authentication Middleware', () => {
   const db = getTestDb();

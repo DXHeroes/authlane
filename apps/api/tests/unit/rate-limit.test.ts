@@ -2,8 +2,8 @@
  * Rate limiting unit tests
  */
 
-import { describe, expect, it, beforeEach } from 'vitest';
 import { Hono } from 'hono';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { rateLimitMiddleware } from '../../src/middleware/rate-limit';
 import { getTestDb } from '../setup/test-db';
 import { testTenantMiddleware } from '../setup/test-helpers';

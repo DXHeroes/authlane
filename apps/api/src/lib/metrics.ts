@@ -1,4 +1,4 @@
-import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
+import { Counter, collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
 
 // Create a custom registry
 export const register = new Registry();
@@ -129,24 +129,41 @@ export const cacheMisses = new Counter({
 });
 
 // Helper functions
-export function recordHttpRequest(method: string, route: string, statusCode: number, duration: number) {
+export function recordHttpRequest(
+  method: string,
+  route: string,
+  statusCode: number,
+  duration: number
+) {
   httpRequestDuration.labels(method, route, statusCode.toString()).observe(duration);
   httpRequestTotal.labels(method, route, statusCode.toString()).inc();
 }
 
-export function recordOAuthFlow(provider: string, status: 'success' | 'failure', duration?: number) {
+export function recordOAuthFlow(
+  provider: string,
+  status: 'success' | 'failure',
+  duration?: number
+) {
   oauthFlowsTotal.labels(provider, status).inc();
   if (duration !== undefined) {
     oauthFlowDuration.labels(provider).observe(duration);
   }
 }
 
-export function recordDatabaseQuery(operation: string, status: 'success' | 'failure', duration: number) {
+export function recordDatabaseQuery(
+  operation: string,
+  status: 'success' | 'failure',
+  duration: number
+) {
   databaseQueryDuration.labels(operation).observe(duration);
   databaseQueryTotal.labels(operation, status).inc();
 }
 
-export function recordTokenRefresh(provider: string, status: 'success' | 'failure', duration: number) {
+export function recordTokenRefresh(
+  provider: string,
+  status: 'success' | 'failure',
+  duration: number
+) {
   tokenRefreshTotal.labels(provider, status).inc();
   tokenRefreshDuration.labels(provider).observe(duration);
 }
@@ -159,7 +176,11 @@ export function recordRateLimitHit(endpoint: string) {
   rateLimitHits.labels(endpoint).inc();
 }
 
-export function recordWebhookDelivery(event: string, status: 'success' | 'failure', duration: number) {
+export function recordWebhookDelivery(
+  event: string,
+  status: 'success' | 'failure',
+  duration: number
+) {
   webhookDeliveryTotal.labels(event, status).inc();
   webhookDeliveryDuration.labels(event).observe(duration);
 }

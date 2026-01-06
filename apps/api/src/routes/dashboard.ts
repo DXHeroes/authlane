@@ -4,10 +4,28 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { encrypt, getEncryptionKey } from '@authlane/crypto';
 import type { Database } from '@authlane/database';
-import { connections, organization, organizationServices, services, and, count, countDistinct, desc, eq, or } from '@authlane/database';
+import {
+  and,
+  connections,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  invitation,
+  member,
+  or,
+  organization,
+  organizationServices,
+  services,
+  sql,
+  user,
+} from '@authlane/database';
 import { Errors, hashApiKey } from '@authlane/shared';
 import { Hono } from 'hono';
+import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
+import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
 
 // Types for settings stored in organization.metadata JSONB
 interface ApiKeyEntry {
@@ -44,7 +62,7 @@ export function createDashboardRouter(db: Database) {
     try {
       const org = c.get('organization');
       const user = c.get('user');
-      
+
       if (!org && !user) {
         return c.json(Errors.unauthorized('Authentication required'), 401);
       }
@@ -54,7 +72,7 @@ export function createDashboardRouter(db: Database) {
       const orgId = org?.id;
 
       // Count connections (either user-scoped or org-scoped)
-      const connectionsFilter = orgId 
+      const connectionsFilter = orgId
         ? or(
             and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
             and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''))
@@ -78,7 +96,12 @@ export function createDashboardRouter(db: Database) {
         const [count_] = await db
           .select({ count: count() })
           .from(organizationServices)
-          .where(and(eq(organizationServices.organizationId, orgId), eq(organizationServices.enabled, true)));
+          .where(
+            and(
+              eq(organizationServices.organizationId, orgId),
+              eq(organizationServices.enabled, true)
+            )
+          );
         enabledServicesCount = count_ || { count: 0 };
       }
 
@@ -109,34 +132,80 @@ export function createDashboardRouter(db: Database) {
   /**
    * GET /api/v1/connections
    * Returns connections for the authenticated user/organization (dashboard view)
+   * Query params: ?limit=20&offset=0&status=connected&serviceId=github
    */
   router.get('/connections', async (c) => {
     try {
       const org = c.get('organization');
       const user = c.get('user');
-      
+
       if (!org && !user) {
         return c.json(Errors.unauthorized('Authentication required'), 401);
       }
 
-      const limit = parseInt(c.req.query('limit') || '50', 10);
+      // Parse pagination parameters
+      const limitParam = parseInt(c.req.query('limit') || '20', 10);
+      const offsetParam = parseInt(c.req.query('offset') || '0', 10);
+      const { limit, offset } = parsePaginationParams(limitParam, offsetParam, 100, 20);
+
+      // Parse filter parameters
+      const statusFilter = c.req.query('status'); // connected, expired, error
+      const serviceIdFilter = c.req.query('serviceId'); // e.g., github, slack
+
+      // Validate status filter if provided
+      const validStatuses = ['connected', 'expired', 'error', 'pending'] as const;
+      if (statusFilter && !validStatuses.includes(statusFilter as never)) {
+        return c.json(
+          Errors.validationError(
+            'Invalid status filter',
+            `Status must be one of: ${validStatuses.join(', ')}`
+          ),
+          400
+        );
+      }
+
       const userId = user?.id;
       const orgId = org?.id;
 
-      // Filter connections based on context
-      const connectionsFilter = orgId 
+      // Build base filter for connections (scope-based)
+      const baseFilter = orgId
         ? or(
             and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
             and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''))
           )
         : eq(connections.userId, userId || '');
 
+      // Build additional filters
+      const filters = [baseFilter];
+
+      if (statusFilter) {
+        filters.push(
+          eq(connections.status, statusFilter as 'connected' | 'expired' | 'error' | 'pending')
+        );
+      }
+
+      if (serviceIdFilter) {
+        filters.push(eq(connections.serviceId, serviceIdFilter));
+      }
+
+      const whereClause = filters.length > 1 ? and(...filters) : filters[0];
+
+      // Get total count for pagination metadata
+      const countResult = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(connections)
+        .where(whereClause);
+
+      const totalCount = countResult[0]?.count ?? 0;
+
+      // Get paginated connections
       const userConnections = await db
         .select()
         .from(connections)
-        .where(connectionsFilter)
+        .where(whereClause)
         .orderBy(desc(connections.connectedAt))
-        .limit(limit);
+        .limit(limit)
+        .offset(offset);
 
       // Map to the format expected by dashboard
       const formattedConnections = userConnections.map((conn) => ({
@@ -146,15 +215,13 @@ export function createDashboardRouter(db: Database) {
         organizationId: conn.organizationId,
         serviceId: conn.serviceId,
         externalUserId: conn.externalUserId,
-        status: conn.status === 'connected' ? 'active' : conn.status === 'expired' ? 'expired' : 'error',
+        status:
+          conn.status === 'connected' ? 'active' : conn.status === 'expired' ? 'expired' : 'error',
         createdAt: conn.connectedAt?.toISOString() ?? new Date().toISOString(),
         updatedAt: conn.connectedAt?.toISOString() ?? new Date().toISOString(),
       }));
 
-      return c.json({
-        data: formattedConnections,
-        error: null,
-      });
+      return c.json(createPaginatedResponse(formattedConnections, totalCount, limit, offset));
     } catch (error) {
       console.error('Failed to get connections:', error);
       return c.json(Errors.internalError('Failed to retrieve connections'), 500);
@@ -253,6 +320,106 @@ export function createDashboardRouter(db: Database) {
     } catch (error) {
       console.error('Failed to create API key:', error);
       return c.json(Errors.internalError('Failed to create API key'), 500);
+    }
+  });
+
+  /**
+   * PATCH /api/v1/api-keys/:id
+   * Updates an API key's properties (name, scopes, enabled, expiresAt)
+   * Note: Cannot update keyHash for security reasons
+   */
+  router.patch('/api-keys/:id', async (c) => {
+    try {
+      const org = c.get('organization');
+      if (!org) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      const keyId = c.req.param('id');
+
+      // Parse request body
+      let body: {
+        name?: string;
+        scopes?: string[];
+        enabled?: boolean;
+        expiresAt?: string;
+      };
+
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json(
+          Errors.validationError('Invalid JSON body', 'Request body must be valid JSON'),
+          400
+        );
+      }
+
+      // Validate at least one field is being updated
+      if (!body.name && !body.scopes && body.enabled === undefined && !body.expiresAt) {
+        return c.json(
+          Errors.validationError(
+            'No fields to update',
+            'At least one of: name, scopes, enabled, expiresAt must be provided'
+          ),
+          400
+        );
+      }
+
+      // Validate scopes if provided
+      if (body.scopes && !Array.isArray(body.scopes)) {
+        return c.json(
+          Errors.validationError('Invalid scopes', 'Scopes must be an array of strings'),
+          400
+        );
+      }
+
+      // Validate expiresAt if provided
+      if (body.expiresAt && Number.isNaN(Date.parse(body.expiresAt))) {
+        return c.json(
+          Errors.validationError('Invalid expiresAt', 'expiresAt must be a valid ISO 8601 date'),
+          400
+        );
+      }
+
+      // Get current API keys from settings
+      const settings = parseSettings(org.metadata);
+      const apiKeys = settings.apiKeys || [];
+      const keyIndex = apiKeys.findIndex((k) => k.id === keyId);
+
+      if (keyIndex === -1) {
+        return c.json(Errors.notFound('API Key', keyId), 404);
+      }
+
+      // Update the API key
+      const apiKey = apiKeys[keyIndex];
+      if (!apiKey) {
+        return c.json(Errors.notFound('API Key', keyId), 404);
+      }
+      const updatedKey: ApiKeyEntry = { ...apiKey };
+
+      if (body.name !== undefined) {
+        updatedKey.name = body.name;
+      }
+
+      if (body.expiresAt !== undefined) {
+        updatedKey.expiresAt = body.expiresAt;
+      }
+
+      apiKeys[keyIndex] = updatedKey;
+
+      // Update organization metadata
+      await db
+        .update(organization)
+        .set({ metadata: JSON.stringify({ ...settings, apiKeys }) })
+        .where(eq(organization.id, org.id));
+
+      return c.json({
+        data: updatedKey,
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to update API key:', error);
+      return c.json(Errors.internalError('Failed to update API key'), 500);
     }
   });
 
@@ -401,7 +568,7 @@ export function createDashboardRouter(db: Database) {
         .where(eq(organizationServices.organizationId, org.id));
 
       return c.json({
-        data: orgServicesList.map(os => ({
+        data: orgServicesList.map((os) => ({
           organizationId: os.organizationId,
           serviceId: os.serviceId,
           enabled: os.enabled,
@@ -435,10 +602,12 @@ export function createDashboardRouter(db: Database) {
       const [orgService] = await db
         .select()
         .from(organizationServices)
-        .where(and(
-          eq(organizationServices.organizationId, org.id),
-          eq(organizationServices.serviceId, serviceId)
-        ))
+        .where(
+          and(
+            eq(organizationServices.organizationId, org.id),
+            eq(organizationServices.serviceId, serviceId)
+          )
+        )
         .limit(1);
 
       if (!orgService) {
@@ -544,13 +713,13 @@ export function createDashboardRouter(db: Database) {
       }
 
       if (customClientSecret) {
-        // TODO: Encrypt the client secret using @authlane/crypto
-        updateData.oauthClientSecretEnc = customClientSecret;
+        const encryptionKey = getEncryptionKey();
+        updateData.oauthClientSecretEnc = encrypt(customClientSecret, encryptionKey);
       }
 
       if (apiKey) {
-        // TODO: Encrypt the API key using @authlane/crypto
-        updateData.apiKeyEnc = apiKey;
+        const encryptionKey = getEncryptionKey();
+        updateData.apiKeyEnc = encrypt(apiKey, encryptionKey);
       }
 
       // Upsert the organization service
@@ -578,6 +747,443 @@ export function createDashboardRouter(db: Database) {
     } catch (error) {
       console.error('Failed to update organization service config:', error);
       return c.json(Errors.internalError('Failed to update service configuration'), 500);
+    }
+  });
+
+  /**
+   * GET /api/v1/dashboard/organization/members
+   * List all members and pending invitations for the organization
+   */
+  router.get('/organization/members', async (c) => {
+    try {
+      const org = c.get('organization');
+
+      if (!org) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      // Get all members with user details
+      const members = await db
+        .select({
+          id: member.id,
+          userId: member.userId,
+          role: member.role,
+          createdAt: member.createdAt,
+          userName: user.name,
+          userEmail: user.email,
+          userImage: user.image,
+        })
+        .from(member)
+        .leftJoin(user, eq(member.userId, user.id))
+        .where(eq(member.organizationId, org.id));
+
+      // Get all pending invitations
+      const invitations = await db
+        .select()
+        .from(invitation)
+        .where(and(eq(invitation.organizationId, org.id), eq(invitation.status, 'pending')));
+
+      // Filter out expired invitations
+      const now = new Date();
+      const pendingInvitations = invitations.filter((inv) => new Date(inv.expiresAt) > now);
+
+      return c.json({
+        data: {
+          members,
+          invitations: pendingInvitations,
+        },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to fetch organization members:', error);
+      return c.json(Errors.internalError('Failed to fetch members'), 500);
+    }
+  });
+
+  /**
+   * POST /api/v1/dashboard/organization/members/invite
+   * Invite a new member to the organization
+   */
+  router.post('/organization/members/invite', async (c) => {
+    try {
+      const org = c.get('organization');
+      const currentUser = c.get('user');
+
+      if (!org || !currentUser) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      // Check if user has admin or owner role
+      const [currentMember] = await db
+        .select()
+        .from(member)
+        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
+        .limit(1);
+
+      if (!currentMember || (currentMember.role !== 'admin' && currentMember.role !== 'owner')) {
+        return c.json(Errors.unauthorized('Only admins and owners can invite members'), 403);
+      }
+
+      // Parse request body
+      const body = await c.req.json<{ email: string; role: string }>();
+      const { email, role } = body;
+
+      if (!email || !role) {
+        return c.json(
+          Errors.validationError('Missing required fields', 'email and role are required'),
+          400
+        );
+      }
+
+      // Create invitation
+      const result = await createInvitation(email, role, org.id, org.name, currentUser.id, db);
+
+      if (result.error) {
+        const statusCode = result.error.code === 'VALIDATION_ERROR' ? 400 : 500;
+        return c.json(result, statusCode);
+      }
+
+      return c.json(result, 201);
+    } catch (error) {
+      console.error('Failed to create invitation:', error);
+      return c.json(Errors.internalError('Failed to create invitation'), 500);
+    }
+  });
+
+  /**
+   * PATCH /api/v1/dashboard/organization/members/:memberId
+   * Update a member's role
+   */
+  router.patch('/organization/members/:memberId', async (c) => {
+    try {
+      const org = c.get('organization');
+      const currentUser = c.get('user');
+      const memberId = c.req.param('memberId');
+
+      if (!org || !currentUser) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      // Check if current user is owner (only owners can update roles)
+      const [currentMember] = await db
+        .select()
+        .from(member)
+        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
+        .limit(1);
+
+      if (!currentMember || currentMember.role !== 'owner') {
+        return c.json(Errors.unauthorized('Only owners can update member roles'), 403);
+      }
+
+      // Parse request body
+      const body = await c.req.json<{ role: string }>();
+      const { role } = body;
+
+      if (!role) {
+        return c.json(Errors.validationError('Missing required field', 'role is required'), 400);
+      }
+
+      // Validate role
+      const validRoles = ['owner', 'admin', 'member'];
+      if (!validRoles.includes(role)) {
+        return c.json(
+          Errors.validationError('Invalid role', `Role must be one of: ${validRoles.join(', ')}`),
+          400
+        );
+      }
+
+      // If demoting an owner, check not last owner
+      if (role !== 'owner') {
+        const validation = await validateNotLastOwner(org.id, memberId, db);
+        if (validation.error) {
+          return c.json(validation, 400);
+        }
+      }
+
+      // Update member role
+      const [updatedMember] = await db
+        .update(member)
+        .set({ role })
+        .where(and(eq(member.id, memberId), eq(member.organizationId, org.id)))
+        .returning();
+
+      if (!updatedMember) {
+        return c.json(Errors.notFound('Member', memberId), 404);
+      }
+
+      return c.json({
+        data: updatedMember,
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to update member:', error);
+      return c.json(Errors.internalError('Failed to update member'), 500);
+    }
+  });
+
+  /**
+   * DELETE /api/v1/dashboard/organization/members/:memberId
+   * Remove a member from the organization
+   */
+  router.delete('/organization/members/:memberId', async (c) => {
+    try {
+      const org = c.get('organization');
+      const currentUser = c.get('user');
+      const memberId = c.req.param('memberId');
+
+      if (!org || !currentUser) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      // Check if current user has admin or owner role
+      const [currentMember] = await db
+        .select()
+        .from(member)
+        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
+        .limit(1);
+
+      if (!currentMember || (currentMember.role !== 'admin' && currentMember.role !== 'owner')) {
+        return c.json(Errors.unauthorized('Only admins and owners can remove members'), 403);
+      }
+
+      // Validate not removing last owner
+      const validation = await validateNotLastOwner(org.id, memberId, db);
+      if (validation.error) {
+        return c.json(validation, 400);
+      }
+
+      // Delete member (soft delete by setting deletedAt)
+      // For now, we'll do a hard delete since there's no deletedAt field
+      const [deletedMember] = await db
+        .delete(member)
+        .where(and(eq(member.id, memberId), eq(member.organizationId, org.id)))
+        .returning();
+
+      if (!deletedMember) {
+        return c.json(Errors.notFound('Member', memberId), 404);
+      }
+
+      return c.json({
+        data: { success: true },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to remove member:', error);
+      return c.json(Errors.internalError('Failed to remove member'), 500);
+    }
+  });
+
+  /**
+   * GET /api/v1/dashboard/organization
+   * Get organization details including metadata
+   */
+  router.get('/organization', async (c) => {
+    try {
+      const org = c.get('organization');
+
+      if (!org) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      // Get full organization details
+      const [orgDetails] = await db
+        .select()
+        .from(organization)
+        .where(eq(organization.id, org.id))
+        .limit(1);
+
+      if (!orgDetails) {
+        return c.json(Errors.notFound('Organization', org.id), 404);
+      }
+
+      // Parse metadata
+      const settings = parseSettings(orgDetails.metadata);
+
+      return c.json({
+        data: {
+          id: orgDetails.id,
+          name: orgDetails.name,
+          slug: orgDetails.slug,
+          logo: orgDetails.logo,
+          createdAt: orgDetails.createdAt,
+          settings,
+        },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to fetch organization:', error);
+      return c.json(Errors.internalError('Failed to fetch organization'), 500);
+    }
+  });
+
+  /**
+   * PATCH /api/v1/dashboard/organization
+   * Update organization details (name, slug, logo, metadata)
+   */
+  router.patch('/organization', async (c) => {
+    try {
+      const org = c.get('organization');
+      const currentUser = c.get('user');
+
+      if (!org || !currentUser) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      // Check if user has admin or owner role
+      const [currentMember] = await db
+        .select()
+        .from(member)
+        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
+        .limit(1);
+
+      if (!currentMember || (currentMember.role !== 'admin' && currentMember.role !== 'owner')) {
+        return c.json(Errors.unauthorized('Only admins and owners can update organization'), 403);
+      }
+
+      // Parse request body
+      const body = await c.req.json<{
+        name?: string;
+        slug?: string;
+        logo?: string;
+        metadata?: Record<string, unknown>;
+      }>();
+
+      const updateData: Record<string, unknown> = {};
+
+      if (body.name) {
+        updateData.name = body.name;
+      }
+
+      if (body.slug) {
+        // Validate slug format (alphanumeric and hyphens only)
+        if (!/^[a-z0-9-]+$/.test(body.slug)) {
+          return c.json(
+            Errors.validationError(
+              'Invalid slug format',
+              'Slug must contain only lowercase letters, numbers, and hyphens'
+            ),
+            400
+          );
+        }
+
+        // Check slug uniqueness
+        const [existingOrg] = await db
+          .select()
+          .from(organization)
+          .where(eq(organization.slug, body.slug))
+          .limit(1);
+
+        if (existingOrg && existingOrg.id !== org.id) {
+          return c.json(
+            Errors.validationError('Slug already taken', 'This slug is already in use'),
+            400
+          );
+        }
+
+        updateData.slug = body.slug;
+      }
+
+      if (body.logo !== undefined) {
+        updateData.logo = body.logo;
+      }
+
+      if (body.metadata) {
+        // Merge with existing metadata
+        const [currentOrg] = await db
+          .select()
+          .from(organization)
+          .where(eq(organization.id, org.id))
+          .limit(1);
+
+        const currentSettings = currentOrg ? parseSettings(currentOrg.metadata) : {};
+        const mergedSettings = { ...currentSettings, ...body.metadata };
+        updateData.metadata = JSON.stringify(mergedSettings);
+      }
+
+      // Update organization
+      const [updatedOrg] = await db
+        .update(organization)
+        .set(updateData)
+        .where(eq(organization.id, org.id))
+        .returning();
+
+      if (!updatedOrg) {
+        return c.json(Errors.internalError('Failed to update organization'), 500);
+      }
+
+      return c.json({
+        data: {
+          id: updatedOrg.id,
+          name: updatedOrg.name,
+          slug: updatedOrg.slug,
+          logo: updatedOrg.logo,
+          createdAt: updatedOrg.createdAt,
+          settings: parseSettings(updatedOrg.metadata),
+        },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to update organization:', error);
+      return c.json(Errors.internalError('Failed to update organization'), 500);
+    }
+  });
+
+  /**
+   * DELETE /api/v1/dashboard/organization
+   * Delete organization (requires confirmation and owner role)
+   */
+  router.delete('/organization', async (c) => {
+    try {
+      const org = c.get('organization');
+      const currentUser = c.get('user');
+
+      if (!org || !currentUser) {
+        return c.json(Errors.unauthorized('Organization context required'), 401);
+      }
+
+      // Check if user is owner
+      const [currentMember] = await db
+        .select()
+        .from(member)
+        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
+        .limit(1);
+
+      if (!currentMember || currentMember.role !== 'owner') {
+        return c.json(Errors.unauthorized('Only owners can delete organization'), 403);
+      }
+
+      // Parse request body for confirmation
+      const body = await c.req.json<{ confirm?: boolean }>();
+
+      if (!body.confirm) {
+        return c.json(
+          Errors.validationError(
+            'Confirmation required',
+            'You must set confirm: true to delete the organization'
+          ),
+          400
+        );
+      }
+
+      // Delete organization (cascade will delete related data)
+      // Note: PostgreSQL foreign key CASCADE will handle:
+      // - members
+      // - invitations
+      // - connections
+      // - organization_services
+      await db.delete(organization).where(eq(organization.id, org.id));
+
+      // TODO: Send email notification to all members
+      // TODO: Cancel any active subscriptions
+      // TODO: Archive organization data for compliance
+
+      return c.json({
+        data: { success: true, message: 'Organization deleted successfully' },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to delete organization:', error);
+      return c.json(Errors.internalError('Failed to delete organization'), 500);
     }
   });
 

@@ -2,12 +2,11 @@
  * Integration tests for Services API routes
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { Hono } from 'hono';
-import { createServicesRouter } from '../../src/routes/services.js';
-import { getTestDb, cleanDatabase } from '../setup/test-db.js';
-import { testTenantMiddleware } from '../setup/test-helpers.js';
 import { services } from '@authlane/database';
+import { Hono } from 'hono';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createServicesRouter } from '../../src/routes/services.js';
+import { cleanDatabase, getTestDb } from '../setup/test-db.js';
 
 describe('Services API Routes', () => {
   const db = getTestDb();

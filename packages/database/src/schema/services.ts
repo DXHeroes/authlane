@@ -18,6 +18,3 @@ export type NewService = typeof services.$inferInsert;
 
 
 
-
-
-

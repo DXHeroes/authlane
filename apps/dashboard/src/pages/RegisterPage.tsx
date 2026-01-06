@@ -1,44 +1,40 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { type FormEvent, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const { register } = useAuth()
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { register } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
     try {
-      await register(name, email, password)
+      await register(name, email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to register')
+      setError(err instanceof Error ? err.message : 'Failed to register');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight">Authlane</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Create your account
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">Create your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
           )}
 
           <div className="space-y-4 rounded-md shadow-sm">
@@ -108,5 +104,5 @@ export default function RegisterPage() {
         </form>
       </div>
     </div>
-  )
+  );
 }

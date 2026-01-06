@@ -41,34 +41,33 @@ export function WelcomeEmail({
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>
-            Welcome to {organizationName}! 🎉
-          </Heading>
-          
+          <Heading style={heading}>Welcome to {organizationName}! 🎉</Heading>
+
+          <Text style={paragraph}>Hi {userName},</Text>
+
           <Text style={paragraph}>
-            Hi {userName},
+            You&apos;ve successfully joined <strong>{organizationName}</strong> as a{' '}
+            <strong>{role}</strong>. You can now access all the features and integrations available
+            to your team.
           </Text>
-          
-          <Text style={paragraph}>
-            You&apos;ve successfully joined <strong>{organizationName}</strong> as a <strong>{role}</strong>.
-            You can now access all the features and integrations available to your team.
-          </Text>
-          
+
           <Section style={featureBox}>
             <Text style={featureTitle}>What you can do now:</Text>
-            <Text style={featureItem}>• Connect third-party services like GitHub, Slack, and more</Text>
+            <Text style={featureItem}>
+              • Connect third-party services like GitHub, Slack, and more
+            </Text>
             <Text style={featureItem}>• Manage your integrations from the dashboard</Text>
             <Text style={featureItem}>• Collaborate with your team members</Text>
           </Section>
-          
+
           <Section style={buttonContainer}>
             <Button style={button} href={dashboardLink}>
               Go to Dashboard
             </Button>
           </Section>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footer}>
             Need help getting started? Check out our{' '}
             <Link href="https://docs.authlane.dev" style={link}>
@@ -76,11 +75,12 @@ export function WelcomeEmail({
             </Link>{' '}
             or reach out to your team administrator.
           </Text>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footerSmall}>
-            This email was sent by Authlane. You received this email because you joined {organizationName}.
+            This email was sent by Authlane. You received this email because you joined{' '}
+            {organizationName}.
           </Text>
         </Container>
       </Body>
@@ -183,4 +183,3 @@ const footerSmall = {
   lineHeight: '1.5',
   margin: '0',
 };
-

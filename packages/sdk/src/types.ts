@@ -6,9 +6,7 @@
  * Supabase-style result type
  * All SDK methods return { data, error } tuples
  */
-export type Result<T, E = AuthlaneError> =
-  | { data: T; error: null }
-  | { data: null; error: E };
+export type Result<T, E = AuthlaneError> = { data: T; error: null } | { data: null; error: E };
 
 /**
  * Authlane error with helpful debugging information

@@ -3,7 +3,7 @@
  * Tests for encryption key retrieval and validation
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getEncryptionKey, getEncryptionKeyFromVault } from '../src/key-management';
 
 describe('key-management', () => {
@@ -59,7 +59,7 @@ describe('key-management', () => {
     });
 
     it('should throw error for key that is too long', () => {
-      process.env.ENCRYPTION_KEY = validKey + 'extra';
+      process.env.ENCRYPTION_KEY = `${validKey}extra`;
       expect(() => getEncryptionKey()).toThrow(/must be 64 hex characters/);
     });
 
@@ -69,12 +69,12 @@ describe('key-management', () => {
     });
 
     it('should throw error for key with spaces', () => {
-      process.env.ENCRYPTION_KEY = validKey.substring(0, 32) + ' ' + validKey.substring(33);
+      process.env.ENCRYPTION_KEY = `${validKey.substring(0, 32)} ${validKey.substring(33)}`;
       expect(() => getEncryptionKey()).toThrow(/must be a valid hex string/);
     });
 
     it('should throw error for key with special characters', () => {
-      process.env.ENCRYPTION_KEY = validKey.substring(0, 32) + '@#' + validKey.substring(34);
+      process.env.ENCRYPTION_KEY = `${validKey.substring(0, 32)}@#${validKey.substring(34)}`;
       expect(() => getEncryptionKey()).toThrow(/must be a valid hex string/);
     });
   });

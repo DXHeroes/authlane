@@ -43,40 +43,38 @@ export function OrganizationInvitation({
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>
-            You&apos;ve been invited to join {organizationName}
-          </Heading>
-          
+          <Heading style={heading}>You&apos;ve been invited to join {organizationName}</Heading>
+
           <Text style={paragraph}>
             <strong>{inviterName}</strong> has invited you to join{' '}
             <strong>{organizationName}</strong> as a <strong>{role}</strong> on Authlane.
           </Text>
-          
+
           <Section style={buttonContainer}>
             <Button style={button} href={inviteLink}>
               Accept Invitation
             </Button>
           </Section>
-          
+
           <Text style={paragraph}>
-            This invitation will expire in {expiresIn}. If you don&apos;t want to join,
-            you can safely ignore this email.
+            This invitation will expire in {expiresIn}. If you don&apos;t want to join, you can
+            safely ignore this email.
           </Text>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footer}>
             If the button above doesn&apos;t work, copy and paste this link into your browser:
           </Text>
           <Link href={inviteLink} style={link}>
             {inviteLink}
           </Link>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footerSmall}>
-            This email was sent by Authlane. If you didn&apos;t expect this invitation,
-            you can ignore this email.
+            This email was sent by Authlane. If you didn&apos;t expect this invitation, you can
+            ignore this email.
           </Text>
         </Container>
       </Body>
@@ -159,4 +157,3 @@ const footerSmall = {
   lineHeight: '1.5',
   margin: '0',
 };
-

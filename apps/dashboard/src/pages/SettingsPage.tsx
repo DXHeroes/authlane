@@ -1,44 +1,43 @@
-import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { TenantSettings } from '@/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
+import type { TenantSettings } from '@/types';
 
 export default function SettingsPage() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['tenant-settings'],
     queryFn: () => api.get<TenantSettings>('/settings'),
-  })
+  });
 
-  const [webhookUrl, setWebhookUrl] = useState('')
-  const [webhookSecret, setWebhookSecret] = useState('')
-  const [requestsPerMinute, setRequestsPerMinute] = useState(60)
-  const [requestsPerHour, setRequestsPerHour] = useState(3600)
-  const [requestsPerDay, setRequestsPerDay] = useState(86400)
-  const [customDomain, setCustomDomain] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookSecret, setWebhookSecret] = useState('');
+  const [requestsPerMinute, setRequestsPerMinute] = useState(60);
+  const [requestsPerHour, setRequestsPerHour] = useState(3600);
+  const [requestsPerDay, setRequestsPerDay] = useState(86400);
+  const [customDomain, setCustomDomain] = useState('');
 
   useEffect(() => {
     if (settings) {
-      setWebhookUrl(settings.webhookUrl || '')
-      setWebhookSecret(settings.webhookSecret || '')
-      setRequestsPerMinute(settings.rateLimit.requestsPerMinute)
-      setRequestsPerHour(settings.rateLimit.requestsPerHour)
-      setRequestsPerDay(settings.rateLimit.requestsPerDay)
-      setCustomDomain(settings.customDomain || '')
+      setWebhookUrl(settings.webhookUrl || '');
+      setWebhookSecret(settings.webhookSecret || '');
+      setRequestsPerMinute(settings.rateLimit.requestsPerMinute);
+      setRequestsPerHour(settings.rateLimit.requestsPerHour);
+      setRequestsPerDay(settings.rateLimit.requestsPerDay);
+      setCustomDomain(settings.customDomain || '');
     }
-  }, [settings])
+  }, [settings]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<TenantSettings>) =>
-      api.put<TenantSettings>('/settings', data),
+    mutationFn: (data: Partial<TenantSettings>) => api.put<TenantSettings>('/settings', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['tenant-settings'] });
     },
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     updateMutation.mutate({
       webhookUrl: webhookUrl || undefined,
@@ -49,22 +48,22 @@ export default function SettingsPage() {
         requestsPerDay,
       },
       customDomain: customDomain || undefined,
-    })
-  }
+    });
+  };
 
   const generateWebhookSecret = () => {
     const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)))
       .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-    setWebhookSecret(secret)
-  }
+      .join('');
+    setWebhookSecret(secret);
+  };
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-muted-foreground">Loading settings...</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -222,12 +221,12 @@ export default function SettingsPage() {
             type="button"
             onClick={() => {
               if (settings) {
-                setWebhookUrl(settings.webhookUrl || '')
-                setWebhookSecret(settings.webhookSecret || '')
-                setRequestsPerMinute(settings.rateLimit.requestsPerMinute)
-                setRequestsPerHour(settings.rateLimit.requestsPerHour)
-                setRequestsPerDay(settings.rateLimit.requestsPerDay)
-                setCustomDomain(settings.customDomain || '')
+                setWebhookUrl(settings.webhookUrl || '');
+                setWebhookSecret(settings.webhookSecret || '');
+                setRequestsPerMinute(settings.rateLimit.requestsPerMinute);
+                setRequestsPerHour(settings.rateLimit.requestsPerHour);
+                setRequestsPerDay(settings.rateLimit.requestsPerDay);
+                setCustomDomain(settings.customDomain || '');
               }
             }}
             className="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
@@ -252,5 +251,5 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

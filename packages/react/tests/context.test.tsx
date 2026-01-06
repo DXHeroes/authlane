@@ -2,10 +2,9 @@
  * Tests for AuthlaneProvider and useAuthlaneContext
  */
 
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { AuthlaneProvider, useAuthlaneContext } from '../src/context.js';
-import React from 'react';
 
 describe('AuthlaneProvider', () => {
   it('should provide context to children', () => {
@@ -66,11 +65,7 @@ describe('AuthlaneProvider', () => {
     }
 
     render(
-      <AuthlaneProvider
-        publicKey="pk_test_123"
-        userId="user_123"
-        baseUrl="https://custom.api.com"
-      >
+      <AuthlaneProvider publicKey="pk_test_123" userId="user_123" baseUrl="https://custom.api.com">
         <TestComponent />
       </AuthlaneProvider>
     );

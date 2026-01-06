@@ -1,58 +1,61 @@
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { ApiKeyWithSecret } from '@/types'
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
+import { api } from '@/lib/api';
+import type { ApiKeyWithSecret } from '@/types';
 
 interface CreateApiKeyModalProps {
-  onClose: () => void
-  onSuccess: () => void
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
 export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyModalProps) {
-  const [name, setName] = useState('')
-  const [expiresInDays, setExpiresInDays] = useState<number | ''>('')
-  const [createdKey, setCreatedKey] = useState<ApiKeyWithSecret | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [name, setName] = useState('');
+  const [expiresInDays, setExpiresInDays] = useState<number | ''>('');
+  const [createdKey, setCreatedKey] = useState<ApiKeyWithSecret | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: (data: { name: string; expiresInDays?: number }) =>
       api.post<ApiKeyWithSecret>('/api-keys', data),
     onSuccess: (data) => {
-      setCreatedKey(data)
+      setCreatedKey(data);
     },
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) return
+    e.preventDefault();
+    if (!name.trim()) return;
 
     createMutation.mutate({
       name: name.trim(),
       expiresInDays: expiresInDays === '' ? undefined : Number(expiresInDays),
-    })
-  }
+    });
+  };
 
   const handleCopy = async () => {
-    if (!createdKey) return
+    if (!createdKey) return;
 
     try {
-      await navigator.clipboard.writeText(createdKey.key)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(createdKey.key);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err)
+      console.error('Failed to copy:', err);
     }
-  }
+  };
 
   const handleClose = () => {
     if (createdKey) {
-      onSuccess()
+      onSuccess();
     }
-    onClose()
-  }
+    onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={handleClose}
+    >
       <div
         className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
@@ -66,12 +69,7 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
             className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
           >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -183,7 +181,9 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
                 id="expires-in"
                 type="number"
                 value={expiresInDays}
-                onChange={(e) => setExpiresInDays(e.target.value === '' ? '' : Number(e.target.value))}
+                onChange={(e) =>
+                  setExpiresInDays(e.target.value === '' ? '' : Number(e.target.value))
+                }
                 placeholder="Leave empty for no expiration"
                 min="1"
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -219,5 +219,5 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -92,7 +92,10 @@ export function setupJobs(db: Database, redisUrl?: string) {
     });
 
     tokenRefreshWorker.on('failed', (job, err) => {
-      console.error(`❌ Token refresh failed for connection ${job?.data.connectionId}:`, err.message);
+      console.error(
+        `❌ Token refresh failed for connection ${job?.data.connectionId}:`,
+        err.message
+      );
     });
 
     console.log('✅ Token refresh queue and worker initialized');

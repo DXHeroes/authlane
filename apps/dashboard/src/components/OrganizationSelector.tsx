@@ -1,44 +1,44 @@
-import { useState, useEffect, useRef } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OrganizationSelectorProps {
-  onCreateNew: () => void
+  onCreateNew: () => void;
 }
 
 export default function OrganizationSelector({ onCreateNew }: OrganizationSelectorProps) {
-  const { organization, organizations, switchOrganization } = useAuth()
-  const [isOpen, setIsOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const { organization, organizations, switchOrganization } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
+        setIsOpen(false);
       }
-    }
+    };
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSwitch = async (orgId: string) => {
     if (orgId === organization?.id) {
-      setIsOpen(false)
-      return
+      setIsOpen(false);
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await switchOrganization(orgId)
-      setIsOpen(false)
+      await switchOrganization(orgId);
+      setIsOpen(false);
     } catch (err) {
-      console.error('Failed to switch organization:', err)
+      console.error('Failed to switch organization:', err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -69,9 +69,7 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
         <div className="absolute left-0 right-0 z-50 mt-1 rounded-md border border-border bg-card shadow-lg">
           <div className="max-h-64 overflow-y-auto py-1">
             {organizations.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground">
-                No organizations found
-              </div>
+              <div className="px-3 py-2 text-sm text-muted-foreground">No organizations found</div>
             ) : (
               organizations.map((org) => (
                 <button
@@ -107,13 +105,18 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
           <div className="border-t border-border">
             <button
               onClick={() => {
-                setIsOpen(false)
-                onCreateNew()
+                setIsOpen(false);
+                onCreateNew();
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-accent"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               Create new organization
             </button>
@@ -121,6 +124,5 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
         </div>
       )}
     </div>
-  )
+  );
 }
-

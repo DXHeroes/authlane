@@ -1,51 +1,49 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { Connection, Service } from '@/types'
-import ConnectionDetailModal from '@/components/ConnectionDetailModal'
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import ConnectionDetailModal from '@/components/ConnectionDetailModal';
+import { api } from '@/lib/api';
+import type { Connection, Service } from '@/types';
 
 export default function ConnectionsPage() {
-  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null)
-  const [serviceFilter, setServiceFilter] = useState<string>('')
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const [serviceFilter, setServiceFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const { data: connections, isLoading: connectionsLoading } = useQuery({
     queryKey: ['connections', serviceFilter, statusFilter, searchQuery],
     queryFn: () => {
-      const params = new URLSearchParams()
-      if (serviceFilter) params.append('service', serviceFilter)
-      if (statusFilter) params.append('status', statusFilter)
-      if (searchQuery) params.append('userId', searchQuery)
-      return api.get<Connection[]>(`/connections?${params.toString()}`)
+      const params = new URLSearchParams();
+      if (serviceFilter) params.append('service', serviceFilter);
+      if (statusFilter) params.append('status', statusFilter);
+      if (searchQuery) params.append('userId', searchQuery);
+      return api.get<Connection[]>(`/connections?${params.toString()}`);
     },
-  })
+  });
 
   const { data: services } = useQuery({
     queryKey: ['services'],
     queryFn: () => api.get<Service[]>('/services'),
-  })
+  });
 
   const getStatusBadgeClass = (status: Connection['status']) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 text-green-800';
       case 'expired':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-yellow-100 text-yellow-800';
       case 'error':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-800';
     }
-  }
+  };
 
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Connections</h1>
-        <p className="mt-2 text-muted-foreground">
-          Monitor and manage all user connections
-        </p>
+        <p className="mt-2 text-muted-foreground">Monitor and manage all user connections</p>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-4">
@@ -134,11 +132,10 @@ export default function ConnectionsPage() {
                 <tbody className="divide-y divide-border">
                   {connections.map((connection) => (
                     <tr key={connection.id} className="hover:bg-accent/50">
-                      <td className="px-6 py-4 text-sm font-mono">
-                        {connection.userId}
-                      </td>
+                      <td className="px-6 py-4 text-sm font-mono">{connection.userId}</td>
                       <td className="px-6 py-4 text-sm">
-                        {services?.find((s) => s.id === connection.serviceId)?.name || connection.serviceId}
+                        {services?.find((s) => s.id === connection.serviceId)?.name ||
+                          connection.serviceId}
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -185,5 +182,5 @@ export default function ConnectionsPage() {
         />
       )}
     </div>
-  )
+  );
 }

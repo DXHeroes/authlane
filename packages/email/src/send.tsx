@@ -5,10 +5,10 @@
 
 import { getEmailClient, getEmailConfig } from './client';
 import {
-  OrganizationInvitation,
-  type OrganizationInvitationProps,
   EmailVerification,
   type EmailVerificationProps,
+  OrganizationInvitation,
+  type OrganizationInvitationProps,
   PasswordReset,
   type PasswordResetProps,
   WelcomeEmail,
@@ -131,10 +131,7 @@ export async function sendPasswordReset(
  * @param to Recipient email address
  * @param props Template properties
  */
-export async function sendWelcomeEmail(
-  to: string,
-  props: WelcomeEmailProps
-): Promise<EmailResult> {
+export async function sendWelcomeEmail(to: string, props: WelcomeEmailProps): Promise<EmailResult> {
   try {
     const client = getEmailClient();
     const config = getEmailConfig();
@@ -159,10 +156,6 @@ export async function sendWelcomeEmail(
     return { success: false, error: errorMessage };
   }
 }
-
-
-
-
 
 
 

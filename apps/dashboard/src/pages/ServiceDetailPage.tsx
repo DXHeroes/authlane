@@ -1,18 +1,18 @@
-import { useState, type FormEvent, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { Service, OrganizationService, ServiceConfig } from '@/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type FormEvent, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { api } from '@/lib/api';
+import type { OrganizationService, Service, ServiceConfig } from '@/types';
 
 /**
  * Copy text to clipboard with fallback
  */
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(text)
-    return true
+    await navigator.clipboard.writeText(text);
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -24,14 +24,16 @@ function AuthTypeBadge({ authType }: { authType: string }) {
     oauth2: { label: 'OAuth 2.0', className: 'bg-blue-100 text-blue-800' },
     api_key: { label: 'API Key', className: 'bg-amber-100 text-amber-800' },
     none: { label: 'Public API', className: 'bg-green-100 text-green-800' },
-  }
-  const badge = badges[authType as keyof typeof badges] || badges.none
-  
+  };
+  const badge = badges[authType as keyof typeof badges] || badges.none;
+
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${badge.className}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${badge.className}`}
+    >
       {badge.label}
     </span>
-  )
+  );
 }
 
 /**
@@ -43,29 +45,29 @@ function OAuthConfigSection({
   onSave,
   isSaving,
 }: {
-  service: Service
-  orgService?: OrganizationService
-  onSave: (data: { customClientId?: string; customClientSecret?: string }) => void
-  isSaving: boolean
+  service: Service;
+  orgService?: OrganizationService;
+  onSave: (data: { customClientId?: string; customClientSecret?: string }) => void;
+  isSaving: boolean;
 }) {
-  const [customClientId, setCustomClientId] = useState('')
-  const [customClientSecret, setCustomClientSecret] = useState('')
-  const config = service.config as ServiceConfig
+  const [customClientId, setCustomClientId] = useState('');
+  const [customClientSecret, setCustomClientSecret] = useState('');
+  const config = service.config as ServiceConfig;
 
   useEffect(() => {
     if (orgService?.customClientId) {
-      setCustomClientId(orgService.customClientId)
+      setCustomClientId(orgService.customClientId);
     }
-  }, [orgService])
+  }, [orgService]);
 
   const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     onSave({
       customClientId: customClientId || undefined,
       customClientSecret: customClientSecret || undefined,
-    })
-    setCustomClientSecret('')
-  }
+    });
+    setCustomClientSecret('');
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card p-6">
@@ -73,9 +75,10 @@ function OAuthConfigSection({
         <h2 className="text-xl font-semibold">OAuth Configuration</h2>
         <AuthTypeBadge authType="oauth2" />
       </div>
-      
+
       <p className="mb-6 text-sm text-muted-foreground">
-        Configure custom OAuth credentials for {service.name}. Leave blank to use default Authlane credentials.
+        Configure custom OAuth credentials for {service.name}. Leave blank to use default Authlane
+        credentials.
       </p>
 
       {config.developer_console_url && (
@@ -137,9 +140,7 @@ function OAuthConfigSection({
             <div className="max-h-48 overflow-y-auto space-y-1">
               {config.scopes.map((scope) => (
                 <div key={scope.name} className="flex items-start gap-2 text-xs">
-                  <span className="rounded bg-secondary px-2 py-0.5 font-mono">
-                    {scope.name}
-                  </span>
+                  <span className="rounded bg-secondary px-2 py-0.5 font-mono">{scope.name}</span>
                   {scope.required && (
                     <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">required</span>
                   )}
@@ -153,7 +154,8 @@ function OAuthConfigSection({
         {config.pkce_required && (
           <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
             <p className="text-sm text-amber-800">
-              <strong>PKCE Required:</strong> This service requires Proof Key for Code Exchange (PKCE)
+              <strong>PKCE Required:</strong> This service requires Proof Key for Code Exchange
+              (PKCE)
             </p>
           </div>
         )}
@@ -167,7 +169,7 @@ function OAuthConfigSection({
         </button>
       </form>
     </div>
-  )
+  );
 }
 
 /**
@@ -179,24 +181,24 @@ function ApiKeyConfigSection({
   onSave,
   isSaving,
 }: {
-  service: Service
-  orgService?: OrganizationService
-  onSave: (data: { apiKey?: string }) => void
-  isSaving: boolean
+  service: Service;
+  orgService?: OrganizationService;
+  onSave: (data: { apiKey?: string }) => void;
+  isSaving: boolean;
 }) {
-  const [apiKey, setApiKey] = useState('')
-  const config = service.config as ServiceConfig
-  const hasExistingKey = Boolean(orgService?.apiKey)
+  const [apiKey, setApiKey] = useState('');
+  const config = service.config as ServiceConfig;
+  const hasExistingKey = Boolean(orgService?.apiKey);
 
   const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    onSave({ apiKey: apiKey || undefined })
-    setApiKey('')
-  }
+    e.preventDefault();
+    onSave({ apiKey: apiKey || undefined });
+    setApiKey('');
+  };
 
-  const authHeaderExample = config.auth_prefix 
+  const authHeaderExample = config.auth_prefix
     ? `${config.auth_header || 'Authorization'}: ${config.auth_prefix} YOUR_API_KEY`
-    : `${config.auth_header || 'Authorization'}: YOUR_API_KEY`
+    : `${config.auth_header || 'Authorization'}: YOUR_API_KEY`;
 
   return (
     <div className="rounded-lg border border-border bg-card p-6">
@@ -204,7 +206,7 @@ function ApiKeyConfigSection({
         <h2 className="text-xl font-semibold">API Key Configuration</h2>
         <AuthTypeBadge authType="api_key" />
       </div>
-      
+
       <p className="mb-6 text-sm text-muted-foreground">
         {config.description || `Configure your API key for ${service.name}.`}
       </p>
@@ -233,7 +235,9 @@ function ApiKeyConfigSection({
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={hasExistingKey ? 'Enter new API key to replace existing' : 'Enter your API key'}
+            placeholder={
+              hasExistingKey ? 'Enter new API key to replace existing' : 'Enter your API key'
+            }
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <p className="mt-1 text-xs text-muted-foreground">
@@ -281,25 +285,25 @@ function ApiKeyConfigSection({
         </button>
       </form>
     </div>
-  )
+  );
 }
 
 /**
  * Public API Info Section
  */
 function PublicApiSection({ service }: { service: Service }) {
-  const [copiedUrl, setCopiedUrl] = useState(false)
-  const config = service.config as ServiceConfig
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const config = service.config as ServiceConfig;
 
   const handleCopyUrl = async () => {
     if (config.api_base_url) {
-      const success = await copyToClipboard(config.api_base_url)
+      const success = await copyToClipboard(config.api_base_url);
       if (success) {
-        setCopiedUrl(true)
-        setTimeout(() => setCopiedUrl(false), 2000)
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 2000);
       }
     }
-  }
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card p-6">
@@ -307,7 +311,7 @@ function PublicApiSection({ service }: { service: Service }) {
         <h2 className="text-xl font-semibold">Public API</h2>
         <AuthTypeBadge authType="none" />
       </div>
-      
+
       <div className="mb-6 rounded-md bg-green-50 border border-green-200 p-4">
         <p className="text-sm font-medium text-green-800">No Authentication Required</p>
         <p className="mt-1 text-sm text-green-700">
@@ -348,13 +352,19 @@ function PublicApiSection({ service }: { service: Service }) {
                 {config.endpoints.map((endpoint, i) => (
                   <tr key={i}>
                     <td className="px-3 py-2">
-                      <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-                        endpoint.method === 'GET' ? 'bg-green-100 text-green-700' :
-                        endpoint.method === 'POST' ? 'bg-blue-100 text-blue-700' :
-                        endpoint.method === 'PUT' ? 'bg-amber-100 text-amber-700' :
-                        endpoint.method === 'DELETE' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span
+                        className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
+                          endpoint.method === 'GET'
+                            ? 'bg-green-100 text-green-700'
+                            : endpoint.method === 'POST'
+                              ? 'bg-blue-100 text-blue-700'
+                              : endpoint.method === 'PUT'
+                                ? 'bg-amber-100 text-amber-700'
+                                : endpoint.method === 'DELETE'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
                         {endpoint.method}
                       </span>
                     </td>
@@ -381,7 +391,8 @@ function PublicApiSection({ service }: { service: Service }) {
 
       {config.rate_limit && (
         <div className="mb-4 text-sm">
-          <strong>Rate Limit:</strong> <span className="text-muted-foreground">{config.rate_limit}</span>
+          <strong>Rate Limit:</strong>{' '}
+          <span className="text-muted-foreground">{config.rate_limit}</span>
         </div>
       )}
 
@@ -398,50 +409,49 @@ function PublicApiSection({ service }: { service: Service }) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export default function ServiceDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [success, setSuccess] = useState(false)
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [success, setSuccess] = useState(false);
 
   const { data: service, isLoading } = useQuery({
     queryKey: ['service', id],
     queryFn: () => api.get<Service>(`/services/${id}`),
-  })
+  });
 
   const { data: orgService } = useQuery({
     queryKey: ['org-service', id],
     queryFn: () => api.get<OrganizationService>(`/organization/services/${id}`).catch(() => null),
-  })
+  });
 
   const toggleServiceMutation = useMutation({
-    mutationFn: (enabled: boolean) =>
-      api.put(`/organization/services/${id}`, { enabled }),
+    mutationFn: (enabled: boolean) => api.put(`/organization/services/${id}`, { enabled }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['org-service', id] })
-      queryClient.invalidateQueries({ queryKey: ['org-services'] })
+      queryClient.invalidateQueries({ queryKey: ['org-service', id] });
+      queryClient.invalidateQueries({ queryKey: ['org-services'] });
     },
-  })
+  });
 
   const updateConfigMutation = useMutation({
     mutationFn: (data: { customClientId?: string; customClientSecret?: string; apiKey?: string }) =>
       api.put(`/organization/services/${id}/config`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['org-service', id] })
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
+      queryClient.invalidateQueries({ queryKey: ['org-service', id] });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
     },
-  })
+  });
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
       </div>
-    )
+    );
   }
 
   if (!service) {
@@ -449,10 +459,10 @@ export default function ServiceDetailPage() {
       <div className="flex h-full items-center justify-center">
         <div className="text-muted-foreground">Service not found</div>
       </div>
-    )
+    );
   }
 
-  const isEnabled = Boolean(orgService?.enabled)
+  const isEnabled = Boolean(orgService?.enabled);
 
   return (
     <div className="p-8">
@@ -486,9 +496,7 @@ export default function ServiceDetailPage() {
             onChange={(e) => toggleServiceMutation.mutate(e.target.checked)}
             className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
           />
-          <span className="text-sm font-medium">
-            {isEnabled ? 'Enabled' : 'Disabled'}
-          </span>
+          <span className="text-sm font-medium">{isEnabled ? 'Enabled' : 'Disabled'}</span>
         </label>
       </div>
 
@@ -517,9 +525,7 @@ export default function ServiceDetailPage() {
         />
       )}
 
-      {service.authType === 'none' && (
-        <PublicApiSection service={service} />
-      )}
+      {service.authType === 'none' && <PublicApiSection service={service} />}
 
       {/* Fallback for unknown auth types */}
       {!['oauth2', 'api_key', 'none'].includes(service.authType) && (
@@ -528,5 +534,5 @@ export default function ServiceDetailPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

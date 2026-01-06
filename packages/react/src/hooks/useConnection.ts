@@ -2,8 +2,8 @@
  * Hook for managing a single connection
  */
 
-import { useState, useEffect, useCallback } from 'react';
 import type { Connection } from '@authlane/sdk';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthlaneContext } from '../context.js';
 import type { ConnectionStatus } from '../types.js';
 

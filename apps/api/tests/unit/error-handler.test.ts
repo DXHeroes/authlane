@@ -2,10 +2,10 @@
  * Unit tests for error handling middleware
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Hono } from 'hono';
-import { errorHandler } from '../../src/middleware/error-handler.js';
 import type { Context } from 'hono';
+import { Hono } from 'hono';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { errorHandler } from '../../src/middleware/error-handler.js';
 
 describe('Error Handler Middleware', () => {
   let app: Hono;
@@ -292,7 +292,7 @@ describe('Error Handler Middleware', () => {
     });
 
     it('should handle errors thrown from middleware chain', async () => {
-      app.use('/protected', async (c, next) => {
+      app.use('/protected', async (_c, _next) => {
         throw new Error('Middleware error');
       });
 
@@ -307,7 +307,7 @@ describe('Error Handler Middleware', () => {
 
     it('should handle errors from nested async operations', async () => {
       app.get('/nested', async () => {
-        await new Promise((resolve, reject) => {
+        await new Promise((_resolve, reject) => {
           setTimeout(() => reject(new Error('Nested async error')), 10);
         });
       });
@@ -363,7 +363,7 @@ describe('Error Handler Middleware', () => {
     });
 
     it('should handle very long error messages', async () => {
-      const longMessage = 'Error: ' + 'x'.repeat(10000);
+      const longMessage = `Error: ${'x'.repeat(10000)}`;
 
       app.get('/error', () => {
         throw new Error(longMessage);

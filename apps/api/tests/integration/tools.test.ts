@@ -2,12 +2,12 @@
  * Integration tests for Tools API routes
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Hono } from 'hono';
-import { createToolsRouter } from '../../src/routes/tools.js';
-import { getTestDb, cleanDatabase } from '../setup/test-db.js';
-import { testTenantMiddleware } from '../setup/test-helpers.js';
 import { connections, services, tenants } from '@authlane/database';
+import { Hono } from 'hono';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createToolsRouter } from '../../src/routes/tools.js';
+import { cleanDatabase, getTestDb } from '../setup/test-db.js';
+import { testTenantMiddleware } from '../setup/test-helpers.js';
 
 // Mock the integration loader
 vi.mock('@authlane/shared', async () => {

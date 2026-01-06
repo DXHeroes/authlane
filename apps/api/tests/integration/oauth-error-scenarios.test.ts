@@ -3,12 +3,12 @@
  * Tests edge cases and failure modes
  */
 
+import { randomUUID } from 'node:crypto';
+import { connections, services, tenants } from '@authlane/database';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/index.js';
 import { cleanDatabase, getTestDb } from '../setup/test-db.js';
-import { services, tenants, connections } from '@authlane/database';
-import { eq } from 'drizzle-orm';
-import { beforeAll, afterAll, describe, it, expect, beforeEach } from 'vitest';
-import { randomUUID } from 'node:crypto';
 
 describe('OAuth Error Scenarios', () => {
   const db = getTestDb();
@@ -61,8 +61,8 @@ describe('OAuth Error Scenarios', () => {
 
   describe('Invalid State Parameter', () => {
     it('should reject callback with completely wrong state', async () => {
-      const validState = 'valid_state_' + randomUUID();
-      const invalidState = 'invalid_state_' + randomUUID();
+      const validState = `valid_state_${randomUUID()}`;
+      const invalidState = `invalid_state_${randomUUID()}`;
 
       // Create pending connection with valid state
       await db.insert(connections).values({
@@ -135,7 +135,7 @@ describe('OAuth Error Scenarios', () => {
 
   describe('Expired Authorization Code', () => {
     it('should handle token exchange failure for expired code', async () => {
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
       const expiredCode = 'expired_authorization_code_123456';
 
       await db.insert(connections).values({
@@ -146,7 +146,7 @@ describe('OAuth Error Scenarios', () => {
         status: 'pending',
         metadata: {
           state: stateParam,
-          pkce_code_verifier: 'test_verifier_' + randomUUID(),
+          pkce_code_verifier: `test_verifier_${randomUUID()}`,
           redirect_uri: 'http://localhost:3001/callback',
         },
       });
@@ -170,7 +170,7 @@ describe('OAuth Error Scenarios', () => {
     it('should handle network timeout during token exchange', async () => {
       // This test would require mocking fetch or using a service with timeout
       // For now, we'll test the error handling structure
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: randomUUID(),
@@ -201,7 +201,7 @@ describe('OAuth Error Scenarios', () => {
 
   describe('Missing PKCE Verifier', () => {
     it('should fail token exchange with missing code_verifier', async () => {
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
 
       // Create connection without PKCE verifier in metadata
       await db.insert(connections).values({
@@ -231,7 +231,7 @@ describe('OAuth Error Scenarios', () => {
     });
 
     it('should fail token exchange with wrong code_verifier', async () => {
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
       const wrongVerifier = 'wrong_verifier_that_doesnt_match_challenge';
 
       await db.insert(connections).values({
@@ -263,7 +263,7 @@ describe('OAuth Error Scenarios', () => {
     });
 
     it('should fail with empty code_verifier', async () => {
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: randomUUID(),
@@ -293,7 +293,7 @@ describe('OAuth Error Scenarios', () => {
 
   describe('Authorization Errors', () => {
     it('should handle user denying authorization', async () => {
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: randomUUID(),
@@ -325,7 +325,7 @@ describe('OAuth Error Scenarios', () => {
     });
 
     it('should handle invalid_scope error', async () => {
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: randomUUID(),
@@ -355,7 +355,7 @@ describe('OAuth Error Scenarios', () => {
     });
 
     it('should handle server_error from OAuth provider', async () => {
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: randomUUID(),
@@ -478,9 +478,7 @@ describe('OAuth Error Scenarios', () => {
       expect(pendingConnections.length).toBe(5);
 
       // Each should have unique state and connection_id
-      const states = new Set(
-        pendingConnections.map((c) => (c.metadata as any).state)
-      );
+      const states = new Set(pendingConnections.map((c) => (c.metadata as any).state));
       const ids = new Set(pendingConnections.map((c) => c.id));
 
       expect(states.size).toBe(5);
@@ -506,7 +504,7 @@ describe('OAuth Error Scenarios', () => {
 
     it('should reject XSS attempt in error description', async () => {
       const xss = '<script>alert("xss")</script>';
-      const stateParam = 'state_' + randomUUID();
+      const stateParam = `state_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: randomUUID(),

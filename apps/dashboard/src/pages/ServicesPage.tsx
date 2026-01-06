@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
-import { api } from '@/lib/api'
-import type { Service, OrganizationService } from '@/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { api } from '@/lib/api';
+import type { OrganizationService, Service } from '@/types';
 
 /**
  * Auth type badge component
@@ -11,14 +11,16 @@ function AuthTypeBadge({ authType }: { authType: string }) {
     oauth2: { label: 'OAuth 2.0', className: 'bg-blue-100 text-blue-700' },
     api_key: { label: 'API Key', className: 'bg-amber-100 text-amber-700' },
     none: { label: 'Public API', className: 'bg-green-100 text-green-700' },
-  }
-  const badge = badges[authType as keyof typeof badges] || badges.none
-  
+  };
+  const badge = badges[authType as keyof typeof badges] || badges.none;
+
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}
+    >
       {badge.label}
     </span>
-  )
+  );
 }
 
 /**
@@ -29,8 +31,8 @@ function getAuthTypeLabel(authType: string): string {
     oauth2: 'OAuth 2.0 Services',
     api_key: 'API Key Services',
     none: 'Public APIs (No Auth Required)',
-  }
-  return labels[authType] || authType
+  };
+  return labels[authType] || authType;
 }
 
 /**
@@ -41,63 +43,63 @@ function getAuthTypeDescription(authType: string): string {
     oauth2: 'Requires OAuth app setup with Client ID and Client Secret',
     api_key: 'Requires an API key from the service provider',
     none: 'Free to use without any authentication credentials',
-  }
-  return descriptions[authType] || ''
+  };
+  return descriptions[authType] || '';
 }
 
 export default function ServicesPage() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const { data: services, isLoading } = useQuery({
     queryKey: ['services'],
     queryFn: () => api.get<Service[]>('/services'),
-  })
+  });
 
   const { data: orgServices } = useQuery({
     queryKey: ['org-services'],
     queryFn: () => api.get<OrganizationService[]>('/organization/services').catch(() => []),
-  })
+  });
 
   const toggleServiceMutation = useMutation({
     mutationFn: ({ serviceId, enabled }: { serviceId: string; enabled: boolean }) =>
       api.put(`/organization/services/${serviceId}`, { enabled }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['org-services'] })
+      queryClient.invalidateQueries({ queryKey: ['org-services'] });
     },
-  })
+  });
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
       </div>
-    )
+    );
   }
 
   const getOrgService = (serviceId: string) => {
-    if (!Array.isArray(orgServices)) return undefined
-    return orgServices.find((os: OrganizationService) => os.serviceId === serviceId)
-  }
+    if (!Array.isArray(orgServices)) return undefined;
+    return orgServices.find((os: OrganizationService) => os.serviceId === serviceId);
+  };
 
   // Group services by auth type
-  const authTypes = ['none', 'api_key', 'oauth2'] // Show public APIs first
-  const groupedServices = authTypes.map(authType => ({
-    authType,
-    services: services?.filter((s: Service) => s.authType === authType) ?? [],
-  })).filter(group => group.services.length > 0)
+  const authTypes = ['none', 'api_key', 'oauth2']; // Show public APIs first
+  const groupedServices = authTypes
+    .map((authType) => ({
+      authType,
+      services: services?.filter((s: Service) => s.authType === authType) ?? [],
+    }))
+    .filter((group) => group.services.length > 0);
 
   // Stats
-  const totalServices = services?.length ?? 0
-  const enabledServices = orgServices?.filter((os: OrganizationService) => os.enabled).length ?? 0
-  const publicApiCount = services?.filter((s: Service) => s.authType === 'none').length ?? 0
+  const totalServices = services?.length ?? 0;
+  const enabledServices = orgServices?.filter((os: OrganizationService) => os.enabled).length ?? 0;
+  const publicApiCount = services?.filter((s: Service) => s.authType === 'none').length ?? 0;
 
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Services</h1>
-        <p className="mt-2 text-muted-foreground">
-          Configure integrations for your organization
-        </p>
+        <p className="mt-2 text-muted-foreground">Configure integrations for your organization</p>
       </div>
 
       {/* Stats */}
@@ -122,12 +124,12 @@ export default function ServicesPage() {
             <h2 className="text-xl font-semibold">{getAuthTypeLabel(authType)}</h2>
             <p className="text-sm text-muted-foreground">{getAuthTypeDescription(authType)}</p>
           </div>
-          
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {categoryServices.map((service: Service) => {
-              const orgService = getOrgService(service.id)
-              const isEnabled = Boolean(orgService?.enabled)
-              const config = service.config
+              const orgService = getOrgService(service.id);
+              const isEnabled = Boolean(orgService?.enabled);
+              const config = service.config;
 
               return (
                 <div
@@ -172,7 +174,7 @@ export default function ServicesPage() {
                       disabled={toggleServiceMutation.isPending}
                       className="group flex items-center gap-2"
                     >
-                      <span 
+                      <span
                         className={`
                           relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full 
                           transition-colors duration-200 ease-in-out
@@ -189,7 +191,9 @@ export default function ServicesPage() {
                           `}
                         />
                       </span>
-                      <span className={`text-sm ${isEnabled ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
+                      <span
+                        className={`text-sm ${isEnabled ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}
+                      >
                         {isEnabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </button>
@@ -202,7 +206,7 @@ export default function ServicesPage() {
                     </Link>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -214,5 +218,5 @@ export default function ServicesPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

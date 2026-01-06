@@ -22,8 +22,8 @@ export class AuthlaneWidget {
         textColor: '#1f2937',
         borderRadius: '8px',
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        ...config.theme
-      }
+        ...config.theme,
+      },
     };
   }
 
@@ -41,7 +41,7 @@ export class AuthlaneWidget {
       open: () => this.show(),
       close: () => this.hide(),
       destroy: () => this.destroy(),
-      updateConfig: (config) => this.updateConfig(config)
+      updateConfig: (config) => this.updateConfig(config),
     };
   }
 
@@ -110,7 +110,7 @@ export class AuthlaneWidget {
     this.iframe.contentWindow.postMessage(
       {
         type: 'parent:config',
-        config: this.config
+        config: this.config,
       },
       '*'
     );
@@ -138,7 +138,7 @@ export class AuthlaneWidget {
       this.iframe.contentWindow.postMessage(
         {
           type: 'parent:theme',
-          theme: this.config.theme
+          theme: this.config.theme,
         },
         '*'
       );

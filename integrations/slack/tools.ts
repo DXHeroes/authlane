@@ -1,327 +1,317 @@
 /**
- * Slack integration tool definitions
- * Supports both MCP and OpenAI function calling formats
+ * Slack Integration Tools
+ * Executable tool handlers with credential injection
  */
 
-import type { ToolFormat } from '@authlane/shared';
-
-export interface SlackTool {
-  name: string;
-  description: string;
-  inputSchema: {
-    type: 'object';
-    properties: Record<string, unknown>;
-    required: string[];
-  };
-}
-
-const slackTools: SlackTool[] = [
-  {
-    name: 'slack_send_message',
-    description: 'Sends a message to a Slack channel or direct message',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        channel: {
-          type: 'string',
-          description: 'Channel ID, name (e.g., "#general"), or user ID to send message to',
-        },
-        text: {
-          type: 'string',
-          description: 'Message text content (supports Slack markdown formatting)',
-        },
-        blocks: {
-          type: 'array',
-          items: { type: 'object' },
-          description: 'Optional Block Kit blocks for rich message formatting',
-        },
-        thread_ts: {
-          type: 'string',
-          description: 'Timestamp of parent message to reply in thread',
-        },
-        reply_broadcast: {
-          type: 'boolean',
-          description: 'Also send to channel when replying to thread (default: false)',
-          default: false,
-        },
-        unfurl_links: {
-          type: 'boolean',
-          description: 'Enable unfurling of text-based content (default: true)',
-          default: true,
-        },
-        unfurl_media: {
-          type: 'boolean',
-          description: 'Enable unfurling of media content (default: true)',
-          default: true,
-        },
-        mrkdwn: {
-          type: 'boolean',
-          description: 'Enable markdown parsing (default: true)',
-          default: true,
-        },
-      },
-      required: ['channel', 'text'],
-    },
-  },
-  {
-    name: 'slack_list_channels',
-    description: 'Lists all channels in the Slack workspace',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        types: {
-          type: 'string',
-          description: 'Comma-separated list of channel types (public_channel, private_channel, mpim, im)',
-          default: 'public_channel',
-        },
-        exclude_archived: {
-          type: 'boolean',
-          description: 'Exclude archived channels (default: true)',
-          default: true,
-        },
-        limit: {
-          type: 'number',
-          description: 'Maximum number of channels to return (default: 100, max: 1000)',
-          default: 100,
-          maximum: 1000,
-        },
-        cursor: {
-          type: 'string',
-          description: 'Pagination cursor for next page of results',
-        },
-        team_id: {
-          type: 'string',
-          description: 'Filter channels by workspace/team ID',
-        },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'slack_create_channel',
-    description: 'Creates a new channel in the Slack workspace',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: {
-          type: 'string',
-          description: 'Channel name (lowercase, no spaces, max 80 chars, can contain dashes/underscores)',
-        },
-        is_private: {
-          type: 'boolean',
-          description: 'Create a private channel (default: false)',
-          default: false,
-        },
-        team_id: {
-          type: 'string',
-          description: 'Workspace/team ID (required for Enterprise Grid)',
-        },
-      },
-      required: ['name'],
-    },
-  },
-  {
-    name: 'slack_get_channel_info',
-    description: 'Gets information about a Slack channel',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        channel: {
-          type: 'string',
-          description: 'Channel ID to get information about',
-        },
-        include_locale: {
-          type: 'boolean',
-          description: 'Include locale information (default: false)',
-          default: false,
-        },
-      },
-      required: ['channel'],
-    },
-  },
-  {
-    name: 'slack_invite_users',
-    description: 'Invites users to a Slack channel',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        channel: {
-          type: 'string',
-          description: 'Channel ID to invite users to',
-        },
-        users: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Array of user IDs to invite',
-        },
-      },
-      required: ['channel', 'users'],
-    },
-  },
-  {
-    name: 'slack_get_user_info',
-    description: 'Gets information about a Slack user',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        user: {
-          type: 'string',
-          description: 'User ID to get information about',
-        },
-        include_locale: {
-          type: 'boolean',
-          description: 'Include locale information (default: false)',
-          default: false,
-        },
-      },
-      required: ['user'],
-    },
-  },
-  {
-    name: 'slack_list_users',
-    description: 'Lists all users in the Slack workspace',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        limit: {
-          type: 'number',
-          description: 'Maximum number of users to return (default: 100, max: 1000)',
-          default: 100,
-          maximum: 1000,
-        },
-        cursor: {
-          type: 'string',
-          description: 'Pagination cursor for next page of results',
-        },
-        include_locale: {
-          type: 'boolean',
-          description: 'Include locale information (default: false)',
-          default: false,
-        },
-        team_id: {
-          type: 'string',
-          description: 'Filter users by workspace/team ID',
-        },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'slack_get_message_permalink',
-    description: 'Gets a permanent link to a message',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        channel: {
-          type: 'string',
-          description: 'Channel ID containing the message',
-        },
-        message_ts: {
-          type: 'string',
-          description: 'Timestamp of the message',
-        },
-      },
-      required: ['channel', 'message_ts'],
-    },
-  },
-  {
-    name: 'slack_update_message',
-    description: 'Updates an existing message in Slack',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        channel: {
-          type: 'string',
-          description: 'Channel ID containing the message',
-        },
-        ts: {
-          type: 'string',
-          description: 'Timestamp of the message to update',
-        },
-        text: {
-          type: 'string',
-          description: 'New message text',
-        },
-        blocks: {
-          type: 'array',
-          items: { type: 'object' },
-          description: 'Optional Block Kit blocks for rich message formatting',
-        },
-      },
-      required: ['channel', 'ts', 'text'],
-    },
-  },
-  {
-    name: 'slack_delete_message',
-    description: 'Deletes a message from Slack',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        channel: {
-          type: 'string',
-          description: 'Channel ID containing the message',
-        },
-        ts: {
-          type: 'string',
-          description: 'Timestamp of the message to delete',
-        },
-      },
-      required: ['channel', 'ts'],
-    },
-  },
-  {
-    name: 'slack_add_reaction',
-    description: 'Adds an emoji reaction to a message',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        channel: {
-          type: 'string',
-          description: 'Channel ID containing the message',
-        },
-        timestamp: {
-          type: 'string',
-          description: 'Timestamp of the message to react to',
-        },
-        name: {
-          type: 'string',
-          description: 'Emoji name without colons (e.g., "thumbsup", "eyes")',
-        },
-      },
-      required: ['channel', 'timestamp', 'name'],
-    },
-  },
-];
+import type { OAuth2Credentials } from '@authlane/shared';
+import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
 
 /**
- * Converts tools to MCP format
+ * Make Slack API request with OAuth token
  */
-export function getToolsMCP(): { tools: SlackTool[] } {
-  return { tools: slackTools };
+async function slackRequest(
+  endpoint: string,
+  credentials: OAuth2Credentials,
+  options: RequestInit = {}
+): Promise<unknown> {
+  const response = await fetch(`https://slack.com/api/${endpoint}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${credentials.access_token}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  const result = (await response.json()) as { ok: boolean; error?: string };
+
+  if (!result.ok) {
+    throw new Error(`Slack API error: ${result.error || 'Unknown error'}`);
+  }
+
+  return result;
 }
 
 /**
- * Converts tools to OpenAI function calling format
+ * Slack Tools
  */
-export function getToolsOpenAI(): {
-  functions: Array<{
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  }>;
-} {
-  return {
-    functions: slackTools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.inputSchema,
-    })),
-  };
-}
+export const tools: Record<string, ToolHandler> = {
+  slack_send_message: {
+    definition: {
+      name: 'slack_send_message',
+      description: 'Sends a message to a Slack channel or direct message',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          channel: {
+            type: 'string',
+            description: 'Channel ID or name (e.g., "#general") to send message to',
+          },
+          text: {
+            type: 'string',
+            description: 'Message text content (supports Slack markdown formatting)',
+          },
+          blocks: {
+            type: 'array',
+            items: { type: 'object' },
+            description: 'Optional Block Kit blocks for rich message formatting',
+          },
+          thread_ts: {
+            type: 'string',
+            description: 'Timestamp of parent message to reply in thread',
+          },
+        },
+        required: ['channel', 'text'],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { channel, text, blocks, thread_ts } = params as {
+        channel: string;
+        text: string;
+        blocks?: unknown[];
+        thread_ts?: string;
+      };
 
-/**
- * Gets tools in the specified format
- */
-export function getTools(format: ToolFormat) {
-  return format === 'mcp' ? getToolsMCP() : getToolsOpenAI();
-}
+      const body: Record<string, unknown> = {
+        channel,
+        text,
+      };
+
+      if (blocks) body.blocks = blocks;
+      if (thread_ts) body.thread_ts = thread_ts;
+
+      return slackRequest('chat.postMessage', credentials, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    },
+  },
+
+  slack_list_channels: {
+    definition: {
+      name: 'slack_list_channels',
+      description: 'Lists all channels in the Slack workspace',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          types: {
+            type: 'string',
+            description: 'Comma-separated list of channel types (public_channel, private_channel)',
+          },
+          exclude_archived: {
+            type: 'boolean',
+            description: 'Exclude archived channels',
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of channels to return (max 1000)',
+          },
+        },
+        required: [],
+      },
+    },
+    handler: async (params, credentials) => {
+      const {
+        types = 'public_channel',
+        exclude_archived = true,
+        limit = 100,
+      } = params as {
+        types?: string;
+        exclude_archived?: boolean;
+        limit?: number;
+      };
+
+      const queryParams = new URLSearchParams({
+        types,
+        exclude_archived: String(exclude_archived),
+        limit: String(Math.min(limit, 1000)),
+      });
+
+      return slackRequest(`conversations.list?${queryParams}`, credentials);
+    },
+  },
+
+  slack_create_channel: {
+    definition: {
+      name: 'slack_create_channel',
+      description: 'Creates a new channel in the Slack workspace',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Channel name (lowercase, no spaces, max 80 chars)',
+          },
+          is_private: {
+            type: 'boolean',
+            description: 'Create a private channel',
+          },
+        },
+        required: ['name'],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { name, is_private = false } = params as {
+        name: string;
+        is_private?: boolean;
+      };
+
+      return slackRequest('conversations.create', credentials, {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          is_private,
+        }),
+      });
+    },
+  },
+
+  slack_post_file: {
+    definition: {
+      name: 'slack_post_file',
+      description: 'Uploads and shares a file to a Slack channel',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          channels: {
+            type: 'string',
+            description: 'Comma-separated list of channel IDs to share file to',
+          },
+          content: {
+            type: 'string',
+            description: 'File content as string',
+          },
+          filename: {
+            type: 'string',
+            description: 'Filename',
+          },
+          filetype: {
+            type: 'string',
+            description: 'File type identifier (e.g., "text", "javascript", "python")',
+          },
+          title: {
+            type: 'string',
+            description: 'Title of the file',
+          },
+          initial_comment: {
+            type: 'string',
+            description: 'Initial comment to add with the file',
+          },
+        },
+        required: ['channels', 'content', 'filename'],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { channels, content, filename, filetype, title, initial_comment } = params as {
+        channels: string;
+        content: string;
+        filename: string;
+        filetype?: string;
+        title?: string;
+        initial_comment?: string;
+      };
+
+      const body: Record<string, unknown> = {
+        channels,
+        content,
+        filename,
+      };
+
+      if (filetype) body.filetype = filetype;
+      if (title) body.title = title;
+      if (initial_comment) body.initial_comment = initial_comment;
+
+      return slackRequest('files.upload', credentials, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    },
+  },
+
+  slack_list_users: {
+    definition: {
+      name: 'slack_list_users',
+      description: 'Lists all users in the Slack workspace',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: {
+            type: 'number',
+            description: 'Maximum number of users to return (max 1000)',
+          },
+          cursor: {
+            type: 'string',
+            description: 'Pagination cursor for next page of results',
+          },
+        },
+        required: [],
+      },
+    },
+    handler: async (params, credentials) => {
+      const { limit = 100, cursor } = params as {
+        limit?: number;
+        cursor?: string;
+      };
+
+      const queryParams = new URLSearchParams({
+        limit: String(Math.min(limit, 1000)),
+      });
+
+      if (cursor) {
+        queryParams.append('cursor', cursor);
+      }
+
+      return slackRequest(`users.list?${queryParams}`, credentials);
+    },
+  },
+
+  slack_set_status: {
+    definition: {
+      name: 'slack_set_status',
+      description: 'Sets the status of the authenticated user',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          status_text: {
+            type: 'string',
+            description: 'Status text (max 100 chars)',
+          },
+          status_emoji: {
+            type: 'string',
+            description: 'Status emoji (e.g., ":calendar:", ":house:")',
+          },
+          status_expiration: {
+            type: 'number',
+            description: 'Unix timestamp when status expires (0 for no expiration)',
+          },
+        },
+        required: ['status_text'],
+      },
+    },
+    handler: async (params, credentials) => {
+      const {
+        status_text,
+        status_emoji,
+        status_expiration = 0,
+      } = params as {
+        status_text: string;
+        status_emoji?: string;
+        status_expiration?: number;
+      };
+
+      const profile: Record<string, unknown> = {
+        status_text,
+        status_expiration,
+      };
+
+      if (status_emoji) {
+        profile.status_emoji = status_emoji;
+      }
+
+      return slackRequest('users.profile.set', credentials, {
+        method: 'POST',
+        body: JSON.stringify({ profile }),
+      });
+    },
+  },
+};

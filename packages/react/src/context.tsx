@@ -2,8 +2,9 @@
  * React Context for Authlane
  */
 
-import React, { createContext, useContext, useMemo } from 'react';
 import { Authlane } from '@authlane/sdk';
+import type React from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import type { AuthlaneConfig } from './types.js';
 
 interface AuthlaneContextValue {
@@ -44,11 +45,12 @@ export function AuthlaneProvider({
   fetch: customFetch,
 }: AuthlaneConfig & { children: React.ReactNode }) {
   const client = useMemo(
-    () => new Authlane({
-      apiKey: publicKey,
-      baseUrl,
-      fetch: customFetch,
-    }),
+    () =>
+      new Authlane({
+        apiKey: publicKey,
+        baseUrl,
+        fetch: customFetch,
+      }),
     [publicKey, baseUrl, customFetch]
   );
 
@@ -62,11 +64,7 @@ export function AuthlaneProvider({
     [client, userId, publicKey, baseUrl]
   );
 
-  return (
-    <AuthlaneContext.Provider value={value}>
-      {children}
-    </AuthlaneContext.Provider>
-  );
+  return <AuthlaneContext.Provider value={value}>{children}</AuthlaneContext.Provider>;
 }
 
 /**
@@ -87,9 +85,7 @@ export function useAuthlaneContext(): AuthlaneContextValue {
   const context = useContext(AuthlaneContext);
 
   if (!context) {
-    throw new Error(
-      'useAuthlaneContext must be used within an AuthlaneProvider'
-    );
+    throw new Error('useAuthlaneContext must be used within an AuthlaneProvider');
   }
 
   return context;

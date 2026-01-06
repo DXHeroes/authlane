@@ -27,11 +27,13 @@ export async function loadIntegrationTools(
     let integration: IntegrationTools;
 
     try {
-      integration = await import(`@authlane/integration-${serviceId}/tools.js`) as IntegrationTools;
+      integration = (await import(
+        `@authlane/integration-${serviceId}/tools.js`
+      )) as IntegrationTools;
     } catch {
       // Fallback to relative path (for development)
       const integrationPath = `../../../../integrations/${serviceId}/tools.js`;
-      integration = await import(integrationPath) as IntegrationTools;
+      integration = (await import(integrationPath)) as IntegrationTools;
     }
 
     if (!integration.getTools || typeof integration.getTools !== 'function') {
@@ -56,9 +58,7 @@ export async function loadMultipleIntegrationTools(
   serviceIds: string[],
   format: ToolFormat
 ): Promise<{ tools?: unknown[]; functions?: unknown[] }> {
-  const allToolsPromises = serviceIds.map((serviceId) =>
-    loadIntegrationTools(serviceId, format)
-  );
+  const allToolsPromises = serviceIds.map((serviceId) => loadIntegrationTools(serviceId, format));
 
   const allToolsResults = await Promise.all(allToolsPromises);
 

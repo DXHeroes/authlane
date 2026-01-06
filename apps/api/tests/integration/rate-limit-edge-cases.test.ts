@@ -10,13 +10,13 @@
  * 5. API key-based rate limiting
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { createApp } from '../../src/index.js';
-import { getTestDb } from '../setup/test-db.js';
-import { createMockRedis } from '../setup/mock-redis.js';
-import { organizations, users, apiKeys } from '@authlane/database';
 import { randomUUID } from 'node:crypto';
+import { apiKeys, organizations, users } from '@authlane/database';
 import { hashPassword } from '@authlane/shared';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createApp } from '../../src/index.js';
+import { createMockRedis } from '../setup/mock-redis.js';
+import { getTestDb } from '../setup/test-db.js';
 
 describe('Rate Limiting Edge Cases', () => {
   const db = getTestDb();
@@ -24,7 +24,7 @@ describe('Rate Limiting Edge Cases', () => {
   let app: ReturnType<typeof createApp>;
 
   let testOrgId: string;
-  let testUserId: string;
+  let _testUserId: string;
   let testApiKey: string;
 
   beforeAll(async () => {
@@ -32,20 +32,26 @@ describe('Rate Limiting Edge Cases', () => {
 
     // Setup test organization
     testOrgId = randomUUID();
-    const [org] = await db.insert(organizations).values({
-      id: testOrgId,
-      name: 'Rate Limit Test Org',
-      slug: 'rate-test-org',
-    }).returning();
+    const [_org] = await db
+      .insert(organizations)
+      .values({
+        id: testOrgId,
+        name: 'Rate Limit Test Org',
+        slug: 'rate-test-org',
+      })
+      .returning();
 
-    const [user] = await db.insert(users).values({
-      id: randomUUID(),
-      email: 'ratelimit@example.com',
-      name: 'Rate Limit User',
-      emailVerified: true,
-      passwordHash: await hashPassword('SecurePass123!'),
-    }).returning();
-    testUserId = user.id;
+    const [user] = await db
+      .insert(users)
+      .values({
+        id: randomUUID(),
+        email: 'ratelimit@example.com',
+        name: 'Rate Limit User',
+        emailVerified: true,
+        passwordHash: await hashPassword('SecurePass123!'),
+      })
+      .returning();
+    _testUserId = user.id;
 
     // Create API key
     testApiKey = `sk_test_${randomUUID()}`;
@@ -71,16 +77,18 @@ describe('Rate Limiting Edge Cases', () => {
   describe('Burst Traffic Scenarios', () => {
     it('should handle burst of requests at limit', async () => {
       const limit = 10;
-      const requests = Array(limit).fill(null).map(() =>
-        app.request('/api/v1/services', {
-          headers: { 'Authorization': `Bearer ${testApiKey}` },
-        })
-      );
+      const requests = Array(limit)
+        .fill(null)
+        .map(() =>
+          app.request('/api/v1/services', {
+            headers: { Authorization: `Bearer ${testApiKey}` },
+          })
+        );
 
       const responses = await Promise.all(requests);
 
       // All requests should succeed
-      const successCount = responses.filter(r => r.status === 200).length;
+      const successCount = responses.filter((r) => r.status === 200).length;
       expect(successCount).toBe(limit);
     });
 
@@ -88,16 +96,18 @@ describe('Rate Limiting Edge Cases', () => {
       const limit = 10;
       const overLimit = 15;
 
-      const requests = Array(overLimit).fill(null).map(() =>
-        app.request('/api/v1/services', {
-          headers: { 'Authorization': `Bearer ${testApiKey}` },
-        })
-      );
+      const requests = Array(overLimit)
+        .fill(null)
+        .map(() =>
+          app.request('/api/v1/services', {
+            headers: { Authorization: `Bearer ${testApiKey}` },
+          })
+        );
 
       const responses = await Promise.all(requests);
 
-      const successCount = responses.filter(r => r.status === 200).length;
-      const rateLimitedCount = responses.filter(r => r.status === 429).length;
+      const successCount = responses.filter((r) => r.status === 200).length;
+      const rateLimitedCount = responses.filter((r) => r.status === 429).length;
 
       expect(successCount).toBeLessThanOrEqual(limit);
       expect(rateLimitedCount).toBeGreaterThan(0);
@@ -105,7 +115,7 @@ describe('Rate Limiting Edge Cases', () => {
 
     it('should include rate limit headers in response', async () => {
       const response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       expect(response.headers.get('X-RateLimit-Limit')).toBeDefined();
@@ -119,16 +129,18 @@ describe('Rate Limiting Edge Cases', () => {
       // Fill the rate limit
       const limit = 10;
       await Promise.all(
-        Array(limit).fill(null).map(() =>
-          app.request('/api/v1/services', {
-            headers: { 'Authorization': `Bearer ${testApiKey}` },
-          })
-        )
+        Array(limit)
+          .fill(null)
+          .map(() =>
+            app.request('/api/v1/services', {
+              headers: { Authorization: `Bearer ${testApiKey}` },
+            })
+          )
       );
 
       // Next request should be rate limited
       let response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
       expect(response.status).toBe(429);
 
@@ -137,7 +149,7 @@ describe('Rate Limiting Edge Cases', () => {
 
       // Request should now succeed
       response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
       expect(response.status).toBe(200);
 
@@ -147,7 +159,7 @@ describe('Rate Limiting Edge Cases', () => {
 
   describe('Rate Limit Bypass Prevention', () => {
     it('should NOT allow bypassing rate limit by changing User-Agent', async () => {
-      const limit = 10;
+      const _limit = 10;
 
       // Make requests with different User-Agents
       const requests = [];
@@ -155,7 +167,7 @@ describe('Rate Limiting Edge Cases', () => {
         requests.push(
           app.request('/api/v1/services', {
             headers: {
-              'Authorization': `Bearer ${testApiKey}`,
+              Authorization: `Bearer ${testApiKey}`,
               'User-Agent': `TestClient-${i}`,
             },
           })
@@ -163,13 +175,13 @@ describe('Rate Limiting Edge Cases', () => {
       }
 
       const responses = await Promise.all(requests);
-      const rateLimitedCount = responses.filter(r => r.status === 429).length;
+      const rateLimitedCount = responses.filter((r) => r.status === 429).length;
 
       expect(rateLimitedCount).toBeGreaterThan(0);
     });
 
     it('should NOT allow bypassing rate limit by changing IP headers', async () => {
-      const limit = 10;
+      const _limit = 10;
 
       // Attempt to bypass by sending different X-Forwarded-For headers
       const requests = [];
@@ -177,7 +189,7 @@ describe('Rate Limiting Edge Cases', () => {
         requests.push(
           app.request('/api/v1/services', {
             headers: {
-              'Authorization': `Bearer ${testApiKey}`,
+              Authorization: `Bearer ${testApiKey}`,
               'X-Forwarded-For': `192.168.1.${i}`,
             },
           })
@@ -185,7 +197,7 @@ describe('Rate Limiting Edge Cases', () => {
       }
 
       const responses = await Promise.all(requests);
-      const rateLimitedCount = responses.filter(r => r.status === 429).length;
+      const rateLimitedCount = responses.filter((r) => r.status === 429).length;
 
       expect(rateLimitedCount).toBeGreaterThan(0);
     });
@@ -194,14 +206,14 @@ describe('Rate Limiting Edge Cases', () => {
       // Rate limiting should be tied to API key
       const response1 = await app.request('/api/v1/services', {
         headers: {
-          'Authorization': `Bearer ${testApiKey}`,
+          Authorization: `Bearer ${testApiKey}`,
           'X-Forwarded-For': '192.168.1.1',
         },
       });
 
       const response2 = await app.request('/api/v1/services', {
         headers: {
-          'Authorization': `Bearer ${testApiKey}`,
+          Authorization: `Bearer ${testApiKey}`,
           'X-Forwarded-For': '192.168.1.2', // Different IP
         },
       });
@@ -210,25 +222,25 @@ describe('Rate Limiting Edge Cases', () => {
       expect(response1.status).toBe(200);
       expect(response2.status).toBe(200);
 
-      const remaining1 = parseInt(response1.headers.get('X-RateLimit-Remaining') || '0');
-      const remaining2 = parseInt(response2.headers.get('X-RateLimit-Remaining') || '0');
+      const remaining1 = parseInt(response1.headers.get('X-RateLimit-Remaining') || '0', 10);
+      const remaining2 = parseInt(response2.headers.get('X-RateLimit-Remaining') || '0', 10);
 
       expect(remaining2).toBe(remaining1 - 1);
     });
 
     it('should NOT allow bypassing by omitting authorization header', async () => {
-      const limit = 10;
+      const _limit = 10;
 
       // Make requests without auth (should have default rate limit)
-      const requests = Array(15).fill(null).map(() =>
-        app.request('/api/v1/services')
-      );
+      const requests = Array(15)
+        .fill(null)
+        .map(() => app.request('/api/v1/services'));
 
       const responses = await Promise.all(requests);
 
       // All should be unauthorized, but rate limit should still apply
-      const unauthorizedCount = responses.filter(r => r.status === 401).length;
-      const rateLimitedCount = responses.filter(r => r.status === 429).length;
+      const unauthorizedCount = responses.filter((r) => r.status === 401).length;
+      const rateLimitedCount = responses.filter((r) => r.status === 429).length;
 
       // Either all unauthorized or some rate limited
       expect(unauthorizedCount + rateLimitedCount).toBe(15);
@@ -240,11 +252,11 @@ describe('Rate Limiting Edge Cases', () => {
       const getRateLimitKey = (apiKey: string) => `rate_limit:${apiKey}`;
 
       await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       // Check that Redis was called to store rate limit data
-      const key = getRateLimitKey(testApiKey);
+      const _key = getRateLimitKey(testApiKey);
       expect(mockRedis.get).toHaveBeenCalled();
     });
 
@@ -253,7 +265,7 @@ describe('Rate Limiting Edge Cases', () => {
       mockRedis.get.mockRejectedValueOnce(new Error('Redis connection failed'));
 
       const response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       // Should either fail closed (reject request) or fail open (allow with warning)
@@ -266,15 +278,15 @@ describe('Rate Limiting Edge Cases', () => {
       const app2 = createApp(db, { redis: mockRedis });
 
       await app1.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       const response2 = await app2.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       // Second instance should see decremented count from first instance
-      const remaining = parseInt(response2.headers.get('X-RateLimit-Remaining') || '100');
+      const remaining = parseInt(response2.headers.get('X-RateLimit-Remaining') || '100', 10);
       expect(remaining).toBeLessThan(100);
     });
   });
@@ -284,25 +296,29 @@ describe('Rate Limiting Edge Cases', () => {
       // Assuming /api/v1/connections/oauth/authorize has lower limit than /api/v1/services
 
       // Make many requests to expensive endpoint
-      const expensiveRequests = Array(5).fill(null).map(() =>
-        app.request('/api/v1/connections/github/authorize', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${testApiKey}` },
-        })
-      );
+      const expensiveRequests = Array(5)
+        .fill(null)
+        .map(() =>
+          app.request('/api/v1/connections/github/authorize', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${testApiKey}` },
+          })
+        );
 
       const expensiveResponses = await Promise.all(expensiveRequests);
-      const expensiveRateLimited = expensiveResponses.filter(r => r.status === 429).length;
+      const expensiveRateLimited = expensiveResponses.filter((r) => r.status === 429).length;
 
       // Make same number of requests to cheap endpoint
-      const cheapRequests = Array(5).fill(null).map(() =>
-        app.request('/api/v1/services', {
-          headers: { 'Authorization': `Bearer ${testApiKey}` },
-        })
-      );
+      const cheapRequests = Array(5)
+        .fill(null)
+        .map(() =>
+          app.request('/api/v1/services', {
+            headers: { Authorization: `Bearer ${testApiKey}` },
+          })
+        );
 
       const cheapResponses = await Promise.all(cheapRequests);
-      const cheapRateLimited = cheapResponses.filter(r => r.status === 429).length;
+      const cheapRateLimited = cheapResponses.filter((r) => r.status === 429).length;
 
       // Expensive endpoint should hit rate limit sooner
       expect(expensiveRateLimited).toBeGreaterThanOrEqual(cheapRateLimited);
@@ -323,15 +339,15 @@ describe('Rate Limiting Edge Cases', () => {
 
       // Make requests with both keys
       const basicResponse = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       const premiumResponse = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${premiumApiKey}` },
+        headers: { Authorization: `Bearer ${premiumApiKey}` },
       });
 
-      const basicLimit = parseInt(basicResponse.headers.get('X-RateLimit-Limit') || '0');
-      const premiumLimit = parseInt(premiumResponse.headers.get('X-RateLimit-Limit') || '0');
+      const basicLimit = parseInt(basicResponse.headers.get('X-RateLimit-Limit') || '0', 10);
+      const premiumLimit = parseInt(premiumResponse.headers.get('X-RateLimit-Limit') || '0', 10);
 
       expect(premiumLimit).toBeGreaterThan(basicLimit);
     });
@@ -348,20 +364,22 @@ describe('Rate Limiting Edge Cases', () => {
 
       // Fill rate limit for first key
       await Promise.all(
-        Array(10).fill(null).map(() =>
-          app.request('/api/v1/services', {
-            headers: { 'Authorization': `Bearer ${testApiKey}` },
-          })
-        )
+        Array(10)
+          .fill(null)
+          .map(() =>
+            app.request('/api/v1/services', {
+              headers: { Authorization: `Bearer ${testApiKey}` },
+            })
+          )
       );
 
       // Second key should have full quota
       const response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${apiKey2}` },
+        headers: { Authorization: `Bearer ${apiKey2}` },
       });
 
       expect(response.status).toBe(200);
-      const remaining = parseInt(response.headers.get('X-RateLimit-Remaining') || '0');
+      const remaining = parseInt(response.headers.get('X-RateLimit-Remaining') || '0', 10);
       expect(remaining).toBeGreaterThan(90);
     });
   });
@@ -370,15 +388,17 @@ describe('Rate Limiting Edge Cases', () => {
     it('should return 429 status when rate limited', async () => {
       // Fill the rate limit
       await Promise.all(
-        Array(100).fill(null).map(() =>
-          app.request('/api/v1/services', {
-            headers: { 'Authorization': `Bearer ${testApiKey}` },
-          })
-        )
+        Array(100)
+          .fill(null)
+          .map(() =>
+            app.request('/api/v1/services', {
+              headers: { Authorization: `Bearer ${testApiKey}` },
+            })
+          )
       );
 
       const response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       expect(response.status).toBe(429);
@@ -387,15 +407,17 @@ describe('Rate Limiting Edge Cases', () => {
     it('should include Retry-After header when rate limited', async () => {
       // Fill the rate limit
       await Promise.all(
-        Array(100).fill(null).map(() =>
-          app.request('/api/v1/services', {
-            headers: { 'Authorization': `Bearer ${testApiKey}` },
-          })
-        )
+        Array(100)
+          .fill(null)
+          .map(() =>
+            app.request('/api/v1/services', {
+              headers: { Authorization: `Bearer ${testApiKey}` },
+            })
+          )
       );
 
       const response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       expect(response.status).toBe(429);
@@ -405,15 +427,17 @@ describe('Rate Limiting Edge Cases', () => {
     it('should return error in standard format', async () => {
       // Fill the rate limit
       await Promise.all(
-        Array(100).fill(null).map(() =>
-          app.request('/api/v1/services', {
-            headers: { 'Authorization': `Bearer ${testApiKey}` },
-          })
-        )
+        Array(100)
+          .fill(null)
+          .map(() =>
+            app.request('/api/v1/services', {
+              headers: { Authorization: `Bearer ${testApiKey}` },
+            })
+          )
       );
 
       const response = await app.request('/api/v1/services', {
-        headers: { 'Authorization': `Bearer ${testApiKey}` },
+        headers: { Authorization: `Bearer ${testApiKey}` },
       });
 
       expect(response.status).toBe(429);
@@ -436,7 +460,7 @@ describe('Rate Limiting Edge Cases', () => {
       for (let i = 0; i < 5; i++) {
         responses.push(
           await app.request('/api/v1/services', {
-            headers: { 'Authorization': `Bearer ${testApiKey}` },
+            headers: { Authorization: `Bearer ${testApiKey}` },
           })
         );
       }
@@ -446,13 +470,13 @@ describe('Rate Limiting Edge Cases', () => {
       for (let i = 0; i < 5; i++) {
         responses.push(
           await app.request('/api/v1/services', {
-            headers: { 'Authorization': `Bearer ${testApiKey}` },
+            headers: { Authorization: `Bearer ${testApiKey}` },
           })
         );
       }
 
       // All should succeed if using sliding window (10 total in 60s window)
-      const successCount = responses.filter(r => r.status === 200).length;
+      const successCount = responses.filter((r) => r.status === 200).length;
       expect(successCount).toBe(10);
 
       vi.useRealTimers();

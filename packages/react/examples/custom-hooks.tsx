@@ -2,13 +2,8 @@
  * Example using custom hooks
  */
 
-import React, { useState } from 'react';
-import {
-  AuthlaneProvider,
-  useAuthlane,
-  useConnection,
-  useConnections,
-} from '@authlane/react';
+import { AuthlaneProvider, useAuthlane, useConnection, useConnections } from '@authlane/react';
+import { useState } from 'react';
 
 function GitHubConnectionStatus() {
   const { connection, status, isLoading, disconnect, refetch } = useConnection({
@@ -24,7 +19,7 @@ function GitHubConnectionStatus() {
     return (
       <div>
         <h3>GitHub Connected</h3>
-        <p>Connected at: {new Date(connection!.createdAt).toLocaleString()}</p>
+        <p>Connected at: {new Date(connection?.createdAt).toLocaleString()}</p>
         <button onClick={disconnect}>Disconnect</button>
         <button onClick={refetch}>Refresh</button>
       </div>
@@ -94,10 +89,7 @@ export default function App() {
   };
 
   return (
-    <AuthlaneProvider
-      publicKey={process.env.AUTHLANE_PUBLIC_KEY!}
-      userId={currentUser.id}
-    >
+    <AuthlaneProvider publicKey={process.env.AUTHLANE_PUBLIC_KEY!} userId={currentUser.id}>
       <div style={{ padding: '20px' }}>
         <h1>Custom Hooks Example</h1>
 

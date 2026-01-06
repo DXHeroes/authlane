@@ -2,13 +2,13 @@
  * Integration tests for Connections API routes
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Hono } from 'hono';
-import { createConnectionsRouter } from '../../src/routes/connections.js';
-import { getTestDb, cleanDatabase } from '../setup/test-db.js';
-import { testTenantMiddleware } from '../setup/test-helpers.js';
-import { connections, services, tenants } from '@authlane/database';
 import { encrypt, getEncryptionKey } from '@authlane/crypto';
+import { connections, services, tenants } from '@authlane/database';
+import { Hono } from 'hono';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createConnectionsRouter } from '../../src/routes/connections.js';
+import { cleanDatabase, getTestDb } from '../setup/test-db.js';
+import { testTenantMiddleware } from '../setup/test-helpers.js';
 
 describe('Connections API Routes', () => {
   const db = getTestDb();

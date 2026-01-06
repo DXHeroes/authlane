@@ -5,11 +5,7 @@ export default {
     extend: {},
   },
   plugins: [],
-}
-
-
-
-
+};
 
 
 

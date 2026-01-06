@@ -1,77 +1,75 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { authClient } from '@/lib/auth-client'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { authClient } from '@/lib/auth-client';
 
 interface Member {
-  id: string
-  userId: string
-  role: string
+  id: string;
+  userId: string;
+  role: string;
   user: {
-    id: string
-    name: string
-    email: string
-    image?: string
-  }
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+  };
 }
 
 export default function OrganizationPage() {
-  const { organization, user, switchOrganization } = useAuth()
-  const navigate = useNavigate()
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
-  const [isUpdating, setIsUpdating] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteConfirmText, setDeleteConfirmText] = useState('')
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const { organization, user, switchOrganization } = useAuth();
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (organization) {
-      setName(organization.name)
-      setSlug(organization.slug)
+      setName(organization.name);
+      setSlug(organization.slug);
     }
-  }, [organization])
+  }, [organization]);
 
   // Get current user's role in the organization
   useEffect(() => {
     const loadMemberRole = async () => {
       try {
-        const result = await authClient.organization.listMembers()
+        const result = await authClient.organization.listMembers();
         if (result.data) {
           // The response might be { members: [...] } or just an array
-          const responseData = result.data as { members?: Member[] } | Member[]
-          const members = Array.isArray(responseData)
-            ? responseData
-            : (responseData.members || [])
-          
-          const currentMember = members.find((m: Member) => m.userId === user?.id)
+          const responseData = result.data as { members?: Member[] } | Member[];
+          const members = Array.isArray(responseData) ? responseData : responseData.members || [];
+
+          const currentMember = members.find((m: Member) => m.userId === user?.id);
           if (currentMember) {
-            setCurrentUserRole(currentMember.role)
+            setCurrentUserRole(currentMember.role);
           }
         }
       } catch (err) {
-        console.warn('Failed to load member role:', err)
+        console.warn('Failed to load member role:', err);
       }
-    }
+    };
 
     if (organization && user) {
-      loadMemberRole()
+      loadMemberRole();
     }
-  }, [organization, user])
+  }, [organization, user]);
 
-  const isOwner = currentUserRole === 'owner'
-  const canEdit = isOwner || currentUserRole === 'admin'
+  const isOwner = currentUserRole === 'owner';
+  const canEdit = isOwner || currentUserRole === 'admin';
 
   const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!organization || !canEdit) return
+    e.preventDefault();
+    if (!organization || !canEdit) return;
 
-    setIsUpdating(true)
-    setError(null)
-    setSuccess(null)
+    setIsUpdating(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       await authClient.organization.update({
@@ -79,37 +77,37 @@ export default function OrganizationPage() {
           name: name.trim(),
           slug: slug.trim(),
         },
-      })
-      setSuccess('Organization updated successfully')
+      });
+      setSuccess('Organization updated successfully');
       // Refresh the organization data
-      await switchOrganization(organization.id)
+      await switchOrganization(organization.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update organization')
+      setError(err instanceof Error ? err.message : 'Failed to update organization');
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
-    if (!organization || !isOwner) return
-    if (deleteConfirmText !== organization.name) return
+    if (!organization || !isOwner) return;
+    if (deleteConfirmText !== organization.name) return;
 
-    setIsDeleting(true)
-    setError(null)
+    setIsDeleting(true);
+    setError(null);
 
     try {
       await authClient.organization.delete({
         organizationId: organization.id,
-      })
+      });
       // Navigate to dashboard after deletion
-      navigate('/dashboard')
+      navigate('/dashboard');
       // Force page reload to clear state
-      window.location.reload()
+      window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete organization')
-      setIsDeleting(false)
+      setError(err instanceof Error ? err.message : 'Failed to delete organization');
+      setIsDeleting(false);
     }
-  }
+  };
 
   if (!organization) {
     return (
@@ -118,7 +116,7 @@ export default function OrganizationPage() {
           No organization selected. Please select or create an organization.
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -131,7 +129,7 @@ export default function OrganizationPage() {
       {/* Organization Details Form */}
       <div className="mb-8 rounded-lg border border-border bg-card p-6">
         <h2 className="mb-4 text-lg font-semibold">Organization Details</h2>
-        
+
         <form onSubmit={handleUpdate} className="space-y-4">
           <div>
             <label htmlFor="org-name" className="mb-2 block text-sm font-medium">
@@ -159,9 +157,7 @@ export default function OrganizationPage() {
               disabled={!canEdit}
               className="w-full max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              URL-friendly identifier
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">URL-friendly identifier</p>
           </div>
 
           <div>
@@ -208,7 +204,7 @@ export default function OrganizationPage() {
       {isOwner && (
         <div className="rounded-lg border border-red-300 bg-red-50 p-6">
           <h2 className="mb-4 text-lg font-semibold text-red-800">Danger Zone</h2>
-          
+
           {!showDeleteConfirm ? (
             <div>
               <p className="mb-4 text-sm text-red-700">
@@ -245,8 +241,8 @@ export default function OrganizationPage() {
                 </button>
                 <button
                   onClick={() => {
-                    setShowDeleteConfirm(false)
-                    setDeleteConfirmText('')
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText('');
                   }}
                   className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
                 >
@@ -258,6 +254,5 @@ export default function OrganizationPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
-

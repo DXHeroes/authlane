@@ -49,10 +49,7 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": [
-        "introduction",
-        "quickstart"
-      ]
+      "pages": ["introduction", "quickstart"]
     },
     {
       "group": "Guides",
@@ -66,18 +63,11 @@
     },
     {
       "group": "SDK",
-      "pages": [
-        "sdk/typescript",
-        "sdk/react",
-        "sdk/mcp-server"
-      ]
+      "pages": ["sdk/typescript", "sdk/react", "sdk/mcp-server"]
     },
     {
       "group": "API Documentation",
-      "pages": [
-        "api-reference/introduction",
-        "api-reference/authentication"
-      ]
+      "pages": ["api-reference/introduction", "api-reference/authentication"]
     },
     {
       "group": "Endpoints",

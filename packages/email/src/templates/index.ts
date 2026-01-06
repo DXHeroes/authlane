@@ -3,21 +3,14 @@
  * Exports all email templates for use with Resend
  */
 
-export { OrganizationInvitation } from './OrganizationInvitation';
-export type { OrganizationInvitationProps } from './OrganizationInvitation';
-
-export { EmailVerification } from './EmailVerification';
 export type { EmailVerificationProps } from './EmailVerification';
-
-export { PasswordReset } from './PasswordReset';
+export { EmailVerification } from './EmailVerification';
+export type { OrganizationInvitationProps } from './OrganizationInvitation';
+export { OrganizationInvitation } from './OrganizationInvitation';
 export type { PasswordResetProps } from './PasswordReset';
-
-export { WelcomeEmail } from './WelcomeEmail';
+export { PasswordReset } from './PasswordReset';
 export type { WelcomeEmailProps } from './WelcomeEmail';
-
-
-
-
+export { WelcomeEmail } from './WelcomeEmail';
 
 
 

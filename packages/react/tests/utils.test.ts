@@ -2,7 +2,7 @@
  * Tests for OAuth utilities
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { generateAuthorizeUrl, parseOAuthCallback } from '../src/utils/oauth.js';
 
 describe('OAuth utilities', () => {

@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { X, AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, X } from 'lucide-react';
+import type React from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface OAuthFlowHandlerProps {
   serviceId: string;
@@ -16,24 +17,27 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
   authUrl,
   onSuccess,
   onError,
-  onClose
+  onClose,
 }) => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [popup, setPopup] = useState<Window | null>(null);
 
-  const handleOAuthCallback = useCallback((event: MessageEvent) => {
-    if (event.data?.type === 'oauth:success') {
-      setStatus('idle');
-      onSuccess(event.data.connectionId);
-      popup?.close();
-    } else if (event.data?.type === 'oauth:error') {
-      setStatus('error');
-      setErrorMessage(event.data.error || 'Authentication failed');
-      onError(new Error(event.data.error));
-      popup?.close();
-    }
-  }, [popup, onSuccess, onError]);
+  const handleOAuthCallback = useCallback(
+    (event: MessageEvent) => {
+      if (event.data?.type === 'oauth:success') {
+        setStatus('idle');
+        onSuccess(event.data.connectionId);
+        popup?.close();
+      } else if (event.data?.type === 'oauth:error') {
+        setStatus('error');
+        setErrorMessage(event.data.error || 'Authentication failed');
+        onError(new Error(event.data.error));
+        popup?.close();
+      }
+    },
+    [popup, onSuccess, onError]
+  );
 
   useEffect(() => {
     window.addEventListener('message', handleOAuthCallback);
@@ -89,7 +93,7 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
 
   useEffect(() => {
     startOAuthFlow();
-  }, []);
+  }, [startOAuthFlow]);
 
   return (
     <div className="oauth-flow">
@@ -106,9 +110,7 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
             <div className="oauth-flow__loading">
               <Loader2 className="oauth-flow__spinner" size={32} />
               <p>Waiting for authentication...</p>
-              <p className="oauth-flow__hint">
-                Complete the authentication in the popup window
-              </p>
+              <p className="oauth-flow__hint">Complete the authentication in the popup window</p>
             </div>
           )}
 

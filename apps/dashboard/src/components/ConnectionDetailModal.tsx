@@ -1,23 +1,23 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { Connection } from '@/types'
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { api } from '@/lib/api';
+import type { Connection } from '@/types';
 
 interface ConnectionDetailModalProps {
-  connection: Connection
-  onClose: () => void
+  connection: Connection;
+  onClose: () => void;
 }
 
 interface ConnectionCredentials {
-  accessToken?: string
-  refreshToken?: string
-  expiresAt?: string
-  scopes?: string[]
-  metadata?: Record<string, unknown>
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: string;
+  scopes?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export default function ConnectionDetailModal({ connection, onClose }: ConnectionDetailModalProps) {
-  const [showCredentials, setShowCredentials] = useState(false)
+  const [showCredentials, setShowCredentials] = useState(false);
 
   const { data: credentials, isLoading: credentialsLoading } = useQuery({
     queryKey: ['connection-credentials', connection.id],
@@ -26,29 +26,32 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
         `/users/${connection.userId}/connections/${connection.serviceId}/credentials`
       ),
     enabled: showCredentials,
-  })
+  });
 
   const maskToken = (token: string) => {
-    if (!token) return ''
-    if (token.length <= 8) return '••••••••'
-    return token.slice(0, 4) + '••••••••' + token.slice(-4)
-  }
+    if (!token) return '';
+    if (token.length <= 8) return '••••••••';
+    return `${token.slice(0, 4)}••••••••${token.slice(-4)}`;
+  };
 
   const getStatusColor = (status: Connection['status']) => {
     switch (status) {
       case 'active':
-        return 'text-green-600'
+        return 'text-green-600';
       case 'expired':
-        return 'text-yellow-600'
+        return 'text-yellow-600';
       case 'error':
-        return 'text-red-600'
+        return 'text-red-600';
       default:
-        return 'text-gray-600'
+        return 'text-gray-600';
     }
-  }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-2xl rounded-lg border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
@@ -60,12 +63,7 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
             className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
           >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -96,7 +94,9 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
 
           <div>
             <label className="text-sm font-medium text-muted-foreground">Status</label>
-            <p className={`mt-1 text-sm font-semibold uppercase ${getStatusColor(connection.status)}`}>
+            <p
+              className={`mt-1 text-sm font-semibold uppercase ${getStatusColor(connection.status)}`}
+            >
               {connection.status}
             </p>
           </div>
@@ -116,7 +116,9 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
           {connection.lastHealthCheck && (
             <div>
               <label className="text-sm font-medium text-muted-foreground">Last Health Check</label>
-              <p className="mt-1 text-sm">{new Date(connection.lastHealthCheck).toLocaleString()}</p>
+              <p className="mt-1 text-sm">
+                {new Date(connection.lastHealthCheck).toLocaleString()}
+              </p>
             </div>
           )}
 
@@ -215,5 +217,5 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
         </div>
       </div>
     </div>
-  )
+  );
 }

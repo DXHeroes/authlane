@@ -4,8 +4,9 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { createDatabaseClient } from './client.js';
-import { services, user, organization, member, account } from './schema/index.js';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import { account, member, organization, services, user } from './schema/index.js';
 
 /**
  * Generate a random ID for better-auth entities
@@ -30,14 +31,14 @@ const productionServices = [
   // ============================================
   // DEVELOPER TOOLS (4)
   // ============================================
-    {
-      id: 'github',
-      name: 'GitHub',
-      authType: 'oauth2',
-      config: {
+  {
+    id: 'github',
+    name: 'GitHub',
+    authType: 'oauth2',
+    config: {
       // OAuth2 endpoints
-        authorization_url: 'https://github.com/login/oauth/authorize',
-        token_url: 'https://github.com/login/oauth/access_token',
+      authorization_url: 'https://github.com/login/oauth/authorize',
+      token_url: 'https://github.com/login/oauth/access_token',
       // API configuration
       api_base_url: 'https://api.github.com',
       // Scopes with descriptions
@@ -52,18 +53,50 @@ const productionServices = [
         { name: 'user:follow', description: 'Follow and unfollow users', required: false },
         { name: 'read:user', description: 'Read user profile data', required: true },
         { name: 'read:org', description: 'Read org and team membership', required: false },
-        { name: 'write:org', description: 'Read and write org and team membership', required: false },
+        {
+          name: 'write:org',
+          description: 'Read and write org and team membership',
+          required: false,
+        },
         { name: 'gist', description: 'Create gists', required: false },
         { name: 'notifications', description: 'Access notifications', required: false },
         { name: 'workflow', description: 'Update GitHub Action workflows', required: false },
-        { name: 'write:packages', description: 'Upload packages to GitHub Package Registry', required: false },
-        { name: 'read:packages', description: 'Download packages from GitHub Package Registry', required: false },
-        { name: 'delete:packages', description: 'Delete packages from GitHub Package Registry', required: false },
+        {
+          name: 'write:packages',
+          description: 'Upload packages to GitHub Package Registry',
+          required: false,
+        },
+        {
+          name: 'read:packages',
+          description: 'Download packages from GitHub Package Registry',
+          required: false,
+        },
+        {
+          name: 'delete:packages',
+          description: 'Delete packages from GitHub Package Registry',
+          required: false,
+        },
         { name: 'admin:org', description: 'Full control of orgs and teams', required: false },
-        { name: 'admin:repo_hook', description: 'Full control of repository hooks', required: false },
-        { name: 'admin:org_hook', description: 'Full control of organization hooks', required: false },
-        { name: 'project', description: 'Read/write access to user and org projects', required: false },
-        { name: 'read:project', description: 'Read access to user and org projects', required: false },
+        {
+          name: 'admin:repo_hook',
+          description: 'Full control of repository hooks',
+          required: false,
+        },
+        {
+          name: 'admin:org_hook',
+          description: 'Full control of organization hooks',
+          required: false,
+        },
+        {
+          name: 'project',
+          description: 'Read/write access to user and org projects',
+          required: false,
+        },
+        {
+          name: 'read:project',
+          description: 'Read access to user and org projects',
+          required: false,
+        },
       ],
       default_scopes: ['read:user', 'repo', 'read:org'],
       // OAuth2 features
@@ -71,18 +104,19 @@ const productionServices = [
       supports_refresh_token: false, // GitHub doesn't support refresh tokens by default
       // Documentation
       docs_url: 'https://docs.github.com/en/rest',
-      setup_guide_url: 'https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app',
+      setup_guide_url:
+        'https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app',
       developer_console_url: 'https://github.com/settings/developers',
-      },
-      enabled: true,
     },
-    {
-      id: 'linear',
-      name: 'Linear',
-      authType: 'oauth2',
-      config: {
-        authorization_url: 'https://linear.app/oauth/authorize',
-        token_url: 'https://api.linear.app/oauth/token',
+    enabled: true,
+  },
+  {
+    id: 'linear',
+    name: 'Linear',
+    authType: 'oauth2',
+    config: {
+      authorization_url: 'https://linear.app/oauth/authorize',
+      token_url: 'https://api.linear.app/oauth/token',
       api_base_url: 'https://api.linear.app/graphql',
       scopes: [
         { name: 'read', description: 'Read access to your Linear data', required: true },
@@ -97,27 +131,39 @@ const productionServices = [
       docs_url: 'https://developers.linear.app/docs',
       setup_guide_url: 'https://developers.linear.app/docs/oauth/authentication',
       developer_console_url: 'https://linear.app/settings/api',
-      },
-      enabled: true,
     },
-    {
-      id: 'jira',
-      name: 'Jira',
-      authType: 'oauth2',
-      config: {
-        authorization_url: 'https://auth.atlassian.com/authorize',
-        token_url: 'https://auth.atlassian.com/oauth/token',
+    enabled: true,
+  },
+  {
+    id: 'jira',
+    name: 'Jira',
+    authType: 'oauth2',
+    config: {
+      authorization_url: 'https://auth.atlassian.com/authorize',
+      token_url: 'https://auth.atlassian.com/oauth/token',
       api_base_url: 'https://api.atlassian.com/ex/jira',
       // Atlassian requires accessible-resources call to get cloud ID
       accessible_resources_url: 'https://api.atlassian.com/oauth/token/accessible-resources',
       scopes: [
         { name: 'read:jira-work', description: 'Read Jira project and issue data', required: true },
-        { name: 'write:jira-work', description: 'Create and edit issues and projects', required: false },
+        {
+          name: 'write:jira-work',
+          description: 'Create and edit issues and projects',
+          required: false,
+        },
         { name: 'read:jira-user', description: 'Read user information', required: false },
         { name: 'manage:jira-project', description: 'Create and edit projects', required: false },
-        { name: 'manage:jira-configuration', description: 'Configure Jira settings', required: false },
+        {
+          name: 'manage:jira-configuration',
+          description: 'Configure Jira settings',
+          required: false,
+        },
         { name: 'manage:jira-webhook', description: 'Manage webhooks', required: false },
-        { name: 'offline_access', description: 'Access when user is offline (refresh tokens)', required: true },
+        {
+          name: 'offline_access',
+          description: 'Access when user is offline (refresh tokens)',
+          required: true,
+        },
       ],
       default_scopes: ['read:jira-work', 'write:jira-work', 'read:jira-user', 'offline_access'],
       pkce_required: true,
@@ -128,9 +174,9 @@ const productionServices = [
       docs_url: 'https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/',
       setup_guide_url: 'https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/',
       developer_console_url: 'https://developer.atlassian.com/console/myapps/',
-      },
-      enabled: true,
     },
+    enabled: true,
+  },
   {
     id: 'sentry',
     name: 'Sentry',
@@ -168,20 +214,28 @@ const productionServices = [
   // ============================================
   // COMMUNICATION (3)
   // ============================================
-    {
-      id: 'slack',
-      name: 'Slack',
-      authType: 'oauth2',
-      config: {
-        authorization_url: 'https://slack.com/oauth/v2/authorize',
-        token_url: 'https://slack.com/api/oauth.v2.access',
+  {
+    id: 'slack',
+    name: 'Slack',
+    authType: 'oauth2',
+    config: {
+      authorization_url: 'https://slack.com/oauth/v2/authorize',
+      token_url: 'https://slack.com/api/oauth.v2.access',
       api_base_url: 'https://slack.com/api',
       scopes: [
         { name: 'channels:read', description: 'View basic channel information', required: true },
         { name: 'channels:write', description: 'Manage public channels', required: false },
-        { name: 'channels:history', description: 'View messages in public channels', required: false },
+        {
+          name: 'channels:history',
+          description: 'View messages in public channels',
+          required: false,
+        },
         { name: 'chat:write', description: 'Send messages as the app', required: true },
-        { name: 'chat:write.public', description: 'Send messages to channels without joining', required: false },
+        {
+          name: 'chat:write.public',
+          description: 'Send messages to channels without joining',
+          required: false,
+        },
         { name: 'groups:read', description: 'View private channels', required: false },
         { name: 'groups:write', description: 'Manage private channels', required: false },
         { name: 'im:read', description: 'View direct messages', required: false },
@@ -203,16 +257,16 @@ const productionServices = [
       docs_url: 'https://api.slack.com/methods',
       setup_guide_url: 'https://api.slack.com/authentication/oauth-v2',
       developer_console_url: 'https://api.slack.com/apps',
-      },
-      enabled: true,
     },
-    {
-      id: 'discord',
-      name: 'Discord',
-      authType: 'oauth2',
-      config: {
-        authorization_url: 'https://discord.com/api/oauth2/authorize',
-        token_url: 'https://discord.com/api/oauth2/token',
+    enabled: true,
+  },
+  {
+    id: 'discord',
+    name: 'Discord',
+    authType: 'oauth2',
+    config: {
+      authorization_url: 'https://discord.com/api/oauth2/authorize',
+      token_url: 'https://discord.com/api/oauth2/token',
       revoke_url: 'https://discord.com/api/oauth2/token/revoke',
       api_base_url: 'https://discord.com/api/v10',
       scopes: [
@@ -226,7 +280,11 @@ const productionServices = [
         { name: 'bot', description: 'Add bot to guild (requires bot scope)', required: false },
         { name: 'webhook.incoming', description: 'Create webhooks', required: false },
         { name: 'applications.commands', description: 'Create slash commands', required: false },
-        { name: 'applications.commands.update', description: 'Update slash commands', required: false },
+        {
+          name: 'applications.commands.update',
+          description: 'Update slash commands',
+          required: false,
+        },
         { name: 'connections', description: 'Access linked third-party accounts', required: false },
       ],
       default_scopes: ['identify', 'guilds'],
@@ -248,13 +306,41 @@ const productionServices = [
       revoke_url: 'https://oauth2.googleapis.com/revoke',
       api_base_url: 'https://gmail.googleapis.com/gmail/v1',
       scopes: [
-        { name: 'https://www.googleapis.com/auth/gmail.readonly', description: 'Read all email', required: false },
-        { name: 'https://www.googleapis.com/auth/gmail.send', description: 'Send email', required: false },
-        { name: 'https://www.googleapis.com/auth/gmail.compose', description: 'Manage drafts and send emails', required: false },
-        { name: 'https://www.googleapis.com/auth/gmail.modify', description: 'Read, compose, and send emails', required: false },
-        { name: 'https://www.googleapis.com/auth/gmail.labels', description: 'Manage labels', required: false },
-        { name: 'https://www.googleapis.com/auth/gmail.metadata', description: 'Read email metadata', required: true },
-        { name: 'https://www.googleapis.com/auth/gmail.settings.basic', description: 'Manage basic mail settings', required: false },
+        {
+          name: 'https://www.googleapis.com/auth/gmail.readonly',
+          description: 'Read all email',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/gmail.send',
+          description: 'Send email',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/gmail.compose',
+          description: 'Manage drafts and send emails',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/gmail.modify',
+          description: 'Read, compose, and send emails',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/gmail.labels',
+          description: 'Manage labels',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/gmail.metadata',
+          description: 'Read email metadata',
+          required: true,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/gmail.settings.basic',
+          description: 'Manage basic mail settings',
+          required: false,
+        },
         { name: 'https://mail.google.com/', description: 'Full access to Gmail', required: false },
       ],
       default_scopes: [
@@ -312,13 +398,41 @@ const productionServices = [
       revoke_url: 'https://oauth2.googleapis.com/revoke',
       api_base_url: 'https://www.googleapis.com/drive/v3',
       scopes: [
-        { name: 'https://www.googleapis.com/auth/drive', description: 'Full access to all Drive files', required: false },
-        { name: 'https://www.googleapis.com/auth/drive.file', description: 'Access files created by the app', required: true },
-        { name: 'https://www.googleapis.com/auth/drive.readonly', description: 'Read-only access to files', required: false },
-        { name: 'https://www.googleapis.com/auth/drive.metadata', description: 'View file metadata', required: false },
-        { name: 'https://www.googleapis.com/auth/drive.metadata.readonly', description: 'Read-only metadata', required: false },
-        { name: 'https://www.googleapis.com/auth/drive.appdata', description: 'Access app data folder', required: false },
-        { name: 'https://www.googleapis.com/auth/drive.photos.readonly', description: 'Access Google Photos', required: false },
+        {
+          name: 'https://www.googleapis.com/auth/drive',
+          description: 'Full access to all Drive files',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/drive.file',
+          description: 'Access files created by the app',
+          required: true,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/drive.readonly',
+          description: 'Read-only access to files',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/drive.metadata',
+          description: 'View file metadata',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/drive.metadata.readonly',
+          description: 'Read-only metadata',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/drive.appdata',
+          description: 'Access app data folder',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/drive.photos.readonly',
+          description: 'Access Google Photos',
+          required: false,
+        },
       ],
       default_scopes: [
         'https://www.googleapis.com/auth/drive.file',
@@ -332,9 +446,9 @@ const productionServices = [
       docs_url: 'https://developers.google.com/drive/api/reference/rest/v3',
       setup_guide_url: 'https://developers.google.com/drive/api/guides/about-auth',
       developer_console_url: 'https://console.cloud.google.com/apis/credentials',
-      },
-      enabled: true,
     },
+    enabled: true,
+  },
   {
     id: 'google-calendar',
     name: 'Google Calendar',
@@ -345,13 +459,41 @@ const productionServices = [
       revoke_url: 'https://oauth2.googleapis.com/revoke',
       api_base_url: 'https://www.googleapis.com/calendar/v3',
       scopes: [
-        { name: 'https://www.googleapis.com/auth/calendar', description: 'Full access to calendars', required: false },
-        { name: 'https://www.googleapis.com/auth/calendar.readonly', description: 'Read-only access to calendars', required: false },
-        { name: 'https://www.googleapis.com/auth/calendar.events', description: 'Manage events', required: true },
-        { name: 'https://www.googleapis.com/auth/calendar.events.readonly', description: 'Read-only events', required: false },
-        { name: 'https://www.googleapis.com/auth/calendar.settings.readonly', description: 'Read calendar settings', required: false },
-        { name: 'https://www.googleapis.com/auth/calendar.calendarlist', description: 'Manage calendar list', required: false },
-        { name: 'https://www.googleapis.com/auth/calendar.calendarlist.readonly', description: 'Read-only calendar list', required: false },
+        {
+          name: 'https://www.googleapis.com/auth/calendar',
+          description: 'Full access to calendars',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/calendar.readonly',
+          description: 'Read-only access to calendars',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/calendar.events',
+          description: 'Manage events',
+          required: true,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/calendar.events.readonly',
+          description: 'Read-only events',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/calendar.settings.readonly',
+          description: 'Read calendar settings',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/calendar.calendarlist',
+          description: 'Manage calendar list',
+          required: false,
+        },
+        {
+          name: 'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          description: 'Read-only calendar list',
+          required: false,
+        },
       ],
       default_scopes: [
         'https://www.googleapis.com/auth/calendar.events',
@@ -372,15 +514,15 @@ const productionServices = [
   // ============================================
   // CRM (3)
   // ============================================
-    {
-      id: 'hubspot',
-      name: 'HubSpot',
-      authType: 'oauth2',
-      config: {
-        authorization_url: 'https://app.hubspot.com/oauth/authorize',
-        token_url: 'https://api.hubapi.com/oauth/v1/token',
+  {
+    id: 'hubspot',
+    name: 'HubSpot',
+    authType: 'oauth2',
+    config: {
+      authorization_url: 'https://app.hubspot.com/oauth/authorize',
+      token_url: 'https://api.hubapi.com/oauth/v1/token',
       api_base_url: 'https://api.hubapi.com',
-        scopes: [
+      scopes: [
         { name: 'crm.objects.contacts.read', description: 'Read contacts', required: true },
         { name: 'crm.objects.contacts.write', description: 'Write contacts', required: false },
         { name: 'crm.objects.companies.read', description: 'Read companies', required: false },
@@ -397,33 +539,33 @@ const productionServices = [
         { name: 'automation', description: 'Access workflows', required: false },
         { name: 'timeline', description: 'Access timeline events', required: false },
         { name: 'files', description: 'Access files', required: false },
-        ],
-        default_scopes: [
-          'crm.objects.contacts.read',
-          'crm.objects.contacts.write',
-          'crm.objects.deals.read',
-          'crm.objects.deals.write',
-        ],
+      ],
+      default_scopes: [
+        'crm.objects.contacts.read',
+        'crm.objects.contacts.write',
+        'crm.objects.deals.read',
+        'crm.objects.deals.write',
+      ],
       pkce_required: false,
       supports_refresh_token: true,
       docs_url: 'https://developers.hubspot.com/docs/api/overview',
       setup_guide_url: 'https://developers.hubspot.com/docs/api/working-with-oauth',
       developer_console_url: 'https://app.hubspot.com/developer',
-      },
-      enabled: true,
     },
-    {
-      id: 'salesforce',
-      name: 'Salesforce',
-      authType: 'oauth2',
-      config: {
+    enabled: true,
+  },
+  {
+    id: 'salesforce',
+    name: 'Salesforce',
+    authType: 'oauth2',
+    config: {
       // Note: For sandbox use test.salesforce.com instead of login.salesforce.com
-        authorization_url: 'https://login.salesforce.com/services/oauth2/authorize',
-        token_url: 'https://login.salesforce.com/services/oauth2/token',
+      authorization_url: 'https://login.salesforce.com/services/oauth2/authorize',
+      token_url: 'https://login.salesforce.com/services/oauth2/token',
       revoke_url: 'https://login.salesforce.com/services/oauth2/revoke',
       // API base URL is dynamic - instance_url returned in token response
       api_base_url: 'https://{instance_url}/services/data/v60.0',
-        scopes: [
+      scopes: [
         { name: 'api', description: 'Access REST API', required: true },
         { name: 'refresh_token', description: 'Obtain refresh tokens', required: true },
         { name: 'offline_access', description: 'Access data while offline', required: false },
@@ -437,20 +579,21 @@ const productionServices = [
         { name: 'custom_permissions', description: 'Access custom permissions', required: false },
         { name: 'pardot_api', description: 'Access Pardot API', required: false },
         { name: 'cdp_api', description: 'Access CDP API', required: false },
-        ],
-        default_scopes: ['api', 'refresh_token', 'id'],
+      ],
+      default_scopes: ['api', 'refresh_token', 'id'],
       pkce_required: true,
       supports_refresh_token: true,
       // Salesforce-specific
-        api_version: 'v60.0',
+      api_version: 'v60.0',
       sandbox_authorization_url: 'https://test.salesforce.com/services/oauth2/authorize',
       sandbox_token_url: 'https://test.salesforce.com/services/oauth2/token',
       docs_url: 'https://developer.salesforce.com/docs/apis',
-      setup_guide_url: 'https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm',
+      setup_guide_url:
+        'https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm',
       developer_console_url: 'https://login.salesforce.com/',
-      },
-      enabled: true,
     },
+    enabled: true,
+  },
   {
     id: 'pipedrive',
     name: 'Pipedrive',
@@ -463,7 +606,11 @@ const productionServices = [
       scopes: [
         { name: 'deals:read', description: 'Read deals', required: false },
         { name: 'deals:full', description: 'Full access to deals', required: false },
-        { name: 'contacts:read', description: 'Read contacts (persons/organizations)', required: true },
+        {
+          name: 'contacts:read',
+          description: 'Read contacts (persons/organizations)',
+          required: true,
+        },
         { name: 'contacts:full', description: 'Full access to contacts', required: false },
         { name: 'activities:read', description: 'Read activities', required: false },
         { name: 'activities:full', description: 'Full access to activities', required: false },
@@ -476,7 +623,11 @@ const productionServices = [
         { name: 'goals:read', description: 'Read goals', required: false },
         { name: 'users:read', description: 'Read users', required: false },
         { name: 'admin', description: 'Admin access', required: false },
-        { name: 'base', description: 'Basic access (deprecated, use specific scopes)', required: false },
+        {
+          name: 'base',
+          description: 'Basic access (deprecated, use specific scopes)',
+          required: false,
+        },
       ],
       default_scopes: ['contacts:read', 'deals:read', 'activities:read'],
       pkce_required: false,
@@ -491,21 +642,21 @@ const productionServices = [
   // ============================================
   // OTHER (2)
   // ============================================
-    {
-      id: 'stripe',
-      name: 'Stripe',
-      authType: 'oauth2',
-      config: {
+  {
+    id: 'stripe',
+    name: 'Stripe',
+    authType: 'oauth2',
+    config: {
       // Stripe Connect OAuth
-        authorization_url: 'https://connect.stripe.com/oauth/authorize',
-        token_url: 'https://connect.stripe.com/oauth/token',
+      authorization_url: 'https://connect.stripe.com/oauth/authorize',
+      token_url: 'https://connect.stripe.com/oauth/token',
       deauthorize_url: 'https://connect.stripe.com/oauth/deauthorize',
       api_base_url: 'https://api.stripe.com/v1',
       scopes: [
         { name: 'read_write', description: 'Full access to Stripe account', required: false },
         { name: 'read_only', description: 'Read-only access', required: true },
       ],
-        default_scopes: ['read_only'],
+      default_scopes: ['read_only'],
       pkce_required: false,
       supports_refresh_token: true,
       // Stripe-specific
@@ -527,9 +678,17 @@ const productionServices = [
       api_base_url: 'https://api.airtable.com/v0',
       scopes: [
         { name: 'data.records:read', description: 'Read records', required: true },
-        { name: 'data.records:write', description: 'Create, update, delete records', required: false },
+        {
+          name: 'data.records:write',
+          description: 'Create, update, delete records',
+          required: false,
+        },
         { name: 'data.recordComments:read', description: 'Read record comments', required: false },
-        { name: 'data.recordComments:write', description: 'Write record comments', required: false },
+        {
+          name: 'data.recordComments:write',
+          description: 'Write record comments',
+          required: false,
+        },
         { name: 'schema.bases:read', description: 'Read base schema', required: true },
         { name: 'schema.bases:write', description: 'Modify base schema', required: false },
         { name: 'user.email:read', description: 'Read user email', required: false },
@@ -543,9 +702,9 @@ const productionServices = [
       docs_url: 'https://airtable.com/developers/web/api/introduction',
       setup_guide_url: 'https://airtable.com/developers/web/guides/oauth-integrations',
       developer_console_url: 'https://airtable.com/create/oauth',
-      },
-      enabled: true,
     },
+    enabled: true,
+  },
 
   // ============================================
   // PUBLIC APIs (no authentication required)
@@ -707,7 +866,11 @@ const productionServices = [
         { path: '/chat/completions', method: 'POST', description: 'Chat with GPT models' },
         { path: '/completions', method: 'POST', description: 'Text completions (legacy)' },
         { path: '/images/generations', method: 'POST', description: 'Generate images with DALL-E' },
-        { path: '/audio/transcriptions', method: 'POST', description: 'Transcribe audio with Whisper' },
+        {
+          path: '/audio/transcriptions',
+          method: 'POST',
+          description: 'Transcribe audio with Whisper',
+        },
         { path: '/audio/speech', method: 'POST', description: 'Text to speech' },
         { path: '/embeddings', method: 'POST', description: 'Create embeddings' },
         { path: '/models', method: 'GET', description: 'List available models' },
@@ -715,7 +878,8 @@ const productionServices = [
       rate_limit: 'Varies by plan and model',
       docs_url: 'https://platform.openai.com/docs/api-reference',
       setup_guide_url: 'https://platform.openai.com/api-keys',
-      example_call: 'curl https://api.openai.com/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"',
+      example_call:
+        'curl https://api.openai.com/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"',
     },
     enabled: true,
   },
@@ -738,7 +902,8 @@ const productionServices = [
       rate_limit: 'Varies by plan',
       docs_url: 'https://docs.anthropic.com/en/api/getting-started',
       setup_guide_url: 'https://console.anthropic.com/settings/keys',
-      example_call: 'curl https://api.anthropic.com/v1/messages -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01"',
+      example_call:
+        'curl https://api.anthropic.com/v1/messages -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01"',
     },
     enabled: true,
   },
@@ -761,7 +926,8 @@ const productionServices = [
       rate_limit: '100 emails/day (free tier)',
       docs_url: 'https://resend.com/docs/api-reference/introduction',
       setup_guide_url: 'https://resend.com/api-keys',
-      example_call: 'curl https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -d \'{"from":"...","to":"...","subject":"...","html":"..."}\'',
+      example_call:
+        'curl https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -d \'{"from":"...","to":"...","subject":"...","html":"..."}\'',
     },
     enabled: true,
   },
@@ -784,7 +950,8 @@ const productionServices = [
       rate_limit: '100 emails/day (free tier)',
       docs_url: 'https://docs.sendgrid.com/api-reference',
       setup_guide_url: 'https://app.sendgrid.com/settings/api_keys',
-      example_call: 'curl https://api.sendgrid.com/v3/mail/send -H "Authorization: Bearer $SENDGRID_API_KEY"',
+      example_call:
+        'curl https://api.sendgrid.com/v3/mail/send -H "Authorization: Bearer $SENDGRID_API_KEY"',
     },
     enabled: true,
   },
@@ -799,15 +966,28 @@ const productionServices = [
       auth_param: 'appid',
       endpoints: [
         { path: '/weather?q={city}', method: 'GET', description: 'Current weather by city' },
-        { path: '/weather?lat={lat}&lon={lon}', method: 'GET', description: 'Current weather by coordinates' },
+        {
+          path: '/weather?lat={lat}&lon={lon}',
+          method: 'GET',
+          description: 'Current weather by coordinates',
+        },
         { path: '/forecast?q={city}', method: 'GET', description: '5-day forecast' },
-        { path: '/air_pollution?lat={lat}&lon={lon}', method: 'GET', description: 'Air quality data' },
-        { path: '/onecall?lat={lat}&lon={lon}', method: 'GET', description: 'One Call API (all data)' },
+        {
+          path: '/air_pollution?lat={lat}&lon={lon}',
+          method: 'GET',
+          description: 'Air quality data',
+        },
+        {
+          path: '/onecall?lat={lat}&lon={lon}',
+          method: 'GET',
+          description: 'One Call API (all data)',
+        },
       ],
       rate_limit: '60 calls/minute (free tier)',
       docs_url: 'https://openweathermap.org/api',
       setup_guide_url: 'https://home.openweathermap.org/api_keys',
-      example_call: 'curl "https://api.openweathermap.org/data/2.5/weather?q=Prague&appid=$OPENWEATHERMAP_API_KEY"',
+      example_call:
+        'curl "https://api.openweathermap.org/data/2.5/weather?q=Prague&appid=$OPENWEATHERMAP_API_KEY"',
     },
     enabled: true,
   },
@@ -820,9 +1000,17 @@ const productionServices = [
       description: 'Currency exchange rate API',
       auth_type: 'path',
       endpoints: [
-        { path: '/{apikey}/latest/{base}', method: 'GET', description: 'Latest rates for a base currency' },
+        {
+          path: '/{apikey}/latest/{base}',
+          method: 'GET',
+          description: 'Latest rates for a base currency',
+        },
         { path: '/{apikey}/pair/{from}/{to}', method: 'GET', description: 'Pair conversion rate' },
-        { path: '/{apikey}/pair/{from}/{to}/{amount}', method: 'GET', description: 'Convert amount' },
+        {
+          path: '/{apikey}/pair/{from}/{to}/{amount}',
+          method: 'GET',
+          description: 'Convert amount',
+        },
         { path: '/{apikey}/codes', method: 'GET', description: 'List supported currency codes' },
       ],
       rate_limit: '1500 requests/month (free tier)',
@@ -838,7 +1026,8 @@ const productionServices = [
  * Seeds the database with initial data
  */
 export async function seedDatabase(dbUrl: string) {
-  const db = createDatabaseClient(dbUrl);
+  const client = postgres(dbUrl);
+  const db = drizzle(client, { schema: { services, user, account, organization, member } });
 
   console.log('🌱 Seeding database with production-ready service configurations...\n');
 
@@ -862,29 +1051,25 @@ export async function seedDatabase(dbUrl: string) {
   const accountId = generateId();
 
   // Check if user already exists
-  const existingUser = await db
-    .select()
-    .from(user)
-    .where(eq(user.email, sampleEmail))
-    .limit(1);
+  const existingUser = await db.select().from(user).where(eq(user.email, sampleEmail)).limit(1);
 
   if (existingUser[0]) {
     console.log(`👤 Test user already exists: ${sampleEmail}`);
     console.log(`   User ID: ${existingUser[0].id}`);
-    
+
     // Check for organization
     const existingMember = await db
       .select()
       .from(member)
       .where(eq(member.userId, existingUser[0].id))
       .limit(1);
-    
+
     if (existingMember[0]) {
       console.log(`   Organization ID: ${existingMember[0].organizationId}`);
     }
-      } else {
+  } else {
     console.log('👤 Creating test user...');
-    
+
     // Create user
     await db.insert(user).values({
       id: userId,
@@ -905,12 +1090,15 @@ export async function seedDatabase(dbUrl: string) {
     });
     console.log('   ✓ Credential account created');
 
-    // Create organization
-    await db.insert(organization).values({
-      id: orgId,
-      name: 'Test Organization',
-      slug: 'test-org',
-    });
+    // Create organization (skip if slug already exists)
+    await db
+      .insert(organization)
+      .values({
+        id: orgId,
+        name: 'Test Organization',
+        slug: 'test-org',
+      })
+      .onConflictDoNothing();
     console.log('   ✓ Organization: Test Organization');
 
     // Add user as owner
@@ -924,19 +1112,19 @@ export async function seedDatabase(dbUrl: string) {
   }
 
   // Print helpful information
-  console.log('\n' + '='.repeat(70));
+  console.log(`\n${'='.repeat(70)}`);
   console.log('✅ Database seeded successfully!\n');
-  
+
   console.log('🔑 Test Credentials:');
   console.log(`   Email: ${sampleEmail}`);
   console.log(`   Password: ${samplePassword}`);
-  
+
   // Categorize services
-  const publicApis = productionServices.filter(s => s.authType === 'none');
-  const apiKeyServices = productionServices.filter(s => s.authType === 'api_key');
-  const oauthServices = productionServices.filter(s => s.authType === 'oauth2');
-  
-  console.log('\n' + '─'.repeat(70));
+  const publicApis = productionServices.filter((s) => s.authType === 'none');
+  const apiKeyServices = productionServices.filter((s) => s.authType === 'api_key');
+  const oauthServices = productionServices.filter((s) => s.authType === 'oauth2');
+
+  console.log(`\n${'─'.repeat(70)}`);
   console.log('🚀 PUBLIC APIs - Ready to use NOW! No configuration needed:');
   console.log('─'.repeat(70));
   for (const service of publicApis) {
@@ -947,8 +1135,8 @@ export async function seedDatabase(dbUrl: string) {
       console.log(`   └─ Try: ${config.example_call}`);
     }
   }
-  
-  console.log('\n' + '─'.repeat(70));
+
+  console.log(`\n${'─'.repeat(70)}`);
   console.log('🔐 API KEY Services - Just add your API key:');
   console.log('─'.repeat(70));
   for (const service of apiKeyServices) {
@@ -956,28 +1144,31 @@ export async function seedDatabase(dbUrl: string) {
     console.log(`\n   ${service.name}`);
     console.log(`   └─ Get key: ${config.setup_guide_url || config.docs_url || 'See docs'}`);
   }
-  
-  console.log('\n' + '─'.repeat(70));
+
+  console.log(`\n${'─'.repeat(70)}`);
   console.log('🔗 OAuth2 Services - Need Client ID + Client Secret:');
   console.log('─'.repeat(70));
   for (const service of oauthServices) {
     const config = service.config as { developer_console_url?: string };
     console.log(`   • ${service.name}: ${config.developer_console_url || 'See docs'}`);
   }
-  
+
   console.log('\n   💡 Google Services (Gmail, Drive, Calendar):');
   console.log('   └─ Create ONE OAuth app: https://console.cloud.google.com/apis/credentials');
   console.log('   └─ Enable APIs: Gmail API, Drive API, Calendar API');
-  
-  console.log('\n' + '─'.repeat(70));
+
+  console.log(`\n${'─'.repeat(70)}`);
   console.log('📊 Summary:');
   console.log('─'.repeat(70));
   console.log(`   • ${publicApis.length} Public APIs (no auth needed) ✅`);
   console.log(`   • ${apiKeyServices.length} API Key services (simple setup)`);
   console.log(`   • ${oauthServices.length} OAuth2 services (need app setup)`);
   console.log(`   • Total: ${productionServices.length} services`);
-  
-  console.log('\n' + '='.repeat(70) + '\n');
+
+  console.log(`\n${'='.repeat(70)}\n`);
+
+  // Close the connection to ensure all queries are committed
+  await client.end();
 }
 
 // Run if called directly

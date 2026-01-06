@@ -3,10 +3,9 @@
  * Provides test database setup and teardown
  */
 
-import { connections, services, tenantServices, tenants, type Database } from '@authlane/database';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { connections, services, tenantServices, tenants } from '@authlane/database';
 import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 let testDb: any = null;
 let sqlite: any = null;
@@ -90,7 +89,7 @@ export async function cleanDatabase(db: Database): Promise<void> {
     await db.delete(tenantServices);
     await db.delete(tenants);
     await db.delete(services);
-  } catch (error) {
+  } catch (_error) {
     // Tables might not exist yet
   }
 }

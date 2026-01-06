@@ -3,10 +3,10 @@
  * Tests for seed data and functionality
  */
 
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const { Pool } = pg;
 

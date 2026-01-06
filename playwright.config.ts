@@ -2,11 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright E2E Test Configuration
- * 
+ *
  * Run all tests: pnpm test:e2e
  * Run with UI: pnpm test:e2e --ui
  * Run specific test: pnpm test:e2e e2e/auth.spec.ts
- * 
+ *
  * Test categories:
  * - smoke.spec.ts - Basic health checks
  * - auth.spec.ts - Authentication flows
@@ -20,17 +20,14 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 1, // Single worker for auth state consistency
-  reporter: [
-    ['html'],
-    ['list'],
-  ],
-  
+  reporter: [['html'], ['list']],
+
   // Increase timeout for E2E tests
   timeout: 60000,
   expect: {
     timeout: 10000,
   },
-  
+
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -51,4 +48,3 @@ export default defineConfig({
   // Don't auto-start servers - user should run `pnpm dev` first
   // webServer: { ... }
 });
-

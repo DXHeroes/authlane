@@ -1,43 +1,43 @@
-import { useState } from 'react'
-import { authlane, type Credentials } from '@/lib/authlane'
+import { useState } from 'react';
+import { authlane, type Credentials } from '@/lib/authlane';
 
 interface GitHubRepo {
-  id: number
-  name: string
-  full_name: string
-  description: string | null
-  html_url: string
-  stargazers_count: number
-  language: string | null
-  private: boolean
+  id: number;
+  name: string;
+  full_name: string;
+  description: string | null;
+  html_url: string;
+  stargazers_count: number;
+  language: string | null;
+  private: boolean;
 }
 
 export default function GitHubPage() {
-  const [repos, setRepos] = useState<GitHubRepo[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [credentials, setCredentials] = useState<Credentials | null>(null)
+  const [repos, setRepos] = useState<GitHubRepo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<Credentials | null>(null);
 
   async function fetchRepositories() {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     // Step 1: Get credentials from Authlane
-    const credResult = await authlane.getCredentials('github')
-    
+    const credResult = await authlane.getCredentials('github');
+
     if (credResult.error) {
-      setError(`Failed to get GitHub credentials: ${credResult.error.message}`)
-      setLoading(false)
-      return
+      setError(`Failed to get GitHub credentials: ${credResult.error.message}`);
+      setLoading(false);
+      return;
     }
 
     if (!credResult.data?.accessToken) {
-      setError('No GitHub access token available. Please connect GitHub first.')
-      setLoading(false)
-      return
+      setError('No GitHub access token available. Please connect GitHub first.');
+      setLoading(false);
+      return;
     }
 
-    setCredentials(credResult.data)
+    setCredentials(credResult.data);
 
     // Step 2: Use credentials to call GitHub API directly
     try {
@@ -46,27 +46,27 @@ export default function GitHubPage() {
           Authorization: `Bearer ${credResult.data.accessToken}`,
           Accept: 'application/vnd.github.v3+json',
         },
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`)
+        throw new Error(`GitHub API error: ${response.status}`);
       }
 
-      const data = await response.json()
-      setRepos(data)
+      const data = await response.json();
+      setRepos(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch repositories')
+      setError(err instanceof Error ? err.message : 'Failed to fetch repositories');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleConnect() {
-    const result = await authlane.getAuthUrl('github')
+    const result = await authlane.getAuthUrl('github');
     if (result.data?.url) {
-      window.open(result.data.url, '_blank', 'width=600,height=700')
+      window.open(result.data.url, '_blank', 'width=600,height=700');
     } else {
-      alert('Failed to get authorization URL: ' + (result.error?.message || 'Unknown error'))
+      alert(`Failed to get authorization URL: ${result.error?.message || 'Unknown error'}`);
     }
   }
 
@@ -110,7 +110,9 @@ export default function GitHubPage() {
       {/* Credentials info */}
       {credentials && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h3 className="font-semibold text-green-800 mb-2">✓ Credentials Retrieved from Authlane</h3>
+          <h3 className="font-semibold text-green-800 mb-2">
+            ✓ Credentials Retrieved from Authlane
+          </h3>
           <div className="text-sm text-green-700 font-mono">
             <p>Access Token: {credentials.accessToken?.substring(0, 20)}...</p>
             {credentials.expiresAt && (
@@ -160,9 +162,7 @@ export default function GitHubPage() {
                 {repo.description && (
                   <p className="text-sm text-gray-600 line-clamp-2">{repo.description}</p>
                 )}
-                {repo.language && (
-                  <p className="text-xs text-gray-500 mt-2">{repo.language}</p>
-                )}
+                {repo.language && <p className="text-xs text-gray-500 mt-2">{repo.language}</p>}
               </a>
             ))}
           </div>
@@ -179,12 +179,8 @@ export default function GitHubPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
-
-
-
-
 
 
 

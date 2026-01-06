@@ -3,13 +3,13 @@
  * Tests: authorize → callback → credentials stored → token refresh
  */
 
+import { randomUUID } from 'node:crypto';
+import { encrypt, getEncryptionKey } from '@authlane/crypto';
+import { connections, services, tenantServices, tenants } from '@authlane/database';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/index.js';
 import { cleanDatabase, getTestDb } from '../setup/test-db.js';
-import { services, tenantServices, tenants, connections } from '@authlane/database';
-import { encrypt, getEncryptionKey } from '@authlane/crypto';
-import { eq, and } from 'drizzle-orm';
-import { beforeAll, afterAll, describe, it, expect, beforeEach } from 'vitest';
-import { randomUUID } from 'node:crypto';
 
 describe('OAuth Flow Integration Tests', () => {
   const db = getTestDb();
@@ -186,8 +186,8 @@ describe('OAuth Flow Integration Tests', () => {
     beforeEach(async () => {
       // Create a pending connection
       connectionId = randomUUID();
-      stateParam = 'test_state_' + randomUUID();
-      codeVerifier = 'test_verifier_' + randomUUID();
+      stateParam = `test_state_${randomUUID()}`;
+      codeVerifier = `test_verifier_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: connectionId,
@@ -287,8 +287,8 @@ describe('OAuth Flow Integration Tests', () => {
   describe('Credentials Storage', () => {
     it('should store encrypted credentials after successful OAuth', async () => {
       // Create a connected connection with credentials
-      const accessToken = 'gho_test_access_token_' + randomUUID();
-      const refreshToken = 'gho_test_refresh_token_' + randomUUID();
+      const accessToken = `gho_test_access_token_${randomUUID()}`;
+      const refreshToken = `gho_test_refresh_token_${randomUUID()}`;
 
       const credentialsJson = JSON.stringify({
         access_token: accessToken,
@@ -314,14 +314,11 @@ describe('OAuth Flow Integration Tests', () => {
       });
 
       // Retrieve connection
-      const response = await app.request(
-        `/api/v1/users/${testUserId}/connections/github`,
-        {
-          headers: {
-            Authorization: `Bearer ${testApiKey}`,
-          },
-        }
-      );
+      const response = await app.request(`/api/v1/users/${testUserId}/connections/github`, {
+        headers: {
+          Authorization: `Bearer ${testApiKey}`,
+        },
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -369,14 +366,11 @@ describe('OAuth Flow Integration Tests', () => {
         connectedAt: new Date(),
       });
 
-      const response = await app.request(
-        `/api/v1/users/${testUserId}/connections`,
-        {
-          headers: {
-            Authorization: `Bearer ${testApiKey}`,
-          },
-        }
-      );
+      const response = await app.request(`/api/v1/users/${testUserId}/connections`, {
+        headers: {
+          Authorization: `Bearer ${testApiKey}`,
+        },
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -396,7 +390,7 @@ describe('OAuth Flow Integration Tests', () => {
     it('should handle missing PKCE verifier', async () => {
       // Create a pending connection WITHOUT pkce_code_verifier
       const connectionId = randomUUID();
-      const stateParam = 'test_state_' + randomUUID();
+      const stateParam = `test_state_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: connectionId,
@@ -429,8 +423,8 @@ describe('OAuth Flow Integration Tests', () => {
 
     it('should handle expired authorization code', async () => {
       const connectionId = randomUUID();
-      const stateParam = 'test_state_' + randomUUID();
-      const codeVerifier = 'test_verifier_' + randomUUID();
+      const stateParam = `test_state_${randomUUID()}`;
+      const codeVerifier = `test_verifier_${randomUUID()}`;
 
       await db.insert(connections).values({
         id: connectionId,

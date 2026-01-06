@@ -2,7 +2,6 @@
  * Basic usage example
  */
 
-import React from 'react';
 import { AuthlaneProvider, ConnectionButton, ConnectionList } from '@authlane/react';
 
 export default function App() {
@@ -12,10 +11,7 @@ export default function App() {
   };
 
   return (
-    <AuthlaneProvider
-      publicKey={process.env.AUTHLANE_PUBLIC_KEY!}
-      userId={currentUser.id}
-    >
+    <AuthlaneProvider publicKey={process.env.AUTHLANE_PUBLIC_KEY!} userId={currentUser.id}>
       <div style={{ padding: '20px' }}>
         <h1>My Integrations</h1>
 
@@ -36,13 +32,9 @@ export default function App() {
               Connect GitHub
             </ConnectionButton>
 
-            <ConnectionButton service="slack">
-              Connect Slack
-            </ConnectionButton>
+            <ConnectionButton service="slack">Connect Slack</ConnectionButton>
 
-            <ConnectionButton service="linear">
-              Connect Linear
-            </ConnectionButton>
+            <ConnectionButton service="linear">Connect Linear</ConnectionButton>
           </div>
         </div>
 

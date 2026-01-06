@@ -40,11 +40,11 @@ export function getEmailConfig(): EmailConfig {
  */
 export function createEmailClient(apiKey?: string): Resend {
   const key = apiKey || process.env.RESEND_API_KEY;
-  
+
   if (!key) {
     throw new Error('RESEND_API_KEY environment variable is required');
   }
-  
+
   return new Resend(key);
 }
 
@@ -63,10 +63,6 @@ export function getEmailClient(): Resend {
   }
   return clientInstance;
 }
-
-
-
-
 
 
 

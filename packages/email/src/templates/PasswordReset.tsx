@@ -39,51 +39,47 @@ export function PasswordReset({
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>
-            Reset your password
-          </Heading>
-          
+          <Heading style={heading}>Reset your password</Heading>
+
+          <Text style={paragraph}>Hi {userName},</Text>
+
           <Text style={paragraph}>
-            Hi {userName},
+            We received a request to reset your password for your Authlane account. Click the button
+            below to create a new password.
           </Text>
-          
-          <Text style={paragraph}>
-            We received a request to reset your password for your Authlane account.
-            Click the button below to create a new password.
-          </Text>
-          
+
           <Section style={buttonContainer}>
             <Button style={button} href={resetLink}>
               Reset Password
             </Button>
           </Section>
-          
+
           <Text style={paragraph}>
-            This link will expire in {expiresIn}. If you didn&apos;t request a password reset,
-            you can safely ignore this email. Your password will remain unchanged.
+            This link will expire in {expiresIn}. If you didn&apos;t request a password reset, you
+            can safely ignore this email. Your password will remain unchanged.
           </Text>
-          
+
           <Section style={warningBox}>
             <Text style={warningText}>
-              ⚠️ If you didn&apos;t request this password reset, someone may be trying to access your account.
-              Consider enabling two-factor authentication for added security.
+              ⚠️ If you didn&apos;t request this password reset, someone may be trying to access your
+              account. Consider enabling two-factor authentication for added security.
             </Text>
           </Section>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footer}>
             If the button above doesn&apos;t work, copy and paste this link into your browser:
           </Text>
           <Link href={resetLink} style={link}>
             {resetLink}
           </Link>
-          
+
           <Hr style={hr} />
-          
+
           <Text style={footerSmall}>
-            This email was sent by Authlane. If you didn&apos;t request a password reset,
-            you can ignore this email.
+            This email was sent by Authlane. If you didn&apos;t request a password reset, you can
+            ignore this email.
           </Text>
         </Container>
       </Body>
@@ -180,4 +176,3 @@ const footerSmall = {
   lineHeight: '1.5',
   margin: '0',
 };
-

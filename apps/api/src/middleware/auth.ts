@@ -4,7 +4,7 @@
  */
 
 import type { Database } from '@authlane/database';
-import { organization, organizationServices, eq } from '@authlane/database';
+import { eq, organization, organizationServices } from '@authlane/database';
 import { Errors, hashApiKey } from '@authlane/shared';
 import type { Context, Next } from 'hono';
 import type { Auth } from '../lib/auth.js';
@@ -20,7 +20,7 @@ function extractApiKey(c: Context): string | null {
 
   // Support "Bearer <key>" and "ApiKey <key>" formats for API keys
   const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (bearerMatch && bearerMatch[1]) {
+  if (bearerMatch?.[1]) {
     const token = bearerMatch[1];
     // API keys start with 'ak_' prefix
     if (token.startsWith('ak_')) {
@@ -29,7 +29,7 @@ function extractApiKey(c: Context): string | null {
   }
 
   const apiKeyMatch = authHeader.match(/^ApiKey\s+(.+)$/i);
-  if (apiKeyMatch && apiKeyMatch[1]) {
+  if (apiKeyMatch?.[1]) {
     return apiKeyMatch[1];
   }
 
@@ -50,7 +50,7 @@ export function authMiddleware(db: Database, auth: Auth) {
       // User authenticated via better-auth session
       c.set('user', { ...session.user, image: session.user.image ?? null });
       c.set('session', session.session);
-      
+
       // Get active organization if set
       const activeOrgId = session.session.activeOrganizationId;
       if (activeOrgId) {
@@ -59,12 +59,12 @@ export function authMiddleware(db: Database, auth: Auth) {
           .from(organization)
           .where(eq(organization.id, activeOrgId))
           .limit(1);
-        
+
         if (org) {
           c.set('organization', org);
         }
       }
-      
+
       c.set('apiKey', null);
       await next();
       return;
@@ -105,6 +105,9 @@ export function authMiddleware(db: Database, auth: Auth) {
     }
 
     // No authentication found
-    return c.json(Errors.unauthorized('Authentication required. Use session cookies or API key.'), 401);
+    return c.json(
+      Errors.unauthorized('Authentication required. Use session cookies or API key.'),
+      401
+    );
   };
 }

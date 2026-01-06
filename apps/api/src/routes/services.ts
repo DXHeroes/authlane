@@ -3,7 +3,7 @@
  */
 
 import type { Database } from '@authlane/database';
-import { services, eq } from '@authlane/database';
+import { eq, services } from '@authlane/database';
 import { Errors } from '@authlane/shared';
 import { Hono } from 'hono';
 

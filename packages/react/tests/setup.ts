@@ -2,7 +2,7 @@
  * Test setup file
  */
 
-import { beforeAll, afterEach, afterAll } from 'vitest';
+import { afterAll, afterEach, beforeAll } from 'vitest';
 
 beforeAll(() => {
   // Setup before all tests

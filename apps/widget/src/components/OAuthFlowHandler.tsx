@@ -60,7 +60,7 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
     }
   }, [popup, status]);
 
-  const startOAuthFlow = () => {
+  const startOAuthFlow = useCallback(() => {
     setStatus('loading');
     setErrorMessage('');
 
@@ -83,7 +83,7 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
     }
 
     setPopup(popupWindow);
-  };
+  }, [authUrl, serviceId, onError]);
 
   const handleRetry = () => {
     setStatus('idle');

@@ -12,6 +12,7 @@
     "clean": "rm -rf dist",
     "db:create": "dotenv -e ../../.env -- tsx src/create.ts",
     "migrate": "dotenv -e ../../.env -- tsx src/migrate.ts",
+    "secrets:rewrap": "dotenv -e ../../.env -- tsx src/rewrap-secrets.ts",
     "generate": "drizzle-kit generate",
     "studio": "drizzle-kit studio",
     "seed": "dotenv -e ../../.env -- tsx src/seed.ts"

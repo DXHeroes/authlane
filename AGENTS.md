@@ -100,16 +100,16 @@ authlane/
 
 ### Security
 
-- **Encryption**: AES-256-GCM for credentials at rest
+- **Encryption**: Per-record AES-256-GCM DEKs wrapped by a versioned deployment KEK
 - **TLS 1.3**: For data in transit
-- **Key management**: HashiCorp Vault or AWS KMS (cloud), environment variables (self-hosted)
+- **Key management**: Versioned keyrings held outside PostgreSQL (KMS/Vault in production)
 - **Audit logging**: All credential access is logged
 
 ## Database Schema (Key Tables)
 
 ### Organizations and API Keys
 - Organizations are the tenant boundary; API keys belong to exactly one organization
-- API keys store a SHA-256 hash, scopes, enabled state, and optional expiry
+- API keys store a versioned keyed-HMAC lookup digest, scopes, enabled state, and optional expiry
 
 ### Services
 - Available services for connection (GitHub, Slack, etc.)
@@ -117,11 +117,11 @@ authlane/
 
 ### Organization Services
 - Organization-specific service configurations
-- Fields: `organization_id`, `service_id`, `enabled`, `oauth_client_id`, `oauth_client_secret_enc`, `custom_scopes`
+- OAuth client secrets are referenced through tenant-bound `secret_records`, never stored in plaintext configuration
 
 ### Connections
 - End-user connections to services
-- Fields: `id`, `organization_id`, `external_user_id`, `service_id`, `status`, `credentials_enc`, `metadata`, `connected_at`, `expires_at`
+- Credentials are referenced through immutable tenant-bound `secret_records`; refresh and ID tokens never leave the control plane
 
 ### Connect Sessions and Outbox
 - Connect sessions store only a token hash and bind one external user, exact origin, service allowlist, and expiry
@@ -150,7 +150,7 @@ if (error) {
 - `GET /api/v1/catalog/services` - List organization-enabled services
 - `GET /api/v1/users/{external_user_id}/connections` - List effective connection states
 - `GET /api/v1/users/{external_user_id}/capabilities` - Get states and tool definitions in one hot read
-- `GET /api/v1/users/{external_user_id}/connections/{service}/credentials` - Get audited, access-only credentials
+- `POST /api/v1/users/{external_user_id}/connections/{service}/credential-leases` - Issue audited, access-only material to scoped server principals
 - `GET /api/v1/users/{external_user_id}/tools?format=mcp` - Get definitions only
 - `POST /api/v1/connect-sessions` - Create a short-lived hosted connect session
 
@@ -336,7 +336,6 @@ If you're unsure about:
 ---
 
 *This document is maintained to help AI assistants understand the Authlane codebase. Update it as the project evolves.*
-
 
 
 

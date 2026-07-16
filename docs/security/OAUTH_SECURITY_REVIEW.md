@@ -312,13 +312,11 @@ encrypt('token123', key) !== encrypt('token123', key) ✅
 
 #### ✅ Key Management:
 ```typescript
-// Environment variable:
-process.env.ENCRYPTION_KEY // 64 hex chars (256 bits)
+// Current key first; old keys remain only during staged rotation.
+process.env.AUTHLANE_DATA_KEK_RING // data-v2:<64-hex-key>,data-v1:<64-hex-key>
 
-// Validation at startup:
-if (!key || key.length !== 64 || !/^[0-9a-f]{64}$/i.test(key)) {
-  throw new Error('Invalid encryption key');
-}
+// A random per-record DEK encrypts the token and is wrapped by the current KEK.
+// Lookup and Redis encryption use independent keyrings outside PostgreSQL.
 ```
 
 ### Token Storage Format:

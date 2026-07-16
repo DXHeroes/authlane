@@ -67,12 +67,12 @@ sequenceDiagram
 
     Note over User,OAuth: Phase 5: Use Credentials
 
-    SaaS->>Authlane: GET /api/v1/users/{userId}/connections/github/credentials
+    SaaS->>Authlane: POST /api/v1/users/{userId}/connections/github/credential-leases
 
-    Authlane->>DB: SELECT credentials_enc FROM connections
-    DB-->>Authlane: Encrypted credentials
+    Authlane->>DB: SELECT encrypted secret record by tenant and purpose
+    DB-->>Authlane: Ciphertext and wrapped per-record DEK
 
-    Note over Authlane: Decrypt with AES-256-GCM
+    Note over Authlane: Audit lease, unwrap DEK outside DB, return access-only material
 
     alt Token expired
         Note over Authlane: Attempt refresh

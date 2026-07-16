@@ -1,5 +1,8 @@
 # Encryption
 
+> Authoritative implementation: per-record envelope encryption in `packages/crypto`, versioned
+> keyrings, and `docs/security/OPERATIONS.md`. Historical single-key examples below are superseded.
+
 Detailed documentation of Authlane's encryption implementation.
 
 ## Overview
@@ -400,4 +403,3 @@ Meets PCI DSS requirements for:
 - Strong cryptography (AES-256)
 - Key management procedures
 - Secure key storage
-

@@ -57,14 +57,14 @@ sequenceDiagram
     participant External as External API
 
     Agent->>SaaS: Execute tool (e.g., create GitHub issue)
-    SaaS->>Authlane: GET /users/{userId}/connections/github/credentials
+    SaaS->>Authlane: POST /users/{userId}/connections/github/credential-leases
 
     Note over Authlane: Validate API key
     Note over Authlane: Check organization access
 
     Authlane->>DB: Fetch encrypted credentials
 
-    Note over Authlane: Decrypt credentials
+    Note over Authlane: Audit access and decrypt access-only material
 
     alt Token expired
         Note over Authlane: Attempt token refresh
@@ -212,39 +212,31 @@ sequenceDiagram
 
 ## Encryption/Decryption Flow
 
-How credentials are encrypted and decrypted.
+How credentials are encrypted and decrypted. The deployment KEK stays outside PostgreSQL.
 
 ```mermaid
 sequenceDiagram
     participant Service as Service Layer
-    participant Crypto as Crypto Package
-    participant Env as Environment
+    participant Vault as Secret Vault
+    participant Keys as External Keyring
+    participant DB as PostgreSQL
 
     Note over Service: Storing credentials
 
-    Service->>Crypto: encrypt(credentials)
-    Crypto->>Env: Get ENCRYPTION_KEY
-
-    Note over Crypto: Generate random IV (12 bytes)
-    Note over Crypto: AES-256-GCM encrypt
-    Note over Crypto: Append auth tag (16 bytes)
-    Note over Crypto: Base64 encode: iv + ciphertext + tag
-
-    Crypto-->>Service: encrypted_string
-    Service->>DB: Store encrypted_string
+    Service->>Vault: write(credentials, tenant, purpose)
+    Vault->>Vault: Generate random per-record DEK and nonce
+    Vault->>Vault: AES-256-GCM encrypt credentials
+    Vault->>Keys: Wrap DEK with current versioned KEK
+    Vault->>DB: Store ciphertext, wrapped DEK, nonce, tag, key ID, bound metadata
+    Vault-->>Service: secret record ID
 
     Note over Service: Retrieving credentials
 
-    Service->>DB: Fetch encrypted_string
-    Service->>Crypto: decrypt(encrypted_string)
-    Crypto->>Env: Get ENCRYPTION_KEY
-
-    Note over Crypto: Base64 decode
-    Note over Crypto: Extract IV (first 12 bytes)
-    Note over Crypto: Extract tag (last 16 bytes)
-    Note over Crypto: AES-256-GCM decrypt + verify
-
-    Crypto-->>Service: plaintext_credentials
+    Service->>Vault: read(secret ID, tenant, purpose)
+    Vault->>DB: Fetch encrypted record
+    Vault->>Keys: Unwrap DEK by key ID
+    Vault->>Vault: Verify bound metadata and GCM tag, then decrypt
+    Vault-->>Service: plaintext credentials in short-lived memory
 ```
 
 ## Multi-Tenant Data Access

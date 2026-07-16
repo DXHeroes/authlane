@@ -185,10 +185,8 @@ Dashboard
 ## API Integration
 
 ### Authentication
-All API calls include JWT token in `Authorization` header:
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
+Dashboard API calls use an HttpOnly, Secure, SameSite session cookie. Machine API keys and provider
+credential leases must never enter dashboard JavaScript or browser storage.
 
 ### Endpoints
 
@@ -197,7 +195,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 **Connections:**
 - `GET /api/v1/connections?service={service}&status={status}&userId={userId}`
-- `GET /api/v1/users/{userId}/connections/{serviceId}/credentials`
+- Credential material is intentionally unavailable to the dashboard
 
 **Services:**
 - `GET /api/v1/services`

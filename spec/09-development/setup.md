@@ -1,5 +1,8 @@
 # Development Setup
 
+> Security-sensitive configuration in this historical guide may be stale. Use the root
+> `.env.example` and `QUICKSTART.md`; the removed `ENCRYPTION_KEY` is rejected at startup.
+
 Set up your local development environment for Authlane.
 
 ## Prerequisites
@@ -371,4 +374,3 @@ pnpm typecheck
 - [Contributing Guide](./contributing.md)
 - [Testing Guide](./testing.md)
 - [Code Style](./code-style.md)
-

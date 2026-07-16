@@ -20,12 +20,14 @@ Prerequisites: Docker with Compose.
 
 ```bash
 cp .env.example .env
-openssl rand -hex 32  # set as ENCRYPTION_KEY in .env
-openssl rand -base64 32  # set as BETTER_AUTH_SECRET in .env
+# Fill every required value. Generate independent 32-byte keys/passwords:
+openssl rand -hex 32
 docker compose up --build
 ```
 
-Open `http://localhost:3000`. The container applies the clean baseline migration before starting.
+Production configuration is fail-closed: `APP_URL` and CORS origins must be exact HTTPS origins,
+all keyrings must be versioned, and PostgreSQL, Redis, worker, auth, and metrics secrets have no
+insecure defaults. The one-shot migrator runs separately from the least-privileged application role.
 
 Only the application port is exposed. PostgreSQL and Redis stay on the internal Compose network. Optional monitoring:
 
@@ -125,7 +127,8 @@ PERF_API_KEY=ak_... PERF_EXTERNAL_USER_ID=user_123 pnpm test:performance
 | Monorepo | pnpm 10, Turborepo |
 | Tests | Vitest, Playwright |
 
-See [Deployment](./DEPLOYMENT.md), [OpenAPI](./apps/docs/api-reference/openapi.yaml), and [AGENTS.md](./AGENTS.md).
+See [Security](./SECURITY.md), [Security operations](./docs/security/OPERATIONS.md),
+[OpenAPI](./apps/docs/api-reference/openapi.yaml), and [AGENTS.md](./AGENTS.md).
 
 ## License
 

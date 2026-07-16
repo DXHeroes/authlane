@@ -165,22 +165,22 @@ paths:
       security:
         - apiKey: []
 
-  /users/{userId}/connections/{serviceId}/credentials:
-    get:
+  /users/{userId}/connections/{serviceId}/credential-leases:
+    post:
       tags: [Connections]
-      summary: Get credentials
-      description: Retrieve decrypted credentials for a user's service connection.
-      operationId: getCredentials
+      summary: Issue access-only credential material
+      description: Server-only, audited, non-cacheable response. OAuth refresh and ID tokens are never returned.
+      operationId: createCredentialLease
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/ServiceId'
       responses:
-        '200':
-          description: Decrypted credentials
+        '201':
+          description: Access-only credential lease
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CredentialsResponse'
+                $ref: '#/components/schemas/CredentialLeaseResponse'
         '400':
           description: Connection expired
           content:
@@ -885,23 +885,38 @@ components:
         error:
           type: 'null'
 
-    CredentialsResponse:
+    CredentialLeaseResponse:
       type: object
+      required: [data, error]
       properties:
         data:
           type: object
+          required: [type, leaseId]
           properties:
-            access_token:
+            type:
               type: string
-            refresh_token:
+              enum: [oauth2, api_key]
+            leaseId:
               type: string
-            token_type:
+              format: uuid
+            accessToken:
               type: string
-            scope:
+              description: Present only for OAuth2 leases
+            tokenType:
               type: string
-            expires_at:
+            scopes:
+              type: array
+              items:
+                type: string
+            value:
+              type: string
+              description: Present only for API-key leases
+            placement:
+              type: object
+            expiresAt:
               type: string
               format: date-time
+              nullable: true
         error:
           type: 'null'
 

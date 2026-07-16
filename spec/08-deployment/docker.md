@@ -1,5 +1,8 @@
 # Docker Deployment
 
+> This design document is not a production runbook. Use the root `docker-compose.yml`,
+> `.env.production.example`, `DEPLOYMENT.md`, and `docs/security/OPERATIONS.md`.
+
 Deploy Authlane using Docker and Docker Compose.
 
 ## Prerequisites
@@ -369,4 +372,3 @@ docker compose exec api pnpm db:migrate
 - [Environment Variables](./environment-variables.md)
 - [Operations Guide](./operations.md)
 - [Security Checklist](../04-security/index.md)
-

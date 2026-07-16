@@ -14,10 +14,14 @@ Complete reference materials for Authlane.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
-| `REDIS_URL` | Yes | - | Redis connection string |
-| `ENCRYPTION_KEY` | Yes | - | 32-byte encryption key (base64) |
-| `PORT` | No | 3000 | API server port |
+| `DATABASE_URL` | Yes | - | NOBYPASSRLS runtime PostgreSQL role |
+| `SYSTEM_DATABASE_URL` | Production | - | Isolated background-worker PostgreSQL role |
+| `REDIS_URL` | Production | - | Authenticated Redis connection string |
+| `AUTHLANE_DATA_KEK_RING` | Yes | - | Versioned 32-byte hex KEKs; current first |
+| `AUTHLANE_LOOKUP_KEY_RING` | Yes | - | Versioned API-key lookup keys; current first |
+| `AUTHLANE_REDIS_KEY_RING` | Yes | - | Versioned Redis encryption keys; current first |
+| `BETTER_AUTH_SECRETS` | Production | - | Versioned auth secrets; current first |
+| `API_PORT` | No | 3000 | API server port |
 | `NODE_ENV` | No | development | Environment mode |
 | `LOG_LEVEL` | No | info | debug, info, warn, error |
 
@@ -25,9 +29,10 @@ Complete reference materials for Authlane.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SESSION_SECRET` | No | random | Session encryption secret |
-| `CORS_ORIGINS` | No | * | Allowed CORS origins |
-| `RATE_LIMIT_MAX` | No | 100 | Max requests per minute |
+| `METRICS_BEARER_TOKEN` | Production | - | Random 32+ character metrics credential |
+| `CORS_ORIGIN` | Production | - | Exact comma-separated HTTPS origins |
+| `TRUSTED_PROXY_CIDRS` | No | empty | Immediate reverse proxies allowed to set client IP |
+| `RATE_LIMIT_MAX_REQUESTS` | No | 100 | Max requests per window |
 
 ### OAuth Providers
 
@@ -127,9 +132,9 @@ Complete reference materials for Authlane.
 | Version | Support |
 |---------|---------|
 | 22.x | ✅ Supported |
-| 20.x | ✅ Supported |
-| 18.x | ✅ Supported |
-| < 18 | ❌ Not supported |
+| 20.x | ❌ Unsupported |
+| 18.x | ❌ Unsupported |
+| < 22 | ❌ Unsupported |
 
 ### Databases
 
@@ -153,4 +158,3 @@ Complete reference materials for Authlane.
 - [Documentation](https://docs.authlane.com)
 - [Discord Community](https://discord.gg/authlane)
 - [Issue Tracker](https://github.com/authlane/authlane/issues)
-

@@ -158,7 +158,7 @@ Some endpoints have additional limits:
 | Endpoint | Additional Limit | Reason |
 |----------|------------------|--------|
 | `POST /api/v1/api-keys` | 10/hour | Prevent key spam |
-| `GET /.../credentials` | 60/minute | Sensitive data |
+| `POST /.../credential-leases` | 60/minute | Audited access-only material |
 | `POST /.../authorize` | 30/minute | OAuth flows |
 | Webhook delivery | 1000/hour | Prevent webhook storms |
 

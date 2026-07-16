@@ -31,6 +31,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:performance": "node scripts/benchmark-hot-read.mjs",
     "lint": "biome check .",
+    "lint:runtime": "biome check apps/api/src apps/widget/src packages/crypto/src packages/database/src packages/shared/src",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",

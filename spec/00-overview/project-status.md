@@ -1,5 +1,8 @@
 # Project Status
 
+> Historical snapshot. Current API and security contracts are defined by
+> `apps/docs/api-reference/openapi.yaml`, `SECURITY.md`, and `IMPLEMENTATION.md`.
+
 Current implementation status of Authlane features and components.
 
 ## Overall Status: MVP Complete
@@ -77,7 +80,7 @@ The core MVP functionality is implemented and working. The platform is ready for
 |----------|--------|-------|
 | GET /api/v1/users/:userId/connections | ✅ | List connections |
 | GET /api/v1/users/:userId/connections/:serviceId | ✅ | Get connection |
-| GET /api/v1/users/:userId/connections/:serviceId/credentials | ✅ | Get credentials |
+| POST /api/v1/users/:userId/connections/:serviceId/credential-leases | ✅ | Issue audited access-only material |
 | GET /api/v1/users/:userId/connections/:serviceId/health | ✅ | Health check |
 | DELETE /api/v1/users/:userId/connections/:serviceId | ✅ | Disconnect |
 

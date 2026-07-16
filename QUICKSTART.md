@@ -1,195 +1,72 @@
-# Authlane Quick Start Guide
+# Authlane quick start
 
-Get Authlane up and running in 5 minutes!
+Use this guide for local development only. Production deployments must follow
+[Security operations](./docs/security/OPERATIONS.md) and [Deployment](./DEPLOYMENT.md).
 
 ## Prerequisites
 
 - Node.js 22+
-- pnpm 8+
-- Docker (optional, for local PostgreSQL/Redis)
+- pnpm 10.23.0
+- Docker with Compose
 
-## Step 1: Clone and Install
+## Start the development stack
 
 ```bash
-git clone <repo-url>
-cd authlane
-pnpm install
+pnpm install --frozen-lockfile
+docker compose -f docker/docker-compose.yml up -d
+cp .env.example .env
 ```
 
-## Step 2: Set Up Database
-
-### Option A: Using Docker (Recommended)
+Generate three independent 32-byte keys and one independent Better Auth secret:
 
 ```bash
-# Start PostgreSQL and Redis
-docker-compose -f docker/docker-compose.yml up -d
-
-# Wait for services to be ready
-sleep 5
+openssl rand -hex 32
+openssl rand -hex 32
+openssl rand -hex 32
+openssl rand -base64 48
 ```
 
-### Option B: Local PostgreSQL
+Put those values in `.env` using versioned entries:
 
-Make sure PostgreSQL 16+ is running locally.
-
-## Step 3: Configure Environment
-
-```bash
-# Create .env file with required variables
-cat > .env << 'EOF'
-# Database
-DATABASE_URL=postgresql://authlane:authlane@localhost:5432/authlane
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# Security (generate your own!)
-ENCRYPTION_KEY=
-JWT_SECRET=
-
-# Better Auth
-BETTER_AUTH_URL=http://localhost:3000
-CORS_ORIGIN=http://localhost:3000,http://localhost:5173
-
-# Email (optional - leave empty to disable)
-RESEND_API_KEY=
-EMAIL_FROM=Authlane <noreply@authlane.dev>
-APP_URL=http://localhost:5173
-EOF
-
-# Generate encryption key
-echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
-
-# Generate JWT secret
-echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
+```dotenv
+AUTHLANE_DATA_KEK_RING=data-v1:<64-hex-key>
+AUTHLANE_LOOKUP_KEY_RING=lookup-v1:<64-hex-key>
+AUTHLANE_REDIS_KEY_RING=redis-v1:<64-hex-key>
+BETTER_AUTH_SECRETS=auth-v1:<random-secret-at-least-32-characters>
 ```
 
-### Email Configuration (Optional)
-
-To enable email features (organization invitations, email verification, password reset):
-
-1. Sign up at [Resend](https://resend.com)
-2. Create an API key
-3. Add to your `.env`:
-   ```bash
-   RESEND_API_KEY=re_your_api_key
-   EMAIL_FROM=Your App <noreply@yourdomain.com>
-   APP_URL=https://your-app-url.com
-   ```
-
-Note: Email features work without Resend configured, but emails won't be sent.
-
-## Step 4: Database Setup
+Never reuse a value between keyrings. `ENCRYPTION_KEY` is intentionally rejected.
 
 ```bash
-# Build packages
-pnpm build
-
-# Generate migrations
-pnpm --filter @authlane/database generate
-
-# Run migrations
 pnpm --filter @authlane/database migrate
-
-# Seed database (creates sample tenant and services)
 pnpm --filter @authlane/database seed
+pnpm dev
 ```
 
-The seed script will output:
-- A test API key (save this!)
-- Tenant ID
+The API is available at `http://localhost:3000`. The development dashboard and widget use Vite
+origins configured in `.env`; production serves all browser surfaces from the Authlane origin.
 
-## Step 5: Start the API
+## Verify the API
 
 ```bash
-pnpm --filter @authlane/api dev
+curl --fail http://localhost:3000/health
+curl -H "Authorization: Bearer YOUR_SCOPED_API_KEY" \
+  http://localhost:3000/api/v1/catalog/services
 ```
 
-The API will start on `http://localhost:3000`
+API keys belong only on a trusted server. A browser receives a short-lived connect URL created by a
+backend with the `connect-sessions:create` scope. Provider access material is issued only through an
+audited, non-cacheable server-side lease:
 
-## Step 6: Test the API
-
-### Health Check
-
-```bash
-curl http://localhost:3000/health
+```typescript
+const { data: lease, error } = await authlane.credentialLeases.create({
+  externalUserId: 'user_123',
+  serviceId: 'github',
+});
 ```
 
-### List Services
+The lease contains access-only material; OAuth refresh and ID tokens never leave Authlane. Do not
+print a lease, API key, connect token, or provider response to logs.
 
-```bash
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  http://localhost:3000/api/v1/services
-```
-
-### List Connections for a User
-
-```bash
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  http://localhost:3000/api/v1/users/user_123/connections
-```
-
-### Start OAuth Flow
-
-```bash
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  "http://localhost:3000/api/v1/users/user_123/connections/github/authorize?client_id=YOUR_GITHUB_CLIENT_ID&redirect_uri=http://localhost:3000/callback"
-```
-
-## API Endpoints
-
-- `GET /health` - Health check (no auth)
-- `GET /api/v1/services` - List available services
-- `GET /api/v1/services/:id` - Get service details
-- `GET /api/v1/users/:userId/connections` - List user connections
-- `GET /api/v1/users/:userId/connections/:serviceId` - Get connection details
-- `GET /api/v1/users/:userId/connections/:serviceId/credentials` - Get decrypted credentials
-- `GET /api/v1/users/:userId/connections/:serviceId/health` - Check connection health
-- `GET /api/v1/users/:userId/connections/:serviceId/authorize` - Start OAuth flow
-- `GET /api/v1/users/:userId/connections/:serviceId/callback` - OAuth callback
-- `GET /api/v1/users/:userId/tools?format=mcp` - Get tool definitions
-
-## Authentication
-
-All API endpoints (except `/health`) require authentication via API key:
-
-```
-Authorization: Bearer YOUR_API_KEY
-```
-
-or
-
-```
-Authorization: ApiKey YOUR_API_KEY
-```
-
-## Next Steps
-
-1. **Create your own tenant**: Use the dashboard (coming soon) or insert directly into the database
-2. **Add more integrations**: See `integrations/` directory for examples
-3. **Build your AI agent**: Use the credentials and tools API to integrate with your agent
-
-## Troubleshooting
-
-### Database Connection Issues
-
-- Check PostgreSQL is running: `docker ps` or `pg_isready`
-- Verify DATABASE_URL in `.env` is correct
-- Check PostgreSQL logs: `docker logs <container-name>`
-
-### Migration Issues
-
-- Make sure you've run `pnpm build` first
-- Check that DATABASE_URL is set correctly
-- Try running migrations manually: `pnpm --filter @authlane/database migrate`
-
-### API Not Starting
-
-- Check ENCRYPTION_KEY is set (64 hex characters)
-- Verify all packages built successfully: `pnpm build`
-- Check for port conflicts (default: 3000)
-
----
-
-For more details, see [README.md](./README.md) and [AGENTS.md](./AGENTS.md)
-
+See [README.md](./README.md), [SECURITY.md](./SECURITY.md), and the
+[canonical OpenAPI document](./apps/docs/api-reference/openapi.yaml).

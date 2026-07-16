@@ -58,6 +58,7 @@
         "guides/self-hosting",
         "guides/custom-integrations",
         "guides/security",
+        "guides/security-operations",
         "guides/webhooks"
       ]
     },

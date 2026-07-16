@@ -1,5 +1,8 @@
 # Operations Guide
 
+> The authoritative key rotation and incident-response procedures are in
+> `docs/security/OPERATIONS.md`. Do not follow historical single-key rotation examples below.
+
 Monitoring, maintenance, and scaling Authlane in production.
 
 ## Monitoring
@@ -385,4 +388,3 @@ curl -H "X-API-Key: $ADMIN_KEY" \
 - [Environment Variables](./environment-variables.md)
 - [Security Documentation](../04-security/index.md)
 - [Troubleshooting](../07-user-guides/troubleshooting/common-issues.md)
-

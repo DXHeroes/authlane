@@ -1,241 +1,35 @@
-# Authlane Implementation Status
+# Authlane implementation status
 
-## ✅ Completed Features
+This file is a concise status index. The canonical runtime contract is
+[OpenAPI](./apps/docs/api-reference/openapi.yaml); security requirements are in
+[SECURITY.md](./SECURITY.md) and [Security operations](./docs/security/OPERATIONS.md).
 
-### Core Infrastructure
-- ✅ Monorepo setup with Turborepo + pnpm
-- ✅ TypeScript configuration with strict mode
-- ✅ Biome for linting and formatting (replaced ESLint/Prettier)
-- ✅ All dependencies updated to latest versions
-- ✅ Environment variable validation
-- ✅ Error handling middleware
-- ✅ CORS configuration
+## Implemented foundation
 
-### Database
-- ✅ PostgreSQL schema with Drizzle ORM
-- ✅ Row-Level Security (RLS) ready tables:
-  - `tenants` - SaaS providers
-  - `services` - Available integrations
-  - `tenant_services` - Tenant-specific configurations
-  - `connections` - End-user connections
-- ✅ Database migrations setup
-- ✅ Seed script for initial data
+- Hono/TypeScript control plane with PostgreSQL RLS tenant isolation and scoped machine principals.
+- Better Auth dashboard sessions with Argon2id passwords, encrypted Redis session storage, strict
+  origins, session freshness checks, and mandatory MFA for privileged dashboard actions.
+- OAuth PKCE with one-shot hash-only transactions, pinned provider endpoints, refresh serialization,
+  exponential backoff, and auditable token lifecycle operations.
+- Per-record AES-256-GCM envelope encryption. Random DEKs are wrapped by a versioned deployment KEK;
+  lookup and Redis material use independent versioned keys held outside PostgreSQL.
+- Provider access material is available only through `POST .../credential-leases` to a scoped server
+  principal. OAuth refresh and ID tokens are never returned to a tenant application or browser.
+- One production origin for browser surfaces, strict CSP, request size/content-type enforcement,
+  trusted-proxy validation, bounded metrics labels, rate limits, and credential-safe logging.
+- Least-privileged API, worker, and migration database roles; hardened non-root/read-only container;
+  private database and Redis networks.
+- CI tests, CodeQL, OSV, dependency review, Gitleaks, Dependabot, and Trivy image scanning.
 
-### Security
-- ✅ AES-256-GCM encryption for credentials
-- ✅ API key authentication (SHA-256 hashing)
-- ✅ PKCE (Proof Key for Code Exchange) for OAuth2
-- ✅ State parameter validation
-- ✅ Secure credential storage
-
-### API Endpoints
-
-#### Services
-- ✅ `GET /api/v1/services` - List all services
-- ✅ `GET /api/v1/services/:serviceId` - Get service details
-
-#### Connections
-- ✅ `GET /api/v1/users/:userId/connections` - List user connections
-- ✅ `GET /api/v1/users/:userId/connections/:serviceId` - Get connection
-- ✅ `GET /api/v1/users/:userId/connections/:serviceId/credentials` - Get decrypted credentials
-- ✅ `GET /api/v1/users/:userId/connections/:serviceId/health` - Check connection health
-
-#### OAuth2
-- ✅ `GET /api/v1/users/:userId/connections/:serviceId/authorize` - Start OAuth flow
-- ✅ `GET /api/v1/users/:userId/connections/:serviceId/callback` - Handle OAuth callback
-
-#### Tools
-- ✅ `GET /api/v1/users/:userId/tools?format=mcp` - Get MCP tool definitions
-- ✅ `GET /api/v1/users/:userId/tools?format=openai` - Get OpenAI function definitions
-
-### Integrations
-- ✅ GitHub integration structure
-  - OAuth configuration
-  - Tool definitions (MCP and OpenAI formats)
-  - Example tools: create_issue, list_issues, create_pull_request
-
-### Developer Experience
-- ✅ Setup script (`./scripts/setup.sh`)
-- ✅ Docker Compose for local development
-- ✅ Quick start guide (QUICKSTART.md)
-- ✅ Comprehensive documentation (AGENTS.md)
-- ✅ Type-safe database queries
-- ✅ Consistent error handling (Supabase-style)
-
-## 🚧 In Progress / TODO
-
-### High Priority
-- [ ] Database migrations execution (needs PostgreSQL running)
-- [ ] Token refresh automation (BullMQ jobs)
-- [ ] Connection health checks (actual API calls)
-- [ ] Rate limiting implementation
-- [ ] Webhook notifications
-
-### Medium Priority
-- [ ] Dashboard application (React)
-- [ ] Connection widget (embeddable React component)
-- [ ] TypeScript SDK (`@authlane/sdk`)
-- [ ] React components (`@authlane/react`)
-- [ ] MCP server implementation
-- [ ] Additional integrations (Slack, Google, etc.)
-
-### Low Priority
-- [ ] Documentation site (Mintlify)
-- [ ] CLI tools
-- [ ] Self-hosting guide
-- [ ] Performance optimizations
-- [ ] Comprehensive test suite
-
-## 🎯 How to Use
-
-### 1. Setup
+## Local validation
 
 ```bash
-# Quick setup
-./scripts/setup.sh
-
-# Or manually:
-pnpm install
+pnpm lint:runtime
+pnpm type-check
+pnpm test
 pnpm build
 ```
 
-### 2. Configure Environment
-
-```bash
-# Copy and edit .env
-cp .env.example .env
-
-# Generate encryption key
-echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
-
-# Set database URL
-echo "DATABASE_URL=postgresql://user:password@localhost:5432/authlane" >> .env
-```
-
-### 3. Database Setup
-
-```bash
-# Start PostgreSQL (Docker)
-docker-compose -f docker/docker-compose.yml up -d
-
-# Generate migrations
-pnpm --filter @authlane/database generate
-
-# Run migrations
-pnpm --filter @authlane/database migrate
-
-# Seed database
-pnpm --filter @authlane/database seed
-```
-
-### 4. Start API
-
-```bash
-pnpm --filter @authlane/api dev
-```
-
-### 5. Test API
-
-```bash
-# Health check
-curl http://localhost:3000/health
-
-# List services (use API key from seed output)
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  http://localhost:3000/api/v1/services
-
-# Start OAuth flow
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  "http://localhost:3000/api/v1/users/user_123/connections/github/authorize?client_id=YOUR_GITHUB_CLIENT_ID"
-```
-
-## 📊 Architecture
-
-The app follows a clean architecture:
-
-1. **Packages** - Shared, reusable code
-   - `@authlane/database` - Schema and DB client
-   - `@authlane/shared` - Types, errors, utilities
-   - `@authlane/crypto` - Encryption utilities
-
-2. **Apps** - Applications
-   - `@authlane/api` - REST API server
-
-3. **Integrations** - Service integrations
-   - Each integration is self-contained
-   - Follows standard structure (config.yaml, tools.ts, index.ts)
-
-## 🔒 Security Features
-
-- ✅ Credentials encrypted at rest (AES-256-GCM)
-- ✅ API keys hashed (SHA-256)
-- ✅ OAuth2 with mandatory PKCE
-- ✅ State parameter validation
-- ✅ Tenant isolation (RLS ready)
-- ✅ Input validation
-- ✅ Error messages don't leak sensitive data
-
-## 📝 API Response Format
-
-All API responses follow Supabase-style pattern:
-
-```typescript
-// Success
-{
-  "data": { ... },
-  "error": null
-}
-
-// Error
-{
-  "data": null,
-  "error": {
-    "message": "Human-readable message",
-    "code": "ERROR_CODE",
-    "hint": "How to fix it",
-    "docUrl": "https://docs.authlane.dev/...",
-    "statusCode": 400
-  }
-}
-```
-
-## 🎉 What Works Now
-
-1. ✅ **Full REST API** - All core endpoints implemented
-2. ✅ **OAuth2 Flow** - Complete with PKCE
-3. ✅ **Credential Management** - Encrypted storage and retrieval
-4. ✅ **Multi-tenancy** - Tenant isolation ready
-5. ✅ **Tool Definitions** - MCP and OpenAI formats
-6. ✅ **Error Handling** - Comprehensive error responses
-7. ✅ **Type Safety** - Full TypeScript coverage
-
-## 🚀 Next Steps
-
-To make the app production-ready:
-
-1. **Add token refresh** - Implement BullMQ jobs for automatic token refresh
-2. **Add rate limiting** - Protect API endpoints
-3. **Add connection health checks** - Actually test connections
-4. **Build dashboard** - Admin UI for tenant management
-5. **Build widget** - Embeddable connection UI
-6. **Add more integrations** - Expand beyond GitHub
-7. **Add tests** - Comprehensive test coverage
-8. **Add monitoring** - Logging and metrics
-
----
-
-**Status**: Core MVP is complete and functional! 🎉
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Use [QUICKSTART.md](./QUICKSTART.md) for development and [DEPLOYMENT.md](./DEPLOYMENT.md) for a
+production deployment. Never copy old examples that use `ENCRYPTION_KEY`, browser API keys, or a GET
+credentials endpoint; all three are intentionally unsupported.

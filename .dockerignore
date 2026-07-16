@@ -4,7 +4,9 @@ dist
 .gitignore
 .env
 .env.*
-!.env.production.example
+*.key
+*.pem
+secrets
 *.md
 !README.md
 .turbo

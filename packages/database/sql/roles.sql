@@ -10,6 +10,9 @@ BEGIN
 END
 $$;
 
+GRANT authlane_runtime TO authlane_app;
+GRANT authlane_worker TO authlane_job;
+
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO authlane_runtime, authlane_worker;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authlane_runtime;

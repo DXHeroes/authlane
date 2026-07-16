@@ -1,5 +1,10 @@
 # Authlane Specification Documentation
 
+> **Security contract:** where older design examples conflict with the generated OpenAPI document,
+> `SECURITY.md`, or `docs/security/OPERATIONS.md`, those three current documents take precedence.
+> In particular, `ENCRYPTION_KEY`, unscoped API keys, browser API keys, and the legacy `GET
+> .../credentials` endpoint are forbidden and unsupported.
+
 Welcome to the Authlane technical specification and documentation. This folder contains comprehensive documentation for all audiences: developers, system administrators, end users, and the internal team.
 
 ## What is Authlane?

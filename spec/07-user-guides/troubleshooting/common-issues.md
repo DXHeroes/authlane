@@ -1,5 +1,8 @@
 # Common Issues and Solutions
 
+> For encryption or authentication issues, use `docs/security/OPERATIONS.md`. Historical
+> `ENCRYPTION_KEY` instructions below are superseded by three independent versioned keyrings.
+
 Troubleshooting guide for common Authlane issues.
 
 ## Connection Issues
@@ -338,4 +341,3 @@ If you can't resolve the issue:
    - Error code and message
    - Steps to reproduce
    - Environment (self-hosted/cloud, versions)
-

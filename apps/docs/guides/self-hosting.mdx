@@ -1,61 +1,48 @@
 ---
 title: 'Self-Hosting Guide'
-description: 'Run the complete Authlane control plane as one application service'
+description: 'Run the hardened Authlane control plane'
 ---
 
-Authlane runs one application container plus PostgreSQL 16 and Redis 7. The application container includes the dashboard, connect UI, API, OAuth callbacks, migrations, and token-refresh worker.
+Authlane uses an application container, a one-shot migration container, PostgreSQL 16, and Redis 7.
+The application serves the dashboard, connect UI, API, OAuth callbacks, and background workers.
 
 ## Docker Compose
 
 ```bash
 cp .env.example .env
 openssl rand -hex 32
-openssl rand -base64 32
 ```
 
-Set the values as `ENCRYPTION_KEY` and `BETTER_AUTH_SECRET`. Set `APP_URL` to the public HTTPS origin.
+Fill every required value in `.env` with an independent random value. `APP_URL`,
+`BETTER_AUTH_URL`, and every CORS origin must be exact HTTPS origins in production. Keyrings use
+`key-id:64-hex-key` entries with the current key first. Better Auth uses
+`version:secret` entries with the current version first.
 
 ```bash
 docker compose up --build -d
-curl --fail http://localhost:3000/health
+curl --fail http://127.0.0.1:3000/health
 ```
 
-Only the Authlane port is exposed. PostgreSQL and Redis stay on the internal network. The application applies migrations on startup.
+The migration container uses the database owner, then exits. API traffic uses an RLS-enforced role;
+background jobs use a separate narrowly granted role. PostgreSQL and Redis are confined to an
+internal network and Redis requires authentication. Terminate TLS in a maintained reverse proxy.
 
-## Optional monitoring
+## Monitoring
 
 ```bash
 docker compose --profile monitoring up -d
 ```
 
-Prometheus reads `/metrics`; restrict that route at your ingress in production.
+Prometheus authenticates to `/metrics` using `METRICS_BEARER_TOKEN`. Grafana binds only to
+`127.0.0.1` by default. Do not expose either service without a separate authenticated ingress.
 
 ## Managed PostgreSQL and Redis
 
-Deploy `apps/api/Dockerfile` as one service and configure:
+Use separate migration, runtime, and worker database roles. Configure `DATABASE_URL` for the
+NOBYPASSRLS runtime role and `SYSTEM_DATABASE_URL` for the worker. Use TLS-enabled `postgresql://`
+and `rediss://` connections whenever traffic leaves a private host network.
 
-```dotenv
-NODE_ENV=production
-APP_URL=https://authlane.example.com
-BETTER_AUTH_URL=https://authlane.example.com
-BETTER_AUTH_SECRET=...
-DATABASE_URL=postgresql://...
-REDIS_URL=rediss://...
-ENCRYPTION_KEY=...
-API_PORT=3000
-```
+The final image uses Node.js 22, pnpm 10, a non-root user, a read-only root filesystem, dropped Linux
+capabilities, and no migration privileges.
 
-The final image uses Node.js 22, pnpm 10, and a non-root runtime user.
-
-## Performance check
-
-On a warm instance with 2 vCPU / 1 GB:
-
-```bash
-PERF_BASE_URL=https://authlane.example.com \
-PERF_API_KEY=ak_... \
-PERF_EXTERNAL_USER_ID=user_123 \
-pnpm test:performance
-```
-
-The default acceptance threshold is 500 requests per second with capability-read P95 below 100 ms.
+Follow the [security operations runbook](/security/operations) for launch checks and key rotation.

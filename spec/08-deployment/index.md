@@ -1,5 +1,8 @@
 # Deployment Documentation
 
+> These design-era deployment notes are superseded by the root `DEPLOYMENT.md` and
+> `docs/security/OPERATIONS.md`; never use the removed single `ENCRYPTION_KEY` configuration.
+
 Guides for deploying Authlane in various environments.
 
 ## Contents
@@ -168,4 +171,3 @@ services:
 - [Docker Deployment](./docker.md) - Detailed Docker guide
 - [Environment Variables](./environment-variables.md) - Full reference
 - [Operations](./operations.md) - Monitoring and maintenance
-

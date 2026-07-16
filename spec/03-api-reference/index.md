@@ -198,7 +198,7 @@ X-RateLimit-Reset: 1702459200
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/users/:userId/connections` | List connections |
-| GET | `/api/v1/users/:userId/connections/:serviceId/credentials` | Get credentials |
+| POST | `/api/v1/users/:userId/connections/:serviceId/credential-leases` | Issue audited access-only material |
 | GET | `/api/v1/users/:userId/connections/:serviceId/health` | Check connection health |
 | DELETE | `/api/v1/users/:userId/connections/:serviceId` | Delete connection |
 

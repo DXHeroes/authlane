@@ -1,5 +1,8 @@
 # Security Architecture
 
+> This design-era document is subordinate to `SECURITY.md`, `docs/security/OPERATIONS.md`, and the
+> current code. In particular, a single `ENCRYPTION_KEY` is forbidden.
+
 Defense-in-depth security model for Authlane, covering encryption, authentication, authorization, and threat mitigation.
 
 ## Security Principles

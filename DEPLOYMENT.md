@@ -1,24 +1,30 @@
 # Deployment
 
-Authlane ships as one production image. That process serves the dashboard, connect UI, authentication, OAuth callbacks, and control-plane API on one origin. PostgreSQL and Redis are dependencies, not additional Authlane services.
+Authlane ships one production runtime for the dashboard, connect UI, authentication, OAuth callbacks,
+and control-plane API. PostgreSQL, Redis, and the one-shot migrator remain separate security principals.
 
 ## Self-hosted Compose
 
 ```bash
-cp .env.example .env
-openssl rand -hex 32
-openssl rand -base64 32
+cp .env.production.example .env
 ```
 
-Set the generated values as `ENCRYPTION_KEY` and `BETTER_AUTH_SECRET`, set `APP_URL` to the public HTTPS origin, then run:
+Fill every value without an insecure default. Generate independent secrets for every keyring, database
+role, Redis, metrics, Grafana, and Better Auth. Keyring values use `version:value`, with the current
+version first. Set exact public HTTPS origins and only the immediate trusted proxy CIDRs.
 
 ```bash
+docker compose config --quiet
 docker compose up --build -d
 docker compose ps
 curl --fail https://authlane.example.com/health
 ```
 
-The application container runs the Drizzle migration before starting. Only port 3000 is published by default; terminate TLS at your reverse proxy or platform load balancer.
+Only the application port is exposed. PostgreSQL and Redis stay on an internal network. Terminate TLS
+at a maintained reverse proxy or load balancer; the Compose stack does not terminate TLS.
+
+The migrator image owns schema changes and role provisioning. The API runs as `authlane_app`; BullMQ
+jobs use `authlane_job`. The runtime image is non-root, read-only, capability-free, and cannot migrate.
 
 Optional Prometheus and Grafana:
 
@@ -26,58 +32,36 @@ Optional Prometheus and Grafana:
 docker compose --profile monitoring up -d
 ```
 
+`/metrics` is undiscoverable without `METRICS_BEARER_TOKEN`; also restrict it at the network edge.
+
 ## Managed infrastructure
 
-Deploy the same `apps/api/Dockerfile` and provide managed PostgreSQL 16+ and Redis 7+ URLs:
+Deploy the `runner` target from `apps/api/Dockerfile`. Run the `migrator` target separately before
+rollout, then provide managed PostgreSQL 16+ and Redis 7+ connections with encrypted transport.
 
-```dotenv
-NODE_ENV=production
-API_HOST=0.0.0.0
-API_PORT=3000
-APP_URL=https://authlane.example.com
-BETTER_AUTH_URL=https://authlane.example.com
-BETTER_AUTH_SECRET=<strong-random-secret>
-DATABASE_URL=postgresql://...
-REDIS_URL=rediss://...
-ENCRYPTION_KEY=<64-hex-characters>
-CORS_ORIGIN=https://authlane.example.com
-```
+Required production configuration includes:
 
-The image runs as a non-root user and exposes `/health` for liveness and `/metrics` for Prometheus. Firewall `/metrics` or restrict it at the ingress.
+- exact HTTPS `APP_URL`, `BETTER_AUTH_URL`, and `CORS_ORIGIN`;
+- separate runtime and worker database URLs plus a migration owner URL;
+- `AUTHLANE_DATA_KEK_RING`, `AUTHLANE_LOOKUP_KEY_RING`, and `AUTHLANE_REDIS_KEY_RING`;
+- versioned `BETTER_AUTH_SECRETS` and an independent `METRICS_BEARER_TOKEN`;
+- `TRUSTED_PROXY_CIDRS` only when traffic arrives through known proxies.
 
-## Operational requirements
+Never set the removed `ENCRYPTION_KEY`. Never put any populated `.env`, key file, provider token,
+database dump, or backup key in the repository or container image.
 
-- Keep `ENCRYPTION_KEY` in a secret manager. Rotating it requires re-encrypting stored credentials.
-- Use separate database and encryption credentials per environment.
-- Back up PostgreSQL and test restores. Redis can be rebuilt, but persistence prevents lost delayed refresh jobs.
-- Keep the application role separate from the migration owner when enforcing PostgreSQL RLS in production.
-- Run at least one always-on instance so delayed token refresh jobs are processed.
-- Put a CDN or reverse proxy in front of static assets; hashed assets return one-year immutable cache headers.
-
-## Performance acceptance
-
-Warm the tenant/API-key/connection caches, allocate 2 vCPU and 1 GB memory, then run:
+## Release gate
 
 ```bash
-PERF_BASE_URL=https://authlane.example.com \
-PERF_API_KEY=ak_... \
-PERF_EXTERNAL_USER_ID=user_123 \
-PERF_RPS=500 \
-PERF_DURATION_SECONDS=20 \
-PERF_P95_TARGET_MS=100 \
-pnpm test:performance
+pnpm install --frozen-lockfile
+pnpm lint:runtime
+pnpm type-check
+pnpm test
+pnpm build
+docker compose config --quiet
 ```
 
-The command exits non-zero for any request failure or P95 above the target. Track `authlane_http_request_duration_seconds`, cache hits/misses, event-loop lag, PostgreSQL latency, and Redis latency in production.
-
-## Release checklist
-
-- `pnpm install --frozen-lockfile`
-- `pnpm type-check`
-- `pnpm test`
-- `pnpm build`
-- `docker compose config`
-- Build and scan the image
-- Apply migrations against a staging database
-- Run the hot-read benchmark
-- Verify `/health`, dashboard login, connect flow, credential audit, and direct provider execution
+CI additionally runs OSV, dependency review, Gitleaks, CodeQL, and a Trivy container scan. Before
+internet exposure, restore a backup in isolation, test dashboard MFA and OAuth flows, verify audit
+events and provider revocation, and complete the checklist in
+[Security operations](./docs/security/OPERATIONS.md).

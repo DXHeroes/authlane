@@ -1,91 +1,141 @@
 name: authlane
 
+x-app-environment: &app-environment
+  NODE_ENV: production
+  API_HOST: 0.0.0.0
+  API_PORT: 3000
+  APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+  BETTER_AUTH_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+  BETTER_AUTH_SECRETS: ${BETTER_AUTH_SECRETS:?Set a versioned Better Auth secret ring}
+  CORS_ORIGIN: ${CORS_ORIGIN:?Set exact comma-separated HTTPS origins}
+  DATABASE_URL: postgresql://authlane_app:${AUTHLANE_RUNTIME_DB_PASSWORD:?Set a URL-safe database password}@postgres:5432/authlane
+  SYSTEM_DATABASE_URL: postgresql://authlane_job:${AUTHLANE_WORKER_DB_PASSWORD:?Set a URL-safe worker password}@postgres:5432/authlane
+  REDIS_URL: redis://:${REDIS_PASSWORD:?Set a URL-safe Redis password}@redis:6379
+  AUTHLANE_DATA_KEK_RING: ${AUTHLANE_DATA_KEK_RING:?Set the data KEK ring}
+  AUTHLANE_LOOKUP_KEY_RING: ${AUTHLANE_LOOKUP_KEY_RING:?Set the lookup key ring}
+  AUTHLANE_REDIS_KEY_RING: ${AUTHLANE_REDIS_KEY_RING:?Set the Redis key ring}
+  METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:?Set the metrics bearer token}
+  TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+  RATE_LIMIT_ENABLED: 'true'
+  RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+  RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://authlane_migrator:${POSTGRES_PASSWORD:?Set the PostgreSQL administrator password}@postgres:5432/authlane
+      AUTHLANE_RUNTIME_DB_PASSWORD: ${AUTHLANE_RUNTIME_DB_PASSWORD:?Set a URL-safe database password}
+      AUTHLANE_WORKER_DB_PASSWORD: ${AUTHLANE_WORKER_DB_PASSWORD:?Set a URL-safe worker password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    restart: 'no'
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
   app:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      target: runner
     ports:
       - '${AUTHLANE_PORT:-3000}:3000'
-    environment:
-      NODE_ENV: production
-      API_HOST: 0.0.0.0
-      API_PORT: 3000
-      APP_URL: ${APP_URL:-http://localhost:3000}
-      BETTER_AUTH_URL: ${APP_URL:-http://localhost:3000}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      CORS_ORIGIN: ${APP_URL:-http://localhost:3000}
-      DATABASE_URL: postgresql://authlane:${POSTGRES_PASSWORD:-authlane}@postgres:5432/authlane
-      REDIS_URL: redis://redis:6379
-      AUTHLANE_DATA_KEK_RING: ${AUTHLANE_DATA_KEK_RING}
-      AUTHLANE_LOOKUP_KEY_RING: ${AUTHLANE_LOOKUP_KEY_RING}
-      AUTHLANE_REDIS_KEY_RING: ${AUTHLANE_REDIS_KEY_RING}
-      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
-      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-1000}
-      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      EMAIL_FROM: ${EMAIL_FROM:-Authlane <noreply@localhost>}
-      SENTRY_DSN: ${SENTRY_DSN:-}
+    environment: *app-environment
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
+    networks: [edge, backend]
     restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.10-alpine@sha256:029660641a0cfc575b14f336ba448fb8a75fd595d42e1fa316b9fb4378742297
     environment:
       POSTGRES_DB: authlane
-      POSTGRES_USER: authlane
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-authlane}
+      POSTGRES_USER: authlane_migrator
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set the PostgreSQL administrator password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks: [backend]
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U authlane -d authlane']
+      test: ['CMD-SHELL', 'pg_isready -U authlane_migrator -d authlane']
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    command: ['sh', '-c', 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set a URL-safe Redis password}
     volumes:
       - redis_data:/data
+    networks: [backend]
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD-SHELL', 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.5.0
-    profiles: ['monitoring']
-    ports:
-      - '9090:9090'
+    image: prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+    profiles: [monitoring]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-lifecycle
+    secrets: [metrics_bearer_token]
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
-    depends_on:
-      - app
+    networks: [backend]
+    depends_on: [app]
+    restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:12.1.0
-    profiles: ['monitoring']
+    image: grafana/grafana:12.1.0@sha256:6ac590e7cabc2fbe8d7b8fc1ce9c9f0582177b334e0df9c927ebd9670469440f
+    profiles: [monitoring]
     ports:
-      - '3001:3000'
+      - '127.0.0.1:3001:3000'
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set a Grafana administrator password}
       GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_SECURITY_COOKIE_SECURE: 'true'
+      GF_SECURITY_COOKIE_SAMESITE: strict
     volumes:
       - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
+    networks: [backend]
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+networks:
+  edge:
+  backend:
+    internal: true
 
 volumes:
   postgres_data:
   redis_data:
   prometheus_data:
   grafana_data:
+
+secrets:
+  metrics_bearer_token:
+    environment: METRICS_BEARER_TOKEN

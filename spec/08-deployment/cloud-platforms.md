@@ -1,5 +1,8 @@
 # Cloud Platform Deployment
 
+> Provider examples in this design document are not production-ready. Apply the launch gate in
+> `docs/security/OPERATIONS.md` and its versioned keyring, role isolation, and private-network rules.
+
 Deploy Authlane to various cloud platforms.
 
 ## Railway
@@ -374,4 +377,3 @@ All platforms require these variables:
 - [Docker Deployment](./docker.md)
 - [Operations Guide](./operations.md)
 - [Security Best Practices](../04-security/index.md)
-

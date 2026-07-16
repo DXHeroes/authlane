@@ -42,5 +42,5 @@ Register the exact callback shown in the dashboard. Use TLS at the public ingres
 - Require TLS at the ingress and use secure cookies in production.
 - Rate-limit all public endpoints; Authlane uses Redis for distributed limits.
 - Monitor authentication failures, credential reads, refresh failures, webhook backlog, and request latency.
-- Back up the database and encryption key separately. Losing the encryption key makes stored credentials unrecoverable.
+- Back up the database and versioned keyrings separately. Losing every retained data KEK makes stored credentials unrecoverable.
 - Rotate webhook secrets and verify `<timestamp>.<raw-body>` signatures before parsing payloads.

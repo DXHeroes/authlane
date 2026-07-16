@@ -3,25 +3,9 @@
  * Populates initial data with production-ready service configurations
  */
 
-import { hashUserPassword } from '@authlane/shared';
-import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { account, member, organization, services, user } from './schema/index.js';
-
-/**
- * Generate a random ID for better-auth entities
- */
-function generateId(): string {
-  return crypto.randomUUID().replace(/-/g, '');
-}
-
-/**
- * Hash password using Better Auth's configured Argon2id format.
- */
-async function hashPassword(password: string): Promise<string> {
-  return hashUserPassword(password);
-}
+import { services } from './schema/index.js';
 
 /**
  * Production-ready service configurations
@@ -1027,7 +1011,7 @@ export const productionServices = [
  */
 export async function seedDatabase(dbUrl: string) {
   const client = postgres(dbUrl);
-  const db = drizzle(client, { schema: { services, user, account, organization, member } });
+  const db = drizzle(client, { schema: { services } });
 
   console.log('🌱 Seeding database with production-ready service configurations...\n');
 
@@ -1042,82 +1026,9 @@ export async function seedDatabase(dbUrl: string) {
   }
   console.log(`\n  Total: ${productionServices.length} services seeded\n`);
 
-  // Create a sample user and organization (for testing)
-  const sampleEmail = 'test@authlane.dev';
-  const samplePassword = 'test123456';
-  const userId = generateId();
-  const orgId = generateId();
-  const memberId = generateId();
-  const accountId = generateId();
-
-  // Check if user already exists
-  const existingUser = await db.select().from(user).where(eq(user.email, sampleEmail)).limit(1);
-
-  if (existingUser[0]) {
-    console.log(`👤 Test user already exists: ${sampleEmail}`);
-    console.log(`   User ID: ${existingUser[0].id}`);
-
-    // Check for organization
-    const existingMember = await db
-      .select()
-      .from(member)
-      .where(eq(member.userId, existingUser[0].id))
-      .limit(1);
-
-    if (existingMember[0]) {
-      console.log(`   Organization ID: ${existingMember[0].organizationId}`);
-    }
-  } else {
-    console.log('👤 Creating test user...');
-
-    // Create user
-    await db.insert(user).values({
-      id: userId,
-      name: 'Test User',
-      email: sampleEmail,
-      emailVerified: true,
-    });
-    console.log(`   ✓ User: ${sampleEmail}`);
-
-    // Create account with password
-    const passwordHash = await hashPassword(samplePassword);
-    await db.insert(account).values({
-      id: accountId,
-      accountId: userId,
-      providerId: 'credential',
-      userId: userId,
-      password: passwordHash,
-    });
-    console.log('   ✓ Credential account created');
-
-    // Create organization (skip if slug already exists)
-    await db
-      .insert(organization)
-      .values({
-        id: orgId,
-        name: 'Test Organization',
-        slug: 'test-org',
-      })
-      .onConflictDoNothing();
-    console.log('   ✓ Organization: Test Organization');
-
-    // Add user as owner
-    await db.insert(member).values({
-      id: memberId,
-      organizationId: orgId,
-      userId: userId,
-      role: 'owner',
-    });
-    console.log('   ✓ User added as organization owner');
-  }
-
   // Print helpful information
   console.log(`\n${'='.repeat(70)}`);
   console.log('✅ Database seeded successfully!\n');
-
-  console.log('🔑 Test Credentials:');
-  console.log(`   Email: ${sampleEmail}`);
-  console.log(`   Password: ${samplePassword}`);
 
   // Categorize services
   const publicApis = productionServices.filter((s) => s.authType === 'none');

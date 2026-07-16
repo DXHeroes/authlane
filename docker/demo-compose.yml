@@ -1,0 +1,46 @@
+name: authlane-demo
+
+services:
+  postgres:
+    image: postgres:16.10-alpine@sha256:029660641a0cfc575b14f336ba448fb8a75fd595d42e1fa316b9fb4378742297
+    environment:
+      POSTGRES_USER: authlane
+      POSTGRES_PASSWORD: ${DEMO_POSTGRES_ADMIN_PASSWORD:?required}
+      POSTGRES_DB: authlane_demo
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - demo_postgres_data:/var/lib/postgresql/data
+      - ../packages/database/sql:/app/packages/database/sql:ro
+      - ./postgres/provision-roles.sh:/app/docker/postgres/provision-roles.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U authlane -d authlane_demo']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    command:
+      - redis-server
+      - --appendonly
+      - 'no'
+      - --requirepass
+      - ${DEMO_REDIS_PASSWORD:?required}
+    ports:
+      - '127.0.0.1:56379:6379'
+    volumes:
+      - demo_redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$DEMO_REDIS_PASSWORD" ping | grep PONG']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    environment:
+      DEMO_REDIS_PASSWORD: ${DEMO_REDIS_PASSWORD:?required}
+    restart: unless-stopped
+
+volumes:
+  demo_postgres_data:
+  demo_redis_data:

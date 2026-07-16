@@ -6,9 +6,15 @@
   "license": "Elastic-2.0",
   "pnpm": {
     "overrides": {
+      "@babel/core": "7.29.6",
+      "defu": "6.1.5",
       "react": "19.1.1",
       "react-dom": "19.1.1",
-      "drizzle-orm": "0.44.7"
+      "drizzle-orm": "0.45.2",
+      "esbuild": "0.25.0",
+      "postcss": "8.5.10",
+      "prismjs": "1.30.0",
+      "yaml": "2.8.3"
     },
     "onlyBuiltDependencies": [
       "@prisma/client",
@@ -24,6 +30,10 @@
   },
   "scripts": {
     "dev": "turbo run dev --filter=@authlane/api --filter=@authlane/dashboard --filter=@authlane/widget",
+    "demo": "node scripts/demo.mjs start",
+    "demo:test": "node scripts/demo.mjs test",
+    "demo:down": "node scripts/demo.mjs down",
+    "demo:reset": "node scripts/demo.mjs reset",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:e2e": "playwright test",
@@ -48,11 +58,12 @@
     "@biomejs/biome": "^2.3.7",
     "@playwright/test": "^1.57.0",
     "@types/node": "^24.10.1",
-    "@vitest/coverage-v8": "^4.0.14",
+    "@vitest/coverage-v8": "^4.1.10",
     "dotenv-cli": "^11.0.0",
+    "postgres": "^3.4.7",
     "turbo": "^2.6.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.14"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=22.0.0",

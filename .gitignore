@@ -52,11 +52,11 @@ temp/
 *.key
 *.pem
 secrets/
+.authlane-demo/
 
 
 # ADO state
 .ado/
-
 
 
 

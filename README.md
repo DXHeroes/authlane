@@ -14,6 +14,52 @@ One Node.js/Hono process serves the dashboard, hosted connect UI, auth endpoints
 
 Provider requests never pass through Authlane. Your SaaS backend retrieves access-only credential material, then a local integration adapter calls the provider directly.
 
+## Turnkey local demo
+
+The repository includes a self-contained demo with a local OAuth 2.1 provider, PostgreSQL, Redis,
+the Authlane runtime, and an Example SaaS BFF. It does not need third-party credentials or network
+access after dependencies and container images are installed.
+
+Prerequisites: Node.js 22+, pnpm 10, and Docker with Compose.
+
+```bash
+pnpm install --frozen-lockfile
+pnpm demo
+```
+
+Open <http://localhost:5175> for the Example SaaS and <http://localhost:3000> for the Authlane
+dashboard. A fresh admin password and scoped Example SaaS API key are generated on every start and
+written only to `.authlane-demo/access.json`. Runtime keys live in `.authlane-demo/runtime.env`.
+The directory is mode `0700`; both files are mode `0600`; raw secrets are never printed.
+
+```bash
+# Install the browser once, then run the complete deterministic acceptance flow.
+pnpm exec playwright install chromium
+pnpm demo:test
+
+# Stop processes and containers but retain the encrypted database/audit history.
+pnpm demo:down
+
+# Also remove demo volumes and all locally generated demo secrets/artifacts.
+pnpm demo:reset
+```
+
+`demo:test` proves the iframe OAuth flow with S256 PKCE and state validation, one-shot authorization
+codes, rotating refresh tokens, automatic background refresh, BFF-only provider access, encrypted
+database records, opaque encrypted Redis session storage, encrypted TOTP data, append-only access
+audit, least-privilege database roles, MFA login, and durable API-key revocation. The local provider
+is mounted only when `AUTHLANE_DEMO_MODE=true` outside production.
+
+To add an optional real GitHub connection, create an OAuth app with callback
+`http://localhost:3000/api/v1/oauth/github/callback`, then pass the credentials only to the process:
+
+```bash
+DEMO_GITHUB_CLIENT_ID=... DEMO_GITHUB_CLIENT_SECRET=... pnpm demo
+```
+
+The demo requests only `read:user` and `public_repo`. The client secret is envelope-encrypted before
+database storage and is not copied into the generated runtime file.
+
 ## Quick start
 
 Prerequisites: Docker with Compose.

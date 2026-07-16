@@ -58,6 +58,7 @@
       "!**/build",
       "!**/.next",
       "!**/.turbo",
+      "!**/.authlane-demo",
       "!**/coverage",
       "!**/*.md",
       "!**/pnpm-lock.yaml",

@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import ConnectDialog from '@/components/ConnectDialog';
 import { authlane, type GitHubRepository } from '@/lib/authlane';
 
 export default function GitHubPage() {
   const [repos, setRepos] = useState<GitHubRepository[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectUrl, setConnectUrl] = useState<string | null>(null);
 
   async function fetchRepositories() {
     setLoading(true);
@@ -19,7 +21,7 @@ export default function GitHubPage() {
   async function handleConnect() {
     const result = await authlane.createConnectSession('github');
     if (result.data?.connectUrl) {
-      window.open(result.data.connectUrl, '_blank', 'width=600,height=700');
+      setConnectUrl(result.data.connectUrl);
     } else {
       alert(`Failed to get authorization URL: ${result.error?.message || 'Unknown error'}`);
     }
@@ -27,6 +29,15 @@ export default function GitHubPage() {
 
   return (
     <div className="space-y-6">
+      {connectUrl && (
+        <ConnectDialog
+          connectUrl={connectUrl}
+          serviceName="GitHub"
+          onClose={() => setConnectUrl(null)}
+          onConnected={fetchRepositories}
+          onError={setError}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -37,12 +48,14 @@ export default function GitHubPage() {
         </div>
         <div className="flex gap-3">
           <button
+            type="button"
             onClick={handleConnect}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Connect GitHub
           </button>
           <button
+            type="button"
             onClick={fetchRepositories}
             disabled={loading}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -56,7 +69,7 @@ export default function GitHubPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-semibold text-blue-800 mb-2">How This Demo Works</h3>
         <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-          <li>Click "Connect GitHub" to authorize via OAuth (opens popup)</li>
+          <li>Click "Connect GitHub" to authorize in the embedded Authlane widget</li>
           <li>After connecting, click "Fetch Repos" to retrieve your repositories</li>
           <li>The SaaS backend obtains a lease and calls GitHub; the browser receives only data</li>
         </ol>

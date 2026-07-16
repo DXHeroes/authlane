@@ -119,11 +119,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(result.error.message || 'Login failed');
     }
 
-    // Reload session
+    // A completed password sign-in may still require the two-factor page.
+    // Only initialize organization state after Better Auth has issued a full session.
     const sessionResult = await authClient.getSession();
-    if (sessionResult.data) {
-      setSession(sessionResult.data as Session);
+    if (!sessionResult.data) return;
+    let nextSession = sessionResult.data as Session;
+    const organizationsResult = await authClient.organization.list();
+    const nextOrganizations = (organizationsResult.data as unknown as Organization[]) || [];
+    setOrganizations(nextOrganizations);
+    if (!nextSession.session.activeOrganizationId && nextOrganizations[0]) {
+      await authClient.organization.setActive({ organizationId: nextOrganizations[0].id });
+      const activeSession = await authClient.getSession();
+      if (activeSession.data) nextSession = activeSession.data as Session;
     }
+    setSession(nextSession);
+    if (nextOrganizations[0]) setOrganization(nextOrganizations[0]);
   };
 
   const register = async (name: string, email: string, password: string) => {

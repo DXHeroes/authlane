@@ -228,7 +228,10 @@ export function createDashboardRouter(
         return c.json(Errors.unauthorized('Organization context required'), 401);
       }
 
-      const keys = await db.select().from(apiKeys).where(eq(apiKeys.organizationId, org.id));
+      const keys = await db
+        .select()
+        .from(apiKeys)
+        .where(and(eq(apiKeys.organizationId, org.id), eq(apiKeys.enabled, true)));
       const formattedKeys = keys.map((key) => ({
         id: key.id,
         organizationId: org.id,
@@ -440,14 +443,15 @@ export function createDashboardRouter(
       }
 
       const keyId = c.req.param('id');
-      const [deleted] = await db
-        .delete(apiKeys)
+      const [revoked] = await db
+        .update(apiKeys)
+        .set({ enabled: false, updatedAt: new Date() })
         .where(and(eq(apiKeys.id, keyId), eq(apiKeys.organizationId, org.id)))
         .returning({ keyHash: apiKeys.keyHash });
-      if (!deleted) {
+      if (!revoked) {
         return c.json(Errors.notFound('API Key', keyId), 404);
       }
-      await cache?.delete(`control-plane:principal:${deleted.keyHash}`);
+      await cache?.delete(`control-plane:principal:${revoked.keyHash}`);
 
       return c.json({
         data: { success: true },

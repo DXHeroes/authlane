@@ -32,6 +32,7 @@ interface ExampleApiOptions {
   externalUserId: string;
   browserOrigin: string;
   providerFetch?: typeof fetch;
+  demoProviderBaseUrl?: string;
 }
 
 interface GitHubRepository {
@@ -43,6 +44,12 @@ interface GitHubRepository {
   stargazers_count: number;
   language: string | null;
   private: boolean;
+}
+
+interface DemoResource {
+  id: string;
+  name: string;
+  status: 'active' | 'ready';
 }
 
 function errorResponse(error: AuthlaneError) {
@@ -101,9 +108,24 @@ function sanitizeGitHubRepository(repository: GitHubRepository): GitHubRepositor
   };
 }
 
+function isDemoResource(value: unknown): value is DemoResource {
+  if (!value || typeof value !== 'object') return false;
+  const resource = value as Record<string, unknown>;
+  return (
+    typeof resource.id === 'string' &&
+    resource.id.length > 0 &&
+    resource.id.length <= 100 &&
+    typeof resource.name === 'string' &&
+    resource.name.length > 0 &&
+    resource.name.length <= 200 &&
+    (resource.status === 'active' || resource.status === 'ready')
+  );
+}
+
 export function createExampleApi(options: ExampleApiOptions) {
   const app = new Hono();
   const providerFetch = options.providerFetch ?? fetch;
+  const demoProviderBaseUrl = options.demoProviderBaseUrl ?? 'http://localhost:5175/demo-provider';
 
   app.use('/api/example/*', async (c, next) => {
     c.header('Cache-Control', 'no-store, private');
@@ -212,6 +234,87 @@ export function createExampleApi(options: ExampleApiOptions) {
       .slice(0, 10)
       .map(sanitizeGitHubRepository);
     return c.json({ data: repositories, error: null });
+  });
+
+  app.post('/api/example/demo/resources', async (c) => {
+    const leaseResult = await options.authlane.credentialLeases.create({
+      externalUserId: options.externalUserId,
+      serviceId: 'authlane-demo',
+    });
+    if (leaseResult.error) {
+      return c.json(
+        errorResponse(leaseResult.error),
+        safeUpstreamStatus(leaseResult.error.statusCode)
+      );
+    }
+    if (leaseResult.data.type !== 'oauth2') {
+      return c.json(
+        {
+          data: null,
+          error: {
+            message: 'Demo Provider requires an OAuth connection',
+            code: 'INVALID_CREDENTIALS',
+          },
+        },
+        409
+      );
+    }
+
+    const providerResponse = await providerFetch(`${demoProviderBaseUrl}/resources`, {
+      headers: {
+        Authorization: `${leaseResult.data.tokenType} ${leaseResult.data.accessToken}`,
+      },
+      redirect: 'error',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!providerResponse.ok) {
+      return c.json(
+        {
+          data: null,
+          error: { message: 'Demo Provider request failed', code: 'PROVIDER_REQUEST_FAILED' },
+        },
+        502
+      );
+    }
+    const payload: unknown = await providerResponse.json();
+    if (!payload || typeof payload !== 'object') {
+      return c.json(
+        {
+          data: null,
+          error: {
+            message: 'Demo Provider returned invalid data',
+            code: 'PROVIDER_RESPONSE_INVALID',
+          },
+        },
+        502
+      );
+    }
+    const candidate = payload as Record<string, unknown>;
+    if (
+      !Number.isInteger(candidate.generation) ||
+      Number(candidate.generation) < 1 ||
+      !Array.isArray(candidate.resources) ||
+      candidate.resources.length > 10 ||
+      !candidate.resources.every(isDemoResource)
+    ) {
+      return c.json(
+        {
+          data: null,
+          error: {
+            message: 'Demo Provider returned invalid data',
+            code: 'PROVIDER_RESPONSE_INVALID',
+          },
+        },
+        502
+      );
+    }
+    return c.json({
+      data: {
+        generation: candidate.generation as number,
+        resources: candidate.resources.map(({ id, name, status }) => ({ id, name, status })),
+      },
+      error: null,
+    });
   });
 
   return app;

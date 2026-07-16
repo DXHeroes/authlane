@@ -13,8 +13,11 @@ vi.mock('@/lib/authlane', () => ({
   },
 }));
 
-// Mock window.open
-global.window.open = vi.fn();
+vi.mock('@authlane/react', () => ({
+  AuthlaneConnect: ({ connectUrl, title }: { connectUrl: string; title: string }) => (
+    <div title={title} data-connect-url={connectUrl} />
+  ),
+}));
 
 // Mock window.alert
 global.alert = vi.fn();
@@ -251,10 +254,10 @@ describe('ConnectionStatus', () => {
       } as any);
     });
 
-    it('opens authentication popup when Connect button is clicked', async () => {
+    it('embeds the short-lived connect URL without opening a popup', async () => {
       const user = userEvent.setup();
       vi.mocked(authlaneModule.authlane.createConnectSession).mockResolvedValueOnce({
-        data: { connectUrl: 'https://authlane.test/connect#session=secret' },
+        data: { connectUrl: 'about:blank?session=secret' },
       } as any);
 
       render(<ConnectionStatus />);
@@ -267,11 +270,8 @@ describe('ConnectionStatus', () => {
       await user.click(connectButton);
 
       await waitFor(() => {
-        expect(window.open).toHaveBeenCalledWith(
-          'https://authlane.test/connect#session=secret',
-          '_blank',
-          'width=600,height=700'
-        );
+        const frame = screen.getByTitle('Authlane connection for GitHub');
+        expect(frame).toHaveAttribute('data-connect-url', 'about:blank?session=secret');
       });
     });
 

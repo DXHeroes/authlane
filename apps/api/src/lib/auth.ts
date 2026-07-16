@@ -14,7 +14,10 @@ import { hashUserPassword, verifyUserPassword } from '@authlane/shared';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, twoFactor } from 'better-auth/plugins';
-import type { AuthSecondaryStorage } from './auth-secondary-storage.js';
+import {
+  type AuthSecondaryStorage,
+  shouldStoreAuthSessionsInDatabase,
+} from './auth-secondary-storage.js';
 import {
   isSignUpEnabled,
   parseAuthSecrets,
@@ -148,7 +151,7 @@ export function createAuth(
       expiresIn: 60 * 60 * 12,
       updateAge: 60 * 60,
       freshAge: 60 * 10,
-      storeSessionInDatabase: true,
+      storeSessionInDatabase: shouldStoreAuthSessionsInDatabase(options?.secondaryStorage),
       cookieCache: { enabled: false },
     },
 

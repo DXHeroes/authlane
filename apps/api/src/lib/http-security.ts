@@ -9,6 +9,16 @@ const HIGH_CARDINALITY_SEGMENTS = new Set([
   'users',
 ]);
 
+const OAUTH_CALLBACK_PATH = /^\/api\/v1\/oauth\/[a-z0-9]+(?:-[a-z0-9]+)*\/callback$/;
+
+export function preservesOAuthPopupOpener(
+  path: string
+): 'same-origin-allow-popups' | 'unsafe-none' | null {
+  if (path === '/connect/callback' || OAUTH_CALLBACK_PATH.test(path)) return 'unsafe-none';
+  if (path === '/connect') return 'same-origin-allow-popups';
+  return null;
+}
+
 export function sanitizeMetricRoute(path: string): string {
   const segments = path.split('/');
   for (let index = 1; index < segments.length; index += 1) {

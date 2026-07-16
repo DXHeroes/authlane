@@ -28,6 +28,17 @@ interface GitHubRepository {
   private: boolean;
 }
 
+interface DemoResource {
+  id: string;
+  name: string;
+  status: 'active' | 'ready';
+}
+
+interface DemoResources {
+  generation: number;
+  resources: DemoResource[];
+}
+
 interface ApiResponse<T> {
   data: T | null;
   error: { message: string; code: string } | null;
@@ -81,7 +92,11 @@ class ExampleBackendClient {
   listGitHubRepositories(): Promise<ApiResponse<GitHubRepository[]>> {
     return this.request<GitHubRepository[]>('/github/repositories', { method: 'POST' });
   }
+
+  listDemoResources(): Promise<ApiResponse<DemoResources>> {
+    return this.request<DemoResources>('/demo/resources', { method: 'POST' });
+  }
 }
 
 export const authlane = new ExampleBackendClient();
-export type { ApiResponse, Connection, GitHubRepository, Service };
+export type { ApiResponse, Connection, DemoResource, DemoResources, GitHubRepository, Service };

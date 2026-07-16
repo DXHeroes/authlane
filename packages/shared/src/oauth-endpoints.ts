@@ -70,6 +70,15 @@ const OAUTH_ENDPOINTS: Record<
   },
 };
 
+const DEMO_OAUTH_ENDPOINTS = {
+  authorization: ['http://localhost:5175/demo-provider/authorize'],
+  token: ['http://localhost:5175/demo-provider/token'],
+} as const;
+
+function isLocalDemoEndpointEnabled(): boolean {
+  return process.env.AUTHLANE_DEMO_MODE === 'true' && process.env.NODE_ENV !== 'production';
+}
+
 const MAX_TOKEN_RESPONSE_BYTES = 64 * 1024;
 
 export function validateOAuthEndpoint(
@@ -83,7 +92,11 @@ export function validateOAuthEndpoint(
   } catch {
     throw new Error(`OAuth ${kind} endpoint is not a valid URL`);
   }
-  if (!OAUTH_ENDPOINTS[serviceId]?.[kind].includes(normalized)) {
+  const allowlist =
+    serviceId === 'authlane-demo' && isLocalDemoEndpointEnabled()
+      ? DEMO_OAUTH_ENDPOINTS[kind]
+      : OAUTH_ENDPOINTS[serviceId]?.[kind];
+  if (!allowlist?.includes(normalized)) {
     throw new Error(`OAuth ${kind} endpoint is not allowlisted for ${serviceId}`);
   }
   return normalized;

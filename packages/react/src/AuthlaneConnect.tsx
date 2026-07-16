@@ -48,7 +48,7 @@ export function AuthlaneConnect({
       src={connectUrl}
       title={title}
       className={className}
-      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
       referrerPolicy="no-referrer"
       style={{ width: '100%', minHeight, height, border: 0 }}
     />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { authlane, type Connection, type Service } from '@/lib/authlane';
+import ConnectDialog from './ConnectDialog';
 
 interface ConnectionWithService extends Connection {
   service?: Service;
@@ -10,6 +11,10 @@ export default function ConnectionStatus() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectDialog, setConnectDialog] = useState<{
+    url: string;
+    serviceName: string;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -46,7 +51,10 @@ export default function ConnectionStatus() {
   async function handleConnect(serviceId: string) {
     const result = await authlane.createConnectSession(serviceId);
     if (result.data?.connectUrl) {
-      window.open(result.data.connectUrl, '_blank', 'width=600,height=700');
+      setConnectDialog({
+        url: result.data.connectUrl,
+        serviceName: services.find((service) => service.id === serviceId)?.name ?? serviceId,
+      });
     } else {
       alert(`Failed to get authorization URL: ${result.error?.message || 'Unknown error'}`);
     }
@@ -67,7 +75,7 @@ export default function ConnectionStatus() {
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
         <p className="font-medium">Failed to load connections</p>
         <p className="text-sm">{error}</p>
-        <button onClick={loadData} className="mt-2 text-sm underline">
+        <button type="button" onClick={loadData} className="mt-2 text-sm underline">
           Retry
         </button>
       </div>
@@ -80,6 +88,15 @@ export default function ConnectionStatus() {
 
   return (
     <div className="space-y-6">
+      {connectDialog && (
+        <ConnectDialog
+          connectUrl={connectDialog.url}
+          serviceName={connectDialog.serviceName}
+          onClose={() => setConnectDialog(null)}
+          onConnected={loadData}
+          onError={setError}
+        />
+      )}
       {/* OAuth Services */}
       <div>
         <h3 className="text-lg font-semibold text-gray-800 mb-3">OAuth Services</h3>
@@ -109,6 +126,7 @@ export default function ConnectionStatus() {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => handleConnect(service.id)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isConnected
@@ -149,7 +167,11 @@ export default function ConnectionStatus() {
 
       {/* Refresh button */}
       <div className="flex justify-center pt-4">
-        <button onClick={loadData} className="text-sm text-indigo-600 hover:text-indigo-700">
+        <button
+          type="button"
+          onClick={loadData}
+          className="text-sm text-indigo-600 hover:text-indigo-700"
+        >
           ↻ Refresh connections
         </button>
       </div>

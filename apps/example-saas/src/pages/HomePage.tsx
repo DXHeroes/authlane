@@ -92,7 +92,7 @@ export default function HomePage() {
       {/* Quick links */}
       <div className="grid md:grid-cols-2 gap-4">
         <a
-          href="http://localhost:5173"
+          href="http://localhost:3000"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 transition-colors"

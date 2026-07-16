@@ -28,7 +28,11 @@ import {
 } from './lib/auth-secondary-storage.js';
 import { type CacheStore, MemoryCacheStore, RedisCacheStore } from './lib/cache.js';
 import { resolveClientIp } from './lib/client-ip.js';
-import { exactFrameOrigin, sanitizeMetricRoute } from './lib/http-security.js';
+import {
+  exactFrameOrigin,
+  preservesOAuthPopupOpener,
+  sanitizeMetricRoute,
+} from './lib/http-security.js';
 import { logger, logRequest } from './lib/logger.js';
 import { recordHttpRequest } from './lib/metrics.js';
 import {
@@ -94,6 +98,11 @@ export function createApp(
     c.header('X-Request-ID', c.get('requestId'));
   });
   app.use('*', sentryMiddleware());
+  app.use('*', async (c, next) => {
+    await next();
+    const oauthPopupPolicy = preservesOAuthPopupOpener(c.req.path);
+    if (oauthPopupPolicy) c.header('Cross-Origin-Opener-Policy', oauthPopupPolicy);
+  });
   app.use(
     '*',
     secureHeaders({

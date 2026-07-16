@@ -86,24 +86,30 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={handleClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-api-key-title"
         className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">
+          <h2 id="create-api-key-title" className="text-2xl font-bold">
             {createdKey ? 'API Key Created' : 'Create API Key'}
           </h2>
           <button
+            type="button"
             onClick={handleClose}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
           >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -126,28 +132,33 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">API Key Name</label>
+              <span className="mb-2 block text-sm font-medium">API Key Name</span>
               <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm">
                 {createdKey.name}
               </p>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">API Key</label>
+              <label htmlFor="created-api-key" className="mb-2 block text-sm font-medium">
+                API Key
+              </label>
               <div className="flex gap-2">
                 <input
+                  id="created-api-key"
                   type="text"
                   value={createdKey.key}
                   readOnly
                   className="flex-1 rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
                 />
                 <button
+                  type="button"
                   onClick={handleCopy}
                   className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
                   {copied ? (
                     <span className="flex items-center gap-1">
                       <svg
+                        aria-hidden="true"
                         className="h-4 w-4"
                         fill="none"
                         stroke="currentColor"
@@ -171,7 +182,7 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
 
             {createdKey.expiresAt && (
               <div>
-                <label className="mb-2 block text-sm font-medium">Expires At</label>
+                <span className="mb-2 block text-sm font-medium">Expires At</span>
                 <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm">
                   {new Date(createdKey.expiresAt).toLocaleString()}
                 </p>
@@ -180,6 +191,7 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
 
             <div className="flex justify-end pt-4">
               <button
+                type="button"
                 onClick={handleClose}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >

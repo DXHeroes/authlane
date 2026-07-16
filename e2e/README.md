@@ -2,6 +2,25 @@
 
 Comprehensive end-to-end tests covering all user scenarios and features of the Authlane platform.
 
+## Deterministic turnkey demo suite
+
+The recommended acceptance path provisions its own pinned PostgreSQL and Redis containers, generates
+all secrets locally, starts the built Authlane and Example SaaS applications, runs exactly two
+Chromium scenarios without conditional skips, and tears the processes and containers down:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+pnpm demo:test
+```
+
+The suite in `e2e/demo/turnkey-demo.spec.ts` covers the complete local OAuth flow and refresh,
+browser/BFF secret boundaries, encrypted database storage, audit records, database role separation,
+admin TOTP MFA with encrypted-at-rest factors, Redis-only encrypted sessions with opaque lookup
+keys, one-time API-key display, and durable revocation. It is also a separate required CI job. Use
+`pnpm demo:reset` when you want to remove the retained demo volume and locally generated
+`.authlane-demo` files.
+
 ## Quick Start
 
 ### Starting All Services

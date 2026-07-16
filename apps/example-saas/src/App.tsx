@@ -1,4 +1,5 @@
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import DemoProviderPage from './pages/DemoProviderPage';
 import GitHubPage from './pages/GitHubPage';
 import HomePage from './pages/HomePage';
 import PostsPage from './pages/PostsPage';
@@ -35,16 +36,23 @@ export default function App() {
             </div>
             <nav className="flex items-center gap-2">
               <NavLink to="/">Home</NavLink>
+              <NavLink to="/demo">Demo Provider</NavLink>
               <NavLink to="/github">GitHub</NavLink>
               <NavLink to="/posts">Posts API</NavLink>
               <a
-                href="http://localhost:5173"
+                href="http://localhost:3000"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center gap-1"
               >
                 Dashboard
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  aria-hidden="true"
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -62,6 +70,7 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/demo" element={<DemoProviderPage />} />
           <Route path="/github" element={<GitHubPage />} />
           <Route path="/posts" element={<PostsPage />} />
         </Routes>
@@ -73,7 +82,7 @@ export default function App() {
           This is an example SaaS application demonstrating Authlane integration.
           <br />
           <a
-            href="http://localhost:5173"
+            href="http://localhost:3000"
             target="_blank"
             rel="noopener noreferrer"
             className="text-indigo-600 hover:underline"

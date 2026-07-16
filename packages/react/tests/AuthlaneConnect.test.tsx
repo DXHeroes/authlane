@@ -9,7 +9,7 @@ describe('AuthlaneConnect', () => {
     const iframe = screen.getByTitle('Connect services');
     expect(iframe.getAttribute('src')).toBe('about:blank?session=acs_short_lived');
     expect(iframe.getAttribute('sandbox')).toBe(
-      'allow-scripts allow-same-origin allow-popups allow-forms'
+      'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms'
     );
   });
 });

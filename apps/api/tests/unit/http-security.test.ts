@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../src/index.js';
-import { exactFrameOrigin, sanitizeMetricRoute } from '../../src/lib/http-security.js';
+import {
+  exactFrameOrigin,
+  preservesOAuthPopupOpener,
+  sanitizeMetricRoute,
+} from '../../src/lib/http-security.js';
 
 describe('HTTP security boundary', () => {
   it('sets browser security headers and a request correlation ID', async () => {
@@ -8,6 +12,7 @@ describe('HTTP security boundary', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect(response.headers.get('cross-origin-opener-policy')).toBe('same-origin');
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('referrer-policy')).toBe('no-referrer');
     expect(response.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
@@ -57,8 +62,25 @@ describe('HTTP security boundary', () => {
     );
     expect(allowed.headers.has('x-frame-options')).toBe(false);
     expect(allowed.headers.get('cache-control')).toBe('no-store');
+    expect(allowed.headers.get('cross-origin-opener-policy')).toBe('same-origin-allow-popups');
     expect(invalid.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
     expect(invalid.headers.has('x-frame-options')).toBe(false);
+  });
+
+  it('preserves the opener only on OAuth callback surfaces', async () => {
+    const app = createApp({} as never, { rateLimitEnabled: false });
+    const oauthCallback = await app.request(
+      '/api/v1/oauth/github/callback?state=invalid&code=invalid'
+    );
+    const unrelatedApi = await app.request('/api/v1/services');
+
+    expect(oauthCallback.headers.get('cross-origin-opener-policy')).toBe('unsafe-none');
+    expect(
+      (await app.request('/connect/callback?status=connected&serviceId=github')).headers.get(
+        'cross-origin-opener-policy'
+      )
+    ).toBe('unsafe-none');
+    expect(unrelatedApi.headers.get('cross-origin-opener-policy')).toBe('same-origin');
   });
 });
 
@@ -77,5 +99,13 @@ describe('HTTP security helpers', () => {
     expect(exactFrameOrigin('http://tenant.example', 'production')).toBeNull();
     expect(exactFrameOrigin('https://tenant.example/path', 'production')).toBeNull();
     expect(exactFrameOrigin('http://localhost:5173', 'development')).toBe('http://localhost:5173');
+  });
+
+  it('recognizes only bounded OAuth popup paths', () => {
+    expect(preservesOAuthPopupOpener('/connect')).toBe('same-origin-allow-popups');
+    expect(preservesOAuthPopupOpener('/connect/callback')).toBe('unsafe-none');
+    expect(preservesOAuthPopupOpener('/api/v1/oauth/google-calendar/callback')).toBe('unsafe-none');
+    expect(preservesOAuthPopupOpener('/api/v1/oauth/google-calendar/callback/extra')).toBeNull();
+    expect(preservesOAuthPopupOpener('/api/v1/dashboard/api-keys')).toBeNull();
   });
 });

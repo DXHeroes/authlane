@@ -12,4 +12,5 @@ export * from './connect-sessions.js';
 export * from './connections.js';
 export * from './organization-services.js';
 export * from './outbox-events.js';
+export * from './secret-records.js';
 export * from './services.js';

@@ -1,5 +1,4 @@
-import { decrypt, encrypt, getEncryptionKey } from '@authlane/crypto';
-import type { ConnectSession, Database } from '@authlane/database';
+import type { ConnectSession, Database, SecretStore } from '@authlane/database';
 import {
   and,
   connections,
@@ -94,7 +93,7 @@ function parseAllowedOrigin(value: string): string | null {
   }
 }
 
-export function createOAuthRouter(db: Database) {
+export function createOAuthRouter(db: Database, secretStore: SecretStore) {
   const router = new Hono();
 
   router.post('/connect-sessions', requireScope('connect-sessions:create'), async (c) => {
@@ -187,7 +186,7 @@ export function createOAuthRouter(db: Database) {
         .select({
           serviceId: connections.serviceId,
           status: connections.status,
-          credentialsEnc: connections.credentialsEnc,
+          credentialSecretId: connections.credentialSecretId,
           expiresAt: connections.expiresAt,
         })
         .from(connections)
@@ -212,7 +211,7 @@ export function createOAuthRouter(db: Database) {
             connection
               ? {
                   status: connection.status,
-                  hasCredentials: Boolean(connection.credentialsEnc),
+                  hasCredentials: Boolean(connection.credentialSecretId),
                   expiresAt: connection.expiresAt,
                 }
               : null
@@ -282,7 +281,7 @@ export function createOAuthRouter(db: Database) {
         externalUserId: session.externalUserId,
         serviceId,
         status: 'pending',
-        credentialsEnc: null,
+        credentialSecretId: null,
         expiresAt: null,
         lastErrorCode: null,
         metadata: {
@@ -297,7 +296,7 @@ export function createOAuthRouter(db: Database) {
         target: [connections.organizationId, connections.externalUserId, connections.serviceId],
         set: {
           status: 'pending',
-          credentialsEnc: null,
+          credentialSecretId: null,
           expiresAt: null,
           lastErrorCode: null,
           metadata: {
@@ -376,8 +375,17 @@ export function createOAuthRouter(db: Database) {
     }
 
     let clientSecret = '';
-    if (tenantService.oauthClientSecretEnc) {
-      clientSecret = decrypt(tenantService.oauthClientSecretEnc, getEncryptionKey());
+    if (tenantService.oauthClientSecretId) {
+      const clientSecretBuffer = await secretStore.read(
+        tenantService.oauthClientSecretId,
+        connection.organizationId,
+        'oauth_client_secret'
+      );
+      try {
+        clientSecret = clientSecretBuffer.toString('utf8');
+      } finally {
+        clientSecretBuffer.fill(0);
+      }
     }
     const tokenBody = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -419,7 +427,7 @@ export function createOAuthRouter(db: Database) {
       );
     }
     const expiresAt = tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1_000) : null;
-    const credentialsEnc = encrypt(
+    const credentialBytes = Buffer.from(
       JSON.stringify({
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
@@ -427,13 +435,24 @@ export function createOAuthRouter(db: Database) {
         scope: tokens.scope,
         expires_at: expiresAt?.toISOString(),
       }),
-      getEncryptionKey()
+      'utf8'
     );
+    let credentialSecretId: string;
+    try {
+      credentialSecretId = await secretStore.put({
+        id: connection.credentialSecretId ?? undefined,
+        organizationId: connection.organizationId,
+        purpose: 'connection_credentials',
+        plaintext: credentialBytes,
+      });
+    } finally {
+      credentialBytes.fill(0);
+    }
     await db
       .update(connections)
       .set({
         status: 'connected',
-        credentialsEnc,
+        credentialSecretId,
         connectedAt: new Date(),
         expiresAt,
         lastErrorCode: null,

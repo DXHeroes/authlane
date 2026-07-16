@@ -14,13 +14,14 @@ if [ ! -f .env ]; then
 fi
 echo "✅ .env file exists"
 
-# Check if ENCRYPTION_KEY is set
-if ! grep -q "ENCRYPTION_KEY=" .env || grep -q "ENCRYPTION_KEY=$" .env; then
-  echo "❌ ENCRYPTION_KEY not set in .env"
-  echo "   Run: echo 'ENCRYPTION_KEY=\$(openssl rand -hex 32)' >> .env"
-  exit 1
-fi
-echo "✅ ENCRYPTION_KEY is set"
+for KEYRING_NAME in AUTHLANE_DATA_KEK_RING AUTHLANE_LOOKUP_KEY_RING AUTHLANE_REDIS_KEY_RING; do
+  if ! grep -q "^${KEYRING_NAME}=" .env || grep -q "^${KEYRING_NAME}=$" .env; then
+    echo "❌ ${KEYRING_NAME} not set in .env"
+    echo "   Run: ./scripts/setup.sh"
+    exit 1
+  fi
+done
+echo "✅ Versioned Authlane keyrings are set"
 
 # Check if DATABASE_URL is set
 if ! grep -q "DATABASE_URL=" .env || grep -q "DATABASE_URL=$" .env; then
@@ -52,7 +53,6 @@ echo "1. Start database: docker-compose -f docker/docker-compose.yml up -d"
 echo "2. Run migrations: pnpm --filter @authlane/database migrate"
 echo "3. Seed database: pnpm --filter @authlane/database seed"
 echo "4. Start API: pnpm --filter @authlane/api dev"
-
 
 
 

@@ -5,7 +5,9 @@
 interface Env {
   DATABASE_URL: string;
   REDIS_URL?: string;
-  ENCRYPTION_KEY: string;
+  AUTHLANE_DATA_KEK_RING: string;
+  AUTHLANE_LOOKUP_KEY_RING: string;
+  AUTHLANE_REDIS_KEY_RING: string;
   API_PORT?: number;
   API_HOST?: string;
   NODE_ENV?: string;
@@ -25,26 +27,39 @@ export function getEnv(): Env {
     throw new Error('DATABASE_URL environment variable is required');
   }
 
-  const encryptionKey = process.env.ENCRYPTION_KEY;
-  if (!encryptionKey) {
+  if (process.env.ENCRYPTION_KEY) {
     throw new Error(
-      'ENCRYPTION_KEY environment variable is required. Generate with: openssl rand -hex 32'
+      'ENCRYPTION_KEY is no longer supported. Configure the versioned Authlane keyrings instead.'
     );
   }
-
-  if (encryptionKey.length !== 64) {
-    throw new Error(
-      `ENCRYPTION_KEY must be 64 hex characters (32 bytes). Got ${encryptionKey.length} characters.`
-    );
+  const keyringNames = [
+    'AUTHLANE_DATA_KEK_RING',
+    'AUTHLANE_LOOKUP_KEY_RING',
+    'AUTHLANE_REDIS_KEY_RING',
+  ] as const;
+  const keyrings = Object.fromEntries(
+    keyringNames.map((name) => {
+      const value = process.env[name];
+      if (!value || !isValidKeyring(value)) {
+        throw new Error(
+          `${name} must contain comma-separated key-id:64-hex-key entries with the current key first`
+        );
+      }
+      return [name, value];
+    })
+  ) as Record<(typeof keyringNames)[number], string>;
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  if (nodeEnv === 'production' && !process.env.REDIS_URL) {
+    throw new Error('REDIS_URL is required in production');
   }
 
   return {
     DATABASE_URL: databaseUrl,
     REDIS_URL: process.env.REDIS_URL,
-    ENCRYPTION_KEY: encryptionKey,
+    ...keyrings,
     API_PORT: process.env.API_PORT ? Number(process.env.API_PORT) : 3000,
     API_HOST: process.env.API_HOST || '0.0.0.0',
-    NODE_ENV: process.env.NODE_ENV || 'development',
+    NODE_ENV: nodeEnv,
     CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173',
     RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED !== 'false',
     RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS
@@ -55,4 +70,25 @@ export function getEnv(): Env {
       : 60000,
     LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   };
+}
+
+function isValidKeyring(value: string): boolean {
+  const seen = new Set<string>();
+  const entries = value.split(',');
+  if (entries.length === 0) return false;
+  return entries.every((entry) => {
+    const separator = entry.indexOf(':');
+    const keyId = entry.slice(0, separator);
+    const key = entry.slice(separator + 1);
+    if (
+      separator <= 0 ||
+      !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(keyId) ||
+      !/^[0-9a-fA-F]{64}$/.test(key) ||
+      seen.has(keyId)
+    ) {
+      return false;
+    }
+    seen.add(keyId);
+    return true;
+  });
 }

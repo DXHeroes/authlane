@@ -1,9 +1,5 @@
 import type { ConnectionStatus, ToolFormat } from '@authlane/shared';
-import {
-  Errors,
-  getEffectiveConnectionStatus,
-  isValidUserId,
-} from '@authlane/shared';
+import { Errors, getEffectiveConnectionStatus, isValidUserId } from '@authlane/shared';
 import { Hono } from 'hono';
 import { requireScope } from '../middleware/scope.js';
 
@@ -19,7 +15,7 @@ export interface ControlPlaneConnection {
   id: string;
   serviceId: string;
   status: Exclude<ConnectionStatus, 'disconnected'>;
-  credentialsEnc: string | null;
+  credentialSecretId: string | null;
   expiresAt: Date | null;
   connectedAt: Date | null;
   lastCheckedAt: Date | null;
@@ -75,7 +71,7 @@ function connectionView(
     connection
       ? {
           status: connection.status,
-          hasCredentials: Boolean(connection.credentialsEnc),
+          hasCredentials: Boolean(connection.credentialSecretId),
           expiresAt: connection.expiresAt,
         }
       : null,
@@ -201,7 +197,7 @@ export function createControlPlaneRouter(
           getEffectiveConnectionStatus(
             {
               status: connection.status,
-              hasCredentials: Boolean(connection.credentialsEnc),
+              hasCredentials: Boolean(connection.credentialSecretId),
               expiresAt: connection.expiresAt,
             },
             requestTime

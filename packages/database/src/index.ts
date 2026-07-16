@@ -27,3 +27,4 @@ export {
 export * from './client.js';
 export * from './jobs/token-refresh.js';
 export * from './schema/index.js';
+export * from './secret-store.js';

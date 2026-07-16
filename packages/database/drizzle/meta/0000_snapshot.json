@@ -1,5 +1,5 @@
 {
-  "id": "a7113cbe-efac-4e24-81d3-b79970911c41",
+  "id": "e70fe949-6ff2-4004-b47f-8b14efd32798",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -251,134 +251,6 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.connect_sessions": {
-      "name": "connect_sessions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "external_user_id": {
-          "name": "external_user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "allowed_services": {
-          "name": "allowed_services",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "allowed_origin": {
-          "name": "allowed_origin",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "connect_sessions_org_external_user_idx": {
-          "name": "connect_sessions_org_external_user_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "connect_sessions_expires_at_idx": {
-          "name": "connect_sessions_expires_at_idx",
-          "columns": [
-            {
-              "expression": "expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "connect_sessions_organization_id_organization_id_fk": {
-          "name": "connect_sessions_organization_id_organization_id_fk",
-          "tableFrom": "connect_sessions",
-          "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "connect_sessions_token_hash_unique": {
-          "name": "connect_sessions_token_hash_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
-        }
-      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -919,6 +791,134 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.connect_sessions": {
+      "name": "connect_sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_user_id": {
+          "name": "external_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allowed_services": {
+          "name": "allowed_services",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "allowed_origin": {
+          "name": "allowed_origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "connect_sessions_org_external_user_idx": {
+          "name": "connect_sessions_org_external_user_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "connect_sessions_expires_at_idx": {
+          "name": "connect_sessions_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "connect_sessions_organization_id_organization_id_fk": {
+          "name": "connect_sessions_organization_id_organization_id_fk",
+          "tableFrom": "connect_sessions",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "connect_sessions_token_hash_unique": {
+          "name": "connect_sessions_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.connections": {
       "name": "connections",
       "schema": "",
@@ -954,8 +954,8 @@
           "notNull": true,
           "default": "'pending'"
         },
-        "credentials_enc": {
-          "name": "credentials_enc",
+        "credential_secret_id": {
+          "name": "credential_secret_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1110,6 +1110,19 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "connections_credential_secret_id_secret_records_id_fk": {
+          "name": "connections_credential_secret_id_secret_records_id_fk",
+          "tableFrom": "connections",
+          "tableTo": "secret_records",
+          "columnsFrom": [
+            "credential_secret_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1147,8 +1160,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "oauth_client_secret_enc": {
-          "name": "oauth_client_secret_enc",
+        "oauth_client_secret_id": {
+          "name": "oauth_client_secret_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1159,8 +1172,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "api_key_enc": {
-          "name": "api_key_enc",
+        "api_key_secret_id": {
+          "name": "api_key_secret_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1206,6 +1219,32 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "organization_services_oauth_client_secret_id_secret_records_id_fk": {
+          "name": "organization_services_oauth_client_secret_id_secret_records_id_fk",
+          "tableFrom": "organization_services",
+          "tableTo": "secret_records",
+          "columnsFrom": [
+            "oauth_client_secret_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "organization_services_api_key_secret_id_secret_records_id_fk": {
+          "name": "organization_services_api_key_secret_id_secret_records_id_fk",
+          "tableFrom": "organization_services",
+          "tableTo": "secret_records",
+          "columnsFrom": [
+            "api_key_secret_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1319,6 +1358,151 @@
         "outbox_events_organization_id_organization_id_fk": {
           "name": "outbox_events_organization_id_organization_id_fk",
           "tableFrom": "outbox_events",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.secret_records": {
+      "name": "secret_records",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_id": {
+          "name": "key_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wrapped_dek": {
+          "name": "wrapped_dek",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wrapped_dek_iv": {
+          "name": "wrapped_dek_iv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wrapped_dek_tag": {
+          "name": "wrapped_dek_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload_iv": {
+          "name": "payload_iv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload_tag": {
+          "name": "payload_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aad_version": {
+          "name": "aad_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "secret_records_org_purpose_idx": {
+          "name": "secret_records_org_purpose_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "purpose",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "secret_records_key_id_idx": {
+          "name": "secret_records_key_id_idx",
+          "columns": [
+            {
+              "expression": "key_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "secret_records_organization_id_organization_id_fk": {
+          "name": "secret_records_organization_id_organization_id_fk",
+          "tableFrom": "secret_records",
           "tableTo": "organization",
           "columnsFrom": [
             "organization_id"

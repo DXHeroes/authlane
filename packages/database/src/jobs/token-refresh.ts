@@ -3,10 +3,10 @@
  * Handles automatic OAuth token refresh using BullMQ
  */
 
-import { decrypt, encrypt, getEncryptionKey } from '@authlane/crypto';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../client.js';
 import { connections, outboxEvents, services } from '../schema/index.js';
+import { createDatabaseSecretStore, type SecretStore } from '../secret-store.js';
 
 export interface TokenRefreshData {
   connectionId: string;
@@ -19,7 +19,8 @@ export interface TokenRefreshData {
  */
 export async function refreshToken(
   db: Database,
-  data: TokenRefreshData
+  data: TokenRefreshData,
+  secretStore: SecretStore = createDatabaseSecretStore(db)
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Get connection
@@ -55,7 +56,7 @@ export async function refreshToken(
       return { success: false, error: 'Connection is not connected' };
     }
 
-    if (!connection.credentialsEnc) {
+    if (!connection.credentialSecretId) {
       return failConnection('No credentials found', 'CREDENTIALS_MISSING');
     }
 
@@ -78,15 +79,22 @@ export async function refreshToken(
       return failConnection('Service missing token URL', 'TOKEN_URL_MISSING');
     }
 
-    // Decrypt credentials
-    const encryptionKey = getEncryptionKey();
-    const credentialsJson = decrypt(connection.credentialsEnc, encryptionKey);
-    const credentials = JSON.parse(credentialsJson) as {
+    const credentialsBuffer = await secretStore.read(
+      connection.credentialSecretId,
+      connection.organizationId,
+      'connection_credentials'
+    );
+    let credentials: {
       access_token: string;
       refresh_token?: string;
       expires_at?: string;
       scope?: string;
     };
+    try {
+      credentials = JSON.parse(credentialsBuffer.toString('utf8'));
+    } finally {
+      credentialsBuffer.fill(0);
+    }
 
     if (!credentials.refresh_token) {
       return failConnection('No refresh token available', 'REFRESH_TOKEN_MISSING');
@@ -118,7 +126,6 @@ export async function refreshToken(
       scope?: string;
     };
 
-    // Encrypt new credentials
     const newCredentialsJson = JSON.stringify({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token || credentials.refresh_token,
@@ -129,7 +136,12 @@ export async function refreshToken(
         : credentials.expires_at,
     });
 
-    const credentialsEnc = encrypt(newCredentialsJson, encryptionKey);
+    await secretStore.put({
+      id: connection.credentialSecretId,
+      organizationId: connection.organizationId,
+      purpose: 'connection_credentials',
+      plaintext: Buffer.from(newCredentialsJson),
+    });
 
     // Update connection
     const expiresAt = tokens.expires_in
@@ -139,7 +151,6 @@ export async function refreshToken(
     await db
       .update(connections)
       .set({
-        credentialsEnc,
         expiresAt,
         connectedAt: new Date(),
       })

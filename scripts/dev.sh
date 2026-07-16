@@ -10,10 +10,11 @@ if [ ! -f .env ]; then
   echo "📝 Creating .env file..."
   cp .env.example .env 2>/dev/null || true
   
-  # Generate encryption key
-  ENCRYPTION_KEY=$(openssl rand -hex 32)
-  echo "ENCRYPTION_KEY=$ENCRYPTION_KEY" >> .env
-  echo "✅ Generated encryption key"
+  KEY_ID="dev-$(date +%Y%m%d)"
+  echo "AUTHLANE_DATA_KEK_RING=${KEY_ID}:$(openssl rand -hex 32)" >> .env
+  echo "AUTHLANE_LOOKUP_KEY_RING=${KEY_ID}:$(openssl rand -hex 32)" >> .env
+  echo "AUTHLANE_REDIS_KEY_RING=${KEY_ID}:$(openssl rand -hex 32)" >> .env
+  echo "✅ Generated versioned Authlane keyrings"
 fi
 
 # Check if DATABASE_URL is set
@@ -55,7 +56,6 @@ echo "1. Run migrations: pnpm --filter @authlane/database migrate"
 echo "2. Seed database: pnpm --filter @authlane/database seed"
 echo "3. Start API: pnpm --filter @authlane/api dev"
 echo ""
-
 
 
 

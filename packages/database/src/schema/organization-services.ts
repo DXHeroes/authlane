@@ -1,5 +1,6 @@
 import { boolean, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { organization } from './auth.js';
+import { secretRecords } from './secret-records.js';
 import { services } from './services.js';
 
 /**
@@ -18,10 +19,14 @@ export const organizationServices = pgTable(
     enabled: boolean('enabled').default(true).notNull(),
     // OAuth credentials
     oauthClientId: text('oauth_client_id'), // Optional: organization's own OAuth app
-    oauthClientSecretEnc: text('oauth_client_secret_enc'), // Encrypted client secret
+    oauthClientSecretId: text('oauth_client_secret_id').references(() => secretRecords.id, {
+      onDelete: 'set null',
+    }),
     customScopes: text('custom_scopes').array(), // Custom OAuth scopes
     // API Key credential
-    apiKeyEnc: text('api_key_enc'), // Encrypted API key for api_key auth type services
+    apiKeySecretId: text('api_key_secret_id').references(() => secretRecords.id, {
+      onDelete: 'set null',
+    }),
     // Timestamps
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),

@@ -18,7 +18,7 @@ function repository(overrides: Partial<ControlPlaneRepository> = {}): ControlPla
         id: 'connection_1',
         serviceId: 'github',
         status: 'connected',
-        credentialsEnc: 'encrypted',
+        credentialSecretId: 'secret_1',
         expiresAt: new Date('2027-01-01T00:00:00.000Z'),
         connectedAt: new Date('2026-01-01T00:00:00.000Z'),
         lastCheckedAt: null,

@@ -1,4 +1,4 @@
-import { hashApiKey } from '@authlane/shared';
+import { createApiKey, parseKeyring } from '@authlane/crypto';
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
 import { authMiddleware } from '../../src/middleware/auth.js';
@@ -11,6 +11,8 @@ function fakeDatabase(row: Record<string, unknown> | undefined) {
 
   return { db: { select } as never, select, from, where, limit };
 }
+
+const lookupKeyring = parseKeyring(`test-lookup:${'02'.repeat(32)}`);
 
 describe('API key authentication', () => {
   it('loads the complete active organization for dashboard sessions', async () => {
@@ -47,11 +49,11 @@ describe('API key authentication', () => {
   });
 
   it('loads a scoped organization principal from api_keys', async () => {
-    const rawKey = 'ak_live_secret';
+    const issued = createApiKey('key_1', lookupKeyring);
     const { db } = fakeDatabase({
       id: 'key_1',
       organizationId: 'org_1',
-      keyHash: hashApiKey(rawKey),
+      keyHash: issued.keyHash,
       scopes: ['connections:read', 'credentials:issue'],
       enabled: true,
       expiresAt: null,
@@ -61,7 +63,7 @@ describe('API key authentication', () => {
     app.get('/', (c) => c.json(c.get('principal')));
 
     const response = await app.request('/', {
-      headers: { authorization: `Bearer ${rawKey}` },
+      headers: { authorization: `Bearer ${issued.rawKey}` },
     });
 
     expect(response.status).toBe(200);
@@ -74,9 +76,11 @@ describe('API key authentication', () => {
   });
 
   it('rejects an expired key', async () => {
+    const issued = createApiKey('key_1', lookupKeyring);
     const { db } = fakeDatabase({
       id: 'key_1',
       organizationId: 'org_1',
+      keyHash: issued.keyHash,
       scopes: ['catalog:read'],
       enabled: true,
       expiresAt: new Date('2025-01-01T00:00:00.000Z'),
@@ -86,18 +90,18 @@ describe('API key authentication', () => {
     app.get('/', (c) => c.json(c.get('principal')));
 
     const response = await app.request('/', {
-      headers: { authorization: 'Bearer ak_expired' },
+      headers: { authorization: `Bearer ${issued.rawKey}` },
     });
 
     expect(response.status).toBe(401);
   });
 
   it('rechecks key revocation in PostgreSQL on every request', async () => {
-    const rawKey = 'ak_live_revocable';
+    const issued = createApiKey('key_1', lookupKeyring);
     const row = {
       id: 'key_1',
       organizationId: 'org_1',
-      keyHash: hashApiKey(rawKey),
+      keyHash: issued.keyHash,
       scopes: ['connections:read'],
       enabled: true,
       expiresAt: null,
@@ -113,14 +117,36 @@ describe('API key authentication', () => {
     app.get('/', (c) => c.json(c.get('principal')));
 
     const first = await app.request('/', {
-      headers: { authorization: `Bearer ${rawKey}` },
+      headers: { authorization: `Bearer ${issued.rawKey}` },
     });
     const afterRevocation = await app.request('/', {
-      headers: { authorization: `Bearer ${rawKey}` },
+      headers: { authorization: `Bearer ${issued.rawKey}` },
     });
 
     expect(first.status).toBe(200);
     expect(afterRevocation.status).toBe(401);
     expect(limit).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a forged secret even when the record id exists', async () => {
+    const issued = createApiKey('key_1', lookupKeyring);
+    const forged = `${issued.rawKey.slice(0, -1)}A`;
+    const { db } = fakeDatabase({
+      id: 'key_1',
+      organizationId: 'org_1',
+      keyHash: issued.keyHash,
+      scopes: ['connections:read'],
+      enabled: true,
+      expiresAt: null,
+    });
+    const app = new Hono();
+    app.use('*', authMiddleware(db));
+    app.get('/', (c) => c.json(c.get('principal')));
+
+    const response = await app.request('/', {
+      headers: { authorization: `Bearer ${forged}` },
+    });
+
+    expect(response.status).toBe(401);
   });
 });

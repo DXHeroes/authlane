@@ -3,7 +3,7 @@
  * Main router for API endpoints
  */
 
-import type { Database } from '@authlane/database';
+import { createDatabaseSecretStore, type Database, type SecretStore } from '@authlane/database';
 import { Hono } from 'hono';
 import { type CacheStore, MemoryCacheStore } from '../lib/cache.js';
 import {
@@ -17,20 +17,24 @@ import { createDashboardRouter } from './dashboard.js';
 import { createOAuthRouter } from './oauth.js';
 import { createServicesRouter } from './services.js';
 
-export function createApiRouter(db: Database, cache: CacheStore = new MemoryCacheStore()) {
+export function createApiRouter(
+  db: Database,
+  cache: CacheStore = new MemoryCacheStore(),
+  secretStore: SecretStore = createDatabaseSecretStore(db)
+) {
   const router = new Hono();
   const repository = new CachedControlPlaneRepository(new DrizzleControlPlaneRepository(db), cache);
 
   const dashboard = new Hono();
   dashboard.use('*', requirePrincipalKind('session'));
   dashboard.route('/services', createServicesRouter(db));
-  dashboard.route('/', createDashboardRouter(db, cache));
+  dashboard.route('/', createDashboardRouter(db, cache, secretStore));
   router.route('/dashboard', dashboard);
 
   router.use('/catalog/*', requirePrincipalKind('api_key'));
   router.use('/users/*', requirePrincipalKind('api_key'));
   router.route('/', createControlPlaneRouter(repository, integrationRegistry));
-  router.route('/', createOAuthRouter(db));
+  router.route('/', createOAuthRouter(db, secretStore));
 
   return router;
 }

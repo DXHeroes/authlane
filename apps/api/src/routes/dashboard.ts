@@ -3,26 +3,27 @@
  * These routes are for the admin dashboard and use organization context from auth
  */
 
-import { randomBytes } from 'node:crypto';
-import { encrypt, getEncryptionKey } from '@authlane/crypto';
-import type { Database } from '@authlane/database';
+import { createApiKey, getLookupKeyring } from '@authlane/crypto';
 import {
   and,
   apiKeys,
   connections,
   count,
   countDistinct,
+  createDatabaseSecretStore,
+  type Database,
   desc,
   eq,
   invitation,
   member,
   organization,
   organizationServices,
+  type SecretStore,
   services,
   sql,
   user,
 } from '@authlane/database';
-import { Errors, hashApiKey } from '@authlane/shared';
+import { Errors } from '@authlane/shared';
 import { Hono } from 'hono';
 import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
 import type { CacheStore } from '../lib/cache.js';
@@ -42,7 +43,11 @@ interface OrganizationSettings {
   updatedAt?: string;
 }
 
-export function createDashboardRouter(db: Database, cache?: CacheStore) {
+export function createDashboardRouter(
+  db: Database,
+  cache?: CacheStore,
+  secretStore: SecretStore = createDatabaseSecretStore(db)
+) {
   const router = new Hono();
 
   /**
@@ -271,8 +276,8 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
       if (scopes !== undefined && normalizedScopes.length !== (scopes as unknown[]).length) {
         return c.json(Errors.validationError('One or more API key scopes are invalid'), 400);
       }
-      const rawKey = `ak_${randomBytes(32).toString('base64url')}`;
-      const keyPrefix = rawKey.substring(0, 10);
+      const keyId = crypto.randomUUID();
+      const issuedKey = createApiKey(keyId, getLookupKeyring());
       const calculatedExpiry = expiresAt
         ? new Date(expiresAt)
         : expiresInDays
@@ -284,10 +289,11 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
       const [created] = await db
         .insert(apiKeys)
         .values({
+          id: keyId,
           organizationId: org.id,
           name,
-          keyHash: hashApiKey(rawKey),
-          keyHint: keyPrefix,
+          keyHash: issuedKey.keyHash,
+          keyHint: issuedKey.keyHint,
           scopes: normalizedScopes,
           expiresAt: calculatedExpiry,
         })
@@ -298,8 +304,8 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
           id: created?.id,
           organizationId: org.id,
           name: created?.name,
-          keyPrefix,
-          key: rawKey,
+          keyPrefix: issuedKey.keyHint,
+          key: issuedKey.rawKey,
           scopes: created?.scopes,
           enabled: created?.enabled,
           createdAt: created?.createdAt.toISOString(),
@@ -563,7 +569,7 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
           enabled: os.enabled,
           customClientId: os.oauthClientId,
           // Never return secrets
-          apiKey: os.apiKeyEnc ? '********' : undefined,
+          apiKey: os.apiKeySecretId ? '********' : undefined,
           createdAt: os.createdAt?.toISOString(),
           updatedAt: os.updatedAt?.toISOString(),
         })),
@@ -618,7 +624,7 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
           enabled: orgService.enabled,
           customClientId: orgService.oauthClientId,
           // Indicate if API key is set without revealing it
-          apiKey: orgService.apiKeyEnc ? '********' : undefined,
+          apiKey: orgService.apiKeySecretId ? '********' : undefined,
           createdAt: orgService.createdAt?.toISOString(),
           updatedAt: orgService.updatedAt?.toISOString(),
         },
@@ -692,11 +698,44 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
       const serviceId = c.req.param('serviceId');
       const body = await c.req.json();
       const { customClientId, customClientSecret, apiKey } = body;
-      const encryptionKey = getEncryptionKey();
-      const encryptedClientSecret = customClientSecret
-        ? encrypt(customClientSecret, encryptionKey)
-        : null;
-      const encryptedApiKey = apiKey ? encrypt(apiKey, encryptionKey) : null;
+      const [existing] = await db
+        .select()
+        .from(organizationServices)
+        .where(
+          and(
+            eq(organizationServices.organizationId, org.id),
+            eq(organizationServices.serviceId, serviceId)
+          )
+        )
+        .limit(1);
+      let oauthClientSecretId = existing?.oauthClientSecretId ?? null;
+      let apiKeySecretId = existing?.apiKeySecretId ?? null;
+      if (typeof customClientSecret === 'string' && customClientSecret.length > 0) {
+        const plaintext = Buffer.from(customClientSecret, 'utf8');
+        try {
+          oauthClientSecretId = await secretStore.put({
+            id: oauthClientSecretId ?? undefined,
+            organizationId: org.id,
+            purpose: 'oauth_client_secret',
+            plaintext,
+          });
+        } finally {
+          plaintext.fill(0);
+        }
+      }
+      if (typeof apiKey === 'string' && apiKey.length > 0) {
+        const plaintext = Buffer.from(apiKey, 'utf8');
+        try {
+          apiKeySecretId = await secretStore.put({
+            id: apiKeySecretId ?? undefined,
+            organizationId: org.id,
+            purpose: 'service_api_key',
+            plaintext,
+          });
+        } finally {
+          plaintext.fill(0);
+        }
+      }
 
       // Build update object
       const updateData: Record<string, unknown> = {
@@ -708,11 +747,11 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
       }
 
       if (customClientSecret) {
-        updateData.oauthClientSecretEnc = encryptedClientSecret;
+        updateData.oauthClientSecretId = oauthClientSecretId;
       }
 
       if (apiKey) {
-        updateData.apiKeyEnc = encryptedApiKey;
+        updateData.apiKeySecretId = apiKeySecretId;
       }
 
       // Upsert the organization service
@@ -723,8 +762,8 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
           serviceId,
           enabled: true,
           oauthClientId: customClientId || null,
-          oauthClientSecretEnc: encryptedClientSecret,
-          apiKeyEnc: encryptedApiKey,
+          oauthClientSecretId,
+          apiKeySecretId,
           createdAt: new Date(),
           updatedAt: new Date(),
         })

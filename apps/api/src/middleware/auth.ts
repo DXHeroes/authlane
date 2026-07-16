@@ -1,8 +1,9 @@
 /** Authentication for dashboard sessions and scoped SaaS API keys. */
 
+import { apiKeyRecordId, getLookupKeyring, type Keyring, verifyApiKey } from '@authlane/crypto';
 import type { Database, Organization } from '@authlane/database';
 import { apiKeys, eq, organization } from '@authlane/database';
-import { Errors, hashApiKey } from '@authlane/shared';
+import { Errors } from '@authlane/shared';
 import type { Context, Next } from 'hono';
 import { type ApiPrincipal, normalizeApiScopes } from '../lib/api-principal.js';
 import type { Auth } from '../lib/auth.js';
@@ -21,12 +22,19 @@ function extractApiKey(c: Context): string | null {
 
 async function findApiKeyPrincipal(
   db: Database,
-  keyHash: string,
+  rawApiKey: string,
+  keyring: Keyring,
   now: Date
 ): Promise<ApiPrincipal | null> {
-  const [key] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).limit(1);
+  const recordId = apiKeyRecordId(rawApiKey);
+  if (!recordId) return null;
+  const [key] = await db.select().from(apiKeys).where(eq(apiKeys.id, recordId)).limit(1);
 
-  if (!key?.enabled || (key.expiresAt && key.expiresAt <= now)) {
+  if (
+    !key?.enabled ||
+    (key.expiresAt && key.expiresAt <= now) ||
+    !verifyApiKey(rawApiKey, key.id, key.keyHash, keyring)
+  ) {
     return null;
   }
 
@@ -40,6 +48,7 @@ async function findApiKeyPrincipal(
 
 export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewareOptions = {}) {
   const now = options.now ?? (() => new Date());
+  const lookupKeyring = getLookupKeyring();
 
   return async (c: Context, next: Next) => {
     const path = c.req.path;
@@ -84,8 +93,7 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
       return c.json(Errors.unauthorized('A scoped Authlane API key is required'), 401);
     }
 
-    const keyHash = hashApiKey(rawApiKey);
-    const principal = await findApiKeyPrincipal(db, keyHash, now());
+    const principal = await findApiKeyPrincipal(db, rawApiKey, lookupKeyring, now());
 
     if (!principal) {
       return c.json(Errors.unauthorized('Invalid, disabled, or expired API key'), 401);

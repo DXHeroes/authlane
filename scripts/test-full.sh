@@ -29,11 +29,12 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
-# Check if ENCRYPTION_KEY is set
-if [ -z "$ENCRYPTION_KEY" ]; then
-  echo -e "${RED}❌ ENCRYPTION_KEY not set in .env${NC}"
-  exit 1
-fi
+for KEYRING_NAME in AUTHLANE_DATA_KEK_RING AUTHLANE_LOOKUP_KEY_RING AUTHLANE_REDIS_KEY_RING; do
+  if [ -z "${!KEYRING_NAME}" ]; then
+    echo -e "${RED}❌ ${KEYRING_NAME} not set in .env${NC}"
+    exit 1
+  fi
+done
 
 echo -e "${GREEN}✅ Environment variables loaded${NC}"
 
@@ -92,7 +93,6 @@ echo "  1. docker-compose -f docker/docker-compose.yml up -d"
 echo "  2. pnpm --filter @authlane/database migrate"
 echo "  3. pnpm --filter @authlane/database seed"
 echo "  4. pnpm --filter @authlane/api dev"
-
 
 
 

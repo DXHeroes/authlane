@@ -4,9 +4,6 @@
  * Uses AES-256-GCM for credential encryption
  */
 
-export * from './encryption.js';
-export * from './key-management.js';
-
-
-
-
+export * from './keyring.js';
+export * from './lookup.js';
+export * from './secret-vault.js';

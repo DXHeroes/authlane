@@ -1,5 +1,6 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { organization } from './auth.js';
+import { secretRecords } from './secret-records.js';
 import { services } from './services.js';
 
 export const connections = pgTable(
@@ -20,7 +21,9 @@ export const connections = pgTable(
     })
       .default('pending')
       .notNull(),
-    credentialsEnc: text('credentials_enc'),
+    credentialSecretId: text('credential_secret_id').references(() => secretRecords.id, {
+      onDelete: 'set null',
+    }),
     metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}).notNull(),
     connectedAt: timestamp('connected_at', { withTimezone: true }),
     expiresAt: timestamp('expires_at', { withTimezone: true }),

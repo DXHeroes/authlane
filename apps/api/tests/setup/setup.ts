@@ -11,7 +11,9 @@ beforeAll(() => {
   process.env.DATABASE_URL =
     process.env.TEST_DATABASE_URL || 'postgresql://test:test@localhost:5432/authlane_test';
   process.env.REDIS_URL = process.env.TEST_REDIS_URL || 'redis://localhost:6379';
-  process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'; // Test key (64 hex chars)
+  process.env.AUTHLANE_DATA_KEK_RING = `test-kek:${'01'.repeat(32)}`;
+  process.env.AUTHLANE_LOOKUP_KEY_RING = `test-lookup:${'02'.repeat(32)}`;
+  process.env.AUTHLANE_REDIS_KEY_RING = `test-redis:${'03'.repeat(32)}`;
   process.env.API_KEY_HASH = '$2a$10$test.hash.for.testing.purposes';
   process.env.API_PORT = '3001';
   process.env.API_HOST = 'localhost';

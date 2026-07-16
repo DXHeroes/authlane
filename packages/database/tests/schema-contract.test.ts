@@ -6,6 +6,7 @@ import {
   connectSessions,
   credentialAccessLogs,
   outboxEvents,
+  secretRecords,
 } from '../src/schema/index.js';
 
 function columnNames(table: Parameters<typeof getTableConfig>[0]): string[] {
@@ -25,7 +26,7 @@ describe('SaaS-only schema contract', () => {
         'organization_id',
         'external_user_id',
         'service_id',
-        'credentials_enc',
+        'credential_secret_id',
         'expires_at',
         'updated_at',
       ])
@@ -69,5 +70,24 @@ describe('SaaS-only schema contract', () => {
     expect(columnNames(outboxEvents)).toEqual(
       expect.arrayContaining(['organization_id', 'event_type', 'payload', 'status', 'attempts'])
     );
+  });
+
+  it('stores per-record envelope fields and references secrets by id', () => {
+    expect(columnNames(secretRecords)).toEqual(
+      expect.arrayContaining([
+        'organization_id',
+        'purpose',
+        'key_id',
+        'wrapped_dek',
+        'wrapped_dek_iv',
+        'wrapped_dek_tag',
+        'ciphertext',
+        'payload_iv',
+        'payload_tag',
+        'aad_version',
+      ])
+    );
+    expect(columnNames(secretRecords)).not.toContain('plaintext');
+    expect(columnNames(connections)).toContain('credential_secret_id');
   });
 });

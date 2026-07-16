@@ -24,7 +24,7 @@ import {
 } from '@authlane/database';
 import { Errors, hashApiKey } from '@authlane/shared';
 import { Hono } from 'hono';
-import { API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
+import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
 import type { CacheStore } from '../lib/cache.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
@@ -266,7 +266,8 @@ export function createDashboardRouter(db: Database, cache?: CacheStore) {
         return c.json(Errors.validationError('API key name is required'), 400);
       }
 
-      const normalizedScopes = scopes === undefined ? [...API_SCOPES] : normalizeApiScopes(scopes);
+      const normalizedScopes =
+        scopes === undefined ? [...DEFAULT_API_SCOPES] : normalizeApiScopes(scopes);
       if (scopes !== undefined && normalizedScopes.length !== (scopes as unknown[]).length) {
         return c.json(Errors.validationError('One or more API key scopes are invalid'), 400);
       }

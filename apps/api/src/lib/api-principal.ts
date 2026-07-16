@@ -1,10 +1,15 @@
 export const API_SCOPES = [
   'catalog:read',
   'connections:read',
-  'connections:write',
-  'credentials:read',
-  'connect-sessions:write',
+  'credentials:issue',
+  'connect-sessions:create',
 ] as const;
+
+export const DEFAULT_API_SCOPES = [
+  'catalog:read',
+  'connections:read',
+  'connect-sessions:create',
+] as const satisfies readonly ApiScope[];
 
 export type ApiScope = (typeof API_SCOPES)[number];
 
@@ -28,5 +33,5 @@ export function normalizeApiScopes(scopes: unknown): ApiScope[] {
 }
 
 export function hasRequiredScope(principal: ApiPrincipal, scope: ApiScope): boolean {
-  return principal.kind === 'session' || principal.scopes.includes(scope);
+  return principal.kind === 'api_key' && principal.scopes.includes(scope);
 }

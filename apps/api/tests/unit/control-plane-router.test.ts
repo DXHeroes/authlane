@@ -1,4 +1,3 @@
-import { encrypt } from '@authlane/crypto';
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -59,7 +58,7 @@ function appFor(repo: ControlPlaneRepository, now = () => new Date('2026-06-01T0
       kind: 'api_key',
       organizationId: 'org_1',
       apiKeyId: 'key_1',
-      scopes: ['catalog:read', 'connections:read', 'credentials:read'],
+      scopes: ['catalog:read', 'connections:read', 'credentials:issue'],
     });
     await next();
   });
@@ -116,52 +115,11 @@ describe('control-plane read API', () => {
     expect(body.data[0].connected).toBe(false);
   });
 
-  it('returns only access credentials, disables caching, and audits access', async () => {
-    const previousKey = process.env.ENCRYPTION_KEY;
-    process.env.ENCRYPTION_KEY = 'a'.repeat(64);
-    const encrypted = encrypt(
-      JSON.stringify({
-        access_token: 'access',
-        refresh_token: 'must-not-leave-authlane',
-        token_type: 'Bearer',
-        scope: 'repo read:user',
-        expires_at: '2027-01-01T00:00:00.000Z',
-      }),
-      process.env.ENCRYPTION_KEY
-    );
-    const auditCredentialAccess = vi.fn();
-    const repo = repository({
-      getConnection: vi.fn().mockResolvedValue({
-        id: 'connection_1',
-        serviceId: 'github',
-        status: 'connected',
-        credentialsEnc: encrypted,
-        expiresAt: new Date('2027-01-01T00:00:00.000Z'),
-        connectedAt: new Date(),
-        lastCheckedAt: null,
-        lastErrorCode: null,
-      }),
-      auditCredentialAccess,
-    });
-
-    const response = await appFor(repo).request(
+  it('does not expose credentials through a cacheable GET route', async () => {
+    const response = await appFor(repository()).request(
       '/api/v1/users/user_1/connections/github/credentials'
     );
-    if (previousKey) process.env.ENCRYPTION_KEY = previousKey;
-    else delete process.env.ENCRYPTION_KEY;
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(await response.json()).toEqual({
-      data: {
-        type: 'oauth2',
-        accessToken: 'access',
-        tokenType: 'Bearer',
-        scopes: ['repo', 'read:user'],
-        expiresAt: '2027-01-01T00:00:00.000Z',
-      },
-      error: null,
-    });
-    expect(auditCredentialAccess).toHaveBeenCalledOnce();
+    expect(response.status).toBe(404);
   });
 });

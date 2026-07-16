@@ -1,4 +1,3 @@
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ConnectionDetailModal from '@/components/ConnectionDetailModal';
 import * as apiModule from '@/lib/api';
@@ -26,17 +25,6 @@ describe('ConnectionDetailModal', () => {
     createdAt: '2024-01-15T10:00:00Z',
     updatedAt: '2024-01-16T12:00:00Z',
     lastHealthCheck: '2024-01-17T08:30:00Z',
-  };
-
-  const mockCredentials = {
-    accessToken: 'gho_1234567890abcdefghijklmnopqrstuvwxyz1234',
-    refreshToken: 'ghr_abcdefghijklmnopqrstuvwxyz1234567890',
-    expiresAt: '2024-02-15T10:00:00Z',
-    scopes: ['repo', 'user', 'workflow'],
-    metadata: {
-      installationId: '12345',
-      permissions: { contents: 'read' },
-    },
   };
 
   beforeEach(() => {
@@ -109,240 +97,19 @@ describe('ConnectionDetailModal', () => {
   });
 
   describe('Credentials Section', () => {
-    it('shows "Show Credentials" button by default', () => {
+    it('never requests or renders credential material', async () => {
       render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
 
-      expect(screen.getByRole('button', { name: /Show Credentials/i })).toBeInTheDocument();
-    });
-
-    it('does not display credentials section by default', () => {
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
+      expect(screen.queryByRole('button', { name: /Show Credentials/i })).not.toBeInTheDocument();
       expect(screen.queryByText('Access Token')).not.toBeInTheDocument();
-      expect(screen.queryByText('Loading credentials...')).not.toBeInTheDocument();
-    });
-
-    it('fetches and displays credentials when "Show Credentials" is clicked', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      // Wait for credentials to load
-      await waitFor(() => {
-        expect(screen.getByText('Access Token')).toBeInTheDocument();
-      });
-    });
-
-    it('changes button text to "Hide Credentials" when shown', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Hide Credentials/i })).toBeInTheDocument();
-      });
-    });
-
-    it('hides credentials when "Hide Credentials" is clicked', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      // Show credentials
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Access Token')).toBeInTheDocument();
-      });
-
-      // Hide credentials
-      const hideButton = screen.getByRole('button', { name: /Hide Credentials/i });
-      await user.click(hideButton);
-
-      await waitFor(() => {
-        expect(screen.queryByText('Access Token')).not.toBeInTheDocument();
-      });
-    });
-
-    it('calls API with correct endpoint when fetching credentials', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(apiModule.api.get).toHaveBeenCalledWith(
-          '/users/user-456/connections/github/credentials'
-        );
-      });
-    });
-  });
-
-  describe('Token Masking', () => {
-    it('masks access token showing first 4 and last 4 characters', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('gho_••••••••1234')).toBeInTheDocument();
-      });
-    });
-
-    it('masks refresh token showing first 4 and last 4 characters', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('ghr_••••••••7890')).toBeInTheDocument();
-      });
-    });
-
-    it('masks short tokens with all bullets', async () => {
-      const user = userEvent.setup();
-      const shortTokenCreds = {
-        ...mockCredentials,
-        accessToken: 'short',
-      };
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(shortTokenCreds);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('••••••••')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Credentials Fields Display', () => {
-    it('displays all credential fields when available', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Access Token')).toBeInTheDocument();
-        expect(screen.getByText('Refresh Token')).toBeInTheDocument();
-        expect(screen.getByText('Expires At')).toBeInTheDocument();
-        expect(screen.getByText('Scopes')).toBeInTheDocument();
-        expect(screen.getByText('Metadata')).toBeInTheDocument();
-      });
-    });
-
-    it('displays scopes as pills', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('repo')).toBeInTheDocument();
-        expect(screen.getByText('user')).toBeInTheDocument();
-        expect(screen.getByText('workflow')).toBeInTheDocument();
-      });
-    });
-
-    it('displays metadata as formatted JSON', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Metadata')).toBeInTheDocument();
-        // Check that metadata values are present
-        expect(screen.getByText(/"installationId"/i)).toBeInTheDocument();
-      });
-    });
-
-    it('does not display fields that are not present', async () => {
-      const user = userEvent.setup();
-      const minimalCreds = {
-        accessToken: 'token123',
-      };
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(minimalCreds);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Access Token')).toBeInTheDocument();
-        expect(screen.queryByText('Refresh Token')).not.toBeInTheDocument();
-        expect(screen.queryByText('Expires At')).not.toBeInTheDocument();
-        expect(screen.queryByText('Scopes')).not.toBeInTheDocument();
-        expect(screen.queryByText('Metadata')).not.toBeInTheDocument();
-      });
-    });
-
-    it('displays "No credentials available" when credentials are null', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(null);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('No credentials available')).toBeInTheDocument();
-      });
-    });
-
-    it('formats expiration date correctly', async () => {
-      const user = userEvent.setup();
-      vi.mocked(apiModule.api.get).mockResolvedValueOnce(mockCredentials);
-
-      render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
-
-      const showButton = screen.getByRole('button', { name: /Show Credentials/i });
-      await user.click(showButton);
-
-      await waitFor(() => {
-        const formattedDate = new Date('2024-02-15T10:00:00Z').toLocaleString();
-        expect(screen.getByText(formattedDate)).toBeInTheDocument();
-      });
+      expect(screen.getByText(/credentials are only issued to scoped server-side API keys/i)).toBeInTheDocument();
+      await waitFor(() => expect(apiModule.api.get).not.toHaveBeenCalled());
     });
   });
 
   describe('Modal Interactions', () => {
     it('calls onClose when close button (X) is clicked', async () => {
+      const userEvent = (await import('@testing-library/user-event')).default;
       const user = userEvent.setup();
       render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
 
@@ -356,6 +123,7 @@ describe('ConnectionDetailModal', () => {
     });
 
     it('calls onClose when "Close" button at bottom is clicked', async () => {
+      const userEvent = (await import('@testing-library/user-event')).default;
       const user = userEvent.setup();
       render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
 

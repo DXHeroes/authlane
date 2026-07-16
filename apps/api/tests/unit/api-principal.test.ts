@@ -4,17 +4,17 @@ import { hasRequiredScope, normalizeApiScopes } from '../../src/lib/api-principa
 describe('API principal scopes', () => {
   it('accepts only known scopes', () => {
     expect(
-      normalizeApiScopes(['catalog:read', 'credentials:read', 'tools:execute', 'unknown'])
-    ).toEqual(['catalog:read', 'credentials:read']);
+      normalizeApiScopes(['catalog:read', 'credentials:issue', 'tools:execute', 'unknown'])
+    ).toEqual(['catalog:read', 'credentials:issue']);
   });
 
-  it('allows a dashboard session to use every control-plane route', () => {
+  it('does not grant machine scopes to a dashboard session', () => {
     expect(
       hasRequiredScope(
         { kind: 'session', organizationId: 'org_1', apiKeyId: null, scopes: [] },
-        'credentials:read'
+        'credentials:issue'
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('requires an explicit scope for an API key', () => {
@@ -26,6 +26,6 @@ describe('API principal scopes', () => {
     };
 
     expect(hasRequiredScope(principal, 'connections:read')).toBe(true);
-    expect(hasRequiredScope(principal, 'credentials:read')).toBe(false);
+    expect(hasRequiredScope(principal, 'credentials:issue')).toBe(false);
   });
 });

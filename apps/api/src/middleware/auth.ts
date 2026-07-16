@@ -7,15 +7,8 @@ import type { Context, Next } from 'hono';
 import { type ApiPrincipal, normalizeApiScopes } from '../lib/api-principal.js';
 import type { Auth } from '../lib/auth.js';
 
-export interface PrincipalCache {
-  get(keyHash: string): Promise<ApiPrincipal | null | undefined>;
-  set(keyHash: string, principal: ApiPrincipal | null, ttlSeconds: number): Promise<void>;
-}
-
 interface AuthMiddlewareOptions {
   now?: () => Date;
-  principalCache?: PrincipalCache;
-  principalCacheTtlSeconds?: number;
 }
 
 function extractApiKey(c: Context): string | null {
@@ -47,7 +40,6 @@ async function findApiKeyPrincipal(
 
 export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewareOptions = {}) {
   const now = options.now ?? (() => new Date());
-  const cacheTtl = options.principalCacheTtlSeconds ?? 300;
 
   return async (c: Context, next: Next) => {
     const path = c.req.path;
@@ -93,11 +85,7 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
     }
 
     const keyHash = hashApiKey(rawApiKey);
-    let principal = await options.principalCache?.get(keyHash);
-    if (principal === undefined) {
-      principal = await findApiKeyPrincipal(db, keyHash, now());
-      await options.principalCache?.set(keyHash, principal, cacheTtl);
-    }
+    const principal = await findApiKeyPrincipal(db, keyHash, now());
 
     if (!principal) {
       return c.json(Errors.unauthorized('Invalid, disabled, or expired API key'), 401);

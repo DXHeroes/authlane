@@ -11,6 +11,7 @@ import {
   DrizzleControlPlaneRepository,
 } from '../lib/control-plane-repository.js';
 import { integrationRegistry } from '../lib/integration-registry.js';
+import { requirePrincipalKind } from '../middleware/principal-kind.js';
 import { createControlPlaneRouter } from './control-plane.js';
 import { createDashboardRouter } from './dashboard.js';
 import { createOAuthRouter } from './oauth.js';
@@ -20,13 +21,14 @@ export function createApiRouter(db: Database, cache: CacheStore = new MemoryCach
   const router = new Hono();
   const repository = new CachedControlPlaneRepository(new DrizzleControlPlaneRepository(db), cache);
 
-  // Dashboard routes (tenant-specific)
-  router.route('/dashboard', createDashboardRouter(db, cache));
-  router.route('/', createDashboardRouter(db, cache)); // Also mount at root for /connections
+  const dashboard = new Hono();
+  dashboard.use('*', requirePrincipalKind('session'));
+  dashboard.route('/services', createServicesRouter(db));
+  dashboard.route('/', createDashboardRouter(db, cache));
+  router.route('/dashboard', dashboard);
 
-  // Services routes
-  router.route('/services', createServicesRouter(db));
-
+  router.use('/catalog/*', requirePrincipalKind('api_key'));
+  router.use('/users/*', requirePrincipalKind('api_key'));
   router.route('/', createControlPlaneRouter(repository, integrationRegistry));
   router.route('/', createOAuthRouter(db));
 

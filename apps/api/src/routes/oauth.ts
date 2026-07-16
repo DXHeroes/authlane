@@ -97,7 +97,7 @@ function parseAllowedOrigin(value: string): string | null {
 export function createOAuthRouter(db: Database) {
   const router = new Hono();
 
-  router.post('/connect-sessions', requireScope('connect-sessions:write'), async (c) => {
+  router.post('/connect-sessions', requireScope('connect-sessions:create'), async (c) => {
     let body: ConnectSessionBody;
     try {
       body = await c.req.json();

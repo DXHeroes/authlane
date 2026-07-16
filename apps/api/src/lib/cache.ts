@@ -1,6 +1,4 @@
 import type Redis from 'ioredis';
-import type { PrincipalCache } from '../middleware/auth.js';
-import type { ApiPrincipal } from './api-principal.js';
 
 export interface CacheStore {
   get<T>(key: string): Promise<T | undefined>;
@@ -54,17 +52,5 @@ export class RedisCacheStore implements CacheStore {
 
   async delete(key: string): Promise<void> {
     await this.redis.del(key);
-  }
-}
-
-export class CachePrincipalStore implements PrincipalCache {
-  constructor(private readonly cache: CacheStore) {}
-
-  get(keyHash: string): Promise<ApiPrincipal | null | undefined> {
-    return this.cache.get<ApiPrincipal | null>(`control-plane:principal:${keyHash}`);
-  }
-
-  set(keyHash: string, principal: ApiPrincipal | null, ttlSeconds: number): Promise<void> {
-    return this.cache.set(`control-plane:principal:${keyHash}`, principal, ttlSeconds);
   }
 }

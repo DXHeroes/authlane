@@ -1,9 +1,7 @@
-import { decrypt, getEncryptionKey } from '@authlane/crypto';
-import type { ConnectionStatus, CredentialMaterial, ToolFormat } from '@authlane/shared';
+import type { ConnectionStatus, ToolFormat } from '@authlane/shared';
 import {
   Errors,
   getEffectiveConnectionStatus,
-  isValidServiceId,
   isValidUserId,
 } from '@authlane/shared';
 import { Hono } from 'hono';
@@ -93,41 +91,6 @@ function connectionView(
     lastCheckedAt: connection?.lastCheckedAt?.toISOString() ?? null,
     errorCode: connection?.lastErrorCode ?? null,
   };
-}
-
-function exposeCredentials(value: unknown): CredentialMaterial | null {
-  if (!value || typeof value !== 'object') return null;
-  const credential = value as Record<string, unknown>;
-
-  if (typeof credential.access_token === 'string') {
-    return {
-      type: 'oauth2',
-      accessToken: credential.access_token,
-      tokenType: typeof credential.token_type === 'string' ? credential.token_type : 'Bearer',
-      scopes:
-        typeof credential.scope === 'string' ? credential.scope.split(/\s+/).filter(Boolean) : [],
-      expiresAt: typeof credential.expires_at === 'string' ? credential.expires_at : null,
-    };
-  }
-
-  if (typeof credential.api_key === 'string') {
-    return {
-      type: 'api_key',
-      apiKey: credential.api_key,
-      ...(typeof credential.api_secret === 'string' ? { apiSecret: credential.api_secret } : {}),
-    };
-  }
-
-  if (credential.headers && typeof credential.headers === 'object') {
-    const headers = Object.fromEntries(
-      Object.entries(credential.headers as Record<string, unknown>).filter(
-        (entry): entry is [string, string] => typeof entry[1] === 'string'
-      )
-    );
-    return { type: 'header', headers };
-  }
-
-  return null;
 }
 
 export function createControlPlaneRouter(
@@ -251,57 +214,6 @@ export function createControlPlaneRouter(
     ]);
     return c.json({ data: { ...definitions, version }, error: null });
   });
-
-  router.get(
-    '/users/:externalUserId/connections/:serviceId/credentials',
-    requireScope('credentials:read'),
-    async (c) => {
-      c.header('Cache-Control', 'no-store');
-      c.header('Pragma', 'no-cache');
-      const externalUserId = c.req.param('externalUserId');
-      const serviceId = c.req.param('serviceId');
-      if (!isValidUserId(externalUserId) || !isValidServiceId(serviceId)) {
-        return c.json(Errors.validationError('Invalid external user ID or service ID'), 400);
-      }
-
-      const principal = c.get('principal');
-      const connection = await repository.getConnection(
-        principal.organizationId,
-        externalUserId,
-        serviceId
-      );
-      const effectiveStatus = getEffectiveConnectionStatus(
-        connection
-          ? {
-              status: connection.status,
-              hasCredentials: Boolean(connection.credentialsEnc),
-              expiresAt: connection.expiresAt,
-            }
-          : null,
-        now()
-      );
-      if (!connection || effectiveStatus !== 'connected' || !connection.credentialsEnc) {
-        return c.json(Errors.connectionNotConnected(`${serviceId} is ${effectiveStatus}`), 409);
-      }
-
-      const exposed = exposeCredentials(
-        JSON.parse(decrypt(connection.credentialsEnc, getEncryptionKey()))
-      );
-      if (!exposed) {
-        return c.json(Errors.encryptionError('Unsupported credential material'), 500);
-      }
-
-      await repository.auditCredentialAccess({
-        organizationId: principal.organizationId,
-        externalUserId,
-        serviceId,
-        apiKeyId: principal.apiKeyId,
-        ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? null,
-        userAgent: c.req.header('user-agent') ?? null,
-      });
-      return c.json({ data: exposed, error: null });
-    }
-  );
 
   return router;
 }

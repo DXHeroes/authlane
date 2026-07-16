@@ -29,6 +29,7 @@ export const ErrorCodes = {
   UNAUTHORIZED: 'UNAUTHORIZED',
   INVALID_API_KEY: 'INVALID_API_KEY',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  INSUFFICIENT_SCOPE: 'INSUFFICIENT_SCOPE',
 
   // Not found errors
   NOT_FOUND: 'NOT_FOUND',
@@ -66,6 +67,13 @@ export const Errors = {
     createError('Unauthorized', ErrorCodes.UNAUTHORIZED, {
       hint: hint || 'Check your API key',
       statusCode: 401,
+      docUrl: 'https://docs.authlane.dev/authentication',
+    }),
+
+  insufficientScope: (hint?: string): AuthlaneError =>
+    createError('Forbidden', ErrorCodes.INSUFFICIENT_SCOPE, {
+      hint: hint || 'Use credentials with the required authorization scope',
+      statusCode: 403,
       docUrl: 'https://docs.authlane.dev/authentication',
     }),
 

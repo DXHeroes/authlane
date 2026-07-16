@@ -52,7 +52,7 @@ describe('API key authentication', () => {
       id: 'key_1',
       organizationId: 'org_1',
       keyHash: hashApiKey(rawKey),
-      scopes: ['connections:read', 'credentials:read'],
+      scopes: ['connections:read', 'credentials:issue'],
       enabled: true,
       expiresAt: null,
     });
@@ -69,7 +69,7 @@ describe('API key authentication', () => {
       kind: 'api_key',
       organizationId: 'org_1',
       apiKeyId: 'key_1',
-      scopes: ['connections:read', 'credentials:read'],
+      scopes: ['connections:read', 'credentials:issue'],
     });
   });
 
@@ -90,5 +90,37 @@ describe('API key authentication', () => {
     });
 
     expect(response.status).toBe(401);
+  });
+
+  it('rechecks key revocation in PostgreSQL on every request', async () => {
+    const rawKey = 'ak_live_revocable';
+    const row = {
+      id: 'key_1',
+      organizationId: 'org_1',
+      keyHash: hashApiKey(rawKey),
+      scopes: ['connections:read'],
+      enabled: true,
+      expiresAt: null,
+    };
+    const limit = vi.fn().mockResolvedValueOnce([row]).mockResolvedValueOnce([]);
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({ where: vi.fn(() => ({ limit })) })),
+      })),
+    } as never;
+    const app = new Hono();
+    app.use('*', authMiddleware(db));
+    app.get('/', (c) => c.json(c.get('principal')));
+
+    const first = await app.request('/', {
+      headers: { authorization: `Bearer ${rawKey}` },
+    });
+    const afterRevocation = await app.request('/', {
+      headers: { authorization: `Bearer ${rawKey}` },
+    });
+
+    expect(first.status).toBe(200);
+    expect(afterRevocation.status).toBe(401);
+    expect(limit).toHaveBeenCalledTimes(2);
   });
 });

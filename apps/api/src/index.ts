@@ -42,7 +42,6 @@ import Redis from 'ioredis';
 import { setupJobs } from './jobs/setup.js';
 import { createAuth } from './lib/auth.js';
 import {
-  CachePrincipalStore,
   type CacheStore,
   MemoryCacheStore,
   RedisCacheStore,
@@ -145,9 +144,7 @@ export function createApp(
   // API routes (require authentication and rate limiting)
   app.use(
     '/api/v1/*',
-    authMiddleware(db, auth, {
-      principalCache: new CachePrincipalStore(cacheStore),
-    })
+    authMiddleware(db, auth)
   );
   app.use(
     '/api/v1/*',

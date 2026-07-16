@@ -23,7 +23,7 @@ export interface AuthlaneError {
 /**
  * Connection status
  */
-export type ConnectionStatus = 'pending' | 'connected' | 'expired' | 'error';
+export type ConnectionStatus = 'disconnected' | 'pending' | 'connected' | 'expired' | 'error';
 
 /**
  * Authentication type for services
@@ -44,6 +44,7 @@ export interface OAuth2Credentials {
   expires_at?: string; // ISO 8601 timestamp
   token_type?: string;
   scope?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -58,6 +59,82 @@ export interface ApiKeyCredentials {
  * Generic credentials (union type)
  */
 export type Credentials = OAuth2Credentials | ApiKeyCredentials;
+
+export type CredentialMaterial =
+  | {
+      type: 'oauth2';
+      accessToken: string;
+      tokenType: string;
+      scopes: string[];
+      expiresAt: string | null;
+    }
+  | {
+      type: 'api_key';
+      apiKey: string;
+      apiSecret?: string;
+    }
+  | {
+      type: 'header';
+      headers: Record<string, string>;
+    };
+
+export interface JsonSchema {
+  type: 'object';
+  properties: Record<string, unknown>;
+  required?: string[];
+  [key: string]: unknown;
+}
+
+export interface CanonicalToolDefinition {
+  name: string;
+  serviceId: string;
+  description: string;
+  inputSchema: JsonSchema;
+  annotations?: Record<string, unknown>;
+}
+
+export interface ToolHandler {
+  definition: Omit<CanonicalToolDefinition, 'serviceId'>;
+  handler: (params: Record<string, unknown>, credentials: OAuth2Credentials) => Promise<unknown>;
+}
+
+export interface McpToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+  annotations?: Record<string, unknown>;
+}
+
+export interface OpenAiToolDefinition {
+  name: string;
+  description: string;
+  parameters: JsonSchema;
+}
+
+export interface ServiceCapability {
+  serviceId: string;
+  status: ConnectionStatus;
+  connected: boolean;
+  expiresAt: string | null;
+  tools: McpToolDefinition[] | OpenAiToolDefinition[];
+}
+
+export interface CapabilitiesResponse {
+  externalUserId: string;
+  version: string;
+  format: ToolFormat;
+  services: ServiceCapability[];
+}
+
+export interface IntegrationAdapter {
+  serviceId: string;
+  definitions: CanonicalToolDefinition[];
+  execute(
+    toolName: string,
+    input: Record<string, unknown>,
+    credential: CredentialMaterial
+  ): Promise<Result<unknown>>;
+}
 
 /**
  * Connection metadata
@@ -75,7 +152,3 @@ export interface ServiceConfig {
   scopes?: string[];
   [key: string]: unknown;
 }
-
-
-
-

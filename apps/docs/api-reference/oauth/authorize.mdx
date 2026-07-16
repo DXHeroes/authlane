@@ -1,26 +1,6 @@
 ---
-title: 'Authorize'
-api: 'GET /api/v1/oauth/authorize'
-description: 'Start OAuth flow'
+title: 'Authorize a service'
+api: 'POST /api/v1/connect/{serviceId}/authorize'
 ---
 
-## Request
-
-```bash
-curl -X GET https://api.authlane.com/api/v1/oauth/authorize \
-  -H "Authorization: Bearer sk_live_..."
-```
-
-## Response
-
-See [API Reference](/api-reference/introduction) for response format.
-
-## Example
-
-```json
-{
-  "data": {
-    // Response data
-  }
-}
-```
+Starts PKCE OAuth from a valid connect session. The hosted connect UI calls this endpoint; a SaaS API key is not accepted from the browser.

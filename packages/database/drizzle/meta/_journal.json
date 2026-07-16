@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1764324227337,
-      "tag": "0000_polite_rawhide_kid",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1764371924172,
-      "tag": "0001_polite_bloodaxe",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1765572878373,
-      "tag": "0002_dusty_carlie_cooper",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1765619324856,
-      "tag": "0003_old_metal_master",
+      "when": 1784181865103,
+      "tag": "0000_milky_bishop",
       "breakpoints": true
     }
   ]

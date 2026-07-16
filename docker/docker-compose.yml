@@ -1,5 +1,6 @@
-version: '3.8'
+name: authlane-infrastructure
 
+# Development-only infrastructure. Run the application with `pnpm dev`.
 services:
   postgres:
     image: postgres:16-alpine
@@ -12,10 +13,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U authlane']
+      test: ['CMD-SHELL', 'pg_isready -U authlane -d authlane']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -27,22 +28,8 @@ services:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
 volumes:
   postgres_data:
   redis_data:
-
-
-
-
-
-
-
-
-
-
-
-
-
-

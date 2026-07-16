@@ -23,12 +23,13 @@
     ]
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=@authlane/api --filter=@authlane/dashboard --filter=@authlane/widget",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "test:performance": "node scripts/benchmark-hot-read.mjs",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",

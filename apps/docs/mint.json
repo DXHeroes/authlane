@@ -63,7 +63,7 @@
     },
     {
       "group": "SDK",
-      "pages": ["sdk/typescript", "sdk/react", "sdk/mcp-server"]
+      "pages": ["sdk/typescript", "sdk/react"]
     },
     {
       "group": "API Documentation",
@@ -74,10 +74,9 @@
       "pages": [
         "api-reference/services/list-services",
         "api-reference/connections/list-connections",
-        "api-reference/connections/get-connection",
+        "api-reference/connections/capabilities",
         "api-reference/connections/get-credentials",
-        "api-reference/connections/health-check",
-        "api-reference/connections/delete-connection",
+        "api-reference/connections/create-connect-session",
         "api-reference/oauth/authorize",
         "api-reference/oauth/callback",
         "api-reference/tools/list-tools"

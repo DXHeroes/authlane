@@ -3,7 +3,7 @@
  * High-level functions for sending different types of emails
  */
 
-import { getEmailClient, getEmailConfig } from './client';
+import { getEmailClient, getEmailConfig } from './client.js';
 import {
   EmailVerification,
   type EmailVerificationProps,
@@ -13,7 +13,7 @@ import {
   type PasswordResetProps,
   WelcomeEmail,
   type WelcomeEmailProps,
-} from './templates';
+} from './templates/index.js';
 
 /**
  * Result type for email operations
@@ -156,7 +156,3 @@ export async function sendWelcomeEmail(to: string, props: WelcomeEmailProps): Pr
     return { success: false, error: errorMessage };
   }
 }
-
-
-
-

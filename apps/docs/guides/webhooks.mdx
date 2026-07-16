@@ -1,434 +1,63 @@
 ---
 title: 'Webhooks'
-description: 'Get real-time notifications for connection events'
+description: 'Receive signed connection lifecycle events'
 ---
 
-## Overview
+Configure the webhook URL and secret in the Authlane organization settings. Delivery uses a transactional outbox with exponential retry and an idempotency key.
 
-Webhooks allow you to receive real-time notifications when events occur in Authlane, such as new connections, token refresh failures, or connection errors.
+## Events
 
-## Supported Events
+| Event | Meaning |
+|---|---|
+| `connection.connected` | OAuth completed and credentials were stored |
+| `connection.disconnected` | The end-user disconnected the service |
+| `connection.expired` | The access credential passed its expiry time |
+| `connection.refreshed` | Authlane refreshed the internal OAuth credential |
+| `connection.error` | Refresh failed and the connection needs attention |
 
-| Event | Description | Trigger |
-|-------|-------------|---------|
-| `connection.created` | New OAuth connection established | User completes OAuth flow |
-| `connection.updated` | Connection credentials updated | Token refresh succeeds |
-| `connection.deleted` | Connection removed | User disconnects service |
-| `connection.failed` | Connection error occurred | OAuth flow fails |
-| `token.refresh.succeeded` | Token refreshed successfully | Background refresh job completes |
-| `token.refresh.failed` | Token refresh failed | Refresh token expired/revoked |
-| `connection.health.warning` | Connection health degraded | API requests failing |
-
-## Setup
-
-### 1. Configure Webhook URL
-
-```bash
-curl -X POST https://api.authlane.com/api/v1/admin/webhooks \
-  -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenantId": "tenant_123",
-    "url": "https://yourapp.com/webhooks/authlane",
-    "events": [
-      "connection.created",
-      "connection.failed",
-      "token.refresh.failed"
-    ],
-    "secret": "whsec_...",
-    "enabled": true
-  }'
-```
-
-### 2. Implement Webhook Handler
-
-<CodeGroup>
-
-```typescript Express.js
-import express from 'express';
-import crypto from 'crypto';
-
-const app = express();
-app.use(express.raw({ type: 'application/json' }));
-
-app.post('/webhooks/authlane', (req, res) => {
-  const signature = req.headers['x-authlane-signature'] as string;
-  const payload = req.body.toString();
-
-  // Verify signature
-  if (!verifySignature(payload, signature, process.env.WEBHOOK_SECRET!)) {
-    return res.status(401).send('Invalid signature');
-  }
-
-  // Parse event
-  const event = JSON.parse(payload);
-
-  // Handle event
-  handleWebhookEvent(event);
-
-  // Acknowledge receipt
-  res.status(200).send('OK');
-});
-
-function verifySignature(payload: string, signature: string, secret: string): boolean {
-  const hmac = crypto.createHmac('sha256', secret);
-  const expected = hmac.update(payload).digest('hex');
-  return `sha256=${expected}` === signature;
-}
-
-function handleWebhookEvent(event: any) {
-  switch (event.type) {
-    case 'connection.created':
-      console.log(`New connection: ${event.data.serviceId} for ${event.data.userId}`);
-      break;
-    case 'token.refresh.failed':
-      console.log(`Token refresh failed for ${event.data.userId}/${event.data.serviceId}`);
-      // Notify user to reconnect
-      break;
-    default:
-      console.log('Unhandled event:', event.type);
-  }
-}
-```
-
-```typescript Next.js
-// app/api/webhooks/authlane/route.ts
-import { NextRequest } from 'next/server';
-import crypto from 'crypto';
-
-export async function POST(request: NextRequest) {
-  const signature = request.headers.get('x-authlane-signature');
-  const payload = await request.text();
-
-  // Verify signature
-  if (!verifySignature(payload, signature!, process.env.WEBHOOK_SECRET!)) {
-    return new Response('Invalid signature', { status: 401 });
-  }
-
-  // Parse event
-  const event = JSON.parse(payload);
-
-  // Handle event
-  await handleWebhookEvent(event);
-
-  return new Response('OK', { status: 200 });
-}
-
-function verifySignature(payload: string, signature: string, secret: string): boolean {
-  const hmac = crypto.createHmac('sha256', secret);
-  const expected = hmac.update(payload).digest('hex');
-  return `sha256=${expected}` === signature;
-}
-
-async function handleWebhookEvent(event: any) {
-  switch (event.type) {
-    case 'connection.created':
-      // Send notification to user
-      await sendEmail({
-        to: event.data.userEmail,
-        subject: 'Connection Successful',
-        body: `You've successfully connected ${event.data.serviceId}`,
-      });
-      break;
-    case 'token.refresh.failed':
-      // Alert user to reconnect
-      await sendEmail({
-        to: event.data.userEmail,
-        subject: 'Please Reconnect',
-        body: `Your ${event.data.serviceId} connection needs to be reconnected`,
-      });
-      break;
-  }
-}
-```
-
-</CodeGroup>
-
-## Event Payloads
-
-### connection.created
+Every payload identifies the tenant-owned user as `externalUserId`:
 
 ```json
 {
   "id": "evt_abc123",
-  "type": "connection.created",
-  "createdAt": "2025-11-27T10:00:00.000Z",
+  "type": "connection.connected",
+  "createdAt": "2026-07-16T10:00:00.000Z",
   "data": {
-    "userId": "user_123",
+    "externalUserId": "user_123",
     "serviceId": "github",
-    "connectionId": "conn_xyz",
-    "scopes": ["repo", "user:email"],
-    "metadata": {
-      "username": "johndoe"
-    }
+    "connectionId": "conn_xyz"
   }
 }
 ```
 
-### connection.failed
+## Verify the signature
 
-```json
-{
-  "id": "evt_def456",
-  "type": "connection.failed",
-  "createdAt": "2025-11-27T10:05:00.000Z",
-  "data": {
-    "userId": "user_123",
-    "serviceId": "slack",
-    "error": "access_denied",
-    "errorDescription": "User denied authorization"
-  }
-}
-```
-
-### token.refresh.failed
-
-```json
-{
-  "id": "evt_ghi789",
-  "type": "token.refresh.failed",
-  "createdAt": "2025-11-27T10:10:00.000Z",
-  "data": {
-    "userId": "user_123",
-    "serviceId": "github",
-    "connectionId": "conn_xyz",
-    "error": "invalid_grant",
-    "errorDescription": "Refresh token expired",
-    "lastSuccessfulRefresh": "2025-11-20T10:00:00.000Z"
-  }
-}
-```
-
-## Signature Verification
-
-All webhooks include an `X-Authlane-Signature` header:
-
-```
-X-Authlane-Signature: sha256=5d41402abc4b2a76b9719d911017c592
-```
-
-Verify signatures to ensure webhooks are from Authlane:
+Authlane signs the exact string `<timestamp>.<raw-body>` with HMAC-SHA256. Verify the raw request bytes before parsing JSON:
 
 ```typescript
-import crypto from 'crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
-function verifySignature(
-  payload: string,
+function verifyAuthlaneWebhook(
+  rawBody: string,
+  timestamp: string,
   signature: string,
-  secret: string
+  secret: string,
 ): boolean {
-  const hmac = crypto.createHmac('sha256', secret);
-  const expected = hmac.update(payload).digest('hex');
-  return crypto.timingSafeEqual(
-    Buffer.from(`sha256=${expected}`),
-    Buffer.from(signature)
-  );
+  const expected = createHmac('sha256', secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest('hex');
+  const receivedBuffer = Buffer.from(signature, 'hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  return receivedBuffer.length === expectedBuffer.length
+    && timingSafeEqual(receivedBuffer, expectedBuffer);
 }
 ```
 
-<Warning>
-  Always verify webhook signatures to prevent spoofing attacks!
-</Warning>
+Read these headers:
 
-## Best Practices
+- `X-Authlane-Signature` — lower-case hexadecimal HMAC
+- `X-Authlane-Timestamp` — Unix timestamp used in the signature
+- `X-Authlane-Event` — event type
+- `Idempotency-Key` — stable event ID across retries
 
-### Acknowledge Quickly
-
-Return `200 OK` immediately, process asynchronously:
-
-```typescript
-app.post('/webhooks/authlane', async (req, res) => {
-  // Verify signature
-  if (!verifySignature(req.body, req.headers['x-authlane-signature'], secret)) {
-    return res.status(401).send('Invalid signature');
-  }
-
-  // Acknowledge immediately
-  res.status(200).send('OK');
-
-  // Process asynchronously
-  processWebhookAsync(JSON.parse(req.body));
-});
-
-async function processWebhookAsync(event: any) {
-  // Long-running operations here
-  await database.insert(webhookEvents).values(event);
-  await notifyUser(event);
-}
-```
-
-### Handle Retries
-
-Authlane retries failed webhooks with exponential backoff:
-
-- **Retry 1**: After 5 seconds
-- **Retry 2**: After 30 seconds
-- **Retry 3**: After 5 minutes
-- **Retry 4**: After 30 minutes
-- **Retry 5**: After 2 hours
-
-Make your handler idempotent:
-
-```typescript
-async function handleWebhookEvent(event: any) {
-  // Check if already processed
-  const existing = await db.query.processedEvents.findFirst({
-    where: eq(processedEvents.eventId, event.id),
-  });
-
-  if (existing) {
-    console.log('Event already processed:', event.id);
-    return;
-  }
-
-  // Process event
-  await processEvent(event);
-
-  // Mark as processed
-  await db.insert(processedEvents).values({
-    eventId: event.id,
-    processedAt: new Date(),
-  });
-}
-```
-
-### Monitor Webhook Health
-
-Track webhook delivery success:
-
-```typescript
-const webhookStats = {
-  total: 0,
-  successful: 0,
-  failed: 0,
-};
-
-app.post('/webhooks/authlane', async (req, res) => {
-  webhookStats.total++;
-
-  try {
-    await handleWebhookEvent(JSON.parse(req.body));
-    webhookStats.successful++;
-    res.status(200).send('OK');
-  } catch (error) {
-    webhookStats.failed++;
-    console.error('Webhook processing failed:', error);
-    res.status(500).send('Internal error');
-  }
-});
-
-// Expose metrics
-app.get('/metrics/webhooks', (req, res) => {
-  res.json({
-    ...webhookStats,
-    successRate: webhookStats.successful / webhookStats.total,
-  });
-});
-```
-
-## Testing Webhooks
-
-### Local Testing with ngrok
-
-```bash
-# Install ngrok
-brew install ngrok  # macOS
-# or download from https://ngrok.com
-
-# Start your local server
-npm run dev
-
-# Create tunnel
-ngrok http 3000
-
-# Use ngrok URL as webhook URL
-# Example: https://abc123.ngrok.io/webhooks/authlane
-```
-
-### Manual Trigger
-
-Trigger test webhooks from dashboard or API:
-
-```bash
-curl -X POST https://api.authlane.com/api/v1/admin/webhooks/test \
-  -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "webhookId": "wh_123",
-    "eventType": "connection.created"
-  }'
-```
-
-## Troubleshooting
-
-<AccordionGroup>
-  <Accordion title="Webhook not received">
-    **Possible causes:**
-    - Firewall blocking incoming requests
-    - Invalid webhook URL
-    - Webhook disabled in settings
-    - Event type not subscribed
-
-    **Solutions:**
-    - Check webhook configuration in dashboard
-    - Verify URL is publicly accessible
-    - Check webhook logs for errors
-  </Accordion>
-
-  <Accordion title="Signature verification fails">
-    **Possible causes:**
-    - Wrong webhook secret
-    - Body parser modifying payload
-    - Charset/encoding issues
-
-    **Solutions:**
-    - Verify webhook secret matches
-    - Use `express.raw()` instead of `express.json()`
-    - Check payload is not modified before verification
-  </Accordion>
-
-  <Accordion title="Duplicate events">
-    **Possible causes:**
-    - Webhook endpoint returning non-200 status
-    - Slow response triggering retry
-    - Network issues
-
-    **Solutions:**
-    - Return 200 immediately
-    - Make handler idempotent
-    - Track processed event IDs
-  </Accordion>
-</AccordionGroup>
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card
-    title="Security Guide"
-    icon="shield"
-    href="/guides/security"
-  >
-    Secure your webhook endpoints
-  </Card>
-  <Card
-    title="API Reference"
-    icon="book"
-    href="/api-reference"
-  >
-    Explore webhook API endpoints
-  </Card>
-  <Card
-    title="TypeScript SDK"
-    icon="code"
-    href="/sdk/typescript"
-  >
-    Configure webhooks with SDK
-  </Card>
-  <Card
-    title="Examples"
-    icon="code-branch"
-    href="https://github.com/authlane/examples"
-  >
-    See webhook examples
-  </Card>
-</CardGroup>
+Reject timestamps outside a short tolerance such as five minutes, store processed idempotency keys, and return a successful response quickly. Authlane retries non-2xx responses and network failures with exponential backoff.

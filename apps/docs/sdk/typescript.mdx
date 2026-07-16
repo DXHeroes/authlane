@@ -1,447 +1,65 @@
 ---
 title: 'TypeScript SDK'
-description: 'Type-safe client library for Authlane'
+description: 'Server-side client for the Authlane control plane'
 ---
 
-## Installation
-
-<CodeGroup>
-
-```bash npm
-npm install @authlane/sdk
-```
-
-```bash pnpm
+```bash
 pnpm add @authlane/sdk
 ```
-
-```bash yarn
-yarn add @authlane/sdk
-```
-
-</CodeGroup>
-
-## Quick Start
 
 ```typescript
 import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://api.authlane.com', // or your self-hosted URL
+  baseUrl: 'https://authlane.example.com',
 });
-
-// List all connections for a user
-const { data, error } = await authlane.connections.list({
-  userId: 'user_123',
-});
-
-if (error) {
-  console.error('Error:', error.message);
-} else {
-  console.log('Connections:', data);
-}
 ```
 
-## Client Configuration
+All methods return `{ data, error }` and do not throw for API responses. Constructor configuration errors still throw. The client sends `Authorization: Bearer ak_...` and is server-only.
 
-### Authlane Constructor
+## Capabilities
 
 ```typescript
-new Authlane(options: AuthlaneOptions)
-```
-
-<ParamField path="options.apiKey" type="string" required>
-  Your Authlane API key (starts with `sk_`)
-</ParamField>
-
-<ParamField path="options.baseUrl" type="string" default="https://api.authlane.com">
-  Base URL for Authlane API
-</ParamField>
-
-<ParamField path="options.timeout" type="number" default="30000">
-  Request timeout in milliseconds
-</ParamField>
-
-<ParamField path="options.retries" type="number" default="3">
-  Number of retry attempts for failed requests
-</ParamField>
-
-### Example
-
-```typescript
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'http://localhost:3000', // Self-hosted
-  timeout: 10000, // 10 seconds
-  retries: 2,
+await authlane.capabilities.get({
+  externalUserId: 'user_123',
+  format: 'mcp', // or openai
 });
 ```
+
+Use this hot-read endpoint when building an agent request. It returns connection status and definitions in one snapshot with a stable version hash.
 
 ## Connections
 
-### List Connections
-
 ```typescript
-authlane.connections.list(params: ListConnectionsParams): Promise<Response<Connection[]>>
-```
+await authlane.connections.list({ externalUserId: 'user_123' });
 
-<ParamField path="params.userId" type="string" required>
-  User ID to list connections for
-</ParamField>
-
-<ParamField path="params.serviceId" type="string">
-  Filter by specific service (optional)
-</ParamField>
-
-```typescript
-const { data, error } = await authlane.connections.list({
-  userId: 'user_123',
-  serviceId: 'github', // optional
-});
-```
-
-### Get Connection
-
-```typescript
-authlane.connections.get(params: GetConnectionParams): Promise<Response<Connection>>
-```
-
-<ParamField path="params.userId" type="string" required>
-  User ID
-</ParamField>
-
-<ParamField path="params.serviceId" type="string" required>
-  Service ID
-</ParamField>
-
-```typescript
-const { data, error } = await authlane.connections.get({
-  userId: 'user_123',
+await authlane.connections.getCredentials({
+  externalUserId: 'user_123',
   serviceId: 'github',
 });
 ```
 
-### Get Credentials
+Credential reads require `credentials:read`, are audited, return `Cache-Control: no-store`, and never include OAuth refresh tokens.
+
+## Connect sessions
 
 ```typescript
-authlane.connections.getCredentials(params: GetCredentialsParams): Promise<Response<Credentials>>
-```
-
-<Warning>
-  Credentials are decrypted and returned in plain text. Handle with care!
-</Warning>
-
-```typescript
-const { data, error } = await authlane.connections.getCredentials({
-  userId: 'user_123',
-  serviceId: 'github',
-});
-
-// data = { access_token: 'ghp_...', refresh_token: '...', expires_at: ... }
-```
-
-### Health Check
-
-```typescript
-authlane.connections.health(params: HealthCheckParams): Promise<Response<HealthStatus>>
-```
-
-```typescript
-const { data, error } = await authlane.connections.health({
-  userId: 'user_123',
-  serviceId: 'github',
-});
-
-// data = { status: 'connected', lastRefreshed: '...', nextRefresh: '...' }
-```
-
-### Delete Connection
-
-```typescript
-authlane.connections.delete(params: DeleteConnectionParams): Promise<Response<void>>
-```
-
-```typescript
-const { error } = await authlane.connections.delete({
-  userId: 'user_123',
-  serviceId: 'github',
+await authlane.connectSessions.create({
+  externalUserId: 'user_123',
+  allowedServices: ['github'],
+  allowedOrigin: 'https://app.example.com',
+  expiresInSeconds: 600,
 });
 ```
 
-## Services
+Return only the resulting `url` to the browser.
 
-### List Services
-
-```typescript
-authlane.services.list(): Promise<Response<Service[]>>
-```
+## Services and tools
 
 ```typescript
-const { data, error } = await authlane.services.list();
-
-// data = [
-//   { id: 'github', name: 'GitHub', category: 'developer_tools', ... },
-//   { id: 'slack', name: 'Slack', category: 'communication', ... },
-// ]
+await authlane.services.list();
+await authlane.tools.list({ externalUserId: 'user_123', format: 'openai' });
 ```
 
-## OAuth
-
-### Get Authorization URL
-
-```typescript
-authlane.oauth.getAuthorizationUrl(params: AuthorizationParams): Promise<Response<string>>
-```
-
-```typescript
-const { data: authUrl, error } = await authlane.oauth.getAuthorizationUrl({
-  userId: 'user_123',
-  serviceId: 'github',
-  redirectUri: 'https://yourapp.com/oauth/callback',
-});
-
-// Redirect user to authUrl
-```
-
-### Exchange Code
-
-```typescript
-authlane.oauth.exchangeCode(params: ExchangeCodeParams): Promise<Response<Connection>>
-```
-
-```typescript
-// In your OAuth callback handler
-const { data: connection, error } = await authlane.oauth.exchangeCode({
-  code: req.query.code,
-  state: req.query.state,
-});
-```
-
-## Tools
-
-### List Tools
-
-```typescript
-authlane.tools.list(params: ListToolsParams): Promise<Response<Tool[]>>
-```
-
-<ParamField path="params.userId" type="string" required>
-  User ID
-</ParamField>
-
-<ParamField path="params.format" type="'mcp' | 'openai'" default="mcp">
-  Tool format
-</ParamField>
-
-```typescript
-const { data, error } = await authlane.tools.list({
-  userId: 'user_123',
-  format: 'mcp', // or 'openai'
-});
-```
-
-### Execute Tool
-
-```typescript
-authlane.tools.execute(params: ExecuteToolParams): Promise<Response<any>>
-```
-
-```typescript
-const { data, error } = await authlane.tools.execute({
-  userId: 'user_123',
-  serviceId: 'github',
-  toolName: 'github_create_issue',
-  parameters: {
-    owner: 'authlane',
-    repo: 'authlane',
-    title: 'Bug report',
-    body: 'Found a bug...',
-  },
-});
-```
-
-## Error Handling
-
-The SDK uses Supabase-style error handling:
-
-```typescript
-const { data, error } = await authlane.connections.get({
-  userId: 'user_123',
-  serviceId: 'github',
-});
-
-if (error) {
-  console.error('Error code:', error.code);
-  console.error('Message:', error.message);
-  console.error('Hint:', error.hint);
-  return;
-}
-
-// Use data
-console.log(data);
-```
-
-### Error Types
-
-```typescript
-interface AutoError {
-  code: string;
-  message: string;
-  hint?: string;
-  details?: Record<string, any>;
-}
-```
-
-Common error codes:
-
-- `invalid_api_key` - API key is invalid or revoked
-- `connection_not_found` - Connection doesn't exist
-- `token_expired` - Access token expired (refresh needed)
-- `rate_limit_exceeded` - Too many requests
-- `service_unavailable` - External service down
-
-## TypeScript Types
-
-```typescript
-interface Connection {
-  id: string;
-  userId: string;
-  serviceId: string;
-  tenantId: string;
-  status: 'connected' | 'expired' | 'error';
-  createdAt: string;
-  updatedAt: string;
-  lastRefreshedAt?: string;
-  expiresAt?: string;
-  metadata: Record<string, any>;
-}
-
-interface Service {
-  id: string;
-  name: string;
-  category: 'developer_tools' | 'communication' | 'productivity' | 'crm' | 'other';
-  authType: 'oauth2' | 'oauth1' | 'api_key';
-  isActive: boolean;
-  config: {
-    scopes?: string[];
-    endpoints?: Record<string, string>;
-  };
-}
-
-interface Credentials {
-  access_token: string;
-  refresh_token?: string;
-  expires_at?: number;
-  scope?: string;
-  token_type?: string;
-  [key: string]: any; // Service-specific fields
-}
-```
-
-## Advanced Usage
-
-### Custom Headers
-
-```typescript
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-  headers: {
-    'X-Custom-Header': 'value',
-  },
-});
-```
-
-### Interceptors
-
-```typescript
-authlane.onRequest((config) => {
-  console.log('Request:', config.method, config.url);
-  return config;
-});
-
-authlane.onResponse((response) => {
-  console.log('Response:', response.status);
-  return response;
-});
-
-authlane.onError((error) => {
-  console.error('Error:', error.message);
-  throw error;
-});
-```
-
-### Pagination
-
-For endpoints that return lists:
-
-```typescript
-let page = 1;
-let allConnections: Connection[] = [];
-
-while (true) {
-  const { data, error } = await authlane.connections.list({
-    userId: 'user_123',
-    page,
-    perPage: 50,
-  });
-
-  if (error) break;
-  if (!data || data.length === 0) break;
-
-  allConnections.push(...data);
-  page++;
-}
-```
-
-## Examples
-
-<CardGroup cols={2}>
-  <Card
-    title="Express.js"
-    icon="node"
-    href="https://github.com/authlane/examples/tree/main/express"
-  >
-    Full Express.js integration example
-  </Card>
-  <Card
-    title="Next.js"
-    icon="react"
-    href="https://github.com/authlane/examples/tree/main/nextjs"
-  >
-    Next.js App Router example
-  </Card>
-  <Card
-    title="Nest.js"
-    icon="node"
-    href="https://github.com/authlane/examples/tree/main/nestjs"
-  >
-    NestJS module example
-  </Card>
-  <Card
-    title="AI Agent"
-    icon="robot"
-    href="https://github.com/authlane/examples/tree/main/ai-agent"
-  >
-    LangChain + Authlane tools
-  </Card>
-</CardGroup>
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card
-    title="React Components"
-    icon="react"
-    href="/sdk/react"
-  >
-    Pre-built React UI components
-  </Card>
-  <Card
-    title="API Reference"
-    icon="book"
-    href="/api-reference"
-  >
-    Full API documentation
-  </Card>
-</CardGroup>
+Authlane returns definitions only. Execute provider tools with the matching `@authlane/integration-*` package in your own runtime.

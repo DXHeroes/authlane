@@ -34,8 +34,7 @@ apps/docs/
 │   └── webhooks.mdx
 ├── sdk/                   # SDK documentation
 │   ├── typescript.mdx
-│   ├── react.mdx
-│   └── mcp-server.mdx
+│   └── react.mdx
 ├── integrations/          # Per-integration guides
 │   ├── github.mdx
 │   ├── slack.mdx

@@ -1,423 +1,355 @@
-openapi: 3.0.0
+openapi: 3.1.0
 info:
-  title: Authlane API
-  description: OAuth and integration management platform for AI agents
+  title: Authlane Control Plane API
   version: 1.0.0
-  contact:
-    name: Authlane Support
-    email: support@authlane.com
-    url: https://authlane.com
-
+  description: Manages SaaS tenant policy, end-user connections, credentials, and tool definitions. Provider tool traffic does not pass through this API.
 servers:
-  - url: https://api.authlane.com
-    description: Production
+  - url: https://authlane.example.com
   - url: http://localhost:3000
-    description: Development
-
 security:
-  - ApiKeyAuth: []
-
+  - apiKey: []
 paths:
-  /api/v1/services:
+  /api/v1/catalog/services:
     get:
-      summary: List Services
-      description: Get all available integrations
-      operationId: listServices
-      tags:
-        - Services
+      operationId: listCatalogServices
+      summary: List enabled tenant services
+      x-authlane-scope: catalog:read
       responses:
         '200':
-          description: List of services
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Service'
-
-  /api/v1/users/{userId}/connections:
+          $ref: '#/components/responses/Services'
+  /api/v1/users/{externalUserId}/connections:
     get:
-      summary: List Connections
-      description: Get all connections for a user
       operationId: listConnections
-      tags:
-        - Connections
+      summary: List effective connection statuses
+      x-authlane-scope: connections:read
       parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: serviceId
-          in: query
-          schema:
-            type: string
+        - $ref: '#/components/parameters/ExternalUserId'
       responses:
         '200':
-          description: List of connections
+          description: Connected and disconnected service statuses
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Connection'
-
-  /api/v1/users/{userId}/connections/{serviceId}:
+                $ref: '#/components/schemas/ConnectionsResult'
+  /api/v1/users/{externalUserId}/capabilities:
     get:
-      summary: Get Connection
-      description: Get a specific connection
-      operationId: getConnection
-      tags:
-        - Connections
+      operationId: getCapabilities
+      summary: Get statuses and tool definitions in one hot-read snapshot
+      x-authlane-scope: connections:read
       parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: serviceId
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/ExternalUserId'
+        - $ref: '#/components/parameters/ToolFormat'
       responses:
         '200':
-          description: Connection details
+          description: Capability snapshot
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    $ref: '#/components/schemas/Connection'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    delete:
-      summary: Delete Connection
-      description: Remove a connection
-      operationId: deleteConnection
-      tags:
-        - Connections
+                $ref: '#/components/schemas/CapabilitiesResult'
+  /api/v1/users/{externalUserId}/tools:
+    get:
+      operationId: listTools
+      summary: List definitions for currently usable connections
+      x-authlane-scope: connections:read
       parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: serviceId
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/ExternalUserId'
+        - $ref: '#/components/parameters/ToolFormat'
       responses:
         '200':
-          description: Connection deleted
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/users/{userId}/connections/{serviceId}/credentials:
+          description: MCP tools or OpenAI functions with version hash
+  /api/v1/users/{externalUserId}/connections/{serviceId}/credentials:
     get:
-      summary: Get Credentials
-      description: Get decrypted credentials for a connection
       operationId: getCredentials
-      tags:
-        - Connections
+      summary: Get access-only credential material
+      description: Server-only, audited, no-store response. OAuth refresh tokens are never returned.
+      x-authlane-scope: credentials:read
       parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: serviceId
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/ExternalUserId'
+        - $ref: '#/components/parameters/ServiceId'
       responses:
         '200':
-          description: Decrypted credentials
+          description: Credential material
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    $ref: '#/components/schemas/Credentials'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/users/{userId}/connections/{serviceId}/health:
-    get:
-      summary: Health Check
-      description: Check connection health status
-      operationId: healthCheck
-      tags:
-        - Connections
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: serviceId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Health status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: '#/components/schemas/HealthStatus'
-
-  /api/v1/oauth/authorize:
-    get:
-      summary: Start OAuth Flow
-      description: Get OAuth authorization URL
-      operationId: authorize
-      tags:
-        - OAuth
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: service_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: redirect_uri
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Authorization URL
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      url:
-                        type: string
-                      state:
-                        type: string
-
-  /api/v1/oauth/callback:
+                $ref: '#/components/schemas/CredentialResult'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/v1/connect-sessions:
     post:
-      summary: OAuth Callback
-      description: Handle OAuth callback and exchange code for token
-      operationId: callback
-      tags:
-        - OAuth
+      operationId: createConnectSession
+      summary: Create a short-lived browser handoff
+      x-authlane-scope: connect-sessions:write
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [externalUserId, allowedServices, allowedOrigin]
               properties:
-                code:
+                externalUserId:
                   type: string
-                state:
+                allowedServices:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                allowedOrigin:
                   type: string
-              required:
-                - code
-                - state
+                  format: uri
+                expiresInSeconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 900
+                  default: 600
       responses:
-        '200':
-          description: Connection created
+        '201':
+          description: Raw token is returned once for browser handoff
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    $ref: '#/components/schemas/Connection'
-
-  /api/v1/users/{userId}/tools:
-    get:
-      summary: List Tools
-      description: Get available tools for user's connections
-      operationId: listTools
-      tags:
-        - Tools
+                $ref: '#/components/schemas/ConnectSessionResult'
+  /api/v1/connect/{serviceId}/authorize:
+    post:
+      security: []
+      operationId: authorizeConnection
+      summary: Start OAuth from a connect session
       parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: format
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectAction'
+      responses:
+        '200':
+          description: Provider authorization URL
+    delete:
+      security: []
+      operationId: disconnectService
+      summary: Disconnect through a connect session
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectAction'
+      responses:
+        '200':
+          description: Disconnect result
+  /api/v1/oauth/{serviceId}/callback:
+    get:
+      security: []
+      operationId: oauthCallback
+      summary: Validate state and exchange the provider code
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: code
           in: query
           schema:
             type: string
-            enum: [mcp, openai]
-            default: mcp
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
-        '200':
-          description: List of tools
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Tool'
-
+        '302':
+          description: Redirect to the hosted connect callback
 components:
   securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: Authorization
-      description: API key with 'Bearer ' prefix
-
+    apiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: Authlane scoped API key
+  parameters:
+    ExternalUserId:
+      name: externalUserId
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 255
+    ServiceId:
+      name: serviceId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z0-9-]+$'
+    ToolFormat:
+      name: format
+      in: query
+      schema:
+        type: string
+        enum: [mcp, openai]
+        default: mcp
   schemas:
-    Service:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        category:
-          type: string
-          enum: [developer_tools, communication, productivity, crm, other]
-        authType:
-          type: string
-          enum: [oauth2, oauth1, api_key]
-        enabled:
-          type: boolean
-        config:
-          type: object
-
-    Connection:
-      type: object
-      properties:
-        id:
-          type: string
-        userId:
-          type: string
-        serviceId:
-          type: string
-        tenantId:
-          type: string
-        status:
-          type: string
-          enum: [connected, expired, error]
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        lastRefreshedAt:
-          type: string
-          format: date-time
-        expiresAt:
-          type: string
-          format: date-time
-        metadata:
-          type: object
-
-    Credentials:
-      type: object
-      properties:
-        access_token:
-          type: string
-        refresh_token:
-          type: string
-        expires_at:
-          type: integer
-        token_type:
-          type: string
-        scope:
-          type: string
-
-    HealthStatus:
-      type: object
-      properties:
-        status:
-          type: string
-          enum: [connected, expired, error]
-        lastRefreshed:
-          type: string
-          format: date-time
-        nextRefresh:
-          type: string
-          format: date-time
-        error:
-          type: string
-
-    Tool:
-      type: object
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        inputSchema:
-          type: object
-
     Error:
       type: object
+      required: [message, code]
       properties:
-        code:
-          type: string
         message:
+          type: string
+        code:
           type: string
         hint:
           type: string
-        details:
+        docUrl:
+          type: string
+          format: uri
+    Connection:
+      type: object
+      required: [serviceId, status, connected, expiresAt]
+      properties:
+        serviceId:
+          type: string
+        status:
+          type: string
+          enum: [disconnected, pending, connected, expired, error]
+        connected:
+          type: boolean
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        connectedAt:
+          type: [string, 'null']
+          format: date-time
+        lastCheckedAt:
+          type: [string, 'null']
+          format: date-time
+        errorCode:
+          type: [string, 'null']
+    ConnectionsResult:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        error:
+          type: 'null'
+    CapabilitiesResult:
+      type: object
+      required: [data, error]
+      properties:
+        data:
           type: object
-
+          required: [externalUserId, format, version, services]
+          properties:
+            externalUserId:
+              type: string
+            format:
+              type: string
+              enum: [mcp, openai]
+            version:
+              type: string
+            services:
+              type: array
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/Connection'
+                  - type: object
+                    required: [tools]
+                    properties:
+                      tools:
+                        type: array
+                        items:
+                          type: object
+        error:
+          type: 'null'
+    CredentialResult:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          oneOf:
+            - type: object
+              required: [type, accessToken, tokenType, scopes, expiresAt]
+              properties:
+                type:
+                  const: oauth2
+                accessToken:
+                  type: string
+                tokenType:
+                  type: string
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                expiresAt:
+                  type: [string, 'null']
+            - type: object
+              required: [type, apiKey]
+              properties:
+                type:
+                  const: api_key
+                apiKey:
+                  type: string
+                apiSecret:
+                  type: string
+            - type: object
+              required: [type, headers]
+              properties:
+                type:
+                  const: header
+                headers:
+                  type: object
+                  additionalProperties:
+                    type: string
+        error:
+          type: 'null'
+    ConnectAction:
+      type: object
+      required: [connectToken, parentOrigin]
+      properties:
+        connectToken:
+          type: string
+        parentOrigin:
+          type: string
+          format: uri
+    ConnectSessionResult:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          required: [id, token, url, expiresAt]
+          properties:
+            id:
+              type: string
+            token:
+              type: string
+            url:
+              type: string
+              format: uri
+            expiresAt:
+              type: string
+              format: date-time
+        error:
+          type: 'null'
   responses:
-    NotFound:
-      description: Resource not found
+    Services:
+      description: Tenant service catalog
+    Error:
+      description: Authlane error
       content:
         application/json:
           schema:
             type: object
+            required: [data, error]
             properties:
+              data:
+                type: 'null'
               error:
                 $ref: '#/components/schemas/Error'
-
-    Unauthorized:
-      description: Unauthorized
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-
-tags:
-  - name: Services
-    description: Available integrations
-  - name: Connections
-    description: User connections
-  - name: OAuth
-    description: OAuth flows
-  - name: Tools
-    description: Integration tools

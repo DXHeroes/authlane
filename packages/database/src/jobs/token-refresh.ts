@@ -6,13 +6,12 @@
 import { decrypt, encrypt, getEncryptionKey } from '@authlane/crypto';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../client.js';
-import { connections, services } from '../schema/index.js';
+import { connections, outboxEvents, services } from '../schema/index.js';
 
 export interface TokenRefreshData {
   connectionId: string;
   serviceId: string;
-  userId?: string; // For user-scoped connections
-  organizationId?: string; // For organization-scoped connections
+  organizationId: string;
 }
 
 /**
@@ -34,12 +33,30 @@ export async function refreshToken(
       return { success: false, error: 'Connection not found' };
     }
 
+    const failConnection = async (message: string, code: string) => {
+      await db
+        .update(connections)
+        .set({ status: 'error', lastErrorCode: code, updatedAt: new Date() })
+        .where(eq(connections.id, connection.id));
+      await db.insert(outboxEvents).values({
+        organizationId: connection.organizationId,
+        eventType: 'connection.error',
+        payload: {
+          externalUserId: connection.externalUserId,
+          serviceId: connection.serviceId,
+          connectionId: connection.id,
+          errorCode: code,
+        },
+      });
+      return { success: false as const, error: message };
+    };
+
     if (connection.status !== 'connected') {
       return { success: false, error: 'Connection is not connected' };
     }
 
     if (!connection.credentialsEnc) {
-      return { success: false, error: 'No credentials found' };
+      return failConnection('No credentials found', 'CREDENTIALS_MISSING');
     }
 
     // Get service configuration
@@ -50,7 +67,7 @@ export async function refreshToken(
       .limit(1);
 
     if (!service) {
-      return { success: false, error: 'Service not found' };
+      return failConnection('Service not found', 'SERVICE_NOT_FOUND');
     }
 
     const config = service.config as {
@@ -58,7 +75,7 @@ export async function refreshToken(
     };
 
     if (!config.token_url) {
-      return { success: false, error: 'Service missing token URL' };
+      return failConnection('Service missing token URL', 'TOKEN_URL_MISSING');
     }
 
     // Decrypt credentials
@@ -72,7 +89,7 @@ export async function refreshToken(
     };
 
     if (!credentials.refresh_token) {
-      return { success: false, error: 'No refresh token available' };
+      return failConnection('No refresh token available', 'REFRESH_TOKEN_MISSING');
     }
 
     // Refresh token
@@ -90,7 +107,7 @@ export async function refreshToken(
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      return { success: false, error: `Token refresh failed: ${errorText}` };
+      return failConnection(`Token refresh failed: ${errorText}`, 'OAUTH_REFRESH_FAILED');
     }
 
     const tokens = (await tokenResponse.json()) as {
@@ -127,6 +144,17 @@ export async function refreshToken(
         connectedAt: new Date(),
       })
       .where(eq(connections.id, connection.id));
+
+    await db.insert(outboxEvents).values({
+      organizationId: connection.organizationId,
+      eventType: 'connection.refreshed',
+      payload: {
+        externalUserId: connection.externalUserId,
+        serviceId: connection.serviceId,
+        connectionId: connection.id,
+        expiresAt: expiresAt?.toISOString() ?? null,
+      },
+    });
 
     return { success: true };
   } catch (error) {

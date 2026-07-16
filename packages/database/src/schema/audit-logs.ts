@@ -1,42 +1,30 @@
-/**
- * Audit Logs Schema
- * Tracks tool execution history for compliance and debugging
- */
+import { index, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { apiKeys } from './api-keys.js';
+import { organization } from './auth.js';
+import { services } from './services.js';
 
-import crypto from 'node:crypto';
-import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { organization, user } from './auth.js';
+export const credentialAccessLogs = pgTable(
+  'credential_access_logs',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    externalUserId: text('external_user_id').notNull(),
+    serviceId: text('service_id')
+      .notNull()
+      .references(() => services.id, { onDelete: 'restrict' }),
+    apiKeyId: text('api_key_id').references(() => apiKeys.id, { onDelete: 'set null' }),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    accessedAt: timestamp('accessed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('credential_access_org_external_user_idx').on(table.organizationId, table.externalUserId),
+  ]
+);
 
-export const auditLogs = pgTable('audit_logs', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-
-  // Who executed
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  organizationId: text('organization_id')
-    .notNull()
-    .references(() => organization.id, { onDelete: 'cascade' }),
-
-  // What was executed
-  toolName: text('tool_name').notNull(),
-  serviceId: text('service_id').notNull(),
-
-  // Input/output (parameters are redacted to remove sensitive data)
-  parametersRedacted: jsonb('parameters_redacted').$type<Record<string, unknown>>(),
-  resultStatus: text('result_status', { enum: ['success', 'error'] }).notNull(),
-  errorMessage: text('error_message'),
-
-  // Metadata
-  executionTimeMs: integer('execution_time_ms'),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-
-  // Timestamps
-  executedAt: timestamp('executed_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
-export type AuditLog = typeof auditLogs.$inferSelect;
-export type NewAuditLog = typeof auditLogs.$inferInsert;
+export type CredentialAccessLog = typeof credentialAccessLogs.$inferSelect;
+export type NewCredentialAccessLog = typeof credentialAccessLogs.$inferInsert;

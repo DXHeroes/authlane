@@ -15,8 +15,7 @@ const getBaseURL = () => {
     }
     return envUrl.replace('/api/v1', '');
   }
-  // Default to localhost:3000 for development
-  return 'http://localhost:3000';
+  return window.location.origin;
 };
 
 /**

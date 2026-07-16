@@ -1,73 +1,94 @@
-/**
- * Integration Tools Loader
- * Dynamically loads tool definitions from integration packages
- */
-
 import type { ToolFormat } from './types.js';
 
 export interface IntegrationTools {
-  getTools: (format: ToolFormat) => {
+  getTools?: (format: ToolFormat) => {
     tools?: unknown[];
     functions?: unknown[];
   };
+  tools?: Record<
+    string,
+    {
+      definition: {
+        name: string;
+        description: string;
+        inputSchema: Record<string, unknown>;
+      };
+    }
+  >;
 }
 
-/**
- * Dynamically loads tools from an integration package
- * @param serviceId - The service ID (e.g., 'github', 'slack')
- * @param format - The tool format ('mcp' or 'openai')
- * @returns Tool definitions in the specified format
- */
-export async function loadIntegrationTools(
-  serviceId: string,
-  format: ToolFormat
-): Promise<{ tools?: unknown[]; functions?: unknown[] }> {
-  try {
-    // Try to load the integration using the package name first (for monorepo)
-    let integration: IntegrationTools;
+export type IntegrationModuleLoader = (serviceId: string) => Promise<IntegrationTools>;
 
-    try {
-      integration = (await import(
-        `@authlane/integration-${serviceId}/tools.js`
-      )) as IntegrationTools;
-    } catch {
-      // Fallback to relative path (for development)
-      const integrationPath = `../../../../integrations/${serviceId}/tools.js`;
-      integration = (await import(integrationPath)) as IntegrationTools;
-    }
+interface RegistryEntry {
+  mcp: { tools: unknown[] };
+  openai: { functions: unknown[] };
+}
 
-    if (!integration.getTools || typeof integration.getTools !== 'function') {
-      throw new Error(`Integration ${serviceId} does not export a getTools function`);
-    }
+function hashDefinitions(value: unknown): string {
+  const input = JSON.stringify(value);
+  let hash = 0x811c9dc5;
 
-    return integration.getTools(format);
-  } catch (error) {
-    // If the integration doesn't exist or fails to load, return empty tools
-    console.warn(`Failed to load integration tools for ${serviceId}:`, error);
-    return format === 'mcp' ? { tools: [] } : { functions: [] };
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
   }
+
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-/**
- * Loads tools for multiple services and merges them
- * @param serviceIds - Array of service IDs
- * @param format - The tool format ('mcp' or 'openai')
- * @returns Merged tool definitions
- */
-export async function loadMultipleIntegrationTools(
-  serviceIds: string[],
-  format: ToolFormat
-): Promise<{ tools?: unknown[]; functions?: unknown[] }> {
-  const allToolsPromises = serviceIds.map((serviceId) => loadIntegrationTools(serviceId, format));
+export class IntegrationRegistry {
+  private readonly entries = new Map<string, Promise<RegistryEntry>>();
 
-  const allToolsResults = await Promise.all(allToolsPromises);
+  constructor(private readonly loader: IntegrationModuleLoader) {}
 
-  // Merge all tools
-  if (format === 'mcp') {
-    const tools = allToolsResults.flatMap((result) => result.tools || []);
-    return { tools };
-  } else {
-    const functions = allToolsResults.flatMap((result) => result.functions || []);
-    return { functions };
+  async warm(serviceIds: string[]): Promise<void> {
+    await Promise.all([...new Set(serviceIds)].map((serviceId) => this.loadEntry(serviceId)));
+  }
+
+  async getTools(
+    serviceIds: string[],
+    format: ToolFormat
+  ): Promise<{ tools?: unknown[]; functions?: unknown[] }> {
+    const entries = await Promise.all(serviceIds.map((serviceId) => this.loadEntry(serviceId)));
+
+    if (format === 'mcp') {
+      return { tools: entries.flatMap((entry) => entry.mcp.tools) };
+    }
+
+    return { functions: entries.flatMap((entry) => entry.openai.functions) };
+  }
+
+  async getVersion(serviceIds: string[], format: ToolFormat): Promise<string> {
+    return hashDefinitions(await this.getTools(serviceIds, format));
+  }
+
+  private loadEntry(serviceId: string): Promise<RegistryEntry> {
+    const existing = this.entries.get(serviceId);
+    if (existing) {
+      return existing;
+    }
+
+    const loading = this.loader(serviceId).then((integration) => {
+      if (integration.getTools) {
+        return {
+          mcp: { tools: integration.getTools('mcp').tools ?? [] },
+          openai: { functions: integration.getTools('openai').functions ?? [] },
+        };
+      }
+
+      const definitions = Object.values(integration.tools ?? {}).map((tool) => tool.definition);
+      return {
+        mcp: { tools: definitions },
+        openai: {
+          functions: definitions.map(({ name, description, inputSchema }) => ({
+            name,
+            description,
+            parameters: inputSchema,
+          })),
+        },
+      };
+    });
+    this.entries.set(serviceId, loading);
+    return loading;
   }
 }

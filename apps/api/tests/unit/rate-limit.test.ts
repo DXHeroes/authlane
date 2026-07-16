@@ -5,16 +5,18 @@
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { rateLimitMiddleware } from '../../src/middleware/rate-limit';
-import { getTestDb } from '../setup/test-db';
-import { testTenantMiddleware } from '../setup/test-helpers';
 
 describe('rate limiting middleware', () => {
-  const db = getTestDb();
+  const db = {} as never;
   let app: Hono;
 
   beforeEach(() => {
     app = new Hono();
-    app.use('*', testTenantMiddleware());
+    app.use('*', async (c, next) => {
+      const organizationId = c.req.header('x-organization-id');
+      if (organizationId) c.set('organization', { id: organizationId });
+      await next();
+    });
   });
 
   it('should allow requests within limit', async () => {
@@ -22,7 +24,7 @@ describe('rate limiting middleware', () => {
     app.get('/test', (c) => c.json({ ok: true }));
 
     for (let i = 0; i < 5; i++) {
-      const res = await app.request('/test', { headers: { 'x-tenant-id': 'tenant-1' } });
+      const res = await app.request('/test', { headers: { 'x-organization-id': 'org-1' } });
       expect(res.status).toBe(200);
     }
   });
@@ -32,11 +34,11 @@ describe('rate limiting middleware', () => {
     app.get('/test', (c) => c.json({ ok: true }));
 
     // First 2 requests succeed
-    await app.request('/test', { headers: { 'x-tenant-id': 'tenant-2' } });
-    await app.request('/test', { headers: { 'x-tenant-id': 'tenant-2' } });
+    await app.request('/test', { headers: { 'x-organization-id': 'org-2' } });
+    await app.request('/test', { headers: { 'x-organization-id': 'org-2' } });
 
     // 3rd request fails
-    const res = await app.request('/test', { headers: { 'x-tenant-id': 'tenant-2' } });
+    const res = await app.request('/test', { headers: { 'x-organization-id': 'org-2' } });
     expect(res.status).toBe(429);
   });
 
@@ -45,7 +47,7 @@ describe('rate limiting middleware', () => {
     app.get('/test', (c) => c.json({ ok: true }));
 
     for (let i = 0; i < 10; i++) {
-      const res = await app.request('/test', { headers: { 'x-tenant-id': 'tenant-3' } });
+      const res = await app.request('/test', { headers: { 'x-organization-id': 'org-3' } });
       expect(res.status).toBe(200);
     }
   });

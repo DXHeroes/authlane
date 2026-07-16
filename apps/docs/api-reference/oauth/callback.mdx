@@ -1,26 +1,6 @@
 ---
-title: 'Callback'
-api: 'POST /api/v1/oauth/callback'
-description: 'Handle OAuth callback'
+title: 'OAuth callback'
+api: 'GET /api/v1/oauth/{serviceId}/callback'
 ---
 
-## Request
-
-```bash
-curl -X POST https://api.authlane.com/api/v1/oauth/callback \
-  -H "Authorization: Bearer sk_live_..."
-```
-
-## Response
-
-See [API Reference](/api-reference/introduction) for response format.
-
-## Example
-
-```json
-{
-  "data": {
-    // Response data
-  }
-}
-```
+Validates the one-time state and PKCE verifier, stores encrypted credentials, schedules refresh, writes a connection event, and returns to the hosted connect UI.

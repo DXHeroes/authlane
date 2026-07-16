@@ -6,7 +6,7 @@ This document provides essential context for AI assistants working on the Authla
 
 **Authlane** is an open-source platform for managing third-party integrations in AI agents and SaaS applications. It enables SaaS providers to offer their end-users the ability to connect external services (GitHub, Slack, Google, CRM systems, etc.) via OAuth2, API keys, or other credentials without building complex integration infrastructure.
 
-**Key Principle:** Authlane is NOT a middleware - it serves as a central credentials and tool configuration manager. AI agents then call external services directly using information from the Authlane API.
+**Key Principle:** Authlane is a control plane, not middleware or a gateway. It serves the dashboard, hosted connect UI, credential access, connection state, and tool definitions from one production Hono runtime. SaaS backends and AI agents call providers directly; provider traffic must never pass through Authlane.
 
 ## Architecture
 
@@ -41,7 +41,7 @@ This document provides essential context for AI assistants working on the Authla
 | **Framework** | Hono | High performance, TypeScript-native, edge-ready |
 | **Database** | PostgreSQL 16+ | RLS for multi-tenancy, JSONB for flexibility |
 | **ORM** | Drizzle | Type-safe, lightweight, great migrations |
-| **Cache** | Redis | Session storage, rate limiting |
+| **Cache** | Redis | Hot reads, API principals, tenant policy, rate limiting |
 | **Queue** | BullMQ | Reliable job processing (token refresh) |
 | **Encryption** | Node.js crypto / Vault | AES-256-GCM for credentials |
 | **Monorepo** | Turborepo + pnpm | Fast builds, efficient dependencies |
@@ -64,7 +64,7 @@ authlane/
 │   ├── react/                  # @authlane/react - React components
 │   ├── database/               # Drizzle schema + migrations
 │   ├── shared/                 # Shared types and utilities
-│   ├── mcp-server/             # MCP server implementation
+│   ├── email/                  # Transactional email support
 │   └── crypto/                 # Encryption utilities
 ├── integrations/               # Individual service integrations
 │   ├── github/
@@ -75,8 +75,8 @@ authlane/
 │   ├── google/
 │   └── ...
 ├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml      # Self-hosting
+│   └── docker-compose.yml      # Development infrastructure
+├── docker-compose.yml          # One-runtime self-hosting stack
 ├── .env.example
 ├── turbo.json
 └── package.json
@@ -86,8 +86,8 @@ authlane/
 
 ### Multi-Tenancy
 
-- **Tenants**: SaaS providers using Authlane
-- **End-users**: End-users of the tenant's SaaS application
+- **Organizations**: SaaS providers using Authlane
+- **End-users**: Addressed only by the organization's `external_user_id`
 - **Connections**: Links between end-users and third-party services
 - **Row-Level Security (RLS)**: PostgreSQL feature used for tenant isolation
 
@@ -107,21 +107,25 @@ authlane/
 
 ## Database Schema (Key Tables)
 
-### Tenants
-- SaaS providers using Authlane
-- Fields: `id`, `name`, `api_key_hash`, `settings`, `created_at`
+### Organizations and API Keys
+- Organizations are the tenant boundary; API keys belong to exactly one organization
+- API keys store a SHA-256 hash, scopes, enabled state, and optional expiry
 
 ### Services
 - Available services for connection (GitHub, Slack, etc.)
 - Fields: `id`, `name`, `auth_type`, `config`, `enabled`
 
-### Tenant Services
-- Tenant-specific service configurations
-- Fields: `tenant_id`, `service_id`, `enabled`, `oauth_client_id`, `oauth_client_secret_enc`, `custom_scopes`
+### Organization Services
+- Organization-specific service configurations
+- Fields: `organization_id`, `service_id`, `enabled`, `oauth_client_id`, `oauth_client_secret_enc`, `custom_scopes`
 
 ### Connections
 - End-user connections to services
-- Fields: `id`, `tenant_id`, `external_user_id`, `service_id`, `status`, `credentials_enc`, `metadata`, `connected_at`, `expires_at`
+- Fields: `id`, `organization_id`, `external_user_id`, `service_id`, `status`, `credentials_enc`, `metadata`, `connected_at`, `expires_at`
+
+### Connect Sessions and Outbox
+- Connect sessions store only a token hash and bind one external user, exact origin, service allowlist, and expiry
+- Outbox events provide retryable, signed, idempotent lifecycle webhooks
 
 **Important**: All tables use Row-Level Security (RLS) for tenant isolation.
 
@@ -131,7 +135,7 @@ authlane/
 
 ```typescript
 // Never throws exceptions
-const { data, error } = await authlane.connections.list({ userId: 'user_123' });
+const { data, error } = await authlane.connections.list({ externalUserId: 'user_123' });
 
 if (error) {
   console.error(error.message);  // Human-readable message
@@ -143,11 +147,14 @@ if (error) {
 
 ### Key API Endpoints
 
-- `GET /api/v1/users/{user_id}/connections` - List all connections for a user
-- `GET /api/v1/services` - List available services
-- `GET /api/v1/users/{user_id}/connections/{service}/credentials` - Get credentials
-- `GET /api/v1/users/{user_id}/tools?format=mcp` - Get tool definitions (MCP or OpenAI format)
-- `GET /api/v1/users/{user_id}/connections/{service}/health` - Check connection health
+- `GET /api/v1/catalog/services` - List organization-enabled services
+- `GET /api/v1/users/{external_user_id}/connections` - List effective connection states
+- `GET /api/v1/users/{external_user_id}/capabilities` - Get states and tool definitions in one hot read
+- `GET /api/v1/users/{external_user_id}/connections/{service}/credentials` - Get audited, access-only credentials
+- `GET /api/v1/users/{external_user_id}/tools?format=mcp` - Get definitions only
+- `POST /api/v1/connect-sessions` - Create a short-lived hosted connect session
+
+There is no tool-execution endpoint and no Authlane MCP server.
 
 ## Integration Structure
 
@@ -156,13 +163,13 @@ Each integration follows this structure:
 ```
 integrations/{service}/
 ├── config.yaml         # OAuth config, scopes, endpoints
-├── tools.ts            # Tool definitions (MCP/OpenAI format)
-└── index.ts            # Integration entry point
+├── tools.ts            # Tool definitions and local provider handlers
+└── index.ts            # Direct-execution adapter for the SaaS runtime
 ```
 
 ### Tool Definitions
 
-Tools must support both MCP and OpenAI function calling formats:
+Authlane converts canonical definitions to MCP and OpenAI function calling formats. The integration adapter executes handlers only inside the SaaS runtime:
 
 **MCP Format:**
 ```json
@@ -236,7 +243,7 @@ Tools must support both MCP and OpenAI function calling formats:
 - Always set tenant context per request
 - Use RLS policies for database access
 - Never expose data from one tenant to another
-- Validate `tenant_id` on all operations
+- Resolve `organization_id` from the authenticated principal on all operations
 
 ## Common Patterns
 
@@ -248,8 +255,8 @@ async method(params: Params): Promise<Result<Data, Error>> {
     const response = await this.client.request(...);
     return { data: response, error: null };
   } catch (error) {
-    return { 
-      data: null, 
+    return {
+      data: null,
       error: {
         message: error.message,
         code: 'ERROR_CODE',
@@ -282,7 +289,7 @@ async method(params: Params): Promise<Result<Data, Error>> {
 
 1. **User IDs**: Always use `external_user_id` (from tenant's system), not internal Authlane user IDs
 2. **Service IDs**: Use lowercase, hyphenated names (e.g., `github`, `google-calendar`)
-3. **Status Values**: `pending`, `connected`, `expired`, `error`
+3. **Status Values**: stored values are `pending`, `connected`, `expired`, `error`; reads may compute `disconnected`
 4. **Date Formats**: Always use ISO 8601 (UTC)
 5. **API Versioning**: Use `/api/v1/` prefix for all endpoints
 
@@ -304,8 +311,8 @@ async method(params: Params): Promise<Result<Data, Error>> {
 ## Resources
 
 - **Specification**: See `authlane-specification.md` for complete technical and business requirements
-- **Documentation**: Will be in `apps/docs/` (Mintlify)
-- **API Reference**: OpenAPI spec will be generated
+- **Documentation**: `apps/docs/` (Mintlify)
+- **API Reference**: `apps/docs/api-reference/openapi.yaml`
 
 ## When Implementing Features
 
@@ -329,8 +336,6 @@ If you're unsure about:
 ---
 
 *This document is maintained to help AI assistants understand the Authlane codebase. Update it as the project evolves.*
-
-
 
 
 

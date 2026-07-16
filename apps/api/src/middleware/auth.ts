@@ -1,113 +1,113 @@
-/**
- * Authentication middleware
- * Supports better-auth sessions (dashboard) and API keys (external SDK)
- */
+/** Authentication for dashboard sessions and scoped SaaS API keys. */
 
-import type { Database } from '@authlane/database';
-import { eq, organization, organizationServices } from '@authlane/database';
+import type { Database, Organization } from '@authlane/database';
+import { apiKeys, eq, organization } from '@authlane/database';
 import { Errors, hashApiKey } from '@authlane/shared';
 import type { Context, Next } from 'hono';
+import { type ApiPrincipal, normalizeApiScopes } from '../lib/api-principal.js';
 import type { Auth } from '../lib/auth.js';
 
-/**
- * Extracts API key from request header
- */
+export interface PrincipalCache {
+  get(keyHash: string): Promise<ApiPrincipal | null | undefined>;
+  set(keyHash: string, principal: ApiPrincipal | null, ttlSeconds: number): Promise<void>;
+}
+
+interface AuthMiddlewareOptions {
+  now?: () => Date;
+  principalCache?: PrincipalCache;
+  principalCacheTtlSeconds?: number;
+}
+
 function extractApiKey(c: Context): string | null {
-  const authHeader = c.req.header('Authorization');
-  if (!authHeader) {
+  const authorization = c.req.header('Authorization');
+  if (!authorization) return null;
+
+  const match = authorization.match(/^(?:Bearer|ApiKey)\s+(.+)$/i);
+  return match?.[1]?.startsWith('ak_') ? match[1] : null;
+}
+
+async function findApiKeyPrincipal(
+  db: Database,
+  keyHash: string,
+  now: Date
+): Promise<ApiPrincipal | null> {
+  const [key] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).limit(1);
+
+  if (!key?.enabled || (key.expiresAt && key.expiresAt <= now)) {
     return null;
   }
 
-  // Support "Bearer <key>" and "ApiKey <key>" formats for API keys
-  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (bearerMatch?.[1]) {
-    const token = bearerMatch[1];
-    // API keys start with 'ak_' prefix
-    if (token.startsWith('ak_')) {
-      return token;
-    }
-  }
-
-  const apiKeyMatch = authHeader.match(/^ApiKey\s+(.+)$/i);
-  if (apiKeyMatch?.[1]) {
-    return apiKeyMatch[1];
-  }
-
-  return null;
+  return {
+    kind: 'api_key',
+    organizationId: key.organizationId,
+    apiKeyId: key.id,
+    scopes: normalizeApiScopes(key.scopes),
+  };
 }
 
-/**
- * Middleware to authenticate requests using better-auth sessions or API keys
- * - Dashboard uses better-auth session cookies
- * - External SDK uses API keys in Authorization header
- */
-export function authMiddleware(db: Database, auth: Auth) {
+export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewareOptions = {}) {
+  const now = options.now ?? (() => new Date());
+  const cacheTtl = options.principalCacheTtlSeconds ?? 300;
+
   return async (c: Context, next: Next) => {
-    // First, try to get session from better-auth (cookies)
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
-
-    if (session) {
-      // User authenticated via better-auth session
-      c.set('user', { ...session.user, image: session.user.image ?? null });
-      c.set('session', session.session);
-
-      // Get active organization if set
-      const activeOrgId = session.session.activeOrganizationId;
-      if (activeOrgId) {
-        const [org] = await db
-          .select()
-          .from(organization)
-          .where(eq(organization.id, activeOrgId))
-          .limit(1);
-
-        if (org) {
-          c.set('organization', org);
-        }
-      }
-
-      c.set('apiKey', null);
+    const path = c.req.path;
+    if (
+      path.startsWith('/api/v1/oauth/') ||
+      (path.startsWith('/api/v1/connect/') && path !== '/api/v1/connect-sessions')
+    ) {
       await next();
       return;
     }
 
-    // Try API key authentication for external SDK calls
-    const apiKey = extractApiKey(c);
-    if (apiKey) {
-      const apiKeyHash = hashApiKey(apiKey);
+    const session = auth ? await auth.api.getSession({ headers: c.req.raw.headers }) : null;
 
-      // Find organization with this API key
-      // API keys are stored in organization_services
-      const [orgService] = await db
+    if (session?.session.activeOrganizationId) {
+      const organizationId = session.session.activeOrganizationId;
+      const [activeOrganization] = await db
         .select()
-        .from(organizationServices)
-        .where(eq(organizationServices.oauthClientId, apiKeyHash))
+        .from(organization)
+        .where(eq(organization.id, organizationId))
         .limit(1);
 
-      if (orgService) {
-        // Get the organization
-        const [org] = await db
-          .select()
-          .from(organization)
-          .where(eq(organization.id, orgService.organizationId))
-          .limit(1);
-
-        if (org) {
-          c.set('organization', org);
-          c.set('apiKey', apiKey);
-          c.set('user', null);
-          c.set('session', null);
-          await next();
-          return;
-        }
+      if (!activeOrganization) {
+        return c.json(Errors.unauthorized('The active organization no longer exists'), 401);
       }
 
-      return c.json(Errors.unauthorized('Invalid API key'), 401);
+      c.set('user', { ...session.user, image: session.user.image ?? null });
+      c.set('session', session.session);
+      c.set('organization', activeOrganization);
+      c.set('apiKey', null);
+      c.set('principal', {
+        kind: 'session',
+        organizationId,
+        apiKeyId: null,
+        scopes: [],
+      });
+      await next();
+      return;
     }
 
-    // No authentication found
-    return c.json(
-      Errors.unauthorized('Authentication required. Use session cookies or API key.'),
-      401
-    );
+    const rawApiKey = extractApiKey(c);
+    if (!rawApiKey) {
+      return c.json(Errors.unauthorized('A scoped Authlane API key is required'), 401);
+    }
+
+    const keyHash = hashApiKey(rawApiKey);
+    let principal = await options.principalCache?.get(keyHash);
+    if (principal === undefined) {
+      principal = await findApiKeyPrincipal(db, keyHash, now());
+      await options.principalCache?.set(keyHash, principal, cacheTtl);
+    }
+
+    if (!principal) {
+      return c.json(Errors.unauthorized('Invalid, disabled, or expired API key'), 401);
+    }
+
+    c.set('user', null);
+    c.set('session', null);
+    c.set('organization', { id: principal.organizationId } as Organization);
+    c.set('apiKey', rawApiKey);
+    c.set('principal', principal);
+    await next();
   };
 }

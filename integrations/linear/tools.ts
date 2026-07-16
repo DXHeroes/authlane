@@ -3,8 +3,7 @@
  * Executable tool handlers with credential injection
  */
 
-import type { OAuth2Credentials } from '@authlane/shared';
-import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
+import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
 /**
  * Make Linear API request with OAuth token
@@ -26,8 +25,9 @@ async function linearRequest(
 
   const result = (await response.json()) as { data?: unknown; errors?: Array<{ message: string }> };
 
-  if (result.errors && result.errors.length > 0) {
-    throw new Error(`Linear API error: ${result.errors[0].message}`);
+  const firstError = result.errors?.[0];
+  if (firstError) {
+    throw new Error(`Linear API error: ${firstError.message}`);
   }
 
   return result.data;

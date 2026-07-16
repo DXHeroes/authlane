@@ -3,8 +3,7 @@
  * Executable tool handlers with credential injection
  */
 
-import type { OAuth2Credentials } from '@authlane/shared';
-import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
+import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
 /**
  * Make Notion API request with OAuth token
@@ -25,7 +24,10 @@ async function notionRequest(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(`Notion API error: ${error.message || response.statusText}`);
   }
 

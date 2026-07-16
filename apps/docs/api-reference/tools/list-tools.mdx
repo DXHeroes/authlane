@@ -1,26 +1,6 @@
 ---
-title: 'List Tools'
-api: 'GET /api/v1/users/{userId}/tools'
-description: 'List available tools'
+title: 'List tools'
+api: 'GET /api/v1/users/{externalUserId}/tools'
 ---
 
-## Request
-
-```bash
-curl -X GET https://api.authlane.com/api/v1/users/{userId}/tools \
-  -H "Authorization: Bearer sk_live_..."
-```
-
-## Response
-
-See [API Reference](/api-reference/introduction) for response format.
-
-## Example
-
-```json
-{
-  "data": {
-    // Response data
-  }
-}
-```
+Returns MCP tools or OpenAI functions for currently usable connections. The response includes a stable definition version. Authlane does not execute tools.

@@ -7,6 +7,10 @@ export class PostMessageBridge {
     this.targetOrigin = targetOrigin;
   }
 
+  setTargetOrigin(targetOrigin: string): void {
+    this.targetOrigin = targetOrigin;
+  }
+
   sendToParent(message: WidgetMessage): void {
     if (window.parent && window.parent !== window) {
       window.parent.postMessage(message, this.targetOrigin);
@@ -15,7 +19,10 @@ export class PostMessageBridge {
 
   onMessage(callback: (message: ParentMessage) => void): () => void {
     const handler = (event: MessageEvent) => {
-      if (this.isValidMessage(event.data)) {
+      if (
+        (this.targetOrigin === '*' || event.origin === this.targetOrigin) &&
+        this.isValidMessage(event.data)
+      ) {
         callback(event.data);
       }
     };

@@ -9,7 +9,7 @@ export {
   type EmailConfig,
   getEmailClient,
   getEmailConfig,
-} from './client';
+} from './client.js';
 
 // Send function exports
 export {
@@ -18,7 +18,7 @@ export {
   sendOrganizationInvitation,
   sendPasswordReset,
   sendWelcomeEmail,
-} from './send';
+} from './send.js';
 
 // Template exports for customization
 export {
@@ -30,8 +30,4 @@ export {
   type PasswordResetProps,
   WelcomeEmail,
   type WelcomeEmailProps,
-} from './templates';
-
-
-
-
+} from './templates/index.js';

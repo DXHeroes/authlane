@@ -1,9 +1,8 @@
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useWidget } from '../hooks/useWidget';
 import type { Service, WidgetConfig } from '../types';
 import { postMessageBridge } from '../utils/postMessage';
-import { OAuthFlowHandler } from './OAuthFlowHandler';
 import { ServiceSelector } from './ServiceSelector';
 
 interface WidgetProps {
@@ -11,71 +10,29 @@ interface WidgetProps {
 }
 
 export const Widget: React.FC<WidgetProps> = ({ config: initialConfig }) => {
-  const { config, services, loading, error, initiateOAuth, handleConnect, handleOAuthSuccess } =
+  const { config, services, loading, error, handleConnect, handleDisconnect } =
     useWidget(initialConfig);
 
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [oauthUrl, setOauthUrl] = useState<string>('');
-
   useEffect(() => {
-    const updateHeight = () => {
-      const height = document.body.scrollHeight;
-      postMessageBridge.sendToParent({
-        type: 'widget:resize',
-        height,
-      });
-    };
-
-    const observer = new ResizeObserver(updateHeight);
+    const observer = new ResizeObserver(() => {
+      postMessageBridge.sendToParent({ type: 'widget:resize', height: document.body.scrollHeight });
+    });
     observer.observe(document.body);
-    updateHeight();
-
     return () => observer.disconnect();
   }, []);
 
-  const handleServiceSelect = (service: Service) => {
-    const authUrl = initiateOAuth(service.id);
-    setOauthUrl(authUrl);
-    setSelectedService(service);
-    handleConnect(service.id);
-  };
-
-  const handleOAuthClose = () => {
-    setSelectedService(null);
-    setOauthUrl('');
-  };
-
-  const handleOAuthSuccessWrapper = (connectionId: string) => {
-    if (selectedService) {
-      handleOAuthSuccess(connectionId, selectedService.id);
+  const handleServiceSelect = async (service: Service) => {
+    try {
+      if (service.status === 'connected') await handleDisconnect(service.id);
+      else await handleConnect(service.id);
+    } catch (cause) {
+      config?.onError?.(cause instanceof Error ? cause : new Error('Connection action failed'));
     }
-    handleOAuthClose();
   };
 
-  const handleOAuthError = (err: Error) => {
-    console.error('OAuth error:', err);
-    config?.onError?.(err);
-  };
-
-  if (!config) {
-    return (
-      <div className="widget widget--loading">
-        <div className="widget__loading-message">Initializing widget...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="widget widget--error">
-        <div className="widget__error-message">
-          <p>Failed to load services</p>
-          <small>{error.message}</small>
-        </div>
-      </div>
-    );
-  }
-
+  if (!config)
+    return <div className="widget widget--error">Invalid or missing connect session.</div>;
+  if (error) return <div className="widget widget--error">{error.message}</div>;
   return (
     <div className="widget">
       <ServiceSelector
@@ -83,17 +40,6 @@ export const Widget: React.FC<WidgetProps> = ({ config: initialConfig }) => {
         onServiceSelect={handleServiceSelect}
         loading={loading}
       />
-
-      {selectedService && oauthUrl && (
-        <OAuthFlowHandler
-          serviceId={selectedService.id}
-          serviceName={selectedService.name}
-          authUrl={oauthUrl}
-          onSuccess={handleOAuthSuccessWrapper}
-          onError={handleOAuthError}
-          onClose={handleOAuthClose}
-        />
-      )}
     </div>
   );
 };

@@ -3,8 +3,7 @@
  * Executable tool handlers with credential injection
  */
 
-import type { OAuth2Credentials } from '@authlane/shared';
-import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
+import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
 /**
  * Make Gmail API request with OAuth token
@@ -24,7 +23,10 @@ async function gmailRequest(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(`Gmail API error: ${error.message || response.statusText}`);
   }
 
@@ -241,7 +243,9 @@ export const tools: Record<string, ToolHandler> = {
         listResult.messages.map(async (msg) => {
           const detailParams: string[] = [`format=${format}`];
           if (format === 'metadata' && metadata_headers) {
-            metadata_headers.forEach((header) => detailParams.push(`metadataHeaders=${header}`));
+            metadata_headers.forEach((header) => {
+              detailParams.push(`metadataHeaders=${header}`);
+            });
           }
           return gmailRequest(
             `/users/me/messages/${msg.id}?${detailParams.join('&')}`,
@@ -380,7 +384,9 @@ export const tools: Record<string, ToolHandler> = {
 
       const queryParams: string[] = [`format=${format}`];
       if (format === 'metadata' && metadata_headers) {
-        metadata_headers.forEach((header) => queryParams.push(`metadataHeaders=${header}`));
+        metadata_headers.forEach((header) => {
+          queryParams.push(`metadataHeaders=${header}`);
+        });
       }
 
       return gmailRequest(`/users/me/messages/${id}?${queryParams.join('&')}`, credentials);
@@ -602,7 +608,9 @@ export const tools: Record<string, ToolHandler> = {
 
       const queryParams: string[] = [`format=${format}`];
       if (format === 'metadata' && metadata_headers) {
-        metadata_headers.forEach((header) => queryParams.push(`metadataHeaders=${header}`));
+        metadata_headers.forEach((header) => {
+          queryParams.push(`metadataHeaders=${header}`);
+        });
       }
 
       return gmailRequest(`/users/me/threads/${id}?${queryParams.join('&')}`, credentials);

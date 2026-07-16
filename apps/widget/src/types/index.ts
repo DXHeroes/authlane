@@ -1,27 +1,20 @@
+export type ConnectionStatus = 'pending' | 'connected' | 'disconnected' | 'expired' | 'error';
+
 export interface Service {
   id: string;
   name: string;
+  authType: string;
   category: string;
   icon: string;
   description: string;
-  status?: 'connected' | 'disconnected' | 'expired';
-}
-
-export interface Connection {
-  id: string;
-  serviceId: string;
-  userId: string;
-  status: 'connected' | 'disconnected' | 'expired';
-  expiresAt?: string;
-  createdAt: string;
+  status: ConnectionStatus;
 }
 
 export interface WidgetConfig {
-  apiUrl: string;
-  apiKey: string;
-  userId: string;
+  connectToken: string;
+  parentOrigin: string;
+  apiUrl?: string;
   theme?: WidgetTheme;
-  services?: string[];
   onConnect?: (serviceId: string) => void;
   onDisconnect?: (serviceId: string) => void;
   onError?: (error: Error) => void;
@@ -41,7 +34,7 @@ export type WidgetMessage =
   | { type: 'widget:connect'; serviceId: string }
   | { type: 'widget:disconnect'; serviceId: string }
   | { type: 'widget:error'; error: string }
-  | { type: 'widget:connected'; serviceId: string; connectionId: string }
+  | { type: 'widget:connected'; serviceId: string }
   | { type: 'widget:disconnected'; serviceId: string };
 
 export type ParentMessage =

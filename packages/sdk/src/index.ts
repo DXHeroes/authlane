@@ -10,8 +10,11 @@
  *   apiKey: process.env.AUTHLANE_API_KEY,
  * });
  *
- * // List connections for a user
- * const { data, error } = await authlane.connections.list({ userId: 'user_123' });
+ * // Read connection status and tool definitions in one request
+ * const { data, error } = await authlane.capabilities.get({
+ *   externalUserId: 'user_123',
+ *   format: 'mcp',
+ * });
  * ```
  */
 

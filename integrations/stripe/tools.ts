@@ -4,8 +4,7 @@
  * READ-ONLY tools for secure payment data access
  */
 
-import type { OAuth2Credentials } from '@authlane/shared';
-import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
+import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
 /**
  * Make Stripe API request with OAuth token
@@ -26,7 +25,10 @@ async function stripeRequest(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(`Stripe API error: ${error.message || response.statusText}`);
   }
 

@@ -1,57 +1,49 @@
-# Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
-# Install pnpm
-RUN npm install -g pnpm@9
-
-# Set working directory
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/api/package.json ./apps/api/
-COPY packages/*/package.json ./packages/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY integrations ./integrations
+RUN --mount=type=cache,id=authlane-pnpm-store,target=/pnpm/store \
+  pnpm config set store-dir /pnpm/store \
+  && pnpm install --frozen-lockfile
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @authlane/api... build \
+  && pnpm --filter @authlane/dashboard build \
+  && pnpm --filter @authlane/widget build
 
-# Copy source files
-COPY . .
+FROM node:22-alpine AS runner
 
-# Build the application
-RUN pnpm --filter @authlane/api build
-
-# Production stage
-FROM node:20-alpine
-
-# Install pnpm
-RUN npm install -g pnpm@9
-
-# Set working directory
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 WORKDIR /app
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 authlane
 
-# Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/api/package.json ./apps/api/
-COPY packages/*/package.json ./packages/
+COPY --from=builder /app/apps/api ./apps/api
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/integrations ./integrations
+RUN --mount=type=cache,id=authlane-pnpm-store,target=/pnpm/store \
+  find apps packages integrations -type d -name node_modules -prune -exec rm -rf '{}' + \
+  && pnpm config set store-dir /pnpm/store \
+  && pnpm install --frozen-lockfile --prod \
+  && chown -R authlane:nodejs /app
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+COPY --from=builder /app/apps/dashboard/dist ./public
+COPY --from=builder /app/apps/widget/dist ./public/connect
 
-# Copy built application from builder
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/packages/*/dist ./packages/
+ENV NODE_ENV=production \
+  API_HOST=0.0.0.0 \
+  API_PORT=3000 \
+  AUTHLANE_PUBLIC_DIR=/app/public
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=8080
+EXPOSE 3000
+USER authlane
 
-# Expose port
-EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Start the application
-CMD ["node", "apps/api/dist/index.js"]
+CMD ["sh", "-c", "node packages/database/dist/migrate.js && node apps/api/dist/index.js"]

@@ -3,8 +3,7 @@
  * Executable tool handlers with credential injection
  */
 
-import type { OAuth2Credentials } from '@authlane/shared';
-import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
+import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
 /**
  * Get Jira cloud ID from access token
@@ -24,12 +23,13 @@ async function getCloudId(credentials: OAuth2Credentials): Promise<string> {
 
   const resources = (await response.json()) as Array<{ id: string; url: string; name: string }>;
 
-  if (!resources || resources.length === 0) {
+  const firstResource = resources[0];
+  if (!firstResource) {
     throw new Error('No accessible Jira resources found');
   }
 
   // Return the first cloud ID (most common use case)
-  return resources[0]?.id;
+  return firstResource.id;
 }
 
 /**
@@ -57,7 +57,10 @@ async function jiraRequest(
   );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(
       `Jira API error: ${error.errorMessages?.join(', ') || error.message || response.statusText}`
     );

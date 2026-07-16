@@ -31,14 +31,29 @@ import { initSentry, sentryMiddleware } from './lib/sentry.js';
 initSentry();
 
 import { createDatabaseClient, type Database } from '@authlane/database';
-import { getEnv } from '@authlane/shared';
+import { Errors, getEnv } from '@authlane/shared';
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { type Context, Hono } from 'hono';
+import { compress } from 'hono/compress';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import Redis from 'ioredis';
 import { setupJobs } from './jobs/setup.js';
 import { createAuth } from './lib/auth.js';
-import { authMiddleware, errorHandler, rateLimitMiddleware } from './middleware/index.js';
+import {
+  CachePrincipalStore,
+  type CacheStore,
+  MemoryCacheStore,
+  RedisCacheStore,
+} from './lib/cache.js';
+import { recordHttpRequest } from './lib/metrics.js';
+import { authMiddleware, handleError, rateLimitMiddleware } from './middleware/index.js';
+import {
+  MemoryRateLimitStore,
+  type RateLimitStore,
+  RedisRateLimitStore,
+} from './middleware/rate-limit.js';
 import { createApiRouter } from './routes/index.js';
 
 /**
@@ -52,9 +67,13 @@ export function createApp(
     rateLimitMaxRequests?: number;
     rateLimitWindowMs?: number;
     rateLimitEnabled?: boolean;
+    cacheStore?: CacheStore;
+    rateLimitStore?: RateLimitStore;
+    publicRoot?: string;
   }
 ) {
   const app = new Hono();
+  app.onError(handleError);
 
   // Create Better Auth instance
   const auth = createAuth(db, {
@@ -67,13 +86,21 @@ export function createApp(
   // Global middleware
   app.use('*', sentryMiddleware());
   app.use('*', logger());
-  app.use('*', errorHandler);
+  app.use('*', compress());
+  app.use('*', async (c, next) => {
+    const startedAt = performance.now();
+    await next();
+    const route = c.req.path
+      .replace(/\/users\/[^/]+/g, '/users/:externalUserId')
+      .replace(/\/connections\/[^/]+/g, '/connections/:serviceId');
+    recordHttpRequest(c.req.method, route, c.res.status, (performance.now() - startedAt) / 1_000);
+  });
   app.use(
     '*',
     cors({
       origin: options?.corsOrigin ||
         process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://localhost:5173'],
-      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization'],
       credentials: true, // Required for better-auth cookies
     })
@@ -113,17 +140,43 @@ export function createApp(
     }
   });
 
+  const cacheStore = options?.cacheStore ?? new MemoryCacheStore();
+
   // API routes (require authentication and rate limiting)
   app.use(
     '/api/v1/*',
-    rateLimitMiddleware(db, {
-      maxRequests: options?.rateLimitMaxRequests ?? 100,
-      windowMs: options?.rateLimitWindowMs ?? 60000,
-      enabled: options?.rateLimitEnabled ?? true,
+    authMiddleware(db, auth, {
+      principalCache: new CachePrincipalStore(cacheStore),
     })
   );
-  app.use('/api/v1/*', authMiddleware(db, auth));
-  app.route('/api/v1', createApiRouter(db));
+  app.use(
+    '/api/v1/*',
+    rateLimitMiddleware(
+      db,
+      {
+        maxRequests: options?.rateLimitMaxRequests ?? 100,
+        windowMs: options?.rateLimitWindowMs ?? 60000,
+        enabled: options?.rateLimitEnabled ?? true,
+      },
+      options?.rateLimitStore ?? new MemoryRateLimitStore()
+    )
+  );
+  app.route('/api/v1', createApiRouter(db, cacheStore));
+
+  app.all('/api/*', (c) => c.json(Errors.notFound('API route', c.req.path), 404));
+
+  const publicRoot = options?.publicRoot ?? process.env.AUTHLANE_PUBLIC_DIR ?? './public';
+  const immutableAsset = {
+    root: publicRoot,
+    onFound: (_path: string, c: Context) => {
+      c.header('Cache-Control', 'public, max-age=31536000, immutable');
+    },
+  };
+  app.use('/assets/*', serveStatic(immutableAsset));
+  app.use('/connect/assets/*', serveStatic(immutableAsset));
+  app.get('/connect', serveStatic({ root: publicRoot, path: 'connect/index.html' }));
+  app.get('/connect/*', serveStatic({ root: publicRoot, path: 'connect/index.html' }));
+  app.get('*', serveStatic({ root: publicRoot, path: 'index.html' }));
 
   return app;
 }
@@ -159,9 +212,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('⚠️  REDIS_URL not set, token refresh jobs disabled');
   }
 
+  let cacheStore: CacheStore = new MemoryCacheStore();
+  let rateLimitStore: RateLimitStore = new MemoryRateLimitStore();
+  if (env.REDIS_URL) {
+    const redis = new Redis(env.REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      enableOfflineQueue: false,
+    });
+    cacheStore = new RedisCacheStore(redis);
+    rateLimitStore = new RedisRateLimitStore(redis);
+  }
+
   // Create app
-  // Parse comma-separated CORS origins into array
-  // Always include localhost:5173 (dashboard) in development
+  // Parse comma-separated CORS origins into array.
   const baseOrigins =
     env.CORS_ORIGIN?.split(',')
       .map((s) => s.trim())
@@ -169,8 +232,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const corsOrigins = [
     ...new Set([
       ...baseOrigins,
-      'http://localhost:3000',
-      'http://localhost:5173', // Dashboard dev server
+      ...(env.NODE_ENV === 'production' ? [] : ['http://localhost:3000', 'http://localhost:5173']),
     ]),
   ];
   const app = createApp(db, {
@@ -178,6 +240,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     rateLimitMaxRequests: env.RATE_LIMIT_MAX_REQUESTS,
     rateLimitWindowMs: env.RATE_LIMIT_WINDOW_MS,
     rateLimitEnabled: env.RATE_LIMIT_ENABLED,
+    cacheStore,
+    rateLimitStore,
   });
 
   // Start server
@@ -191,9 +255,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('📚 API Documentation:');
   console.log('   Health: GET /health');
   console.log('   Auth: POST/GET /api/auth/*');
-  console.log('   Services: GET /api/v1/services');
-  console.log('   Connections: GET /api/v1/users/:userId/connections');
-  console.log('   Tools: GET /api/v1/users/:userId/tools?format=mcp');
+  console.log('   Catalog: GET /api/v1/catalog/services');
+  console.log('   Connections: GET /api/v1/users/:externalUserId/connections');
+  console.log('   Capabilities: GET /api/v1/users/:externalUserId/capabilities?format=mcp');
+  console.log('   Connect session: POST /api/v1/connect-sessions');
   console.log('');
 
   serve({

@@ -3,8 +3,7 @@
  * Executable tool handlers with credential injection
  */
 
-import type { OAuth2Credentials } from '@authlane/shared';
-import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
+import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
 /**
  * Make Google Drive API request with OAuth token
@@ -24,7 +23,10 @@ async function gdriveRequest(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(`Google Drive API error: ${error.message || response.statusText}`);
   }
 
@@ -73,7 +75,10 @@ async function uploadFile(
   );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(`Google Drive upload error: ${error.message || response.statusText}`);
   }
 
@@ -118,7 +123,10 @@ async function updateFile(
   );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(`Google Drive update error: ${error.message || response.statusText}`);
   }
 
@@ -400,7 +408,10 @@ export const tools: Record<string, ToolHandler> = {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: response.statusText }));
+        const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+          message?: string;
+          errorMessages?: string[];
+        };
         throw new Error(`Google Drive download error: ${error.message || response.statusText}`);
       }
 
@@ -978,7 +989,10 @@ export const tools: Record<string, ToolHandler> = {
       );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: response.statusText }));
+        const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+          message?: string;
+          errorMessages?: string[];
+        };
         throw new Error(`Google Drive export error: ${error.message || response.statusText}`);
       }
 

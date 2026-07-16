@@ -6,9 +6,12 @@
 import type { Database } from '@authlane/database';
 import { refreshToken, type TokenRefreshData } from '@authlane/database';
 import { Queue, Worker } from 'bullmq';
+import { markExpiredConnections, processOutboxBatch } from './outbox.js';
 
 let tokenRefreshQueue: Queue<TokenRefreshData> | null = null;
 let tokenRefreshWorker: Worker<TokenRefreshData> | null = null;
+let outboxQueue: Queue<Record<string, never>> | null = null;
+let outboxWorker: Worker<Record<string, never>> | null = null;
 let redisConnectionFailed = false;
 
 /**
@@ -98,6 +101,23 @@ export function setupJobs(db: Database, redisUrl?: string) {
       );
     });
 
+    outboxQueue = new Queue<Record<string, never>>('webhook-outbox', {
+      connection: connectionOptions,
+    });
+    outboxWorker = new Worker<Record<string, never>>(
+      'webhook-outbox',
+      async () => {
+        await markExpiredConnections(db);
+        return processOutboxBatch(db);
+      },
+      { connection: connectionOptions }
+    );
+    outboxQueue.on('error', handleRedisError);
+    outboxWorker.on('error', handleRedisError);
+    void outboxQueue
+      .add('sweep', {}, { repeat: { every: 1_000 }, jobId: 'webhook-outbox-sweep' })
+      .catch(handleRedisError);
+
     console.log('✅ Token refresh queue and worker initialized');
   } catch (error) {
     console.log('⚠️  Failed to setup Redis jobs:', error instanceof Error ? error.message : error);
@@ -111,8 +131,7 @@ export function setupJobs(db: Database, redisUrl?: string) {
 export async function scheduleTokenRefresh(
   connectionId: string,
   serviceId: string,
-  userId?: string,
-  organizationId?: string,
+  organizationId: string,
   expiresAt?: Date | null
 ): Promise<void> {
   if (!tokenRefreshQueue) {
@@ -132,7 +151,6 @@ export async function scheduleTokenRefresh(
     {
       connectionId,
       serviceId,
-      userId,
       organizationId,
     },
     {
@@ -147,6 +165,14 @@ export async function scheduleTokenRefresh(
  * Closes job queues and workers
  */
 export async function closeJobs(): Promise<void> {
+  if (outboxWorker) {
+    await outboxWorker.close();
+    outboxWorker = null;
+  }
+  if (outboxQueue) {
+    await outboxQueue.close();
+    outboxQueue = null;
+  }
   if (tokenRefreshWorker) {
     await tokenRefreshWorker.close();
     tokenRefreshWorker = null;

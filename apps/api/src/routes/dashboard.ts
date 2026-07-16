@@ -3,11 +3,12 @@
  * These routes are for the admin dashboard and use organization context from auth
  */
 
-import { randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { encrypt, getEncryptionKey } from '@authlane/crypto';
 import type { Database } from '@authlane/database';
 import {
   and,
+  apiKeys,
   connections,
   count,
   countDistinct,
@@ -15,7 +16,6 @@ import {
   eq,
   invitation,
   member,
-  or,
   organization,
   organizationServices,
   services,
@@ -24,22 +24,13 @@ import {
 } from '@authlane/database';
 import { Errors, hashApiKey } from '@authlane/shared';
 import { Hono } from 'hono';
+import { API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
+import type { CacheStore } from '../lib/cache.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
 
 // Types for settings stored in organization.metadata JSONB
-interface ApiKeyEntry {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  keyHash: string;
-  createdAt: string;
-  lastUsedAt?: string;
-  expiresAt?: string;
-}
-
 interface OrganizationSettings {
-  apiKeys?: ApiKeyEntry[];
   webhookUrl?: string;
   webhookSecret?: string;
   rateLimit?: {
@@ -51,7 +42,7 @@ interface OrganizationSettings {
   updatedAt?: string;
 }
 
-export function createDashboardRouter(db: Database) {
+export function createDashboardRouter(db: Database, cache?: CacheStore) {
   const router = new Hono();
 
   /**
@@ -68,16 +59,12 @@ export function createDashboardRouter(db: Database) {
       }
 
       // Build filter condition based on available context
-      const userId = user?.id;
       const orgId = org?.id;
 
-      // Count connections (either user-scoped or org-scoped)
-      const connectionsFilter = orgId
-        ? or(
-            and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
-            and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''))
-          )
-        : eq(connections.userId, userId || '');
+      if (!orgId) {
+        return c.json(Errors.unauthorized('Select an organization first'), 401);
+      }
+      const connectionsFilter = eq(connections.organizationId, orgId);
 
       const [connectionsCount] = await db
         .select({ count: count() })
@@ -164,16 +151,12 @@ export function createDashboardRouter(db: Database) {
         );
       }
 
-      const userId = user?.id;
       const orgId = org?.id;
 
-      // Build base filter for connections (scope-based)
-      const baseFilter = orgId
-        ? or(
-            and(eq(connections.scope, 'organization'), eq(connections.organizationId, orgId)),
-            and(eq(connections.scope, 'user'), eq(connections.userId, userId || ''))
-          )
-        : eq(connections.userId, userId || '');
+      if (!orgId) {
+        return c.json(Errors.unauthorized('Select an organization first'), 401);
+      }
+      const baseFilter = eq(connections.organizationId, orgId);
 
       // Build additional filters
       const filters = [baseFilter];
@@ -210,8 +193,6 @@ export function createDashboardRouter(db: Database) {
       // Map to the format expected by dashboard
       const formattedConnections = userConnections.map((conn) => ({
         id: conn.id,
-        scope: conn.scope,
-        userId: conn.userId,
         organizationId: conn.organizationId,
         serviceId: conn.serviceId,
         externalUserId: conn.externalUserId,
@@ -239,18 +220,17 @@ export function createDashboardRouter(db: Database) {
         return c.json(Errors.unauthorized('Organization context required'), 401);
       }
 
-      const settings = parseSettings(org.metadata);
-      const apiKeys = settings.apiKeys || [];
-
-      // Return keys without the hash
-      const formattedKeys = apiKeys.map((key) => ({
+      const keys = await db.select().from(apiKeys).where(eq(apiKeys.organizationId, org.id));
+      const formattedKeys = keys.map((key) => ({
         id: key.id,
         organizationId: org.id,
         name: key.name,
-        keyPrefix: key.keyPrefix,
-        createdAt: key.createdAt,
-        lastUsedAt: key.lastUsedAt,
-        expiresAt: key.expiresAt,
+        keyPrefix: key.keyHint,
+        scopes: key.scopes,
+        enabled: key.enabled,
+        createdAt: key.createdAt.toISOString(),
+        lastUsedAt: key.lastUsedAt?.toISOString(),
+        expiresAt: key.expiresAt?.toISOString(),
       }));
 
       return c.json({
@@ -275,45 +255,54 @@ export function createDashboardRouter(db: Database) {
       }
 
       const body = await c.req.json();
-      const { name, expiresAt } = body;
+      const { name, scopes, expiresAt, expiresInDays } = body as {
+        name?: string;
+        scopes?: unknown;
+        expiresAt?: string;
+        expiresInDays?: number;
+      };
 
       if (!name || typeof name !== 'string' || name.length < 1) {
         return c.json(Errors.validationError('API key name is required'), 400);
       }
 
-      // Generate new API key
-      const apiKey = `ak_${randomUUID().replace(/-/g, '')}`;
-      const keyPrefix = apiKey.substring(0, 10);
-      const keyHash = hashApiKey(apiKey);
-
-      const newKeyEntry: ApiKeyEntry = {
-        id: randomUUID(),
-        name,
-        keyPrefix,
-        keyHash,
-        createdAt: new Date().toISOString(),
-        expiresAt: expiresAt || undefined,
-      };
-
-      const settings = parseSettings(org.metadata);
-      const apiKeys = settings.apiKeys || [];
-      apiKeys.push(newKeyEntry);
-
-      // Update organization metadata
-      await db
-        .update(organization)
-        .set({ metadata: JSON.stringify({ ...settings, apiKeys }) })
-        .where(eq(organization.id, org.id));
+      const normalizedScopes = scopes === undefined ? [...API_SCOPES] : normalizeApiScopes(scopes);
+      if (scopes !== undefined && normalizedScopes.length !== (scopes as unknown[]).length) {
+        return c.json(Errors.validationError('One or more API key scopes are invalid'), 400);
+      }
+      const rawKey = `ak_${randomBytes(32).toString('base64url')}`;
+      const keyPrefix = rawKey.substring(0, 10);
+      const calculatedExpiry = expiresAt
+        ? new Date(expiresAt)
+        : expiresInDays
+          ? new Date(Date.now() + expiresInDays * 86_400_000)
+          : null;
+      if (calculatedExpiry && Number.isNaN(calculatedExpiry.getTime())) {
+        return c.json(Errors.validationError('Invalid API key expiration'), 400);
+      }
+      const [created] = await db
+        .insert(apiKeys)
+        .values({
+          organizationId: org.id,
+          name,
+          keyHash: hashApiKey(rawKey),
+          keyHint: keyPrefix,
+          scopes: normalizedScopes,
+          expiresAt: calculatedExpiry,
+        })
+        .returning();
 
       return c.json({
         data: {
-          id: newKeyEntry.id,
+          id: created?.id,
           organizationId: org.id,
-          name: newKeyEntry.name,
-          keyPrefix: newKeyEntry.keyPrefix,
-          key: apiKey, // Only returned once during creation!
-          createdAt: newKeyEntry.createdAt,
-          expiresAt: newKeyEntry.expiresAt,
+          name: created?.name,
+          keyPrefix,
+          key: rawKey,
+          scopes: created?.scopes,
+          enabled: created?.enabled,
+          createdAt: created?.createdAt.toISOString(),
+          expiresAt: created?.expiresAt?.toISOString(),
         },
         error: null,
       });
@@ -342,7 +331,7 @@ export function createDashboardRouter(db: Database) {
         name?: string;
         scopes?: string[];
         enabled?: boolean;
-        expiresAt?: string;
+        expiresAt?: string | null;
       };
 
       try {
@@ -355,7 +344,12 @@ export function createDashboardRouter(db: Database) {
       }
 
       // Validate at least one field is being updated
-      if (!body.name && !body.scopes && body.enabled === undefined && !body.expiresAt) {
+      if (
+        body.name === undefined &&
+        body.scopes === undefined &&
+        body.enabled === undefined &&
+        body.expiresAt === undefined
+      ) {
         return c.json(
           Errors.validationError(
             'No fields to update',
@@ -381,40 +375,41 @@ export function createDashboardRouter(db: Database) {
         );
       }
 
-      // Get current API keys from settings
-      const settings = parseSettings(org.metadata);
-      const apiKeys = settings.apiKeys || [];
-      const keyIndex = apiKeys.findIndex((k) => k.id === keyId);
-
-      if (keyIndex === -1) {
+      const [currentKey] = await db
+        .select()
+        .from(apiKeys)
+        .where(and(eq(apiKeys.id, keyId), eq(apiKeys.organizationId, org.id)))
+        .limit(1);
+      if (!currentKey) {
         return c.json(Errors.notFound('API Key', keyId), 404);
       }
-
-      // Update the API key
-      const apiKey = apiKeys[keyIndex];
-      if (!apiKey) {
-        return c.json(Errors.notFound('API Key', keyId), 404);
+      const normalizedScopes = body.scopes ? normalizeApiScopes(body.scopes) : undefined;
+      if (body.scopes && normalizedScopes?.length !== body.scopes.length) {
+        return c.json(Errors.validationError('One or more API key scopes are invalid'), 400);
       }
-      const updatedKey: ApiKeyEntry = { ...apiKey };
-
-      if (body.name !== undefined) {
-        updatedKey.name = body.name;
-      }
-
-      if (body.expiresAt !== undefined) {
-        updatedKey.expiresAt = body.expiresAt;
-      }
-
-      apiKeys[keyIndex] = updatedKey;
-
-      // Update organization metadata
-      await db
-        .update(organization)
-        .set({ metadata: JSON.stringify({ ...settings, apiKeys }) })
-        .where(eq(organization.id, org.id));
+      const [updatedKey] = await db
+        .update(apiKeys)
+        .set({
+          ...(body.name !== undefined ? { name: body.name } : {}),
+          ...(normalizedScopes ? { scopes: normalizedScopes } : {}),
+          ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+          ...(body.expiresAt !== undefined
+            ? { expiresAt: body.expiresAt ? new Date(body.expiresAt) : null }
+            : {}),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(apiKeys.id, keyId), eq(apiKeys.organizationId, org.id)))
+        .returning();
+      await cache?.delete(`control-plane:principal:${currentKey.keyHash}`);
 
       return c.json({
-        data: updatedKey,
+        data: updatedKey
+          ? {
+              ...updatedKey,
+              keyHash: undefined,
+              keyPrefix: updatedKey.keyHint,
+            }
+          : null,
         error: null,
       });
     } catch (error) {
@@ -435,21 +430,14 @@ export function createDashboardRouter(db: Database) {
       }
 
       const keyId = c.req.param('id');
-      const settings = parseSettings(org.metadata);
-      const apiKeys = settings.apiKeys || [];
-      const keyIndex = apiKeys.findIndex((k) => k.id === keyId);
-
-      if (keyIndex === -1) {
+      const [deleted] = await db
+        .delete(apiKeys)
+        .where(and(eq(apiKeys.id, keyId), eq(apiKeys.organizationId, org.id)))
+        .returning({ keyHash: apiKeys.keyHash });
+      if (!deleted) {
         return c.json(Errors.notFound('API Key', keyId), 404);
       }
-
-      apiKeys.splice(keyIndex, 1);
-
-      // Update organization metadata
-      await db
-        .update(organization)
-        .set({ metadata: JSON.stringify({ ...settings, apiKeys }) })
-        .where(eq(organization.id, org.id));
+      await cache?.delete(`control-plane:principal:${deleted.keyHash}`);
 
       return c.json({
         data: { success: true },
@@ -677,6 +665,7 @@ export function createDashboardRouter(db: Database) {
             updatedAt: new Date(),
           },
         });
+      await cache?.delete(`control-plane:tenant-services:${org.id}`);
 
       return c.json({
         data: { success: true, enabled },
@@ -702,6 +691,11 @@ export function createDashboardRouter(db: Database) {
       const serviceId = c.req.param('serviceId');
       const body = await c.req.json();
       const { customClientId, customClientSecret, apiKey } = body;
+      const encryptionKey = getEncryptionKey();
+      const encryptedClientSecret = customClientSecret
+        ? encrypt(customClientSecret, encryptionKey)
+        : null;
+      const encryptedApiKey = apiKey ? encrypt(apiKey, encryptionKey) : null;
 
       // Build update object
       const updateData: Record<string, unknown> = {
@@ -713,13 +707,11 @@ export function createDashboardRouter(db: Database) {
       }
 
       if (customClientSecret) {
-        const encryptionKey = getEncryptionKey();
-        updateData.oauthClientSecretEnc = encrypt(customClientSecret, encryptionKey);
+        updateData.oauthClientSecretEnc = encryptedClientSecret;
       }
 
       if (apiKey) {
-        const encryptionKey = getEncryptionKey();
-        updateData.apiKeyEnc = encrypt(apiKey, encryptionKey);
+        updateData.apiKeyEnc = encryptedApiKey;
       }
 
       // Upsert the organization service
@@ -730,8 +722,8 @@ export function createDashboardRouter(db: Database) {
           serviceId,
           enabled: true,
           oauthClientId: customClientId || null,
-          oauthClientSecretEnc: customClientSecret || null,
-          apiKeyEnc: apiKey || null,
+          oauthClientSecretEnc: encryptedClientSecret,
+          apiKeyEnc: encryptedApiKey,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -739,6 +731,7 @@ export function createDashboardRouter(db: Database) {
           target: [organizationServices.organizationId, organizationServices.serviceId],
           set: updateData,
         });
+      await cache?.delete(`control-plane:tenant-services:${org.id}`);
 
       return c.json({
         data: { success: true },

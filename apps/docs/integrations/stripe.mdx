@@ -1,70 +1,19 @@
 ---
-title: 'Stripe'
-description: 'Integration guide for Stripe'
+title: Stripe
+description: Use the local Stripe adapter with Authlane credentials
 ---
 
-## Overview
+Install the published adapter in the SaaS or agent runtime that will call Stripe:
 
-Connect to Stripe via OAuth 2.0.
-
-**Category:** Other
-**Auth Type:** OAuth 2.0
-
-## Setup
-
-<Steps>
-  <Step title="Create OAuth App">
-    Create an OAuth application in Stripe developer portal.
-  </Step>
-
-  <Step title="Configure Callback">
-    Set redirect URL: `https://api.authlane.com/api/v1/oauth/callback`
-  </Step>
-
-  <Step title="Add to Authlane">
-    ```bash
-    curl -X POST https://api.authlane.com/api/v1/admin/services/stripe/credentials \
-      -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "tenantId": "your-tenant-id",
-        "clientId": "YOUR_CLIENT_ID",
-        "clientSecret": "YOUR_CLIENT_SECRET"
-      }'
-    ```
-  </Step>
-</Steps>
-
-## Available Tools
-
-Tools available for Stripe integration:
-
-See `/integrations/stripe/tools.ts` for complete list.
-
-## Example Usage
-
-```typescript
-import { Authlane } from '@authlane/sdk';
-
-const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
-
-const { data } = await authlane.tools.execute({
-  userId: 'user_123',
-  serviceId: 'stripe',
-  toolName: 'stripe_example_tool',
-  parameters: {
-    // Tool-specific parameters
-  },
-});
+```bash
+pnpm add @authlane/integration-stripe
 ```
 
-## Resources
+```typescript
+import adapter from @authlane/integration-;
 
-<CardGroup cols={2}>
-  <Card title="OAuth Setup" icon="key" href="/guides/oauth-setup">
-    Configure OAuth applications
-  </Card>
-  <Card title="TypeScript SDK" icon="code" href="/sdk/typescript">
-    Use with Authlane SDK
-  </Card>
-</CardGroup>
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Get `credential` from the server-side Authlane credentials endpoint. The adapter calls Stripe directly; tool inputs and provider responses do not pass through Authlane.

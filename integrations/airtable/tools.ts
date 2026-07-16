@@ -3,8 +3,7 @@
  * Executable tool handlers with credential injection
  */
 
-import type { OAuth2Credentials } from '@authlane/shared';
-import type { ToolHandler } from '../../apps/api/src/lib/tool-executor.js';
+import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
 /**
  * Make Airtable API request with OAuth token
@@ -24,7 +23,10 @@ async function airtableRequest(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
+      message?: string;
+      errorMessages?: string[];
+    };
     throw new Error(`Airtable API error: ${error.message || response.statusText}`);
   }
 
@@ -145,7 +147,11 @@ export const tools: Record<string, ToolHandler> = {
       };
 
       const queryParams = new URLSearchParams();
-      if (fields) fields.forEach((field) => queryParams.append('fields[]', field));
+      if (fields) {
+        fields.forEach((field) => {
+          queryParams.append('fields[]', field);
+        });
+      }
       if (filter_by_formula) queryParams.append('filterByFormula', filter_by_formula);
       if (max_records) queryParams.append('maxRecords', max_records.toString());
       if (page_size) queryParams.append('pageSize', page_size.toString());

@@ -2,25 +2,24 @@ x-app-environment: &app-environment
   NODE_ENV: production
   API_HOST: 0.0.0.0
   API_PORT: 3000
-  APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
-  BETTER_AUTH_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
-  BETTER_AUTH_SECRETS: ${BETTER_AUTH_SECRETS:?Set a versioned Better Auth secret ring}
-  AUTHLANE_ALLOW_SIGNUP: ${AUTHLANE_ALLOW_SIGNUP:-false}
-  CORS_ORIGIN: ${CORS_ORIGIN:?Set the exact public HTTPS origin}
-  DATABASE_URL: postgresql://authlane_app:${AUTHLANE_RUNTIME_DB_PASSWORD:?Set a URL-safe database password}@postgres:5432/authlane
-  SYSTEM_DATABASE_URL: postgresql://authlane_job:${AUTHLANE_WORKER_DB_PASSWORD:?Set a URL-safe worker password}@postgres:5432/authlane
-  REDIS_URL: redis://:${REDIS_PASSWORD:?Set a URL-safe Redis password}@redis:6379
-  AUTHLANE_DATA_KEK_RING: ${AUTHLANE_DATA_KEK_RING:?Set the data KEK ring}
-  AUTHLANE_LOOKUP_KEY_RING: ${AUTHLANE_LOOKUP_KEY_RING:?Set the lookup key ring}
-  AUTHLANE_REDIS_KEY_RING: ${AUTHLANE_REDIS_KEY_RING:?Set the Redis key ring}
-  METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:?Set the metrics bearer token}
-  TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+  APP_URL:
+  BETTER_AUTH_SECRETS:
+  AUTHLANE_ALLOW_SIGNUP:
+  CORS_ORIGIN:
+  AUTHLANE_RUNTIME_DB_PASSWORD:
+  AUTHLANE_WORKER_DB_PASSWORD:
+  REDIS_PASSWORD:
+  AUTHLANE_DATA_KEK_RING:
+  AUTHLANE_LOOKUP_KEY_RING:
+  AUTHLANE_REDIS_KEY_RING:
+  METRICS_BEARER_TOKEN:
+  TRUSTED_PROXY_CIDRS:
   RATE_LIMIT_ENABLED: 'true'
-  RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-30000}
-  RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
-  RESEND_API_KEY: ${RESEND_API_KEY:-}
-  EMAIL_FROM: ${EMAIL_FROM:-}
-  SENTRY_DSN: ${SENTRY_DSN:-}
+  RATE_LIMIT_MAX_REQUESTS:
+  RATE_LIMIT_WINDOW_MS:
+  RESEND_API_KEY:
+  EMAIL_FROM:
+  SENTRY_DSN:
 
 services:
   migrate:
@@ -29,9 +28,17 @@ services:
       dockerfile: apps/api/Dockerfile
       target: migrator
     environment:
-      DATABASE_URL: postgresql://authlane_migrator:${POSTGRES_PASSWORD:?Set the PostgreSQL administrator password}@postgres:5432/authlane
-      AUTHLANE_RUNTIME_DB_PASSWORD: ${AUTHLANE_RUNTIME_DB_PASSWORD:?Set a URL-safe database password}
-      AUTHLANE_WORKER_DB_PASSWORD: ${AUTHLANE_WORKER_DB_PASSWORD:?Set a URL-safe worker password}
+      POSTGRES_PASSWORD:
+      AUTHLANE_RUNTIME_DB_PASSWORD:
+      AUTHLANE_WORKER_DB_PASSWORD:
+    command:
+      - sh
+      - -c
+      - |
+        export DATABASE_URL="postgresql://authlane_migrator:$$POSTGRES_PASSWORD@postgres:5432/authlane"
+        node packages/database/dist/migrate.js
+        node packages/database/dist/seed-catalog.js
+        exec /app/docker/postgres/provision-roles.sh
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,6 +61,15 @@ services:
       target: runner
     expose: ['3000']
     environment: *app-environment
+    command:
+      - sh
+      - -c
+      - |
+        export BETTER_AUTH_URL="$$APP_URL"
+        export DATABASE_URL="postgresql://authlane_app:$$AUTHLANE_RUNTIME_DB_PASSWORD@postgres:5432/authlane"
+        export SYSTEM_DATABASE_URL="postgresql://authlane_job:$$AUTHLANE_WORKER_DB_PASSWORD@postgres:5432/authlane"
+        export REDIS_URL="redis://:$$REDIS_PASSWORD@redis:6379"
+        exec node apps/api/dist/index.js
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -76,7 +92,7 @@ services:
     environment:
       POSTGRES_DB: authlane
       POSTGRES_USER: authlane_migrator
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set the PostgreSQL administrator password}
+      POSTGRES_PASSWORD:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -95,7 +111,7 @@ services:
     image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
     command: ['sh', '-c', 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set a URL-safe Redis password}
+      REDIS_PASSWORD:
     volumes:
       - redis_data:/data
     healthcheck:

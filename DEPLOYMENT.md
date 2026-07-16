@@ -62,14 +62,18 @@ For the DX Heroes demo use:
 
 - repository `DXHeroes/authlane`, branch `main`, and compose path `/docker-compose.coolify.yml`;
 - public app service domain `https://authlane.apps.dx.tools:3000`;
-- `APP_URL`, `BETTER_AUTH_URL`, and `CORS_ORIGIN` set to `https://authlane.apps.dx.tools`;
-- independent 64-hex values for database/Redis passwords, all three keyrings, Better Auth, and metrics;
+- `APP_URL` and `CORS_ORIGIN` set to `https://authlane.apps.dx.tools`; the runtime derives
+  `BETTER_AUTH_URL` from `APP_URL`;
+- independent URL-safe 64-hex database/Redis passwords, `v1:<64-hex>` keyrings,
+  `1:<64-hex>` Better Auth secrets, and a 64-hex metrics token;
 - `RATE_LIMIT_MAX_REQUESTS=30000` and `RATE_LIMIT_WINDOW_MS=60000` for the acceptance benchmark;
 - empty `TRUSTED_PROXY_CIDRS` unless the exact immediate Coolify proxy CIDR is known.
 
-Create the resource with instant deployment disabled. Add the domain and masked runtime variables,
-then deploy. A healthy deployment has an exited-zero `migrate` container, healthy PostgreSQL and
-Redis, and a healthy `app` container responding on `/health`.
+Create the resource with instant deployment disabled. Add the domain and masked, literal,
+runtime-only variables, then deploy. The Compose file deliberately resolves secrets only when the
+containers start so Coolify does not inject them into build arguments or image metadata. A healthy
+deployment has an exited-zero `migrate` container, healthy PostgreSQL and Redis, and a healthy `app`
+container responding on `/health`.
 
 ### First-owner bootstrap
 

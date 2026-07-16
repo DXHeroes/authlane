@@ -65,7 +65,7 @@ export class DatabaseSecretStore implements SecretStore {
   constructor(
     private readonly db: Database,
     private readonly vault: SecretVault,
-    private readonly createId: () => string = crypto.randomUUID
+    private readonly createId: () => string = () => crypto.randomUUID()
   ) {}
 
   async put(input: PutSecretInput): Promise<string> {

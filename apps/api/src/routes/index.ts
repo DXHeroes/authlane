@@ -33,7 +33,7 @@ export function createApiRouter(
 
   router.use('/catalog/*', requirePrincipalKind('api_key'));
   router.use('/users/*', requirePrincipalKind('api_key'));
-  router.route('/', createControlPlaneRouter(repository, integrationRegistry));
+  router.route('/', createControlPlaneRouter(repository, integrationRegistry, secretStore));
   router.route('/', createOAuthRouter(db, secretStore));
 
   return router;

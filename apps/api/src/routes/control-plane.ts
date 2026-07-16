@@ -1,5 +1,16 @@
-import type { ConnectionStatus, ToolFormat } from '@authlane/shared';
-import { Errors, getEffectiveConnectionStatus, isValidUserId } from '@authlane/shared';
+import type { SecretStore } from '@authlane/database';
+import type {
+  ConnectionStatus,
+  CredentialLease,
+  CredentialPlacement,
+  ToolFormat,
+} from '@authlane/shared';
+import {
+  Errors,
+  getEffectiveConnectionStatus,
+  isValidServiceId,
+  isValidUserId,
+} from '@authlane/shared';
 import { Hono } from 'hono';
 import { requireScope } from '../middleware/scope.js';
 
@@ -55,6 +66,91 @@ export interface ToolRegistry {
 
 interface ControlPlaneRouterOptions {
   now?: () => Date;
+  createLeaseId?: () => string;
+}
+
+interface StoredCredentials {
+  access_token?: unknown;
+  token_type?: unknown;
+  scope?: unknown;
+  expires_at?: unknown;
+  api_key?: unknown;
+  placement?: unknown;
+}
+
+function isCredentialPlacement(value: unknown): value is CredentialPlacement {
+  if (!value || typeof value !== 'object') return false;
+  const placement = value as Record<string, unknown>;
+  if (placement.type === 'query') {
+    return (
+      typeof placement.name === 'string' &&
+      placement.name.length > 0 &&
+      placement.name.length <= 128 &&
+      /^[A-Za-z0-9_.~-]+$/.test(placement.name)
+    );
+  }
+  return (
+    placement.type === 'header' &&
+    typeof placement.name === 'string' &&
+    placement.name.length > 0 &&
+    placement.name.length <= 128 &&
+    /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(placement.name) &&
+    (placement.prefix === undefined ||
+      (typeof placement.prefix === 'string' &&
+        placement.prefix.length <= 128 &&
+        !/[\r\n]/.test(placement.prefix)))
+  );
+}
+
+function toCredentialLease(
+  stored: StoredCredentials,
+  leaseId: string,
+  connectionExpiresAt: Date | null
+): CredentialLease | null {
+  let storedExpiresAt: Date | null = null;
+  if (stored.expires_at !== undefined && stored.expires_at !== null) {
+    if (typeof stored.expires_at !== 'string') return null;
+    storedExpiresAt = new Date(stored.expires_at);
+    if (Number.isNaN(storedExpiresAt.getTime())) return null;
+  }
+  const effectiveExpiry =
+    storedExpiresAt && connectionExpiresAt
+      ? new Date(Math.min(storedExpiresAt.getTime(), connectionExpiresAt.getTime()))
+      : (storedExpiresAt ?? connectionExpiresAt);
+  const expiresAt = effectiveExpiry?.toISOString() ?? null;
+
+  if (typeof stored.access_token === 'string' && stored.access_token.length > 0) {
+    return {
+      type: 'oauth2',
+      leaseId,
+      accessToken: stored.access_token,
+      tokenType:
+        typeof stored.token_type === 'string' && stored.token_type.length > 0
+          ? stored.token_type
+          : 'Bearer',
+      scopes:
+        typeof stored.scope === 'string'
+          ? stored.scope.split(/\s+/).filter((scope) => scope.length > 0)
+          : [],
+      expiresAt,
+    };
+  }
+
+  if (
+    typeof stored.api_key === 'string' &&
+    stored.api_key.length > 0 &&
+    isCredentialPlacement(stored.placement)
+  ) {
+    return {
+      type: 'api_key',
+      leaseId,
+      value: stored.api_key,
+      placement: stored.placement,
+      expiresAt,
+    };
+  }
+
+  return null;
 }
 
 function parseFormat(value: string | undefined): ToolFormat | null {
@@ -92,10 +188,12 @@ function connectionView(
 export function createControlPlaneRouter(
   repository: ControlPlaneRepository,
   registry: ToolRegistry,
+  secretStore: SecretStore,
   options: ControlPlaneRouterOptions = {}
 ) {
   const router = new Hono();
   const now = options.now ?? (() => new Date());
+  const createLeaseId = options.createLeaseId ?? (() => crypto.randomUUID());
 
   router.get('/catalog/services', requireScope('catalog:read'), async (c) => {
     const principal = c.get('principal');
@@ -210,6 +308,77 @@ export function createControlPlaneRouter(
     ]);
     return c.json({ data: { ...definitions, version }, error: null });
   });
+
+  router.post(
+    '/users/:externalUserId/connections/:serviceId/credential-leases',
+    requireScope('credentials:issue'),
+    async (c) => {
+      const externalUserId = c.req.param('externalUserId');
+      const serviceId = c.req.param('serviceId');
+      if (!isValidUserId(externalUserId) || !isValidServiceId(serviceId)) {
+        return c.json(Errors.validationError('Invalid external user ID or service ID'), 400);
+      }
+
+      const principal = c.get('principal');
+      const connection = await repository.getConnection(
+        principal.organizationId,
+        externalUserId,
+        serviceId
+      );
+      if (!connection) {
+        return c.json(Errors.notFound('Connection'), 404);
+      }
+      const requestTime = now();
+      const effectiveStatus = getEffectiveConnectionStatus(
+        {
+          status: connection.status,
+          hasCredentials: Boolean(connection.credentialSecretId),
+          expiresAt: connection.expiresAt,
+        },
+        requestTime
+      );
+      if (effectiveStatus !== 'connected' || !connection.credentialSecretId) {
+        return c.json(
+          Errors.connectionNotConnected(`Connection to ${serviceId} is not connected`),
+          409
+        );
+      }
+
+      const secret = await secretStore.read(
+        connection.credentialSecretId,
+        principal.organizationId,
+        'connection_credentials'
+      );
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(secret.toString('utf8')) as unknown;
+      } catch {
+        return c.json(Errors.encryptionError('Stored credential material is invalid'), 500);
+      } finally {
+        secret.fill(0);
+      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return c.json(Errors.encryptionError('Stored credential material is invalid'), 500);
+      }
+      const stored = parsed as StoredCredentials;
+      const lease = toCredentialLease(stored, createLeaseId(), connection.expiresAt);
+      if (!lease) {
+        return c.json(Errors.encryptionError('Stored credential material is invalid'), 500);
+      }
+
+      await repository.auditCredentialAccess({
+        organizationId: principal.organizationId,
+        externalUserId,
+        serviceId,
+        apiKeyId: principal.apiKeyId,
+        ipAddress: c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || null,
+        userAgent: c.req.header('user-agent') ?? null,
+      });
+      c.header('Cache-Control', 'no-store, private');
+      c.header('Pragma', 'no-cache');
+      return c.json({ data: lease, error: null }, 201);
+    }
+  );
 
   return router;
 }

@@ -60,6 +60,31 @@ export interface ApiKeyCredentials {
  */
 export type Credentials = OAuth2Credentials | ApiKeyCredentials;
 
+export type CredentialPlacement =
+  | { type: 'header'; name: string; prefix?: string }
+  | { type: 'query'; name: string };
+
+/**
+ * Ephemeral credential material issued only to a trusted server-side caller.
+ * Refresh tokens, ID tokens, and provider client secrets are never part of this contract.
+ */
+export type CredentialLease =
+  | {
+      type: 'oauth2';
+      leaseId: string;
+      accessToken: string;
+      tokenType: string;
+      scopes: string[];
+      expiresAt: string | null;
+    }
+  | {
+      type: 'api_key';
+      leaseId: string;
+      value: string;
+      placement: CredentialPlacement;
+      expiresAt: string | null;
+    };
+
 export type CredentialMaterial =
   | {
       type: 'oauth2';

@@ -79,7 +79,7 @@ pnpm add @authlane/integration-github
 ```typescript
 import github from '@authlane/integration-github';
 
-const { data: credential } = await authlane.connections.getCredentials({
+const { data: credential } = await authlane.credentialLeases.create({
   externalUserId: currentUser.id,
   serviceId: 'github',
 });
@@ -93,4 +93,4 @@ const { data: repositories, error } = await github.execute(
 );
 ```
 
-The GitHub request originates from your application. Authlane is not in the provider data path.
+The GitHub request originates from your backend. Authlane is not in the provider data path. Never return the credential lease to browser code or persist it.

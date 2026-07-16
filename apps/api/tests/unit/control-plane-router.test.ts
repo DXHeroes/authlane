@@ -1,3 +1,4 @@
+import type { SecretStore } from '@authlane/database';
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -31,7 +32,22 @@ function repository(overrides: Partial<ControlPlaneRepository> = {}): ControlPla
   };
 }
 
-function appFor(repo: ControlPlaneRepository, now = () => new Date('2026-06-01T00:00:00Z')) {
+function secretStore(value: unknown): SecretStore {
+  return {
+    put: vi.fn(),
+    read: vi.fn().mockResolvedValue(Buffer.from(JSON.stringify(value))),
+    rewrap: vi.fn(),
+  };
+}
+
+function appFor(
+  repo: ControlPlaneRepository,
+  options: {
+    now?: () => Date;
+    secretStore?: SecretStore;
+    scopes?: string[];
+  } = {}
+) {
   const registry = {
     getTools: vi.fn(async (serviceIds: string[], format: 'mcp' | 'openai') =>
       format === 'mcp'
@@ -58,11 +74,19 @@ function appFor(repo: ControlPlaneRepository, now = () => new Date('2026-06-01T0
       kind: 'api_key',
       organizationId: 'org_1',
       apiKeyId: 'key_1',
-      scopes: ['catalog:read', 'connections:read', 'credentials:issue'],
+      scopes: options.scopes ?? ['catalog:read', 'connections:read', 'credentials:issue'],
     });
     await next();
   });
-  app.route('/api/v1', createControlPlaneRouter(repo, registry, { now }));
+  app.route(
+    '/api/v1',
+    createControlPlaneRouter(
+      repo,
+      registry,
+      options.secretStore ?? secretStore({ access_token: 'default' }),
+      { now: options.now ?? (() => new Date('2026-06-01T00:00:00Z')) }
+    )
+  );
   return app;
 }
 
@@ -106,9 +130,9 @@ describe('control-plane read API', () => {
   });
 
   it('computes expiration at request time', async () => {
-    const response = await appFor(repository(), () => new Date('2028-01-01T00:00:00Z')).request(
-      '/api/v1/users/user_1/connections'
-    );
+    const response = await appFor(repository(), {
+      now: () => new Date('2028-01-01T00:00:00Z'),
+    }).request('/api/v1/users/user_1/connections');
     const body = await response.json();
 
     expect(body.data[0].status).toBe('expired');
@@ -121,5 +145,139 @@ describe('control-plane read API', () => {
     );
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('credential leases', () => {
+  it('issues only a short-lived OAuth access-token lease through POST', async () => {
+    const repo = repository({
+      getConnection: vi.fn().mockResolvedValue({
+        id: 'connection_1',
+        serviceId: 'github',
+        status: 'connected',
+        credentialSecretId: 'secret_1',
+        expiresAt: new Date('2026-06-01T01:00:00.000Z'),
+        connectedAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastCheckedAt: null,
+        lastErrorCode: null,
+      }),
+    });
+    const store = secretStore({
+      access_token: 'access-token',
+      refresh_token: 'must-never-leave-the-server',
+      id_token: 'must-never-leave-the-server',
+      token_type: 'Bearer',
+      scope: 'repo user:email',
+      expires_at: '2026-06-01T01:00:00.000Z',
+    });
+
+    const response = await appFor(repo, { secretStore: store }).request(
+      '/api/v1/users/user_1/connections/github/credential-leases',
+      { method: 'POST' }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get('cache-control')).toBe('no-store, private');
+    expect(response.headers.get('pragma')).toBe('no-cache');
+    expect(body).toEqual({
+      data: {
+        type: 'oauth2',
+        leaseId: expect.any(String),
+        accessToken: 'access-token',
+        tokenType: 'Bearer',
+        scopes: ['repo', 'user:email'],
+        expiresAt: '2026-06-01T01:00:00.000Z',
+      },
+      error: null,
+    });
+    expect(JSON.stringify(body)).not.toContain('refresh');
+    expect(JSON.stringify(body)).not.toContain('id_token');
+    expect(store.read).toHaveBeenCalledWith('secret_1', 'org_1', 'connection_credentials');
+    expect(repo.auditCredentialAccess).toHaveBeenCalledWith({
+      organizationId: 'org_1',
+      externalUserId: 'user_1',
+      serviceId: 'github',
+      apiKeyId: 'key_1',
+      ipAddress: null,
+      userAgent: null,
+    });
+  });
+
+  it('requires the credentials:issue scope', async () => {
+    const response = await appFor(repository(), {
+      scopes: ['connections:read'],
+    }).request('/api/v1/users/user_1/connections/github/credential-leases', {
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: 'INSUFFICIENT_SCOPE' });
+  });
+
+  it('issues an API key only with an explicit provider placement', async () => {
+    const repo = repository({
+      getConnection: vi.fn().mockResolvedValue({
+        id: 'connection_1',
+        serviceId: 'stripe',
+        status: 'connected',
+        credentialSecretId: 'secret_1',
+        expiresAt: null,
+        connectedAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastCheckedAt: null,
+        lastErrorCode: null,
+      }),
+    });
+
+    const response = await appFor(repo, {
+      secretStore: secretStore({
+        api_key: 'provider-key',
+        api_secret: 'must-never-leave-the-server',
+        placement: { type: 'header', name: 'Authorization', prefix: 'Bearer ' },
+      }),
+    }).request('/api/v1/users/user_1/connections/stripe/credential-leases', {
+      method: 'POST',
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.data).toMatchObject({
+      type: 'api_key',
+      value: 'provider-key',
+      placement: { type: 'header', name: 'Authorization', prefix: 'Bearer ' },
+      expiresAt: null,
+    });
+    expect(JSON.stringify(body)).not.toContain('api_secret');
+  });
+
+  it('fails closed for malformed decrypted credential data and clears its buffer', async () => {
+    const repo = repository({
+      getConnection: vi.fn().mockResolvedValue({
+        id: 'connection_1',
+        serviceId: 'github',
+        status: 'connected',
+        credentialSecretId: 'secret_1',
+        expiresAt: null,
+        connectedAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastCheckedAt: null,
+        lastErrorCode: null,
+      }),
+    });
+    const plaintext = Buffer.from('null');
+    const store: SecretStore = {
+      put: vi.fn(),
+      read: vi.fn().mockResolvedValue(plaintext),
+      rewrap: vi.fn(),
+    };
+
+    const response = await appFor(repo, { secretStore: store }).request(
+      '/api/v1/users/user_1/connections/github/credential-leases',
+      { method: 'POST' }
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ code: 'ENCRYPTION_ERROR' });
+    expect(plaintext.equals(Buffer.alloc(plaintext.length))).toBe(true);
+    expect(repo.auditCredentialAccess).not.toHaveBeenCalled();
   });
 });

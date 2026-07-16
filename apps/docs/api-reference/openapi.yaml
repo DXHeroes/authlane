@@ -57,34 +57,42 @@ paths:
       responses:
         '200':
           description: MCP tools or OpenAI functions with version hash
-  /api/v1/users/{externalUserId}/connections/{serviceId}/credentials:
-    get:
-      operationId: getCredentials
-      summary: Get access-only credential material
-      description: Server-only, audited, no-store response. OAuth refresh tokens are never returned.
-      x-authlane-scope: credentials:read
+  /api/v1/users/{externalUserId}/connections/{serviceId}/credential-leases:
+    post:
+      operationId: createCredentialLease
+      summary: Issue access-only credential material
+      description: Server-only, audited, non-cacheable response. OAuth refresh and ID tokens are never returned.
+      x-authlane-scope: credentials:issue
       parameters:
         - $ref: '#/components/parameters/ExternalUserId'
         - $ref: '#/components/parameters/ServiceId'
       responses:
-        '200':
-          description: Credential material
+        '201':
+          description: Credential lease
           headers:
             Cache-Control:
               schema:
                 type: string
-                const: no-store
+                const: no-store, private
+            Pragma:
+              schema:
+                type: string
+                const: no-cache
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CredentialResult'
+                $ref: '#/components/schemas/CredentialLeaseResult'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
         '409':
           $ref: '#/components/responses/Error'
   /api/v1/connect-sessions:
     post:
       operationId: createConnectSession
       summary: Create a short-lived browser handoff
-      x-authlane-scope: connect-sessions:write
+      x-authlane-scope: connect-sessions:create
       requestBody:
         required: true
         content:
@@ -268,17 +276,20 @@ components:
                           type: object
         error:
           type: 'null'
-    CredentialResult:
+    CredentialLeaseResult:
       type: object
       required: [data, error]
       properties:
         data:
           oneOf:
             - type: object
-              required: [type, accessToken, tokenType, scopes, expiresAt]
+              required: [type, leaseId, accessToken, tokenType, scopes, expiresAt]
               properties:
                 type:
                   const: oauth2
+                leaseId:
+                  type: string
+                  format: uuid
                 accessToken:
                   type: string
                 tokenType:
@@ -289,24 +300,38 @@ components:
                     type: string
                 expiresAt:
                   type: [string, 'null']
+                  format: date-time
             - type: object
-              required: [type, apiKey]
+              required: [type, leaseId, value, placement, expiresAt]
               properties:
                 type:
                   const: api_key
-                apiKey:
+                leaseId:
                   type: string
-                apiSecret:
+                  format: uuid
+                value:
                   type: string
-            - type: object
-              required: [type, headers]
-              properties:
-                type:
-                  const: header
-                headers:
-                  type: object
-                  additionalProperties:
-                    type: string
+                placement:
+                  oneOf:
+                    - type: object
+                      required: [type, name]
+                      properties:
+                        type:
+                          const: header
+                        name:
+                          type: string
+                        prefix:
+                          type: string
+                    - type: object
+                      required: [type, name]
+                      properties:
+                        type:
+                          const: query
+                        name:
+                          type: string
+                expiresAt:
+                  type: [string, 'null']
+                  format: date-time
         error:
           type: 'null'
     ConnectAction:

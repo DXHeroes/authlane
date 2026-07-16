@@ -9,7 +9,7 @@ vi.mock('@/lib/authlane', () => ({
   authlane: {
     listConnections: vi.fn(),
     listServices: vi.fn(),
-    getAuthUrl: vi.fn(),
+    createConnectSession: vi.fn(),
   },
 }));
 
@@ -253,8 +253,8 @@ describe('ConnectionStatus', () => {
 
     it('opens authentication popup when Connect button is clicked', async () => {
       const user = userEvent.setup();
-      vi.mocked(authlaneModule.authlane.getAuthUrl).mockResolvedValueOnce({
-        data: { url: 'https://github.com/login/oauth/authorize?...' },
+      vi.mocked(authlaneModule.authlane.createConnectSession).mockResolvedValueOnce({
+        data: { connectUrl: 'https://authlane.test/connect#session=secret' },
       } as any);
 
       render(<ConnectionStatus />);
@@ -268,7 +268,7 @@ describe('ConnectionStatus', () => {
 
       await waitFor(() => {
         expect(window.open).toHaveBeenCalledWith(
-          'https://github.com/login/oauth/authorize?...',
+          'https://authlane.test/connect#session=secret',
           '_blank',
           'width=600,height=700'
         );
@@ -277,7 +277,7 @@ describe('ConnectionStatus', () => {
 
     it('shows alert when getting auth URL fails', async () => {
       const user = userEvent.setup();
-      vi.mocked(authlaneModule.authlane.getAuthUrl).mockResolvedValueOnce({
+      vi.mocked(authlaneModule.authlane.createConnectSession).mockResolvedValueOnce({
         error: { message: 'Service not configured' },
       } as any);
 
@@ -299,7 +299,7 @@ describe('ConnectionStatus', () => {
 
     it('shows generic error message when error message is not provided', async () => {
       const user = userEvent.setup();
-      vi.mocked(authlaneModule.authlane.getAuthUrl).mockResolvedValueOnce({
+      vi.mocked(authlaneModule.authlane.createConnectSession).mockResolvedValueOnce({
         error: {},
       } as any);
 

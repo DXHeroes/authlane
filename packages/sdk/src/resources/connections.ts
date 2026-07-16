@@ -1,11 +1,5 @@
 import { ApiResource } from '../resource.js';
-import type {
-  Connection,
-  Credentials,
-  ExternalUserOptions,
-  Result,
-  UserServiceOptions,
-} from '../types.js';
+import type { Connection, ExternalUserOptions, Result, UserServiceOptions } from '../types.js';
 
 export class ConnectionsResource extends ApiResource {
   list({ externalUserId }: ExternalUserOptions): Promise<Result<Connection[]>> {
@@ -19,11 +13,5 @@ export class ConnectionsResource extends ApiResource {
     return connection
       ? { data: connection, error: null }
       : { data: null, error: { message: 'Connection not found', code: 'NOT_FOUND' } };
-  }
-
-  getCredentials({ externalUserId, serviceId }: UserServiceOptions): Promise<Result<Credentials>> {
-    return this.request(
-      `/api/v1/users/${encodeURIComponent(externalUserId)}/connections/${encodeURIComponent(serviceId)}/credentials`
-    );
   }
 }

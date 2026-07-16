@@ -16,4 +16,4 @@ const definitions = adapter.definitions;
 const result = await adapter.execute(toolName, input, credential);
 ```
 
-Get `credential` from the server-side Authlane credentials endpoint. The adapter calls Airtable directly; tool inputs and provider responses do not pass through Authlane.
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Airtable directly; tool inputs and provider responses do not pass through Authlane.

@@ -6,7 +6,7 @@ Authlane is an open-source control plane for third-party connections in SaaS pro
 
 ```text
 Browser ── short-lived connect session ──▶ Authlane UI + OAuth
-SaaS backend ── scoped API key ─────────▶ catalog / status / credentials
+SaaS backend ── scoped API key ─────────▶ catalog / status / credential leases
 AI agent ── @authlane/integration-* ────▶ GitHub, Slack, Google, ... directly
 ```
 
@@ -77,7 +77,7 @@ import { AuthlaneConnect } from '@authlane/react';
 ```typescript
 import github from '@authlane/integration-github';
 
-const { data: credential } = await authlane.connections.getCredentials({
+const { data: credential } = await authlane.credentialLeases.create({
   externalUserId: 'user_123',
   serviceId: 'github',
 });
@@ -99,12 +99,12 @@ This request goes from your application to GitHub, not through Authlane.
 - `GET /api/v1/users/{externalUserId}/capabilities?format=mcp|openai`
 - `GET /api/v1/users/{externalUserId}/connections`
 - `GET /api/v1/users/{externalUserId}/tools?format=mcp|openai`
-- `GET /api/v1/users/{externalUserId}/connections/{serviceId}/credentials`
+- `POST /api/v1/users/{externalUserId}/connections/{serviceId}/credential-leases`
 - `POST /api/v1/connect-sessions`
 
-API key scopes are `catalog:read`, `connections:read`, `connections:write`, `credentials:read`, and `connect-sessions:write`.
+API key scopes are `catalog:read`, `connections:read`, `credentials:issue`, and `connect-sessions:create`.
 
-Credential responses use `Cache-Control: no-store`, never expose OAuth refresh tokens, and create an audit record.
+Credential lease responses use `Cache-Control: no-store, private`, never expose OAuth refresh or ID tokens, and create an audit record.
 
 ## Performance target
 

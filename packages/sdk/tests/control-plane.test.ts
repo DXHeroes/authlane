@@ -62,4 +62,46 @@ describe('control-plane SDK', () => {
       expect.objectContaining({ method: 'POST' })
     );
   });
+
+  it('issues credential leases through POST and has no credential GET helper', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            type: 'oauth2',
+            leaseId: 'lease_1',
+            accessToken: 'provider-access-token',
+            tokenType: 'Bearer',
+            scopes: ['repo'],
+            expiresAt: '2026-06-01T01:00:00.000Z',
+          },
+          error: null,
+        }),
+        { status: 201, headers: { 'content-type': 'application/json' } }
+      )
+    );
+    const client = new Authlane({
+      apiKey: 'ak_server_secret',
+      baseUrl: 'https://authlane.test',
+      fetch: fetchFn,
+    });
+
+    const result = await client.credentialLeases.create({
+      externalUserId: 'user_1',
+      serviceId: 'github',
+    });
+
+    expect(result.data).toMatchObject({ type: 'oauth2', leaseId: 'lease_1' });
+    expect(fetchFn).toHaveBeenCalledWith(
+      'https://authlane.test/api/v1/users/user_1/connections/github/credential-leases',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(
+      (client.connections as ConnectionsWithLegacyCredentialGetter).getCredentials
+    ).toBeUndefined();
+  });
 });
+
+interface ConnectionsWithLegacyCredentialGetter {
+  getCredentials?: unknown;
+}

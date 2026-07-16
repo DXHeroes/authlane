@@ -13,9 +13,9 @@ PostgreSQL row-level security policies provide a database isolation boundary. Pr
 
 ## Credentials
 
-- Encrypt credentials at rest with AES-256-GCM and a deployment encryption key.
+- Encrypt every secret record with a random data-encryption key and AES-256-GCM, then wrap that key with a versioned deployment KEK.
 - Never log plaintext credentials, API keys, OAuth codes, or connect-session tokens.
-- Credential reads require `credentials:read`, are audited, and use `Cache-Control: no-store`.
+- Credential leases require `credentials:issue`, are audited, and use `Cache-Control: no-store, private`.
 - OAuth refresh tokens stay inside Authlane. The API returns access-only credential material.
 - Rotate API keys and grant the smallest required set of scopes.
 

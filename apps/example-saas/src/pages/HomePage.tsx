@@ -82,8 +82,8 @@ export default function HomePage() {
               3
             </span>
             <p>
-              <strong>Use credentials</strong> via Authlane API - fetch access tokens and call
-              external APIs directly
+              <strong>Call providers from your backend</strong> - issue an access-only lease,
+              perform the provider request, and return only application data to the browser
             </p>
           </div>
         </div>
@@ -124,7 +124,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-
-
-

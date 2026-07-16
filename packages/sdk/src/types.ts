@@ -37,16 +37,26 @@ export interface Connection {
   errorCode: string | null;
 }
 
-export type Credentials =
+export type CredentialPlacement =
+  | { type: 'header'; name: string; prefix?: string }
+  | { type: 'query'; name: string };
+
+export type CredentialLease =
   | {
       type: 'oauth2';
+      leaseId: string;
       accessToken: string;
       tokenType: string;
       scopes: string[];
       expiresAt: string | null;
     }
-  | { type: 'api_key'; apiKey: string; apiSecret?: string }
-  | { type: 'header'; headers: Record<string, string> };
+  | {
+      type: 'api_key';
+      leaseId: string;
+      value: string;
+      placement: CredentialPlacement;
+      expiresAt: string | null;
+    };
 
 export interface MCPTool {
   name: string;

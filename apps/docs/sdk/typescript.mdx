@@ -34,13 +34,13 @@ Use this hot-read endpoint when building an agent request. It returns connection
 ```typescript
 await authlane.connections.list({ externalUserId: 'user_123' });
 
-await authlane.connections.getCredentials({
+await authlane.credentialLeases.create({
   externalUserId: 'user_123',
   serviceId: 'github',
 });
 ```
 
-Credential reads require `credentials:read`, are audited, return `Cache-Control: no-store`, and never include OAuth refresh tokens.
+Credential leases require `credentials:issue`, are audited, return `Cache-Control: no-store, private`, and never include OAuth refresh or ID tokens. Issue them only on a trusted server and do not persist them.
 
 ## Connect sessions
 

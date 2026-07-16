@@ -1,115 +1,42 @@
-# AI Assistant Hub - Example SaaS Application
+# AI Assistant Hub - secure example SaaS
 
-This is an example SaaS application that demonstrates how to integrate with **Authlane** for managing third-party service connections.
+This example demonstrates the required backend-for-frontend boundary. The browser
+calls only same-origin `/api/example/*` routes. The Authlane API key and all
+provider credential leases stay inside the Node.js BFF.
 
-## Features
+## Development
 
-- **Connection Status** - View and manage service connections
-- **GitHub Integration Demo** - Fetch repositories using OAuth credentials from Authlane
-- **Public API Demo** - Call JSONPlaceholder API (no authentication needed)
+Set server-only environment variables and start the example:
 
-## How to Run
-
-1. Make sure the Authlane API is running:
-   ```bash
-   pnpm dev
-   ```
-
-2. Open the example SaaS app at: **http://localhost:5174**
-
-3. Open the Authlane dashboard at: **http://localhost:5173**
-
-## How Authlane Integration Works
-
-### 1. Configuration (in Authlane Dashboard)
-- Enable services your SaaS needs
-- Configure OAuth credentials for each service
-
-### 2. Connection (from Example SaaS)
-- Users click "Connect" to authorize services
-- OAuth flow opens in a popup
-- Authlane stores credentials securely
-
-### 3. Usage (in your application)
-- Fetch credentials from Authlane API
-- Call external APIs directly with the tokens
-- Authlane handles token refresh automatically
-
-## Code Structure
-
-```
-src/
-├── lib/
-│   └── authlane.ts      # Authlane API client
-├── components/
-│   └── ConnectionStatus.tsx  # Service connection UI
-├── pages/
-│   ├── HomePage.tsx     # Dashboard with connections
-│   ├── GitHubPage.tsx   # GitHub integration demo
-│   └── PostsPage.tsx    # Public API demo
-└── App.tsx              # Main app with routing
+```bash
+AUTHLANE_API_KEY=ak_live_... \
+AUTHLANE_API_URL=http://localhost:3000 \
+EXAMPLE_BROWSER_ORIGIN=http://localhost:5174 \
+pnpm --filter example-saas dev
 ```
 
-## Key Integration Points
+The Vite browser app runs on port 5174 and proxies its BFF calls to port 5175.
+For a production build, run `pnpm --filter example-saas build` and then
+`pnpm --filter example-saas start` with the same server-only environment.
 
-### Getting Credentials
+## Security boundary
 
-```typescript
-import { authlane } from './lib/authlane'
-
-// Get OAuth access token
-const { data, error } = await authlane.getCredentials('github')
-if (data?.accessToken) {
-  // Use the token to call GitHub API directly
-  fetch('https://api.github.com/user/repos', {
-    headers: { Authorization: `Bearer ${data.accessToken}` }
-  })
-}
+```text
+Browser ── same-origin request ──▶ Example SaaS BFF
+                                      │
+                                      ├── scoped API key ──▶ Authlane
+                                      └── credential lease ──▶ GitHub
+Browser ◀──── sanitized application data only ───────────────┘
 ```
 
-### Starting OAuth Flow
+- `AUTHLANE_API_KEY` is read only by `server/index.ts`; no Vite environment
+  variable contains it.
+- Mutating BFF requests require an exact `Origin` match.
+- The GitHub provider URL is fixed, credential responses are non-cacheable, and
+  only an allowlisted repository shape is returned to the browser.
+- Refresh tokens, ID tokens, access tokens, and API keys are never rendered or
+  returned by the BFF.
 
-```typescript
-// Get authorization URL
-const { data } = await authlane.getAuthUrl('github')
-if (data?.url) {
-  // Open in popup or redirect
-  window.open(data.url, '_blank')
-}
-```
-
-### Listing Available Services
-
-```typescript
-const { data: services } = await authlane.listServices()
-// Returns: [{ id: 'github', name: 'GitHub', authType: 'oauth2', ... }]
-```
-
-## Configuration
-
-Edit `src/lib/authlane.ts` to configure:
-
-- `AUTHLANE_API_URL` - API endpoint (default: `http://localhost:3000/api/v1`)
-- `AUTHLANE_API_KEY` - Your API key from Authlane dashboard
-- `USER_ID` - Your SaaS user's identifier
-
-## Port
-
-This application runs on port **5174** by default to avoid conflicts with:
-- Authlane API: 3000
-- Authlane Dashboard: 5173
-- Authlane Docs: 3004
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+The hardcoded `demo_user_123` represents the user ID your real authenticated
+backend would resolve from its own session. Do not accept this identifier from
+browser input in a production application.

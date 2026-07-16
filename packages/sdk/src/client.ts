@@ -2,6 +2,7 @@ import { Errors } from './errors.js';
 import { CapabilitiesResource } from './resources/capabilities.js';
 import { ConnectSessionsResource } from './resources/connect-sessions.js';
 import { ConnectionsResource } from './resources/connections.js';
+import { CredentialLeasesResource } from './resources/credential-leases.js';
 import { ServicesResource } from './resources/services.js';
 import { ToolsResource } from './resources/tools.js';
 import type { AuthlaneConfig } from './types.js';
@@ -12,6 +13,7 @@ export class Authlane {
   readonly tools: ToolsResource;
   readonly capabilities: CapabilitiesResource;
   readonly connectSessions: ConnectSessionsResource;
+  readonly credentialLeases: CredentialLeasesResource;
 
   constructor(config: AuthlaneConfig) {
     if (!config.apiKey) {
@@ -34,5 +36,6 @@ export class Authlane {
     this.tools = new ToolsResource(...args);
     this.capabilities = new CapabilitiesResource(...args);
     this.connectSessions = new ConnectSessionsResource(...args);
+    this.credentialLeases = new CredentialLeasesResource(...args);
   }
 }

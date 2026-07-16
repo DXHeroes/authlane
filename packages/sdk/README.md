@@ -39,13 +39,13 @@ const connections = await authlane.connections.list({
   externalUserId: 'user_123',
 });
 
-const credentials = await authlane.connections.getCredentials({
+const credentialLease = await authlane.credentialLeases.create({
   externalUserId: 'user_123',
   serviceId: 'github',
 });
 ```
 
-Credential reads require the `credentials:read` scope, are audited, and return access-only material. OAuth refresh tokens never leave Authlane.
+Credential leases require the `credentials:issue` scope, are audited, and return access-only material from a POST endpoint. OAuth refresh and ID tokens never leave Authlane. Use the lease immediately and never persist it.
 
 ## Hosted connect UI
 
@@ -75,8 +75,8 @@ Authlane returns definitions only. Execute tools in your own runtime with the ma
 
 - `catalog:read`
 - `connections:read`
-- `credentials:read`
-- `connect-sessions:write`
+- `credentials:issue`
+- `connect-sessions:create`
 
 Grant only the scopes used by each workload.
 

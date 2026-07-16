@@ -44,9 +44,9 @@ export default function ConnectionStatus() {
   }, [loadData]);
 
   async function handleConnect(serviceId: string) {
-    const result = await authlane.getAuthUrl(serviceId);
-    if (result.data?.url) {
-      window.open(result.data.url, '_blank', 'width=600,height=700');
+    const result = await authlane.createConnectSession(serviceId);
+    if (result.data?.connectUrl) {
+      window.open(result.data.connectUrl, '_blank', 'width=600,height=700');
     } else {
       alert(`Failed to get authorization URL: ${result.error?.message || 'Unknown error'}`);
     }
@@ -156,7 +156,3 @@ export default function ConnectionStatus() {
     </div>
   );
 }
-
-
-
-

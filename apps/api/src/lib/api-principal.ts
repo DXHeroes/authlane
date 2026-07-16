@@ -1,7 +1,7 @@
 import type { ApiScope } from '@authlane/shared';
 
-export { API_SCOPES, DEFAULT_API_SCOPES, normalizeApiScopes } from '@authlane/shared';
 export type { ApiScope } from '@authlane/shared';
+export { API_SCOPES, DEFAULT_API_SCOPES, normalizeApiScopes } from '@authlane/shared';
 
 export interface ApiPrincipal {
   kind: 'session' | 'api_key';

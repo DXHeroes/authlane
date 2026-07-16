@@ -3,8 +3,8 @@
  * Shared types and utilities for Authlane
  */
 
-export * from './capabilities.js';
 export * from './api-scopes.js';
+export * from './capabilities.js';
 export * from './env.js';
 export * from './errors.js';
 export * from './hash.js';

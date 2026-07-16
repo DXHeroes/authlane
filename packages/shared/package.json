@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./api-scopes": {
+      "types": "./dist/api-scopes.d.ts",
+      "import": "./dist/api-scopes.js"
     }
   },
   "files": [

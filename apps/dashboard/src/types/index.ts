@@ -1,4 +1,4 @@
-import type { ApiScope } from '@authlane/shared';
+import type { ApiScope } from '@authlane/shared/api-scopes';
 
 export interface User {
   id: string;

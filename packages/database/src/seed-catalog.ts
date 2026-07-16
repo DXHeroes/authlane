@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { seedServiceCatalog } from './service-catalog.js';
 import { services } from './schema/index.js';
+import { seedServiceCatalog } from './service-catalog.js';
 
 export async function seedProductionCatalog(dbUrl: string): Promise<void> {
   const client = postgres(dbUrl, { max: 1 });

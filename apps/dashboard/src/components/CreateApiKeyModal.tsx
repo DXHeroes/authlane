@@ -2,7 +2,7 @@ import {
   API_SCOPES,
   type ApiScope,
   DEFAULT_API_SCOPES,
-} from '@authlane/shared';
+} from '@authlane/shared/api-scopes';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '@/lib/api';

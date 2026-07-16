@@ -61,8 +61,8 @@ Do not add custom Compose networks: Coolify attaches its proxy network to the pu
 For the DX Heroes demo use:
 
 - repository `DXHeroes/authlane`, branch `main`, and compose path `/docker-compose.coolify.yml`;
-- public app service domain `https://authlane.apps.dx.tools:3000`;
-- `APP_URL` and `CORS_ORIGIN` set to `https://authlane.apps.dx.tools`; the runtime derives
+- public app service domain `https://authlane.io:3000`;
+- `APP_URL` and `CORS_ORIGIN` set to `https://authlane.io`; the runtime derives
   `BETTER_AUTH_URL` from `APP_URL`;
 - independent URL-safe 64-hex database/Redis passwords, `v1:<64-hex>` keyrings,
   `1:<64-hex>` Better Auth secrets, and a 64-hex metrics token;
@@ -82,8 +82,8 @@ container responding on `/health`.
 3. Enable MFA, sign in again to obtain a fresh session, and create the initial organization settings.
 4. Set `AUTHLANE_ALLOW_SIGNUP=false`, redeploy, and verify registration is rejected while sign-in works.
 
-For GitHub OAuth create an app with homepage `https://authlane.apps.dx.tools` and callback
-`https://authlane.apps.dx.tools/api/v1/oauth/github/callback`. Enter its client ID and secret only in
+For GitHub OAuth create an app with homepage `https://authlane.io` and callback
+`https://authlane.io/api/v1/oauth/github/callback`. Enter its client ID and secret only in
 the Authlane dashboard. Roll back application code through Coolify deployment history; never perform
 a destructive database rollback. This demo keeps data on local named volumes and does not provide a
 production backup SLA. Move PostgreSQL and Redis to managed, backed-up services before production.

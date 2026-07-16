@@ -59,7 +59,7 @@ export function rateLimitMiddleware(
 
     const organization = c.get('organization');
     const user = c.get('user');
-    const ip = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown';
+    const ip = c.get('clientIp') || 'unknown';
     const identity = organization
       ? `org:${organization.id}`
       : user

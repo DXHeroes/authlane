@@ -12,6 +12,7 @@ export class AuthlaneWidget {
   private container: HTMLElement | null = null;
   private config: WidgetConfig;
   private messageHandler: ((event: MessageEvent) => void) | null = null;
+  private iframeOrigin: string | null = null;
 
   constructor(config: WidgetConfig) {
     this.config = {
@@ -50,6 +51,7 @@ export class AuthlaneWidget {
 
     this.iframe = document.createElement('iframe');
     this.iframe.src = this.getIframeSrc();
+    this.iframeOrigin = new URL(this.iframe.src).origin;
     this.iframe.style.cssText = `
       width: 100%;
       border: none;
@@ -65,13 +67,21 @@ export class AuthlaneWidget {
   }
 
   private getIframeSrc(): string {
-    const url = new URL('/widget', window.location.origin);
+    const url = new URL('/connect', this.config.apiUrl ?? window.location.origin);
+    url.searchParams.set('origin', window.location.origin);
+    url.hash = new URLSearchParams({ session: this.config.connectToken }).toString();
     return url.toString();
   }
 
   private setupMessageListener(): void {
     this.messageHandler = (event: MessageEvent) => {
-      if (!this.iframe || event.source !== this.iframe.contentWindow) {
+      if (
+        !this.iframe ||
+        event.source !== this.iframe.contentWindow ||
+        event.origin !== this.iframeOrigin ||
+        typeof event.data !== 'object' ||
+        event.data === null
+      ) {
         return;
       }
 
@@ -113,7 +123,7 @@ export class AuthlaneWidget {
         type: 'parent:config',
         config: this.config,
       },
-      '*'
+      this.iframeOrigin || window.location.origin
     );
   }
 
@@ -141,7 +151,7 @@ export class AuthlaneWidget {
           type: 'parent:theme',
           theme: this.config.theme,
         },
-        '*'
+        this.iframeOrigin || window.location.origin
       );
     }
 
@@ -159,11 +169,18 @@ export class AuthlaneWidget {
     }
 
     this.container = null;
+    this.iframeOrigin = null;
+  }
+}
+
+declare global {
+  interface Window {
+    AuthlaneWidget: typeof AuthlaneWidget;
   }
 }
 
 if (typeof window !== 'undefined') {
-  (window as any).AuthlaneWidget = AuthlaneWidget;
+  window.AuthlaneWidget = AuthlaneWidget;
 }
 
 export default AuthlaneWidget;

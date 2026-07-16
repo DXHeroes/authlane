@@ -29,6 +29,7 @@ import { Hono } from 'hono';
 import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
 import type { CacheStore } from '../lib/cache.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
+import { logger } from '../lib/logger.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
 import { validateWebhookUrl } from '../lib/webhook-http.js';
 
@@ -118,7 +119,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to get dashboard stats:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to get dashboard stats');
       return c.json(Errors.internalError('Failed to retrieve dashboard stats'), 500);
     }
   });
@@ -211,7 +212,7 @@ export function createDashboardRouter(
 
       return c.json(createPaginatedResponse(formattedConnections, totalCount, limit, offset));
     } catch (error) {
-      console.error('Failed to get connections:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to get connections');
       return c.json(Errors.internalError('Failed to retrieve connections'), 500);
     }
   });
@@ -245,7 +246,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to get API keys:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to get API keys');
       return c.json(Errors.internalError('Failed to retrieve API keys'), 500);
     }
   });
@@ -316,7 +317,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to create API key:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to create API key');
       return c.json(Errors.internalError('Failed to create API key'), 500);
     }
   });
@@ -422,7 +423,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to update API key:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to update API key');
       return c.json(Errors.internalError('Failed to update API key'), 500);
     }
   });
@@ -453,7 +454,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to revoke API key:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to revoke API key');
       return c.json(Errors.internalError('Failed to revoke API key'), 500);
     }
   });
@@ -487,7 +488,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to get settings:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to get settings');
       return c.json(Errors.internalError('Failed to retrieve settings'), 500);
     }
   });
@@ -592,7 +593,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to update settings:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to update settings');
       return c.json(Errors.internalError('Failed to update settings'), 500);
     }
   });
@@ -631,7 +632,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to get organization services:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to get organization services');
       return c.json(Errors.internalError('Failed to retrieve organization services'), 500);
     }
   });
@@ -686,7 +687,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to get organization service:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to get organization service');
       return c.json(Errors.internalError('Failed to retrieve organization service'), 500);
     }
   });
@@ -734,7 +735,10 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to update organization service:', error);
+      logger.error(
+        { error, requestId: c.get('requestId') },
+        'Failed to update organization service'
+      );
       return c.json(Errors.internalError('Failed to update organization service'), 500);
     }
   });
@@ -833,7 +837,10 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to update organization service config:', error);
+      logger.error(
+        { error, requestId: c.get('requestId') },
+        'Failed to update organization service config'
+      );
       return c.json(Errors.internalError('Failed to update service configuration'), 500);
     }
   });
@@ -883,7 +890,10 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to fetch organization members:', error);
+      logger.error(
+        { error, requestId: c.get('requestId') },
+        'Failed to fetch organization members'
+      );
       return c.json(Errors.internalError('Failed to fetch members'), 500);
     }
   });
@@ -933,7 +943,7 @@ export function createDashboardRouter(
 
       return c.json(result, 201);
     } catch (error) {
-      console.error('Failed to create invitation:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to create invitation');
       return c.json(Errors.internalError('Failed to create invitation'), 500);
     }
   });
@@ -1004,7 +1014,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to update member:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to update member');
       return c.json(Errors.internalError('Failed to update member'), 500);
     }
   });
@@ -1056,7 +1066,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to remove member:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to remove member');
       return c.json(Errors.internalError('Failed to remove member'), 500);
     }
   });
@@ -1099,7 +1109,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to fetch organization');
       return c.json(Errors.internalError('Failed to fetch organization'), 500);
     }
   });
@@ -1211,7 +1221,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to update organization:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to update organization');
       return c.json(Errors.internalError('Failed to update organization'), 500);
     }
   });
@@ -1270,7 +1280,7 @@ export function createDashboardRouter(
         error: null,
       });
     } catch (error) {
-      console.error('Failed to delete organization:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to delete organization');
       return c.json(Errors.internalError('Failed to delete organization'), 500);
     }
   });

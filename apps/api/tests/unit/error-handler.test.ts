@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { handleError } from '../../src/middleware/error-handler.js';
 
 function appWithError(error: unknown) {
@@ -13,19 +13,18 @@ function appWithError(error: unknown) {
 
 describe('error handler', () => {
   it('returns the SDK error envelope for unexpected errors', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const response = await appWithError(new Error('database unavailable')).request('/error');
+    const body = await response.json();
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({
+    expect(body).toEqual({
       error: expect.objectContaining({
         code: 'INTERNAL_ERROR',
-        message: 'Internal error: database unavailable',
+        message: expect.stringContaining('The request could not be completed'),
         statusCode: 500,
       }),
     });
-    expect(consoleSpy).toHaveBeenCalledWith('Unhandled error:', expect.any(Error));
-    consoleSpy.mockRestore();
+    expect(JSON.stringify(body).includes('database unavailable')).toBe(false);
   });
 
   it('maps a missing tenant context to unauthorized', async () => {

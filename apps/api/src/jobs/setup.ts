@@ -6,6 +6,7 @@
 import type { Database } from '@authlane/database';
 import { refreshToken, type TokenRefreshData } from '@authlane/database';
 import { Queue, UnrecoverableError, Worker } from 'bullmq';
+import { logger } from '../lib/logger.js';
 import { markExpiredConnections, processOutboxBatch } from './outbox.js';
 
 let tokenRefreshQueue: Queue<TokenRefreshData> | null = null;
@@ -14,15 +15,32 @@ let outboxQueue: Queue<Record<string, never>> | null = null;
 let outboxWorker: Worker<Record<string, never>> | null = null;
 let redisConnectionFailed = false;
 
+export function bullMqConnectionOptions(redisUrl: string) {
+  const url = new URL(redisUrl);
+  if (url.protocol !== 'redis:' && url.protocol !== 'rediss:') {
+    throw new Error('BullMQ requires a redis:// or rediss:// URL');
+  }
+  const database = url.pathname === '/' ? 0 : Number(url.pathname.slice(1));
+  if (!Number.isInteger(database) || database < 0) {
+    throw new Error('Redis URL contains an invalid database number');
+  }
+  return {
+    host: url.hostname,
+    port: Number(url.port || (url.protocol === 'rediss:' ? 6380 : 6379)),
+    username: url.username ? decodeURIComponent(url.username) : undefined,
+    password: url.password ? decodeURIComponent(url.password) : undefined,
+    db: database,
+    tls: url.protocol === 'rediss:' ? {} : undefined,
+  };
+}
+
 /**
  * Suppress repeated Redis errors - only log once
  */
 function handleRedisError(_err: Error) {
   if (!redisConnectionFailed) {
     redisConnectionFailed = true;
-    console.log('⚠️  Redis connection failed. Token refresh jobs disabled.');
-    console.log('💡 To enable: Start Redis with `docker run -d -p 6379:6379 redis`');
-    console.log('💡 Or comment out REDIS_URL in .env to disable this feature');
+    logger.error({ error: _err }, 'Redis connection failed; background jobs are unavailable');
   }
 }
 
@@ -31,25 +49,23 @@ function handleRedisError(_err: Error) {
  */
 export function setupJobs(db: Database, redisUrl?: string) {
   if (!redisUrl) {
-    console.log('⚠️  Redis not configured, token refresh jobs disabled');
+    logger.warn('Redis is not configured; background jobs are disabled');
     return;
   }
 
   // In development, skip Redis setup entirely if REDIS_OPTIONAL is set
   // This prevents error spam when Redis isn't running
   if (process.env.NODE_ENV !== 'production' && process.env.REDIS_OPTIONAL === 'true') {
-    console.log('⚠️  REDIS_OPTIONAL=true, skipping Redis setup');
+    logger.warn('REDIS_OPTIONAL is enabled; background jobs are disabled');
     return;
   }
 
   try {
-    const redisHost = new URL(redisUrl).hostname;
-    const redisPort = parseInt(new URL(redisUrl).port || '6379', 10);
+    const parsedConnection = bullMqConnectionOptions(redisUrl);
 
     // Common Redis connection options with error handling
     const connectionOptions = {
-      host: redisHost,
-      port: redisPort,
+      ...parsedConnection,
       maxRetriesPerRequest: null as null, // Required by BullMQ
       retryStrategy: (times: number) => {
         handleRedisError(new Error('Connection failed'));
@@ -102,14 +118,11 @@ export function setupJobs(db: Database, redisUrl?: string) {
     tokenRefreshWorker.on('error', handleRedisError);
 
     tokenRefreshWorker.on('completed', (job) => {
-      console.log(`✅ Token refresh completed for connection ${job.data.connectionId}`);
+      logger.info({ connectionId: job.data.connectionId }, 'Token refresh completed');
     });
 
     tokenRefreshWorker.on('failed', (job, err) => {
-      console.error(
-        `❌ Token refresh failed for connection ${job?.data.connectionId}:`,
-        err.message
-      );
+      logger.error({ connectionId: job?.data.connectionId, error: err }, 'Token refresh failed');
     });
 
     outboxQueue = new Queue<Record<string, never>>('webhook-outbox', {
@@ -129,10 +142,10 @@ export function setupJobs(db: Database, redisUrl?: string) {
       .add('sweep', {}, { repeat: { every: 1_000 }, jobId: 'webhook-outbox-sweep' })
       .catch(handleRedisError);
 
-    console.log('✅ Token refresh queue and worker initialized');
+    logger.info('Token refresh and webhook outbox workers initialized');
   } catch (error) {
-    console.log('⚠️  Failed to setup Redis jobs:', error instanceof Error ? error.message : error);
-    console.log('💡 Token refresh jobs disabled. App will continue without background jobs.');
+    logger.error({ error }, 'Failed to initialize background jobs');
+    if (process.env.NODE_ENV === 'production') throw error;
   }
 }
 

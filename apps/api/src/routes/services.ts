@@ -6,6 +6,7 @@ import type { Database } from '@authlane/database';
 import { eq, services } from '@authlane/database';
 import { Errors } from '@authlane/shared';
 import { Hono } from 'hono';
+import { logger } from '../lib/logger.js';
 
 export function createServicesRouter(db: Database) {
   const router = new Hono();
@@ -23,7 +24,7 @@ export function createServicesRouter(db: Database) {
         error: null,
       });
     } catch (error) {
-      console.error('Failed to list services:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to list services');
       return c.json(Errors.internalError('Failed to retrieve services'), 500);
     }
   });
@@ -47,7 +48,7 @@ export function createServicesRouter(db: Database) {
         error: null,
       });
     } catch (error) {
-      console.error('Failed to get service:', error);
+      logger.error({ error, requestId: c.get('requestId') }, 'Failed to get service');
       return c.json(Errors.internalError('Failed to retrieve service'), 500);
     }
   });

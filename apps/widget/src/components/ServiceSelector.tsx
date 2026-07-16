@@ -62,6 +62,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
       <div className="service-selector__categories">
         {CATEGORIES.map((category) => (
           <button
+            type="button"
             key={category}
             className={`service-selector__category ${
               selectedCategory === category ? 'service-selector__category--active' : ''

@@ -189,7 +189,8 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       })
       .returning({ id: connectSessions.id });
     const connectUrl = new URL('/connect', publicApiBase(c.req.url));
-    connectUrl.hash = new URLSearchParams({ session: token, origin: allowedOrigin }).toString();
+    connectUrl.searchParams.set('origin', allowedOrigin);
+    connectUrl.hash = new URLSearchParams({ session: token }).toString();
 
     return c.json(
       {

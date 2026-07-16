@@ -3,41 +3,22 @@
  * Main entry point for the API application
  */
 
-// Suppress repeated Redis connection errors in development
-// BullMQ/ioredis throws AggregateErrors when Redis is unavailable
-let redisErrorLogged = false;
-process.on('uncaughtException', (err: Error & { code?: string }) => {
-  // Handle Redis connection errors gracefully
-  if (
-    err.code === 'ECONNREFUSED' &&
-    (err.message?.includes('6379') || String(err).includes('6379'))
-  ) {
-    if (!redisErrorLogged) {
-      redisErrorLogged = true;
-      console.log('⚠️  Redis connection refused. Token refresh jobs will not work.');
-      console.log('💡 Start Redis: docker run -d -p 6379:6379 redis');
-      console.log('💡 Or comment out REDIS_URL in .env to disable this feature\n');
-    }
-    return; // Don't crash the app
-  }
-  // Re-throw other errors
-  console.error('Uncaught exception:', err);
-  process.exit(1);
-});
-
 // Initialize Sentry as early as possible
 import { initSentry, sentryMiddleware } from './lib/sentry.js';
 
 initSentry();
 
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { createDatabaseClient, type Database } from '@authlane/database';
 import { Errors, getEnv } from '@authlane/shared';
 import { serve } from '@hono/node-server';
+import { getConnInfo } from '@hono/node-server/conninfo';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { type Context, Hono } from 'hono';
-import { compress } from 'hono/compress';
+import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
+import { requestId } from 'hono/request-id';
+import { secureHeaders } from 'hono/secure-headers';
 import Redis from 'ioredis';
 import { setupJobs } from './jobs/setup.js';
 import { createAuth } from './lib/auth.js';
@@ -46,6 +27,9 @@ import {
   createEncryptedRedisSecondaryStorage,
 } from './lib/auth-secondary-storage.js';
 import { type CacheStore, MemoryCacheStore, RedisCacheStore } from './lib/cache.js';
+import { resolveClientIp } from './lib/client-ip.js';
+import { exactFrameOrigin, sanitizeMetricRoute } from './lib/http-security.js';
+import { logger, logRequest } from './lib/logger.js';
 import { recordHttpRequest } from './lib/metrics.js';
 import {
   authMiddleware,
@@ -74,32 +58,122 @@ export function createApp(
     cacheStore?: CacheStore;
     rateLimitStore?: RateLimitStore;
     authSecondaryStorage?: AuthSecondaryStorage;
+    trustedProxyCidrs?: string[];
+    metricsBearerToken?: string;
     publicRoot?: string;
   }
 ) {
   const app = new Hono();
   app.onError(handleError);
+  const trustedOrigins = Array.isArray(options?.corsOrigin)
+    ? options.corsOrigin
+    : [options?.corsOrigin || 'http://localhost:5173'];
+  const trustedProxyCidrs = options?.trustedProxyCidrs ?? [];
 
   // Create Better Auth instance
   const auth = createAuth(db, {
     baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
-    trustedOrigins: Array.isArray(options?.corsOrigin)
-      ? options.corsOrigin
-      : [options?.corsOrigin || 'http://localhost:5173'].filter(Boolean),
+    trustedOrigins,
     secondaryStorage: options?.authSecondaryStorage,
   });
 
   // Global middleware
+  app.use('*', requestId());
+  app.use('*', async (c, next) => {
+    let remoteAddress: string | undefined;
+    try {
+      remoteAddress = getConnInfo(c).remote.address;
+    } catch {
+      remoteAddress = undefined;
+    }
+    c.set(
+      'clientIp',
+      resolveClientIp(remoteAddress, c.req.header('x-forwarded-for'), trustedProxyCidrs)
+    );
+    await next();
+    c.header('X-Request-ID', c.get('requestId'));
+  });
   app.use('*', sentryMiddleware());
-  app.use('*', logger());
-  app.use('*', compress());
+  app.use(
+    '*',
+    secureHeaders({
+      contentSecurityPolicy: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'none'"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", 'data:'],
+        formAction: ["'self'"],
+        frameAncestors: [
+          (c) => {
+            if (c.req.path !== '/connect') return "'none'";
+            const frameOrigin = exactFrameOrigin(
+              c.req.query('origin'),
+              process.env.NODE_ENV || 'development'
+            );
+            return frameOrigin ? `'self' ${frameOrigin}` : "'none'";
+          },
+        ],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+      crossOriginOpenerPolicy: 'same-origin',
+      crossOriginResourcePolicy: 'same-origin',
+      permissionsPolicy: {
+        camera: [],
+        microphone: [],
+        geolocation: [],
+        payment: [],
+        usb: [],
+      },
+      referrerPolicy: 'no-referrer',
+      strictTransportSecurity:
+        process.env.NODE_ENV === 'production'
+          ? 'max-age=31536000; includeSubDomains; preload'
+          : false,
+      xFrameOptions: false,
+    })
+  );
+  app.use(
+    '*',
+    bodyLimit({
+      maxSize: 256 * 1024,
+      onError: (c) => c.json(Errors.validationError('Request body exceeds 256 KiB'), 413),
+    })
+  );
+  app.use('*', async (c, next) => {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method)) {
+      const contentLength = Number(c.req.header('content-length') || 0);
+      const contentType = c.req.header('content-type') || '';
+      if (contentLength > 0 && !contentType.toLowerCase().startsWith('application/json')) {
+        return c.json(Errors.validationError('Content-Type must be application/json'), 415);
+      }
+      if (c.req.raw.body) {
+        const rawRequest = c.req.raw;
+        try {
+          const body = await rawRequest.arrayBuffer();
+          c.req.raw = new Request(rawRequest, { body, duplex: 'half' });
+        } catch (error) {
+          if (error instanceof Error && error.name === 'BodyLimitError') {
+            return c.json(Errors.validationError('Request body exceeds 256 KiB'), 413);
+          }
+          throw error;
+        }
+      }
+    }
+    await next();
+  });
   app.use('*', async (c, next) => {
     const startedAt = performance.now();
     await next();
-    const route = c.req.path
-      .replace(/\/users\/[^/]+/g, '/users/:externalUserId')
-      .replace(/\/connections\/[^/]+/g, '/connections/:serviceId');
-    recordHttpRequest(c.req.method, route, c.res.status, (performance.now() - startedAt) / 1_000);
+    const route = sanitizeMetricRoute(c.req.path);
+    const durationMs = performance.now() - startedAt;
+    recordHttpRequest(c.req.method, route, c.res.status, durationMs / 1_000);
+    logRequest(c.req.method, route, c.res.status, durationMs, {
+      requestId: c.get('requestId'),
+      organizationId: c.get('principal')?.organizationId,
+    });
   });
   app.use(
     '*',
@@ -117,8 +191,19 @@ export function createApp(
     return c.json({ data: { status: 'ok', timestamp: new Date().toISOString() }, error: null });
   });
 
-  // Metrics endpoint (no auth required, but should be firewalled in production)
+  // Metrics are protected even when network policy is accidentally permissive.
   app.get('/metrics', async (c) => {
+    const expectedToken = options?.metricsBearerToken ?? process.env.METRICS_BEARER_TOKEN;
+    if (expectedToken) {
+      const provided = c.req.header('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1] ?? '';
+      const expectedHash = createHash('sha256').update(expectedToken).digest();
+      const providedHash = createHash('sha256').update(provided).digest();
+      if (!timingSafeEqual(expectedHash, providedHash)) {
+        return c.json(Errors.notFound('Route'), 404);
+      }
+    } else if (process.env.NODE_ENV === 'production') {
+      return c.json(Errors.notFound('Route'), 404);
+    }
     const { register } = await import('./lib/metrics.js');
     const metrics = await register.metrics();
     return c.text(metrics, 200, {
@@ -129,20 +214,12 @@ export function createApp(
   // Better Auth routes (public)
   app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
     try {
-      return await auth.handler(c.req.raw);
+      const headers = new Headers(c.req.raw.headers);
+      headers.set('x-authlane-client-ip', c.get('clientIp'));
+      return await auth.handler(new Request(c.req.raw, { headers }));
     } catch (error) {
-      console.error('[Auth Handler Error]:', error);
-      console.error(
-        '[Auth Handler Error Stack]:',
-        error instanceof Error ? error.stack : 'No stack trace'
-      );
-      return c.json(
-        {
-          error: 'Authentication error',
-          details: error instanceof Error ? error.message : String(error),
-        },
-        500
-      );
+      logger.error({ error, requestId: c.get('requestId') }, 'Authentication handler failed');
+      return c.json({ error: Errors.internalError('Authentication request failed') }, 500);
     }
   });
 
@@ -153,9 +230,7 @@ export function createApp(
   app.use(
     '/api/v1/dashboard/*',
     dashboardSessionSecurity({
-      trustedOrigins: Array.isArray(options?.corsOrigin)
-        ? options.corsOrigin
-        : [options?.corsOrigin || 'http://localhost:5173'],
+      trustedOrigins,
     })
   );
   app.use(
@@ -183,24 +258,42 @@ export function createApp(
   };
   app.use('/assets/*', serveStatic(immutableAsset));
   app.use('/connect/assets/*', serveStatic(immutableAsset));
-  app.get('/connect', serveStatic({ root: publicRoot, path: 'connect/index.html' }));
-  app.get('/connect/*', serveStatic({ root: publicRoot, path: 'connect/index.html' }));
-  app.get('*', serveStatic({ root: publicRoot, path: 'index.html' }));
+  const noStoreDocument = {
+    root: publicRoot,
+    path: 'connect/index.html',
+    onFound: (_path: string, c: Context) => c.header('Cache-Control', 'no-store'),
+  };
+  app.get('/connect', serveStatic(noStoreDocument));
+  app.get('/connect/*', serveStatic(noStoreDocument));
+  app.get(
+    '*',
+    serveStatic({
+      root: publicRoot,
+      path: 'index.html',
+      onFound: (_path, c) => c.header('Cache-Control', 'no-store'),
+    })
+  );
 
   return app;
 }
 
 // Only run server if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {
+  process.on('uncaughtException', (error) => {
+    logger.fatal({ error }, 'Uncaught exception');
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (error) => {
+    logger.fatal({ error }, 'Unhandled rejection');
+    process.exit(1);
+  });
+
   // Validate environment
   let env: ReturnType<typeof getEnv>;
   try {
     env = getEnv();
   } catch (error) {
-    console.error(
-      '❌ Environment validation failed:',
-      error instanceof Error ? error.message : error
-    );
+    logger.fatal({ error }, 'Environment validation failed');
     process.exit(1);
   }
 
@@ -208,17 +301,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   let db: ReturnType<typeof createDatabaseClient>;
   try {
     db = createDatabaseClient(env.DATABASE_URL);
-    console.log('✅ Database client initialized');
+    logger.info('Database client initialized');
   } catch (error) {
-    console.error('❌ Database connection failed:', error instanceof Error ? error.message : error);
+    logger.fatal({ error }, 'Database connection failed');
     process.exit(1);
   }
 
   // Setup job queues (token refresh)
+  const workerDb = env.SYSTEM_DATABASE_URL ? createDatabaseClient(env.SYSTEM_DATABASE_URL) : db;
   if (env.REDIS_URL) {
-    setupJobs(db, env.REDIS_URL);
+    setupJobs(workerDb, env.REDIS_URL);
   } else {
-    console.log('⚠️  REDIS_URL not set, token refresh jobs disabled');
+    logger.warn('REDIS_URL is not set; background jobs are disabled');
   }
 
   let cacheStore: CacheStore = new MemoryCacheStore();
@@ -254,24 +348,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     cacheStore,
     rateLimitStore,
     authSecondaryStorage,
+    trustedProxyCidrs: env.TRUSTED_PROXY_CIDRS,
+    metricsBearerToken: env.METRICS_BEARER_TOKEN,
   });
 
   // Start server
   const port = env.API_PORT;
   const host = env.API_HOST;
 
-  console.log(`🚀 Authlane API server starting on http://${host}:${port}`);
-  console.log(`📊 Environment: ${env.NODE_ENV}`);
-  console.log(`🔐 CORS Origins: ${corsOrigins.join(', ')}`);
-  console.log('');
-  console.log('📚 API Documentation:');
-  console.log('   Health: GET /health');
-  console.log('   Auth: POST/GET /api/auth/*');
-  console.log('   Catalog: GET /api/v1/catalog/services');
-  console.log('   Connections: GET /api/v1/users/:externalUserId/connections');
-  console.log('   Capabilities: GET /api/v1/users/:externalUserId/capabilities?format=mcp');
-  console.log('   Connect session: POST /api/v1/connect-sessions');
-  console.log('');
+  logger.info(
+    { host, port, environment: env.NODE_ENV, corsOrigins },
+    'Authlane API server starting'
+  );
 
   serve({
     fetch: app.fetch,

@@ -70,7 +70,9 @@ export async function resolvePublicWebhookAddress(
   if (addresses.length === 0 || addresses.some(({ address }) => !isPublicIp(address))) {
     throw new Error('Webhook host must resolve only to public IP addresses');
   }
-  return addresses[0]!;
+  const firstAddress = addresses[0];
+  if (!firstAddress) throw new Error('Webhook host did not resolve');
+  return firstAddress;
 }
 
 export async function postWebhook(

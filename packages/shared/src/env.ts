@@ -2,6 +2,8 @@
  * Environment variable validation and types
  */
 
+import { isIP } from 'node:net';
+
 interface Env {
   DATABASE_URL: string;
   SYSTEM_DATABASE_URL?: string;
@@ -19,6 +21,8 @@ interface Env {
   RATE_LIMIT_MAX_REQUESTS?: number;
   RATE_LIMIT_WINDOW_MS?: number;
   LOG_LEVEL?: string;
+  TRUSTED_PROXY_CIDRS?: string[];
+  METRICS_BEARER_TOKEN?: string;
 }
 
 /**
@@ -73,7 +77,12 @@ export function getEnv(): Env {
     if (corsOrigins.length === 0 || corsOrigins.some((origin) => !isExactHttpsOrigin(origin))) {
       throw new Error('CORS_ORIGIN must contain exact HTTPS origins in production');
     }
+    if (!process.env.METRICS_BEARER_TOKEN || process.env.METRICS_BEARER_TOKEN.length < 32) {
+      throw new Error('METRICS_BEARER_TOKEN must be at least 32 characters in production');
+    }
   }
+
+  const trustedProxyCidrs = parseTrustedProxyCidrs(process.env.TRUSTED_PROXY_CIDRS);
 
   return {
     DATABASE_URL: databaseUrl,
@@ -94,7 +103,35 @@ export function getEnv(): Env {
       ? Number(process.env.RATE_LIMIT_WINDOW_MS)
       : 60000,
     LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+    TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
+    METRICS_BEARER_TOKEN: process.env.METRICS_BEARER_TOKEN,
   };
+}
+
+function parseTrustedProxyCidrs(value: string | undefined): string[] {
+  if (!value) return [];
+  const cidrs = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (
+    cidrs.some((cidr) => {
+      const [address, rawPrefix, extra] = cidr.split('/');
+      const family = address ? isIP(address) : 0;
+      const prefix = Number(rawPrefix);
+      return (
+        !!extra ||
+        !rawPrefix ||
+        (family !== 4 && family !== 6) ||
+        !Number.isInteger(prefix) ||
+        prefix < 0 ||
+        (family === 4 ? prefix > 32 : prefix > 128)
+      );
+    })
+  ) {
+    throw new Error('TRUSTED_PROXY_CIDRS must contain valid IPv4 or IPv6 CIDR entries');
+  }
+  return cidrs;
 }
 
 function isValidAuthSecrets(value: string): boolean {

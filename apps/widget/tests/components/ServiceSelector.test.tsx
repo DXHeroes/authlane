@@ -7,9 +7,9 @@ import { render, screen } from '../utils/test-utils';
 // Mock ServiceCard component
 vi.mock('@/components/ServiceCard', () => ({
   ServiceCard: ({ service, onClick }: { service: Service; onClick: () => void }) => (
-    <div data-testid={`service-card-${service.id}`} onClick={onClick}>
+    <button type="button" data-testid={`service-card-${service.id}`} onClick={onClick}>
       {service.name}
-    </div>
+    </button>
   ),
 }));
 

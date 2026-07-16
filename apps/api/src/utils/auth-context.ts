@@ -69,7 +69,3 @@ export function getApiKey(c: Context): string | null {
 export function isApiKeyAuth(c: Context): boolean {
   return !!c.get('apiKey');
 }
-
-
-
-

@@ -14,6 +14,8 @@ function setValidEnvironment() {
   process.env.BETTER_AUTH_SECRETS = `2:${'a'.repeat(32)},1:${'b'.repeat(32)}`;
   process.env.BETTER_AUTH_URL = 'https://api.authlane.test';
   process.env.CORS_ORIGIN = 'https://dashboard.authlane.test';
+  process.env.METRICS_BEARER_TOKEN = 'm'.repeat(32);
+  process.env.TRUSTED_PROXY_CIDRS = '10.0.0.0/8,2001:db8::/32';
   delete process.env.ENCRYPTION_KEY;
 }
 
@@ -70,5 +72,16 @@ describe('security environment validation', () => {
     process.env.AUTHLANE_LOOKUP_KEY_RING = 'not-versioned';
 
     expect(() => getEnv()).toThrow(/AUTHLANE_LOOKUP_KEY_RING/);
+  });
+
+  it('validates trusted proxy ranges and the production metrics token', () => {
+    setValidEnvironment();
+    process.env.TRUSTED_PROXY_CIDRS = '999.0.0.0/8';
+    expect(() => getEnv()).toThrow(/TRUSTED_PROXY_CIDRS/);
+
+    setValidEnvironment();
+    process.env.NODE_ENV = 'production';
+    process.env.METRICS_BEARER_TOKEN = 'short';
+    expect(() => getEnv()).toThrow(/METRICS_BEARER_TOKEN/);
   });
 });

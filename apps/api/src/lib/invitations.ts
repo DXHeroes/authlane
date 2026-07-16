@@ -8,6 +8,7 @@ import type { Database } from '@authlane/database';
 import { and, eq, invitation, member } from '@authlane/database';
 import { sendOrganizationInvitation } from '@authlane/email';
 import { Errors, type Result } from '@authlane/shared';
+import { logger } from './logger.js';
 
 export interface InvitationContext {
   id: string;
@@ -147,7 +148,7 @@ export async function createInvitation(
         expiresIn: '7 days',
       });
     } catch (emailError) {
-      console.error('Failed to send invitation email:', emailError);
+      logger.error({ error: emailError, organizationId }, 'Failed to send invitation email');
       // Don't fail the invitation creation if email fails
       // The invitation is still valid
     }
@@ -165,7 +166,7 @@ export async function createInvitation(
       error: null,
     };
   } catch (error) {
-    console.error('Failed to create invitation:', error);
+    logger.error({ error, organizationId }, 'Failed to create invitation');
     return {
       data: null,
       error: Errors.internalError('Failed to create invitation'),
@@ -230,7 +231,7 @@ export async function validateNotLastOwner(
       error: null,
     };
   } catch (error) {
-    console.error('Failed to validate owner removal:', error);
+    logger.error({ error, organizationId }, 'Failed to validate owner removal');
     return {
       data: null,
       error: Errors.internalError('Failed to validate member removal'),

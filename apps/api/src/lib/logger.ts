@@ -5,6 +5,24 @@ const logLevel = (process.env.LOG_LEVEL || 'info') as pino.Level;
 
 export const logger = pino({
   level: logLevel,
+  redact: {
+    paths: [
+      'authorization',
+      'cookie',
+      'headers.authorization',
+      'headers.cookie',
+      'req.headers.authorization',
+      'req.headers.cookie',
+      '*.password',
+      '*.token',
+      '*.secret',
+      '*.code',
+      '*.access_token',
+      '*.refresh_token',
+      '*.id_token',
+    ],
+    censor: '[REDACTED]',
+  },
 
   // Use pretty printing in development, JSON in production
   transport: isDevelopment
@@ -31,7 +49,14 @@ export const logger = pino({
 
   // Serialize errors
   serializers: {
-    error: pino.stdSerializers.err,
+    error: (value: unknown) => {
+      if (!(value instanceof Error)) return { type: 'UnknownError' };
+      const code = (value as Error & { code?: unknown }).code;
+      return {
+        type: value.name,
+        ...(typeof code === 'string' || typeof code === 'number' ? { code } : {}),
+      };
+    },
     req: pino.stdSerializers.req,
     res: pino.stdSerializers.res,
   },
@@ -82,11 +107,10 @@ export function logRequest(
 }
 
 // Database query logging
-export function logQuery(query: string, duration: number, context?: Record<string, unknown>) {
+export function logQuery(_query: string, duration: number, context?: Record<string, unknown>) {
   logger.debug(
     {
       ...context,
-      query,
       duration,
       type: 'database',
     },

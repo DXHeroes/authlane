@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Service, WidgetConfig } from '../types';
 import { postMessageBridge } from '../utils/postMessage';
 
 function configFromLocation(): WidgetConfig | null {
   const fragment = new URLSearchParams(window.location.hash.slice(1));
   const connectToken = fragment.get('session');
-  const parentOrigin = fragment.get('origin');
+  const parentOrigin = new URLSearchParams(window.location.search).get('origin');
   if (!connectToken || !parentOrigin) return null;
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
   return {
@@ -20,6 +20,7 @@ export const useWidget = (initialConfig?: WidgetConfig) => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const oauthPopup = useRef<Window | null>(null);
 
   const applyTheme = useCallback((theme: WidgetConfig['theme']) => {
     if (!theme) return;
@@ -79,7 +80,14 @@ export const useWidget = (initialConfig?: WidgetConfig) => {
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.data?.type !== 'oauth:success') return;
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== oauthPopup.current ||
+        event.data?.type !== 'oauth:success'
+      ) {
+        return;
+      }
+      oauthPopup.current = null;
       const serviceId = String(event.data.serviceId);
       postMessageBridge.sendToParent({ type: 'widget:connected', serviceId });
       config?.onConnect?.(serviceId);
@@ -107,7 +115,11 @@ export const useWidget = (initialConfig?: WidgetConfig) => {
       if (!response.ok || result.error) {
         throw new Error(result.error?.message ?? 'Failed to start OAuth');
       }
-      window.open(result.data.authorizationUrl, `authlane_${serviceId}`, 'width=600,height=720');
+      oauthPopup.current = window.open(
+        result.data.authorizationUrl,
+        `authlane_${serviceId}`,
+        'width=600,height=720,noopener=false'
+      );
     },
     [config]
   );

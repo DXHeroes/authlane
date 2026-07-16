@@ -97,12 +97,11 @@ export const OAuthFlowHandler: React.FC<OAuthFlowHandlerProps> = ({
 
   return (
     <div className="oauth-flow">
-      <div
+      <button
+        type="button"
         className="oauth-flow__overlay"
         onClick={onClose}
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
-        role="button"
-        tabIndex={0}
         aria-label="Close modal"
       />
       <div className="oauth-flow__modal">

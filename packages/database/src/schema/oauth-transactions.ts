@@ -1,7 +1,7 @@
 import { index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { organization } from './auth.js';
-import { connections } from './connections.js';
 import { connectSessions } from './connect-sessions.js';
+import { connections } from './connections.js';
 import { secretRecords } from './secret-records.js';
 import { services } from './services.js';
 

@@ -12,5 +12,6 @@ declare module 'hono' {
     organization: Organization | null;
     apiKey: string | null;
     principal: ApiPrincipal;
+    clientIp: string;
   }
 }

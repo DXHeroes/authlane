@@ -14,4 +14,5 @@ export interface AuthlaneContext {
   organization: Organization | null;
   apiKey: string | null;
   principal: ApiPrincipal;
+  clientIp: string;
 }

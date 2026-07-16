@@ -31,7 +31,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
   };
 
   return (
-    <button className="service-card" onClick={onClick}>
+    <button type="button" className="service-card" onClick={onClick}>
       <div className="service-card__header">
         <div className="service-card__icon">
           {service.icon ? (

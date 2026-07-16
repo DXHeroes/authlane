@@ -1,10 +1,24 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import type { Context, Next } from 'hono';
+import { logger } from './logger.js';
+
+const SENSITIVE_KEY = /authorization|cookie|password|secret|token|code|credential/i;
+
+function scrub(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(scrub);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      SENSITIVE_KEY.test(key) ? '[REDACTED]' : scrub(entry),
+    ])
+  );
+}
 
 export function initSentry() {
   if (!process.env.SENTRY_DSN) {
-    console.warn('SENTRY_DSN not configured, skipping Sentry initialization');
+    logger.info('Sentry is not configured');
     return;
   }
 
@@ -17,6 +31,7 @@ export function initSentry() {
 
     // Profiling
     profilesSampleRate: parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE || '0.1'),
+    sendDefaultPii: false,
 
     integrations: [
       nodeProfilingIntegration(),
@@ -42,14 +57,26 @@ export function initSentry() {
         }
       }
 
-      return event;
+      if (event.request) {
+        delete event.request.headers;
+        delete event.request.cookies;
+        delete event.request.data;
+        delete event.request.query_string;
+      }
+      if (event.exception?.values) {
+        event.exception.values = event.exception.values.map((value) => ({
+          ...value,
+          value: 'Internal error',
+        }));
+      }
+      return scrub(event) as typeof event;
     },
 
     // Release tracking
     release: process.env.SENTRY_RELEASE || `authlane@${process.env.npm_package_version}`,
   });
 
-  console.log('✅ Sentry initialized');
+  logger.info('Sentry initialized');
 }
 
 // Hono middleware for Sentry
@@ -74,8 +101,8 @@ export function sentryMiddleware() {
               contexts: {
                 request: {
                   method: c.req.method,
-                  url: c.req.url,
-                  headers: Object.fromEntries(c.req.raw.headers),
+                  path: c.req.path,
+                  requestId: c.get('requestId'),
                 },
               },
             });
@@ -98,8 +125,8 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = 'i
   Sentry.captureMessage(message, level);
 }
 
-export function setUser(user: { id: string; email?: string; username?: string }) {
-  Sentry.setUser(user);
+export function setUser(user: { id: string }) {
+  Sentry.setUser({ id: user.id });
 }
 
 export function clearUser() {

@@ -130,7 +130,8 @@ describe('API key authentication', () => {
 
   it('rejects a forged secret even when the record id exists', async () => {
     const issued = createApiKey('key_1', lookupKeyring);
-    const forged = `${issued.rawKey.slice(0, -1)}A`;
+    const lastCharacter = issued.rawKey.at(-1);
+    const forged = `${issued.rawKey.slice(0, -1)}${lastCharacter === 'A' ? 'B' : 'A'}`;
     const { db } = fakeDatabase({
       id: 'key_1',
       organizationId: 'org_1',

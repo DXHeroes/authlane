@@ -371,7 +371,7 @@ export function createControlPlaneRouter(
         externalUserId,
         serviceId,
         apiKeyId: principal.apiKeyId,
-        ipAddress: c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || null,
+        ipAddress: c.get('clientIp') || null,
         userAgent: c.req.header('user-agent') ?? null,
       });
       c.header('Cache-Control', 'no-store, private');

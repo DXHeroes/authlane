@@ -256,6 +256,10 @@ export function createAuth(
         sameSite: 'lax',
         path: '/',
       },
+      ipAddress: {
+        ipAddressHeaders: ['x-authlane-client-ip'],
+        disableIpTracking: false,
+      },
     },
   });
   return auth as unknown as Auth;

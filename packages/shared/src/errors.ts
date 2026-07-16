@@ -30,6 +30,9 @@ export const ErrorCodes = {
   INVALID_API_KEY: 'INVALID_API_KEY',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   INSUFFICIENT_SCOPE: 'INSUFFICIENT_SCOPE',
+  CSRF_FAILED: 'CSRF_FAILED',
+  MFA_ENROLLMENT_REQUIRED: 'MFA_ENROLLMENT_REQUIRED',
+  STEP_UP_REQUIRED: 'STEP_UP_REQUIRED',
 
   // Not found errors
   NOT_FOUND: 'NOT_FOUND',
@@ -75,6 +78,31 @@ export const Errors = {
       hint: hint || 'Use credentials with the required authorization scope',
       statusCode: 403,
       docUrl: 'https://docs.authlane.dev/authentication',
+    }),
+
+  csrfFailed: (): AuthlaneError =>
+    createError('Forbidden', ErrorCodes.CSRF_FAILED, {
+      hint: 'Retry the request from the authenticated Authlane origin',
+      statusCode: 403,
+      docUrl: 'https://docs.authlane.dev/guides/security',
+    }),
+
+  mfaEnrollmentRequired: (): AuthlaneError =>
+    createError(
+      'Multi-factor authentication enrollment is required',
+      ErrorCodes.MFA_ENROLLMENT_REQUIRED,
+      {
+        hint: 'Enroll a TOTP authenticator before changing security-sensitive settings',
+        statusCode: 403,
+        docUrl: 'https://docs.authlane.dev/guides/security',
+      }
+    ),
+
+  stepUpRequired: (): AuthlaneError =>
+    createError('Fresh authentication is required', ErrorCodes.STEP_UP_REQUIRED, {
+      hint: 'Sign in again, complete MFA, and retry the operation',
+      statusCode: 403,
+      docUrl: 'https://docs.authlane.dev/guides/security',
     }),
 
   notFound: (resource: string, id?: string): AuthlaneError =>

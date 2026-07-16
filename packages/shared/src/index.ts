@@ -11,4 +11,5 @@ export * from './integration-adapter.js';
 export * from './integration-loader.js';
 export * from './oauth.js';
 export * from './types.js';
+export * from './user-password.js';
 export * from './utils.js';

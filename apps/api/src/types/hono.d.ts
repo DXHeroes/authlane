@@ -8,7 +8,7 @@ import type { ApiPrincipal } from '../lib/api-principal.js';
 declare module 'hono' {
   interface ContextVariableMap {
     user: User | null;
-    session: { id: string; userId: string } | null;
+    session: { id: string; userId: string; createdAt: Date | string } | null;
     organization: Organization | null;
     apiKey: string | null;
     principal: ApiPrincipal;

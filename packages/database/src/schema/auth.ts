@@ -3,7 +3,15 @@
  * Tables required by better-auth library with organization plugin
  */
 
-import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
 /**
  * Users table - authenticated users in the system
@@ -13,6 +21,7 @@ export const user = pgTable('user', {
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
+  twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
   image: text('image'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -70,6 +79,28 @@ export const verification = pgTable('verification', {
 });
 
 /**
+ * Two-factor authenticators and encrypted recovery codes managed by Better Auth.
+ */
+export const twoFactor = pgTable(
+  'two_factor',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    secret: text('secret').notNull(),
+    backupCodes: text('backup_codes').notNull(),
+    verified: boolean('verified').notNull().default(false),
+    failedVerificationCount: integer('failed_verification_count').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('two_factor_user_id_unique').on(table.userId),
+    index('two_factor_locked_until_idx').on(table.lockedUntil),
+  ]
+);
+
+/**
  * Organizations table - workspaces/teams
  */
 export const organization = pgTable('organization', {
@@ -121,13 +152,11 @@ export type Session = typeof session.$inferSelect;
 export type NewSession = typeof session.$inferInsert;
 export type Account = typeof account.$inferSelect;
 export type NewAccount = typeof account.$inferInsert;
+export type TwoFactor = typeof twoFactor.$inferSelect;
+export type NewTwoFactor = typeof twoFactor.$inferInsert;
 export type Organization = typeof organization.$inferSelect;
 export type NewOrganization = typeof organization.$inferInsert;
 export type Member = typeof member.$inferSelect;
 export type NewMember = typeof member.$inferInsert;
 export type Invitation = typeof invitation.$inferSelect;
 export type NewInvitation = typeof invitation.$inferInsert;
-
-
-
-

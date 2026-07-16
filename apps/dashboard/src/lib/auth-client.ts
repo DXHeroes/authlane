@@ -2,7 +2,7 @@
  * Better Auth Client for Dashboard
  */
 
-import { organizationClient } from 'better-auth/client/plugins';
+import { organizationClient, twoFactorClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
 // Get API base URL - default to localhost:3000 for development
@@ -23,7 +23,12 @@ const getBaseURL = () => {
  */
 export const authClient = createAuthClient({
   baseURL: `${getBaseURL()}/api/auth`,
-  plugins: [organizationClient()],
+  plugins: [
+    organizationClient(),
+    twoFactorClient({
+      twoFactorPage: '/two-factor',
+    }),
+  ],
 });
 
 // Export convenience hooks

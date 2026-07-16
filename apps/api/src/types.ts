@@ -10,7 +10,7 @@ import type { ApiPrincipal } from './lib/api-principal.js';
  */
 export interface AuthlaneContext {
   user: User | null;
-  session: { id: string; userId: string } | null;
+  session: { id: string; userId: string; createdAt: Date | string } | null;
   organization: Organization | null;
   apiKey: string | null;
   principal: ApiPrincipal;

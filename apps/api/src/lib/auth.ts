@@ -10,10 +10,41 @@ import {
   sendPasswordReset,
   sendWelcomeEmail,
 } from '@authlane/email';
-import bcrypt from 'bcrypt';
+import { hashUserPassword, verifyUserPassword } from '@authlane/shared';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { organization } from 'better-auth/plugins';
+import { organization, twoFactor } from 'better-auth/plugins';
+import type { AuthSecondaryStorage } from './auth-secondary-storage.js';
+import { parseAuthSecrets, validateTrustedOrigins } from './auth-security-config.js';
+
+export interface Auth {
+  handler(request: Request): Promise<Response>;
+  api: {
+    getSession(options: { headers: Headers }): Promise<{
+      user: {
+        id: string;
+        name: string;
+        email: string;
+        emailVerified: boolean;
+        image?: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        twoFactorEnabled?: boolean | null;
+      };
+      session: {
+        id: string;
+        userId: string;
+        token: string;
+        expiresAt: Date;
+        createdAt: Date;
+        updatedAt: Date;
+        ipAddress?: string | null;
+        userAgent?: string | null;
+        activeOrganizationId?: string | null;
+      };
+    } | null>;
+  };
+}
 
 /**
  * Gets the application URL from environment
@@ -40,12 +71,23 @@ export function createAuth(
   options?: {
     baseURL?: string;
     trustedOrigins?: string[];
+    secondaryStorage?: AuthSecondaryStorage;
   }
-) {
+): Auth {
   const appUrl = getAppUrl();
   const emailEnabled = isEmailEnabled();
+  const environment = process.env.NODE_ENV || 'development';
+  const trustedOrigins = validateTrustedOrigins(
+    options?.trustedOrigins ||
+      [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        ...(process.env.CORS_ORIGIN?.split(',').map((value) => value.trim()) || []),
+      ].filter(Boolean),
+    environment
+  );
 
-  return betterAuth({
+  const auth = betterAuth({
     database: drizzleAdapter(db, {
       provider: 'pg',
     }),
@@ -53,20 +95,14 @@ export function createAuth(
     // Base URL for auth endpoints
     baseURL: options?.baseURL || process.env.BETTER_AUTH_URL || 'http://localhost:3000',
 
-    // Trusted origins for CORS
-    trustedOrigins:
-      options?.trustedOrigins ||
-      [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        ...(process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()) || []),
-      ].filter(Boolean),
+    secrets: parseAuthSecrets(process.env.BETTER_AUTH_SECRETS, environment),
+    trustedOrigins,
+    secondaryStorage: options?.secondaryStorage,
 
     // Email verification configuration
     emailVerification: emailEnabled
       ? {
           sendVerificationEmail: async ({ user, url }) => {
-            console.log('[Auth] Sending email verification to:', user.email);
             await sendEmailVerification(user.email, {
               userName: user.name || undefined,
               verificationLink: url,
@@ -82,23 +118,21 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: emailEnabled, // Enable when email provider is configured
-      // Use bcrypt for password hashing (compatible with our seed script)
+      minPasswordLength: 12,
+      maxPasswordLength: 128,
+      resetPasswordTokenExpiresIn: 60 * 30,
+      revokeSessionsOnPasswordReset: true,
       password: {
-        hash: async (password) => {
-          return await bcrypt.hash(password, 10);
-        },
-        verify: async ({ hash, password }) => {
-          return await bcrypt.compare(password, hash);
-        },
+        hash: hashUserPassword,
+        verify: async ({ hash, password }) => verifyUserPassword(password, hash),
       },
       // Password reset email
       sendResetPassword: emailEnabled
         ? async ({ user, url }) => {
-            console.log('[Auth] Sending password reset to:', user.email);
             await sendPasswordReset(user.email, {
               userName: user.name || undefined,
               resetLink: url,
-              expiresIn: '1 hour',
+              expiresIn: '30 minutes',
             });
           }
         : undefined,
@@ -106,11 +140,36 @@ export function createAuth(
 
     // Session configuration
     session: {
-      expiresIn: 60 * 60 * 24 * 7, // 7 days
-      updateAge: 60 * 60 * 24, // Update session every 24 hours
-      cookieCache: {
+      expiresIn: 60 * 60 * 12,
+      updateAge: 60 * 60,
+      freshAge: 60 * 10,
+      storeSessionInDatabase: true,
+      cookieCache: { enabled: false },
+    },
+
+    account: {
+      encryptOAuthTokens: true,
+      storeStateStrategy: 'database',
+      skipStateCookieCheck: false,
+      accountLinking: {
         enabled: true,
-        maxAge: 60 * 5, // 5 minutes
+        disableImplicitLinking: true,
+        allowDifferentEmails: false,
+        allowUnlinkingAll: false,
+      },
+    },
+
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 60,
+      storage: options?.secondaryStorage ? 'secondary-storage' : 'memory',
+      customRules: {
+        '/sign-in/email': { window: 60, max: 5 },
+        '/sign-up/email': { window: 60 * 60, max: 5 },
+        '/forget-password': { window: 60 * 60, max: 3 },
+        '/two-factor/verify-totp': { window: 60, max: 5 },
+        '/two-factor/verify-backup-code': { window: 60, max: 5 },
       },
     },
 
@@ -136,8 +195,6 @@ export function createAuth(
         sendInvitationEmail: emailEnabled
           ? async (data) => {
               const inviteLink = `${appUrl}/accept-invitation/${data.id}`;
-              console.log('[Auth] Sending organization invitation to:', data.email);
-
               await sendOrganizationInvitation(data.email, {
                 inviterName: data.inviter.user.name || data.inviter.user.email,
                 organizationName: data.organization.name,
@@ -158,12 +215,6 @@ export function createAuth(
               inviter: { user: { id: string; name: string | null; email: string } };
               acceptedUser: { id: string; name: string | null; email: string };
             }) => {
-              // Send welcome email to the new member
-              console.log(
-                '[Auth] Invitation accepted, sending welcome email to:',
-                data.acceptedUser.email
-              );
-
               await sendWelcomeEmail(data.acceptedUser.email, {
                 userName: data.acceptedUser.name || 'there',
                 organizationName: data.organization.name,
@@ -174,6 +225,19 @@ export function createAuth(
           : undefined,
       }),
 
+      twoFactor({
+        issuer: 'Authlane',
+        skipVerificationOnEnable: false,
+        allowPasswordless: false,
+        twoFactorCookieMaxAge: 60 * 10,
+        trustDeviceMaxAge: 60 * 60 * 24 * 7,
+        accountLockout: {
+          enabled: true,
+          maxFailedAttempts: 5,
+          durationSeconds: 60 * 15,
+        },
+      }),
+
       // SSO plugin can be added here later:
       // sso({
       //   providers: ["oidc", "saml"]
@@ -182,13 +246,17 @@ export function createAuth(
 
     // Advanced options
     advanced: {
-      // Enable cross-subdomain cookies for multi-tenant setup
-      crossSubDomainCookies: {
-        enabled: process.env.NODE_ENV === 'production',
+      useSecureCookies: environment === 'production',
+      disableCSRFCheck: false,
+      disableOriginCheck: false,
+      cookiePrefix: 'authlane',
+      defaultCookieAttributes: {
+        httpOnly: true,
+        secure: environment === 'production',
+        sameSite: 'lax',
+        path: '/',
       },
     },
   });
+  return auth as unknown as Auth;
 }
-
-// Type export for use in other modules
-export type Auth = ReturnType<typeof createAuth>;

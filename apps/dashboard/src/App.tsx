@@ -13,6 +13,8 @@ import RegisterPage from '@/pages/RegisterPage';
 import ServiceDetailPage from '@/pages/ServiceDetailPage';
 import ServicesPage from '@/pages/ServicesPage';
 import SettingsPage from '@/pages/SettingsPage';
+import SecurityPage from '@/pages/SecurityPage';
+import TwoFactorPage from '@/pages/TwoFactorPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +56,7 @@ function AppRoutes() {
         path="/register"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />}
       />
+      <Route path="/two-factor" element={<TwoFactorPage />} />
       <Route
         path="/dashboard"
         element={
@@ -68,6 +71,7 @@ function AppRoutes() {
         <Route path="services/:id" element={<ServiceDetailPage />} />
         <Route path="api-keys" element={<ApiKeysPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="security" element={<SecurityPage />} />
         <Route path="members" element={<MembersPage />} />
         <Route path="organization" element={<OrganizationPage />} />
       </Route>

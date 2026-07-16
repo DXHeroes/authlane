@@ -7,6 +7,7 @@ interface User {
   name: string;
   email: string;
   emailVerified: boolean;
+  twoFactorEnabled: boolean;
   image?: string;
   createdAt: Date;
 }
@@ -68,9 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadSession = async () => {
       try {
-        console.log('[AuthContext] Loading session...');
         const result = await authClient.getSession();
-        console.log('[AuthContext] getSession result:', result);
         if (result.data) {
           setSession(result.data as Session);
 
@@ -103,13 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('[AuthContext] Failed to load session:', err);
       } finally {
-        console.log('[AuthContext] Setting isLoading = false');
         setIsLoading(false);
       }
     };
 
-    console.log('[AuthContext] Component mounted, calling loadSession()');
-    loadSession();
+    void loadSession();
   }, []);
 
   const login = async (email: string, password: string) => {

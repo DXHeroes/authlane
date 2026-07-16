@@ -42,12 +42,17 @@ import Redis from 'ioredis';
 import { setupJobs } from './jobs/setup.js';
 import { createAuth } from './lib/auth.js';
 import {
-  type CacheStore,
-  MemoryCacheStore,
-  RedisCacheStore,
-} from './lib/cache.js';
+  type AuthSecondaryStorage,
+  createEncryptedRedisSecondaryStorage,
+} from './lib/auth-secondary-storage.js';
+import { type CacheStore, MemoryCacheStore, RedisCacheStore } from './lib/cache.js';
 import { recordHttpRequest } from './lib/metrics.js';
-import { authMiddleware, handleError, rateLimitMiddleware } from './middleware/index.js';
+import {
+  authMiddleware,
+  dashboardSessionSecurity,
+  handleError,
+  rateLimitMiddleware,
+} from './middleware/index.js';
 import {
   MemoryRateLimitStore,
   type RateLimitStore,
@@ -68,6 +73,7 @@ export function createApp(
     rateLimitEnabled?: boolean;
     cacheStore?: CacheStore;
     rateLimitStore?: RateLimitStore;
+    authSecondaryStorage?: AuthSecondaryStorage;
     publicRoot?: string;
   }
 ) {
@@ -80,6 +86,7 @@ export function createApp(
     trustedOrigins: Array.isArray(options?.corsOrigin)
       ? options.corsOrigin
       : [options?.corsOrigin || 'http://localhost:5173'].filter(Boolean),
+    secondaryStorage: options?.authSecondaryStorage,
   });
 
   // Global middleware
@@ -142,9 +149,14 @@ export function createApp(
   const cacheStore = options?.cacheStore ?? new MemoryCacheStore();
 
   // API routes (require authentication and rate limiting)
+  app.use('/api/v1/*', authMiddleware(db, auth));
   app.use(
-    '/api/v1/*',
-    authMiddleware(db, auth)
+    '/api/v1/dashboard/*',
+    dashboardSessionSecurity({
+      trustedOrigins: Array.isArray(options?.corsOrigin)
+        ? options.corsOrigin
+        : [options?.corsOrigin || 'http://localhost:5173'],
+    })
   );
   app.use(
     '/api/v1/*',
@@ -211,6 +223,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   let cacheStore: CacheStore = new MemoryCacheStore();
   let rateLimitStore: RateLimitStore = new MemoryRateLimitStore();
+  let authSecondaryStorage: AuthSecondaryStorage | undefined;
   if (env.REDIS_URL) {
     const redis = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: 2,
@@ -218,6 +231,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     });
     cacheStore = new RedisCacheStore(redis);
     rateLimitStore = new RedisRateLimitStore(redis);
+    authSecondaryStorage = createEncryptedRedisSecondaryStorage(redis);
   }
 
   // Create app
@@ -239,6 +253,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     rateLimitEnabled: env.RATE_LIMIT_ENABLED,
     cacheStore,
     rateLimitStore,
+    authSecondaryStorage,
   });
 
   // Start server

@@ -3,6 +3,7 @@
  * Populates initial data with production-ready service configurations
  */
 
+import { hashUserPassword } from '@authlane/shared';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -16,11 +17,10 @@ function generateId(): string {
 }
 
 /**
- * Hash password using better-auth compatible format (bcrypt)
+ * Hash password using Better Auth's configured Argon2id format.
  */
 async function hashPassword(password: string): Promise<string> {
-  const bcrypt = await import('bcrypt');
-  return bcrypt.hash(password, 10);
+  return hashUserPassword(password);
 }
 
 /**

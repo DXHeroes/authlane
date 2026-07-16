@@ -8,6 +8,13 @@
       "when": 1784199399170,
       "tag": "0000_dashing_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784201637604,
+      "tag": "0001_chubby_warlock",
+      "breakpoints": true
     }
   ]
 }

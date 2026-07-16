@@ -12,6 +12,8 @@ interface Env {
   API_HOST?: string;
   NODE_ENV?: string;
   CORS_ORIGIN?: string;
+  BETTER_AUTH_URL?: string;
+  BETTER_AUTH_SECRETS?: string;
   RATE_LIMIT_ENABLED?: boolean;
   RATE_LIMIT_MAX_REQUESTS?: number;
   RATE_LIMIT_WINDOW_MS?: number;
@@ -52,6 +54,20 @@ export function getEnv(): Env {
   if (nodeEnv === 'production' && !process.env.REDIS_URL) {
     throw new Error('REDIS_URL is required in production');
   }
+  if (nodeEnv === 'production') {
+    if (!process.env.BETTER_AUTH_SECRETS || !isValidAuthSecrets(process.env.BETTER_AUTH_SECRETS)) {
+      throw new Error(
+        'BETTER_AUTH_SECRETS must contain version:secret entries of at least 32 characters in production'
+      );
+    }
+    if (!process.env.BETTER_AUTH_URL || !isExactHttpsOrigin(process.env.BETTER_AUTH_URL)) {
+      throw new Error('BETTER_AUTH_URL must be an exact HTTPS origin in production');
+    }
+    const corsOrigins = process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()) ?? [];
+    if (corsOrigins.length === 0 || corsOrigins.some((origin) => !isExactHttpsOrigin(origin))) {
+      throw new Error('CORS_ORIGIN must contain exact HTTPS origins in production');
+    }
+  }
 
   return {
     DATABASE_URL: databaseUrl,
@@ -61,6 +77,8 @@ export function getEnv(): Env {
     API_HOST: process.env.API_HOST || '0.0.0.0',
     NODE_ENV: nodeEnv,
     CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173',
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    BETTER_AUTH_SECRETS: process.env.BETTER_AUTH_SECRETS,
     RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED !== 'false',
     RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS
       ? Number(process.env.RATE_LIMIT_MAX_REQUESTS)
@@ -70,6 +88,27 @@ export function getEnv(): Env {
       : 60000,
     LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   };
+}
+
+function isValidAuthSecrets(value: string): boolean {
+  const versions = new Set<string>();
+  return value.split(',').every((entry) => {
+    const separator = entry.indexOf(':');
+    const version = entry.slice(0, separator);
+    const secret = entry.slice(separator + 1);
+    if (!/^\d+$/.test(version) || secret.length < 32 || versions.has(version)) return false;
+    versions.add(version);
+    return true;
+  });
+}
+
+function isExactHttpsOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.origin === value && !url.username && !url.password;
+  } catch {
+    return false;
+  }
 }
 
 function isValidKeyring(value: string): boolean {

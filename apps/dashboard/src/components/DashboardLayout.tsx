@@ -78,6 +78,19 @@ export default function DashboardLayout() {
               API Keys
             </div>
           </NavLink>
+          <NavLink to="/dashboard/security" className={({ isActive }) => navLinkClass(isActive)}>
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 11c1.657 0 3-1.343 3-3V6a3 3 0 10-6 0v2c0 1.657 1.343 3 3 3zm6 0H6a2 2 0 00-2 2v7h16v-7a2 2 0 00-2-2z"
+                />
+              </svg>
+              Security
+            </div>
+          </NavLink>
 
           {/* Organization section */}
           <div className="pt-4">

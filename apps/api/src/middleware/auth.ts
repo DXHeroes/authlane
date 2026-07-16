@@ -74,7 +74,13 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
         return c.json(Errors.unauthorized('The active organization no longer exists'), 401);
       }
 
-      c.set('user', { ...session.user, image: session.user.image ?? null });
+      c.set('user', {
+        ...session.user,
+        image: session.user.image ?? null,
+        twoFactorEnabled: Boolean(
+          (session.user as typeof session.user & { twoFactorEnabled?: boolean }).twoFactorEnabled
+        ),
+      });
       c.set('session', session.session);
       c.set('organization', activeOrganization);
       c.set('apiKey', null);

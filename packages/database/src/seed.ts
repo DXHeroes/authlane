@@ -27,7 +27,7 @@ async function hashPassword(password: string): Promise<string> {
  * Production-ready service configurations
  * Each service has complete OAuth2/API configuration based on official documentation
  */
-const productionServices = [
+export const productionServices = [
   // ============================================
   // DEVELOPER TOOLS (4)
   // ============================================

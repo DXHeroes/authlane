@@ -1,6 +1,10 @@
-import { IntegrationRegistry, type IntegrationTools } from '@authlane/shared';
+import {
+  IntegrationRegistry,
+  type IntegrationTools,
+  type SupportedServiceId,
+} from '@authlane/shared';
 
-const integrationLoaders: Record<string, () => Promise<IntegrationTools>> = {
+const integrationLoaders: Record<SupportedServiceId, () => Promise<IntegrationTools>> = {
   airtable: () => import('@authlane/integration-airtable/tools'),
   discord: () => import('@authlane/integration-discord/tools'),
   github: () => import('@authlane/integration-github/tools'),
@@ -19,7 +23,7 @@ const integrationLoaders: Record<string, () => Promise<IntegrationTools>> = {
 };
 
 export const integrationRegistry = new IntegrationRegistry(async (serviceId) => {
-  const load = integrationLoaders[serviceId];
+  const load = integrationLoaders[serviceId as SupportedServiceId];
   if (!load) throw new Error(`Integration package is not installed: ${serviceId}`);
   return load();
 });

@@ -53,7 +53,7 @@ FROM runtime-base AS migrator
 USER root
 RUN apk add --no-cache postgresql16-client
 USER authlane
-CMD ["sh", "-c", "node packages/database/dist/migrate.js && /app/docker/postgres/provision-roles.sh"]
+CMD ["sh", "-c", "node packages/database/dist/migrate.js && node packages/database/dist/seed-catalog.js && /app/docker/postgres/provision-roles.sh"]
 
 FROM runtime-base AS runner
 

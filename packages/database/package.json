@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "vitest run tests/service-catalog.test.ts",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
     "db:create": "dotenv -e ../../.env -- tsx src/create.ts",
@@ -15,7 +16,8 @@
     "secrets:rewrap": "dotenv -e ../../.env -- tsx src/rewrap-secrets.ts",
     "generate": "drizzle-kit generate",
     "studio": "drizzle-kit studio",
-    "seed": "dotenv -e ../../.env -- tsx src/seed.ts"
+    "seed": "dotenv -e ../../.env -- tsx src/seed.ts",
+    "seed:catalog": "dotenv -e ../../.env -- tsx src/seed-catalog.ts"
   },
   "dependencies": {
     "@authlane/crypto": "workspace:*",
@@ -28,6 +30,7 @@
     "@types/node": "^24.10.1",
     "drizzle-kit": "^0.31.7",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
   }
 }

@@ -1,5 +1,15 @@
 const DEVELOPMENT_AUTH_SECRET = `1:${'development-only-authlane-secret'.padEnd(32, '-')}`;
 
+export function isSignUpEnabled(value: string | undefined, environment: string): boolean {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) {
+    return environment !== 'production';
+  }
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  throw new Error('AUTHLANE_ALLOW_SIGNUP must be true or false');
+}
+
 export function parseAuthSecrets(
   value: string | undefined,
   environment: string

@@ -1,3 +1,8 @@
+import {
+  API_SCOPES,
+  type ApiScope,
+  DEFAULT_API_SCOPES,
+} from '@authlane/shared';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '@/lib/api';
@@ -8,14 +13,34 @@ interface CreateApiKeyModalProps {
   onSuccess: () => void;
 }
 
+const scopeOptions: Record<ApiScope, { label: string; description: string }> = {
+  'catalog:read': {
+    label: 'Read service catalog',
+    description: 'List services and their tool definitions.',
+  },
+  'connections:read': {
+    label: 'Read connections',
+    description: 'Read connection status for end users.',
+  },
+  'credentials:issue': {
+    label: 'Issue credential leases',
+    description: 'Retrieve short-lived credentials for direct provider calls.',
+  },
+  'connect-sessions:create': {
+    label: 'Create connect sessions',
+    description: 'Create hosted connection flows for end users.',
+  },
+};
+
 export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyModalProps) {
   const [name, setName] = useState('');
   const [expiresInDays, setExpiresInDays] = useState<number | ''>('');
+  const [scopes, setScopes] = useState<ApiScope[]>([...DEFAULT_API_SCOPES]);
   const [createdKey, setCreatedKey] = useState<ApiKeyWithSecret | null>(null);
   const [copied, setCopied] = useState(false);
 
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; expiresInDays?: number }) =>
+    mutationFn: (data: { name: string; expiresInDays?: number; scopes: ApiScope[] }) =>
       api.post<ApiKeyWithSecret>('/api-keys', data),
     onSuccess: (data) => {
       setCreatedKey(data);
@@ -29,7 +54,16 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
     createMutation.mutate({
       name: name.trim(),
       expiresInDays: expiresInDays === '' ? undefined : Number(expiresInDays),
+      scopes,
     });
+  };
+
+  const toggleScope = (scope: ApiScope) => {
+    setScopes((current) =>
+      current.includes(scope)
+        ? current.filter((item) => item !== scope)
+        : API_SCOPES.filter((item) => current.includes(item) || item === scope)
+    );
   };
 
   const handleCopy = async () => {
@@ -192,6 +226,36 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
                 Optional: Set an expiration date for this key
               </p>
             </div>
+
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium">Permissions</legend>
+              <div className="space-y-2 rounded-md border border-border p-3">
+                {API_SCOPES.map((scope) => {
+                  const option = scopeOptions[scope];
+                  return (
+                    <label key={scope} className="flex cursor-pointer items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={scopes.includes(scope)}
+                        onChange={() => toggleScope(scope)}
+                        className="mt-1 h-4 w-4 rounded border-border"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium">{option.label}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {option.description}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {scopes.includes('credentials:issue') && (
+                <p className="mt-2 rounded-md border border-yellow-500 bg-yellow-50 p-2 text-xs text-yellow-800">
+                  This key can retrieve short-lived credentials. Treat it as a high-privilege secret.
+                </p>
+              )}
+            </fieldset>
 
             {createMutation.isError && (
               <div className="rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700">

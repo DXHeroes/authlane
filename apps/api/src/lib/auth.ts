@@ -15,7 +15,11 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, twoFactor } from 'better-auth/plugins';
 import type { AuthSecondaryStorage } from './auth-secondary-storage.js';
-import { parseAuthSecrets, validateTrustedOrigins } from './auth-security-config.js';
+import {
+  isSignUpEnabled,
+  parseAuthSecrets,
+  validateTrustedOrigins,
+} from './auth-security-config.js';
 
 export interface Auth {
   handler(request: Request): Promise<Response>;
@@ -117,6 +121,7 @@ export function createAuth(
     // Email + password authentication
     emailAndPassword: {
       enabled: true,
+      disableSignUp: !isSignUpEnabled(process.env.AUTHLANE_ALLOW_SIGNUP, environment),
       requireEmailVerification: emailEnabled, // Enable when email provider is configured
       minPasswordLength: 12,
       maxPasswordLength: 128,

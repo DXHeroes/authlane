@@ -26,6 +26,10 @@ describe('CreateApiKeyModal', () => {
       expect(screen.getByRole('heading', { name: /Create API Key/i })).toBeInTheDocument();
       expect(screen.getByLabelText(/API Key Name/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Expires In/i)).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /Read service catalog/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /Read connections/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /Create connect sessions/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /Issue credential leases/i })).not.toBeChecked();
     });
 
     it('has disabled submit button when name is empty', () => {
@@ -83,6 +87,12 @@ describe('CreateApiKeyModal', () => {
       const submitButton = screen.getByRole('button', { name: /^Create API Key$/i });
       await user.click(submitButton);
 
+      expect(apiModule.api.post).toHaveBeenCalledWith('/api-keys', {
+        name: 'Test Key',
+        expiresInDays: undefined,
+        scopes: ['catalog:read', 'connections:read', 'connect-sessions:create'],
+      });
+
       // Wait for success state
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /API Key Created/i })).toBeInTheDocument();
@@ -109,6 +119,39 @@ describe('CreateApiKeyModal', () => {
       await waitFor(() => {
         expect(screen.getByText(/Failed to create API key/i)).toBeInTheDocument();
       });
+    });
+
+    it('requires an explicit opt-in before issuing credential leases', async () => {
+      const user = userEvent.setup();
+      vi.mocked(apiModule.api.post).mockResolvedValueOnce({
+        id: 'key-lease',
+        name: 'Lease Key',
+        key: 'ak_test_lease',
+        keyPrefix: 'ak_test_',
+        scopes: [
+          'catalog:read',
+          'connections:read',
+          'connect-sessions:create',
+          'credentials:issue',
+        ],
+        createdAt: new Date().toISOString(),
+      });
+
+      render(<CreateApiKeyModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+      await user.type(screen.getByLabelText(/API Key Name/i), 'Lease Key');
+      await user.click(screen.getByRole('checkbox', { name: /Issue credential leases/i }));
+
+      expect(screen.getByText(/can retrieve short-lived credentials/i)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /^Create API Key$/i }));
+
+      expect(apiModule.api.post).toHaveBeenCalledWith(
+        '/api-keys',
+        expect.objectContaining({
+          scopes: expect.arrayContaining(['credentials:issue']),
+        })
+      );
     });
   });
 

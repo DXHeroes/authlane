@@ -65,6 +65,9 @@ export default function ApiKeysPage() {
                       Key Prefix
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Scopes
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       Created
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -85,6 +88,18 @@ export default function ApiKeysPage() {
                       <tr key={key.id} className="hover:bg-accent/50">
                         <td className="px-6 py-4 text-sm font-medium">{key.name}</td>
                         <td className="px-6 py-4 text-sm font-mono">{key.keyPrefix}••••••••</td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex max-w-xs flex-wrap gap-1">
+                            {key.scopes.map((scope) => (
+                              <span
+                                key={scope}
+                                className="rounded bg-muted px-2 py-1 font-mono text-xs text-muted-foreground"
+                              >
+                                {scope}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-sm text-muted-foreground">
                           {new Date(key.createdAt).toLocaleString()}
                         </td>

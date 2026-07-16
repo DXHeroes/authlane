@@ -4,6 +4,7 @@
  */
 
 export * from './capabilities.js';
+export * from './api-scopes.js';
 export * from './env.js';
 export * from './errors.js';
 export * from './hash.js';

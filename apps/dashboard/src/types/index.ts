@@ -1,3 +1,5 @@
+import type { ApiScope } from '@authlane/shared';
+
 export interface User {
   id: string;
   name: string;
@@ -96,6 +98,7 @@ export interface ApiKey {
   organizationId: string;
   name: string;
   keyPrefix: string;
+  scopes: ApiScope[];
   lastUsedAt?: string;
   createdAt: string;
   expiresAt?: string;

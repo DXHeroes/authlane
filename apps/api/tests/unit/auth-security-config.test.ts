@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { parseAuthSecrets, validateTrustedOrigins } from '../../src/lib/auth-security-config.js';
+import {
+  isSignUpEnabled,
+  parseAuthSecrets,
+  validateTrustedOrigins,
+} from '../../src/lib/auth-security-config.js';
 
 describe('authentication security configuration', () => {
   afterEach(() => {
@@ -30,5 +34,13 @@ describe('authentication security configuration', () => {
     expect(() => validateTrustedOrigins(['https://app.example.com/path'], 'production')).toThrow(
       /origin/
     );
+  });
+
+  it('keeps sign-up open in development and closed by default in production', () => {
+    expect(isSignUpEnabled(undefined, 'development')).toBe(true);
+    expect(isSignUpEnabled(undefined, 'production')).toBe(false);
+    expect(isSignUpEnabled('true', 'production')).toBe(true);
+    expect(isSignUpEnabled('false', 'development')).toBe(false);
+    expect(() => isSignUpEnabled('yes', 'production')).toThrow(/true or false/);
   });
 });

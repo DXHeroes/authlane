@@ -27,7 +27,11 @@ describe('encrypted Redis values', () => {
   it('rejects tampered ciphertext and unknown key versions', () => {
     const keyring = parseKeyring(`redis-2:${current}`);
     const sealed = sealRedisValue(keyring, 'rate-limit:1', '5');
-    const tampered = `${sealed.slice(0, -1)}${sealed.endsWith('A') ? 'B' : 'A'}`;
+    const parts = sealed.split(':');
+    const ciphertext = Buffer.from(parts[4] ?? '', 'base64url');
+    ciphertext[0] ^= 1;
+    parts[4] = ciphertext.toString('base64url');
+    const tampered = parts.join(':');
 
     expect(() => openRedisValue(keyring, 'rate-limit:1', tampered)).toThrow();
     expect(() => openRedisValue(parseKeyring(`redis-3:${old}`), 'rate-limit:1', sealed)).toThrow(

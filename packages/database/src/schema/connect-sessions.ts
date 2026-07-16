@@ -15,6 +15,7 @@ export const connectSessions = pgTable(
     allowedServices: jsonb('allowed_services').$type<string[]>().default([]).notNull(),
     allowedOrigin: text('allowed_origin').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    destructiveActionExpiresAt: timestamp('destructive_action_expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
   },

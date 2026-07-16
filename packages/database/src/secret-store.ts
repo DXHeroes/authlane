@@ -26,6 +26,7 @@ export interface SecretStore {
   put(input: PutSecretInput): Promise<string>;
   read(id: string, organizationId: string, purpose: SecretPurpose): Promise<Buffer>;
   rewrap(id: string, organizationId: string, purpose: SecretPurpose): Promise<void>;
+  delete?(id: string, organizationId: string, purpose: SecretPurpose): Promise<void>;
 }
 
 function toSealedSecret(row: typeof secretRecords.$inferSelect): SealedSecret {
@@ -120,6 +121,18 @@ export class DatabaseSecretStore implements SecretStore {
     await this.db
       .update(secretRecords)
       .set(persistenceFields(rewrapped))
+      .where(
+        and(
+          eq(secretRecords.id, id),
+          eq(secretRecords.organizationId, organizationId),
+          eq(secretRecords.purpose, purpose)
+        )
+      );
+  }
+
+  async delete(id: string, organizationId: string, purpose: SecretPurpose): Promise<void> {
+    await this.db
+      .delete(secretRecords)
       .where(
         and(
           eq(secretRecords.id, id),

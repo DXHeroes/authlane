@@ -112,4 +112,6 @@ export interface CreateConnectSessionOptions extends ExternalUserOptions {
   allowedServices: string[];
   allowedOrigin: string;
   expiresInSeconds?: number;
+  /** ISO timestamp set only after the tenant has just reauthenticated the end-user. */
+  reauthenticatedAt?: string;
 }

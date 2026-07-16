@@ -1,11 +1,7 @@
-/**
- * Token refresh job processor
- * Handles automatic OAuth token refresh using BullMQ
- */
-
-import { eq } from 'drizzle-orm';
+import { fetchOAuthToken } from '@authlane/shared';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import type { Database } from '../client.js';
-import { connections, outboxEvents, services } from '../schema/index.js';
+import { connections, organizationServices, outboxEvents, services } from '../schema/index.js';
 import { createDatabaseSecretStore, type SecretStore } from '../secret-store.js';
 
 export interface TokenRefreshData {
@@ -14,69 +10,94 @@ export interface TokenRefreshData {
   organizationId: string;
 }
 
-/**
- * Refreshes an OAuth token for a connection
- */
+export interface TokenRefreshResult {
+  success: boolean;
+  error?: string;
+  retryable?: boolean;
+  expiresAt?: string | null;
+}
+
+/** Refreshes one connection under a short database-backed lease. */
 export async function refreshToken(
   db: Database,
   data: TokenRefreshData,
   secretStore: SecretStore = createDatabaseSecretStore(db)
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    // Get connection
-    const [connection] = await db
-      .select()
-      .from(connections)
-      .where(eq(connections.id, data.connectionId))
-      .limit(1);
+): Promise<TokenRefreshResult> {
+  const lockToken = crypto.randomUUID();
+  const now = new Date();
+  const [connection] = await db
+    .update(connections)
+    .set({
+      refreshLockToken: lockToken,
+      refreshLockExpiresAt: new Date(now.getTime() + 2 * 60_000),
+    })
+    .where(
+      and(
+        eq(connections.id, data.connectionId),
+        eq(connections.organizationId, data.organizationId),
+        eq(connections.serviceId, data.serviceId),
+        eq(connections.status, 'connected'),
+        or(isNull(connections.refreshLockExpiresAt), lt(connections.refreshLockExpiresAt, now))
+      )
+    )
+    .returning();
 
-    if (!connection) {
-      return { success: false, error: 'Connection not found' };
-    }
+  if (!connection) {
+    return { success: true, expiresAt: null };
+  }
 
-    const failConnection = async (message: string, code: string) => {
-      await db
+  const failPermanently = async (error: string, code: string): Promise<TokenRefreshResult> => {
+    await db.transaction(async (tx) => {
+      const [updated] = await tx
         .update(connections)
-        .set({ status: 'error', lastErrorCode: code, updatedAt: new Date() })
-        .where(eq(connections.id, connection.id));
-      await db.insert(outboxEvents).values({
-        organizationId: connection.organizationId,
-        eventType: 'connection.error',
-        payload: {
-          externalUserId: connection.externalUserId,
-          serviceId: connection.serviceId,
-          connectionId: connection.id,
-          errorCode: code,
-        },
-      });
-      return { success: false as const, error: message };
-    };
+        .set({
+          status: 'error',
+          lastErrorCode: code,
+          refreshLockToken: null,
+          refreshLockExpiresAt: null,
+          version: sql`${connections.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(connections.id, connection.id), eq(connections.refreshLockToken, lockToken)))
+        .returning({ id: connections.id });
+      if (updated) {
+        await tx.insert(outboxEvents).values({
+          organizationId: connection.organizationId,
+          eventType: 'connection.error',
+          payload: {
+            externalUserId: connection.externalUserId,
+            serviceId: connection.serviceId,
+            connectionId: connection.id,
+            errorCode: code,
+          },
+        });
+      }
+    });
+    return { success: false, error, retryable: false };
+  };
 
-    if (connection.status !== 'connected') {
-      return { success: false, error: 'Connection is not connected' };
-    }
-
+  try {
     if (!connection.credentialSecretId) {
-      return failConnection('No credentials found', 'CREDENTIALS_MISSING');
+      return await failPermanently('No credentials found', 'CREDENTIALS_MISSING');
     }
 
-    // Get service configuration
-    const [service] = await db
-      .select()
-      .from(services)
-      .where(eq(services.id, data.serviceId))
-      .limit(1);
-
-    if (!service) {
-      return failConnection('Service not found', 'SERVICE_NOT_FOUND');
-    }
-
-    const config = service.config as {
-      token_url?: string;
-    };
-
-    if (!config.token_url) {
-      return failConnection('Service missing token URL', 'TOKEN_URL_MISSING');
+    const [[service], [organizationService]] = await Promise.all([
+      db.select().from(services).where(eq(services.id, data.serviceId)).limit(1),
+      db
+        .select()
+        .from(organizationServices)
+        .where(
+          and(
+            eq(organizationServices.organizationId, data.organizationId),
+            eq(organizationServices.serviceId, data.serviceId),
+            eq(organizationServices.enabled, true)
+          )
+        )
+        .limit(1),
+    ]);
+    const config = service?.config as { token_url?: string } | undefined;
+    if (!service || !organizationService || !config?.token_url) {
+      return await failPermanently('OAuth provider is not configured', 'TOKEN_URL_MISSING');
     }
 
     const credentialsBuffer = await secretStore.read(
@@ -89,89 +110,142 @@ export async function refreshToken(
       refresh_token?: string;
       expires_at?: string;
       scope?: string;
+      token_type?: string;
     };
     try {
       credentials = JSON.parse(credentialsBuffer.toString('utf8'));
     } finally {
       credentialsBuffer.fill(0);
     }
-
     if (!credentials.refresh_token) {
-      return failConnection('No refresh token available', 'REFRESH_TOKEN_MISSING');
+      return await failPermanently('No refresh token available', 'REFRESH_TOKEN_MISSING');
     }
 
-    // Refresh token
-    const tokenResponse = await fetch(config.token_url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: credentials.refresh_token,
+    const tokenBody = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: credentials.refresh_token,
+    });
+    if (organizationService.oauthClientId) {
+      tokenBody.set('client_id', organizationService.oauthClientId);
+    }
+    if (organizationService.oauthClientSecretId) {
+      const clientSecretBuffer = await secretStore.read(
+        organizationService.oauthClientSecretId,
+        connection.organizationId,
+        'oauth_client_secret'
+      );
+      try {
+        tokenBody.set('client_secret', clientSecretBuffer.toString('utf8'));
+      } finally {
+        clientSecretBuffer.fill(0);
+      }
+    }
+
+    let tokenResult: Awaited<ReturnType<typeof fetchOAuthToken>>;
+    try {
+      tokenResult = await fetchOAuthToken(data.serviceId, config.token_url, tokenBody);
+    } catch {
+      return { success: false, error: 'OAuth refresh request failed', retryable: true };
+    }
+    if (!tokenResult.response.ok) {
+      const retryable = tokenResult.response.status === 429 || tokenResult.response.status >= 500;
+      if (retryable) {
+        return { success: false, error: 'OAuth provider is temporarily unavailable', retryable };
+      }
+      return await failPermanently('OAuth provider rejected refresh', 'OAUTH_REFRESH_REJECTED');
+    }
+
+    const tokens = tokenResult.body;
+    if (typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
+      return await failPermanently('OAuth provider omitted access token', 'OAUTH_REFRESH_INVALID');
+    }
+    const expiresIn =
+      typeof tokens.expires_in === 'number' &&
+      Number.isFinite(tokens.expires_in) &&
+      tokens.expires_in > 0
+        ? Math.min(tokens.expires_in, 60 * 60 * 24 * 365)
+        : null;
+    const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1_000) : connection.expiresAt;
+    const newCredentialBytes = Buffer.from(
+      JSON.stringify({
+        access_token: tokens.access_token,
+        refresh_token:
+          typeof tokens.refresh_token === 'string'
+            ? tokens.refresh_token
+            : credentials.refresh_token,
+        token_type:
+          typeof tokens.token_type === 'string'
+            ? tokens.token_type
+            : credentials.token_type || 'Bearer',
+        scope: typeof tokens.scope === 'string' ? tokens.scope : credentials.scope,
+        expires_at: expiresAt?.toISOString() ?? credentials.expires_at,
       }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      return failConnection(`Token refresh failed: ${errorText}`, 'OAUTH_REFRESH_FAILED');
+      'utf8'
+    );
+    let newCredentialSecretId: string;
+    try {
+      newCredentialSecretId = await secretStore.put({
+        organizationId: connection.organizationId,
+        purpose: 'connection_credentials',
+        plaintext: newCredentialBytes,
+      });
+    } finally {
+      newCredentialBytes.fill(0);
     }
 
-    const tokens = (await tokenResponse.json()) as {
-      access_token: string;
-      refresh_token?: string;
-      expires_in?: number;
-      token_type?: string;
-      scope?: string;
-    };
-
-    const newCredentialsJson = JSON.stringify({
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token || credentials.refresh_token,
-      token_type: tokens.token_type || 'Bearer',
-      scope: tokens.scope || credentials.scope,
-      expires_at: tokens.expires_in
-        ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
-        : credentials.expires_at,
-    });
-
-    await secretStore.put({
-      id: connection.credentialSecretId,
-      organizationId: connection.organizationId,
-      purpose: 'connection_credentials',
-      plaintext: Buffer.from(newCredentialsJson),
-    });
-
-    // Update connection
-    const expiresAt = tokens.expires_in
-      ? new Date(Date.now() + tokens.expires_in * 1000)
-      : connection.expiresAt;
-
+    try {
+      await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(connections)
+          .set({
+            credentialSecretId: newCredentialSecretId,
+            expiresAt,
+            connectedAt: new Date(),
+            refreshLockToken: null,
+            refreshLockExpiresAt: null,
+            version: sql`${connections.version} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(connections.id, connection.id),
+              eq(connections.version, connection.version),
+              eq(connections.refreshLockToken, lockToken)
+            )
+          )
+          .returning({ id: connections.id });
+        if (!updated) throw new Error('Refresh lease was lost');
+        await tx.insert(outboxEvents).values({
+          organizationId: connection.organizationId,
+          eventType: 'connection.refreshed',
+          payload: {
+            externalUserId: connection.externalUserId,
+            serviceId: connection.serviceId,
+            connectionId: connection.id,
+            expiresAt: expiresAt?.toISOString() ?? null,
+          },
+        });
+      });
+    } catch (error) {
+      await secretStore.delete?.(
+        newCredentialSecretId,
+        connection.organizationId,
+        'connection_credentials'
+      );
+      throw error;
+    }
+    await secretStore.delete?.(
+      connection.credentialSecretId,
+      connection.organizationId,
+      'connection_credentials'
+    );
+    return { success: true, expiresAt: expiresIn ? (expiresAt?.toISOString() ?? null) : null };
+  } catch {
+    return { success: false, error: 'Token refresh failed', retryable: true };
+  } finally {
     await db
       .update(connections)
-      .set({
-        expiresAt,
-        connectedAt: new Date(),
-      })
-      .where(eq(connections.id, connection.id));
-
-    await db.insert(outboxEvents).values({
-      organizationId: connection.organizationId,
-      eventType: 'connection.refreshed',
-      payload: {
-        externalUserId: connection.externalUserId,
-        serviceId: connection.serviceId,
-        connectionId: connection.id,
-        expiresAt: expiresAt?.toISOString() ?? null,
-      },
-    });
-
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+      .set({ refreshLockToken: null, refreshLockExpiresAt: null })
+      .where(and(eq(connections.id, connection.id), eq(connections.refreshLockToken, lockToken)));
   }
 }

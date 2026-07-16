@@ -4,11 +4,16 @@ import {
   connections,
   connectSessions,
   eq,
+  gt,
   inArray,
+  isNull,
+  oauthTransactions,
   organizationServices,
   outboxEvents,
   services,
   sql,
+  withSecurityLookupContext,
+  withTenantContext,
 } from '@authlane/database';
 import {
   Errors,
@@ -20,7 +25,12 @@ import {
   isValidUserId,
 } from '@authlane/shared';
 import { Hono } from 'hono';
-import { createConnectSessionToken, isUsableConnectSession } from '../lib/connect-session.js';
+import {
+  canPerformDestructiveAction,
+  createConnectSessionToken,
+  isUsableConnectSession,
+} from '../lib/connect-session.js';
+import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
 import { requireScope } from '../middleware/scope.js';
 
 interface ConnectSessionBody {
@@ -28,19 +38,16 @@ interface ConnectSessionBody {
   allowedServices?: string[];
   allowedOrigin?: string;
   expiresInSeconds?: number;
+  reauthenticatedAt?: string;
 }
 
 interface ConnectActionBody {
-  connectToken?: string;
   parentOrigin?: string;
 }
 
-function connectTokenFromRequest(
-  authorization: string | undefined,
-  body: ConnectActionBody
-): string | null {
+function connectTokenFromRequest(authorization: string | undefined): string | null {
   const headerToken = authorization?.match(/^ConnectSession\s+(.+)$/i)?.[1];
-  return headerToken ?? body.connectToken ?? null;
+  return headerToken ?? null;
 }
 
 async function loadConnectSession(
@@ -49,11 +56,13 @@ async function loadConnectSession(
   serviceId: string,
   parentOrigin: string
 ): Promise<ConnectSession | null> {
-  const [session] = await db
-    .select()
-    .from(connectSessions)
-    .where(eq(connectSessions.tokenHash, hashApiKey(token)))
-    .limit(1);
+  const tokenHash = hashApiKey(token);
+  const [session] = await withSecurityLookupContext(
+    db,
+    'authlane.connect_token_hash',
+    tokenHash,
+    () => db.select().from(connectSessions).where(eq(connectSessions.tokenHash, tokenHash)).limit(1)
+  );
   if (!session || !isUsableConnectSession(session, serviceId, parentOrigin)) return null;
   return session;
 }
@@ -63,11 +72,13 @@ async function loadConnectSessionByToken(
   token: string,
   parentOrigin: string
 ): Promise<ConnectSession | null> {
-  const [session] = await db
-    .select()
-    .from(connectSessions)
-    .where(eq(connectSessions.tokenHash, hashApiKey(token)))
-    .limit(1);
+  const tokenHash = hashApiKey(token);
+  const [session] = await withSecurityLookupContext(
+    db,
+    'authlane.connect_token_hash',
+    tokenHash,
+    () => db.select().from(connectSessions).where(eq(connectSessions.tokenHash, tokenHash)).limit(1)
+  );
   if (
     !session ||
     session.revokedAt ||
@@ -93,8 +104,28 @@ function parseAllowedOrigin(value: string): string | null {
   }
 }
 
+function parseRecentReauthentication(value: string | undefined, now: Date): Date | null | false {
+  if (value === undefined) return null;
+  const reauthenticatedAt = new Date(value);
+  const ageMs = now.getTime() - reauthenticatedAt.getTime();
+  if (!Number.isFinite(reauthenticatedAt.getTime()) || ageMs < -30_000 || ageMs > 5 * 60_000) {
+    return false;
+  }
+  return reauthenticatedAt;
+}
+
+function publicApiBase(requestUrl: string): string {
+  return process.env.BETTER_AUTH_URL || new URL(requestUrl).origin;
+}
+
 export function createOAuthRouter(db: Database, secretStore: SecretStore) {
   const router = new Hono();
+  router.use('*', async (c, next) => {
+    await next();
+    c.header('Cache-Control', 'no-store, private');
+    c.header('Pragma', 'no-cache');
+    c.header('Referrer-Policy', 'no-referrer');
+  });
 
   router.post('/connect-sessions', requireScope('connect-sessions:create'), async (c) => {
     let body: ConnectSessionBody;
@@ -107,16 +138,19 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     const externalUserId = body.externalUserId;
     const requestedServices = [...new Set(body.allowedServices ?? [])];
     const allowedOrigin = body.allowedOrigin ? parseAllowedOrigin(body.allowedOrigin) : null;
+    const now = new Date();
     const expiresInSeconds = Math.min(Math.max(body.expiresInSeconds ?? 600, 60), 900);
+    const reauthenticatedAt = parseRecentReauthentication(body.reauthenticatedAt, now);
     if (
       !isValidUserId(externalUserId) ||
       requestedServices.length === 0 ||
       requestedServices.some((serviceId) => !isValidServiceId(serviceId)) ||
-      !allowedOrigin
+      !allowedOrigin ||
+      reauthenticatedAt === false
     ) {
       return c.json(
         Errors.validationError(
-          'externalUserId, allowedServices, and an HTTPS allowedOrigin are required'
+          'externalUserId, allowedServices, an HTTPS allowedOrigin, and a valid reauthentication timestamp are required'
         ),
         400
       );
@@ -138,7 +172,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
 
     const { token, tokenHash } = createConnectSessionToken();
-    const expiresAt = new Date(Date.now() + expiresInSeconds * 1_000);
+    const expiresAt = new Date(now.getTime() + expiresInSeconds * 1_000);
+    const destructiveActionExpiresAt = reauthenticatedAt
+      ? new Date(Math.min(expiresAt.getTime(), reauthenticatedAt.getTime() + 5 * 60_000))
+      : null;
     const [session] = await db
       .insert(connectSessions)
       .values({
@@ -148,11 +185,11 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         allowedServices: requestedServices,
         allowedOrigin,
         expiresAt,
+        destructiveActionExpiresAt,
       })
       .returning({ id: connectSessions.id });
-    const connectUrl = new URL('/connect', c.req.url);
-    connectUrl.searchParams.set('session', token);
-    connectUrl.searchParams.set('origin', allowedOrigin);
+    const connectUrl = new URL('/connect', publicApiBase(c.req.url));
+    connectUrl.hash = new URLSearchParams({ session: token, origin: allowedOrigin }).toString();
 
     return c.json(
       {
@@ -168,58 +205,65 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     );
   });
 
-  router.get('/connect/session', async (c) => {
-    const token = c.req.query('session');
-    const parentOrigin = c.req.query('origin');
-    if (!token || !parentOrigin) {
+  router.post('/connect/session', async (c) => {
+    let body: ConnectActionBody;
+    try {
+      body = await c.req.json();
+    } catch {
+      body = {};
+    }
+    const token = connectTokenFromRequest(c.req.header('authorization'));
+    if (!token || !body.parentOrigin) {
       return c.json(Errors.unauthorized('A valid connect session is required'), 401);
     }
-    const session = await loadConnectSessionByToken(db, token, parentOrigin);
+    const session = await loadConnectSessionByToken(db, token, body.parentOrigin);
     if (!session) return c.json(Errors.unauthorized('Connect session is invalid or expired'), 401);
 
-    const [allowedServiceRows, connectionRows] = await Promise.all([
-      db
-        .select({ id: services.id, name: services.name, authType: services.authType })
-        .from(services)
-        .where(and(eq(services.enabled, true), inArray(services.id, session.allowedServices))),
-      db
-        .select({
-          serviceId: connections.serviceId,
-          status: connections.status,
-          credentialSecretId: connections.credentialSecretId,
-          expiresAt: connections.expiresAt,
-        })
-        .from(connections)
-        .where(
-          and(
-            eq(connections.organizationId, session.organizationId),
-            eq(connections.externalUserId, session.externalUserId),
-            inArray(connections.serviceId, session.allowedServices)
-          )
-        ),
-    ]);
-    const connectionsByService = new Map(
-      connectionRows.map((connection) => [connection.serviceId, connection])
-    );
-    return c.json({
-      data: {
-        externalUserId: session.externalUserId,
-        expiresAt: session.expiresAt.toISOString(),
-        services: allowedServiceRows.map((service) => {
-          const connection = connectionsByService.get(service.id);
-          const status = getEffectiveConnectionStatus(
-            connection
-              ? {
-                  status: connection.status,
-                  hasCredentials: Boolean(connection.credentialSecretId),
-                  expiresAt: connection.expiresAt,
-                }
-              : null
-          );
-          return { ...service, status };
-        }),
-      },
-      error: null,
+    return withTenantContext(db, session.organizationId, async () => {
+      const [allowedServiceRows, connectionRows] = await Promise.all([
+        db
+          .select({ id: services.id, name: services.name, authType: services.authType })
+          .from(services)
+          .where(and(eq(services.enabled, true), inArray(services.id, session.allowedServices))),
+        db
+          .select({
+            serviceId: connections.serviceId,
+            status: connections.status,
+            credentialSecretId: connections.credentialSecretId,
+            expiresAt: connections.expiresAt,
+          })
+          .from(connections)
+          .where(
+            and(
+              eq(connections.organizationId, session.organizationId),
+              eq(connections.externalUserId, session.externalUserId),
+              inArray(connections.serviceId, session.allowedServices)
+            )
+          ),
+      ]);
+      const connectionsByService = new Map(
+        connectionRows.map((connection) => [connection.serviceId, connection])
+      );
+      return c.json({
+        data: {
+          externalUserId: session.externalUserId,
+          expiresAt: session.expiresAt.toISOString(),
+          services: allowedServiceRows.map((service) => {
+            const connection = connectionsByService.get(service.id);
+            const status = getEffectiveConnectionStatus(
+              connection
+                ? {
+                    status: connection.status,
+                    hasCredentials: Boolean(connection.credentialSecretId),
+                    expiresAt: connection.expiresAt,
+                  }
+                : null
+            );
+            return { ...service, status };
+          }),
+        },
+        error: null,
+      });
     });
   });
 
@@ -231,7 +275,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     } catch {
       return c.json(Errors.validationError('Request body must be valid JSON'), 400);
     }
-    const token = connectTokenFromRequest(c.req.header('authorization'), body);
+    const token = connectTokenFromRequest(c.req.header('authorization'));
     if (!token || !body.parentOrigin || !isValidServiceId(serviceId)) {
       return c.json(Errors.unauthorized('A valid connect session is required'), 401);
     }
@@ -240,89 +284,121 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       return c.json(Errors.unauthorized('Connect session is invalid or expired'), 401);
     }
 
-    const [[service], [tenantService]] = await Promise.all([
-      db.select().from(services).where(eq(services.id, serviceId)).limit(1),
-      db
-        .select()
-        .from(organizationServices)
-        .where(
-          and(
-            eq(organizationServices.organizationId, session.organizationId),
-            eq(organizationServices.serviceId, serviceId),
-            eq(organizationServices.enabled, true)
+    return withTenantContext(db, session.organizationId, async () => {
+      const [[service], [tenantService]] = await Promise.all([
+        db.select().from(services).where(eq(services.id, serviceId)).limit(1),
+        db
+          .select()
+          .from(organizationServices)
+          .where(
+            and(
+              eq(organizationServices.organizationId, session.organizationId),
+              eq(organizationServices.serviceId, serviceId),
+              eq(organizationServices.enabled, true)
+            )
           )
-        )
-        .limit(1),
-    ]);
-    if (!service || !tenantService) {
-      return c.json(Errors.notFound('Enabled service', serviceId), 404);
-    }
-    if (service.authType !== 'oauth2') {
-      return c.json(Errors.oauthError('This service does not use OAuth2'), 400);
-    }
+          .limit(1),
+      ]);
+      if (!service || !tenantService) {
+        return c.json(Errors.notFound('Enabled service', serviceId), 404);
+      }
+      if (service.authType !== 'oauth2') {
+        return c.json(Errors.oauthError('This service does not use OAuth2'), 400);
+      }
 
-    const config = service.config as {
-      authorization_url?: string;
-      scopes?: string[];
-    };
-    if (!config.authorization_url || !tenantService.oauthClientId) {
-      return c.json(Errors.oauthError('OAuth provider is not configured'), 409);
-    }
+      const config = service.config as {
+        authorization_url?: string;
+        scopes?: string[];
+      };
+      if (!config.authorization_url || !tenantService.oauthClientId) {
+        return c.json(Errors.oauthError('OAuth provider is not configured'), 409);
+      }
 
-    const { codeVerifier, codeChallenge } = generatePKCE();
-    const state = generateState();
-    const callbackUrl = new URL(`/api/v1/oauth/${serviceId}/callback`, c.req.url).toString();
-    const connectionId = crypto.randomUUID();
-    await db
-      .insert(connections)
-      .values({
-        id: connectionId,
-        organizationId: session.organizationId,
-        externalUserId: session.externalUserId,
-        serviceId,
-        status: 'pending',
-        credentialSecretId: null,
-        expiresAt: null,
-        lastErrorCode: null,
-        metadata: {
-          state,
-          pkceCodeVerifier: codeVerifier,
-          callbackUrl,
-          connectSessionId: session.id,
-          allowedOrigin: session.allowedOrigin,
-        },
-      })
-      .onConflictDoUpdate({
-        target: [connections.organizationId, connections.externalUserId, connections.serviceId],
-        set: {
-          status: 'pending',
-          credentialSecretId: null,
-          expiresAt: null,
-          lastErrorCode: null,
-          metadata: {
-            state,
-            pkceCodeVerifier: codeVerifier,
-            callbackUrl,
+      let authorizationEndpoint: string;
+      try {
+        authorizationEndpoint = validateOAuthEndpoint(
+          serviceId,
+          'authorization',
+          config.authorization_url
+        );
+      } catch {
+        return c.json(Errors.oauthError('OAuth provider endpoint is not approved'), 409);
+      }
+
+      const { codeVerifier, codeChallenge } = generatePKCE();
+      const state = generateState();
+      const callbackUrl = new URL(
+        `/api/v1/oauth/${serviceId}/callback`,
+        publicApiBase(c.req.url)
+      ).toString();
+      const connectionId = crypto.randomUUID();
+      const verifierBytes = Buffer.from(codeVerifier, 'utf8');
+      let pkceSecretId: string;
+      try {
+        pkceSecretId = await secretStore.put({
+          organizationId: session.organizationId,
+          purpose: 'oauth_pkce_verifier',
+          plaintext: verifierBytes,
+        });
+      } finally {
+        verifierBytes.fill(0);
+      }
+      try {
+        await db.transaction(async (tx) => {
+          const [connection] = await tx
+            .insert(connections)
+            .values({
+              id: connectionId,
+              organizationId: session.organizationId,
+              externalUserId: session.externalUserId,
+              serviceId,
+              status: 'pending',
+              credentialSecretId: null,
+              expiresAt: null,
+              lastErrorCode: null,
+              metadata: {},
+            })
+            .onConflictDoUpdate({
+              target: [
+                connections.organizationId,
+                connections.externalUserId,
+                connections.serviceId,
+              ],
+              set: { lastErrorCode: null, updatedAt: new Date() },
+            })
+            .returning({ id: connections.id });
+          if (!connection) throw new Error('Connection transaction did not return a record');
+          await tx.insert(oauthTransactions).values({
+            organizationId: session.organizationId,
+            connectionId: connection.id,
             connectSessionId: session.id,
+            serviceId,
+            stateHash: hashApiKey(state),
+            pkceSecretId,
+            callbackUrl,
             allowedOrigin: session.allowedOrigin,
-          },
-          updatedAt: new Date(),
-        },
-      });
+            expiresAt: new Date(Math.min(session.expiresAt.getTime(), Date.now() + 10 * 60_000)),
+          });
+        });
+      } catch (error) {
+        await secretStore.delete?.(pkceSecretId, session.organizationId, 'oauth_pkce_verifier');
+        throw error;
+      }
 
-    const authorizationUrl = new URL(config.authorization_url);
-    authorizationUrl.searchParams.set('client_id', tenantService.oauthClientId);
-    authorizationUrl.searchParams.set('redirect_uri', callbackUrl);
-    authorizationUrl.searchParams.set('response_type', 'code');
-    authorizationUrl.searchParams.set(
-      'scope',
-      (tenantService.customScopes ?? config.scopes ?? []).join(' ')
-    );
-    authorizationUrl.searchParams.set('state', state);
-    authorizationUrl.searchParams.set('code_challenge', codeChallenge);
-    authorizationUrl.searchParams.set('code_challenge_method', 'S256');
+      const authorizationUrl = new URL(authorizationEndpoint);
+      authorizationUrl.searchParams.set('client_id', tenantService.oauthClientId);
+      authorizationUrl.searchParams.set('redirect_uri', callbackUrl);
+      authorizationUrl.searchParams.set('response_type', 'code');
+      authorizationUrl.searchParams.set(
+        'scope',
+        (tenantService.customScopes ?? config.scopes ?? []).join(' ')
+      );
+      authorizationUrl.searchParams.set('state', state);
+      authorizationUrl.searchParams.set('code_challenge', codeChallenge);
+      authorizationUrl.searchParams.set('code_challenge_method', 'S256');
 
-    return c.json({ data: { authorizationUrl: authorizationUrl.toString() }, error: null });
+      return c.json({ data: { authorizationUrl: authorizationUrl.toString() }, error: null });
+    });
   });
 
   router.get('/oauth/:serviceId/callback', async (c) => {
@@ -330,155 +406,223 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     const code = c.req.query('code');
     const state = c.req.query('state');
     const providerError = c.req.query('error');
-    if (providerError) return c.json(Errors.oauthError(providerError), 400);
-    if (!code || !state || !isValidServiceId(serviceId)) {
+    if (providerError) return c.json(Errors.oauthError('Provider denied authorization'), 400);
+    if (!code || !state || state.length > 512 || !isValidServiceId(serviceId)) {
       return c.json(Errors.oauthError('Missing OAuth code or state'), 400);
     }
 
-    const [connection] = await db
-      .select()
-      .from(connections)
-      .where(
-        and(
-          eq(connections.serviceId, serviceId),
-          eq(connections.status, 'pending'),
-          sql`${connections.metadata}->>'state' = ${state}`
-        )
-      )
-      .limit(1);
-    if (!connection) return c.json(Errors.oauthStateMismatch('Unknown or consumed state'), 400);
-
-    const metadata = connection.metadata as {
-      pkceCodeVerifier?: string;
-      callbackUrl?: string;
-      allowedOrigin?: string;
-    };
-    const [[service], [tenantService]] = await Promise.all([
-      db.select().from(services).where(eq(services.id, serviceId)).limit(1),
-      db
-        .select()
-        .from(organizationServices)
-        .where(
-          and(
-            eq(organizationServices.organizationId, connection.organizationId),
-            eq(organizationServices.serviceId, serviceId)
+    const now = new Date();
+    const stateHash = hashApiKey(state);
+    const [oauthTransaction] = await withSecurityLookupContext(
+      db,
+      'authlane.oauth_state_hash',
+      stateHash,
+      () =>
+        db
+          .update(oauthTransactions)
+          .set({ consumedAt: now })
+          .where(
+            and(
+              eq(oauthTransactions.serviceId, serviceId),
+              eq(oauthTransactions.stateHash, stateHash),
+              isNull(oauthTransactions.consumedAt),
+              gt(oauthTransactions.expiresAt, now)
+            )
           )
-        )
-        .limit(1),
-    ]);
-    if (!service || !tenantService?.oauthClientId) {
-      return c.json(Errors.oauthError('OAuth provider is no longer configured'), 409);
-    }
-    const config = service.config as { token_url?: string };
-    if (!config.token_url || !metadata.callbackUrl || !metadata.pkceCodeVerifier) {
-      return c.json(Errors.oauthError('OAuth flow metadata is incomplete'), 400);
-    }
-
-    let clientSecret = '';
-    if (tenantService.oauthClientSecretId) {
-      const clientSecretBuffer = await secretStore.read(
-        tenantService.oauthClientSecretId,
-        connection.organizationId,
-        'oauth_client_secret'
-      );
-      try {
-        clientSecret = clientSecretBuffer.toString('utf8');
-      } finally {
-        clientSecretBuffer.fill(0);
-      }
-    }
-    const tokenBody = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: metadata.callbackUrl,
-      client_id: tenantService.oauthClientId,
-      code_verifier: metadata.pkceCodeVerifier,
-    });
-    if (clientSecret) tokenBody.set('client_secret', clientSecret);
-
-    const tokenResponse = await fetch(config.token_url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-      body: tokenBody,
-    });
-    if (!tokenResponse.ok) {
-      await db
-        .update(connections)
-        .set({
-          status: 'error',
-          lastErrorCode: 'OAUTH_TOKEN_EXCHANGE_FAILED',
-          updatedAt: new Date(),
-        })
-        .where(eq(connections.id, connection.id));
-      return c.json(Errors.oauthTokenExchangeFailed('Provider rejected the token exchange'), 400);
-    }
-
-    const tokens = (await tokenResponse.json()) as {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-      token_type?: string;
-      scope?: string;
-    };
-    if (!tokens.access_token) {
-      return c.json(
-        Errors.oauthTokenExchangeFailed('Provider did not return an access token'),
-        400
-      );
-    }
-    const expiresAt = tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1_000) : null;
-    const credentialBytes = Buffer.from(
-      JSON.stringify({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        token_type: tokens.token_type ?? 'Bearer',
-        scope: tokens.scope,
-        expires_at: expiresAt?.toISOString(),
-      }),
-      'utf8'
+          .returning()
     );
-    let credentialSecretId: string;
-    try {
-      credentialSecretId = await secretStore.put({
-        id: connection.credentialSecretId ?? undefined,
-        organizationId: connection.organizationId,
-        purpose: 'connection_credentials',
-        plaintext: credentialBytes,
-      });
-    } finally {
-      credentialBytes.fill(0);
+    if (!oauthTransaction) {
+      return c.json(Errors.oauthStateMismatch('Unknown, expired, or consumed state'), 400);
     }
-    await db
-      .update(connections)
-      .set({
-        status: 'connected',
-        credentialSecretId,
-        connectedAt: new Date(),
-        expiresAt,
-        lastErrorCode: null,
-        metadata: {},
-        updatedAt: new Date(),
-      })
-      .where(eq(connections.id, connection.id));
-    await db.insert(outboxEvents).values({
-      organizationId: connection.organizationId,
-      eventType: 'connection.connected',
-      payload: {
-        externalUserId: connection.externalUserId,
-        serviceId,
-        connectionId: connection.id,
-      },
-    });
 
-    if (expiresAt && process.env.REDIS_URL) {
-      const { scheduleTokenRefresh } = await import('../jobs/setup.js');
-      await scheduleTokenRefresh(connection.id, serviceId, connection.organizationId, expiresAt);
-    }
-    const completedUrl = new URL('/connect/callback', c.req.url);
-    completedUrl.searchParams.set('status', 'connected');
-    completedUrl.searchParams.set('serviceId', serviceId);
-    if (metadata.allowedOrigin) completedUrl.searchParams.set('origin', metadata.allowedOrigin);
-    return c.redirect(completedUrl.toString());
+    return withTenantContext(db, oauthTransaction.organizationId, async () => {
+      const [[connection], [service], [tenantService]] = await Promise.all([
+        db
+          .select()
+          .from(connections)
+          .where(
+            and(
+              eq(connections.id, oauthTransaction.connectionId),
+              eq(connections.organizationId, oauthTransaction.organizationId),
+              eq(connections.serviceId, serviceId)
+            )
+          )
+          .limit(1),
+        db.select().from(services).where(eq(services.id, serviceId)).limit(1),
+        db
+          .select()
+          .from(organizationServices)
+          .where(
+            and(
+              eq(organizationServices.organizationId, oauthTransaction.organizationId),
+              eq(organizationServices.serviceId, serviceId),
+              eq(organizationServices.enabled, true)
+            )
+          )
+          .limit(1),
+      ]);
+      if (!connection || !service || !tenantService?.oauthClientId) {
+        return c.json(Errors.oauthError('OAuth provider is no longer configured'), 409);
+      }
+      const config = service.config as { token_url?: string };
+      if (!config.token_url) {
+        return c.json(Errors.oauthError('OAuth flow metadata is incomplete'), 400);
+      }
+
+      const verifierBuffer = await secretStore.read(
+        oauthTransaction.pkceSecretId,
+        connection.organizationId,
+        'oauth_pkce_verifier'
+      );
+      let codeVerifier: string;
+      try {
+        codeVerifier = verifierBuffer.toString('utf8');
+      } finally {
+        verifierBuffer.fill(0);
+        await secretStore.delete?.(
+          oauthTransaction.pkceSecretId,
+          connection.organizationId,
+          'oauth_pkce_verifier'
+        );
+      }
+
+      let clientSecret = '';
+      if (tenantService.oauthClientSecretId) {
+        const clientSecretBuffer = await secretStore.read(
+          tenantService.oauthClientSecretId,
+          connection.organizationId,
+          'oauth_client_secret'
+        );
+        try {
+          clientSecret = clientSecretBuffer.toString('utf8');
+        } finally {
+          clientSecretBuffer.fill(0);
+        }
+      }
+      const tokenBody = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: oauthTransaction.callbackUrl,
+        client_id: tenantService.oauthClientId,
+        code_verifier: codeVerifier,
+      });
+      if (clientSecret) tokenBody.set('client_secret', clientSecret);
+
+      let tokenResult: Awaited<ReturnType<typeof fetchOAuthToken>>;
+      try {
+        tokenResult = await fetchOAuthToken(serviceId, config.token_url, tokenBody);
+      } catch {
+        await db
+          .update(connections)
+          .set({
+            status: connection.status === 'connected' ? 'connected' : 'error',
+            lastErrorCode: 'OAUTH_TOKEN_EXCHANGE_FAILED',
+            updatedAt: new Date(),
+          })
+          .where(eq(connections.id, connection.id));
+        return c.json(Errors.oauthTokenExchangeFailed('Provider rejected the token exchange'), 400);
+      }
+      if (!tokenResult.response.ok) {
+        await db
+          .update(connections)
+          .set({
+            status: connection.status === 'connected' ? 'connected' : 'error',
+            lastErrorCode: 'OAUTH_TOKEN_EXCHANGE_FAILED',
+            updatedAt: new Date(),
+          })
+          .where(eq(connections.id, connection.id));
+        return c.json(Errors.oauthTokenExchangeFailed('Provider rejected the token exchange'), 400);
+      }
+
+      const tokens = tokenResult.body;
+      if (typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
+        return c.json(
+          Errors.oauthTokenExchangeFailed('Provider did not return an access token'),
+          400
+        );
+      }
+      const expiresIn =
+        typeof tokens.expires_in === 'number' &&
+        Number.isFinite(tokens.expires_in) &&
+        tokens.expires_in > 0
+          ? Math.min(tokens.expires_in, 60 * 60 * 24 * 365)
+          : null;
+      const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1_000) : null;
+      const credentialBytes = Buffer.from(
+        JSON.stringify({
+          access_token: tokens.access_token,
+          refresh_token:
+            typeof tokens.refresh_token === 'string' ? tokens.refresh_token : undefined,
+          token_type: typeof tokens.token_type === 'string' ? tokens.token_type : 'Bearer',
+          scope: typeof tokens.scope === 'string' ? tokens.scope : undefined,
+          expires_at: expiresAt?.toISOString(),
+        }),
+        'utf8'
+      );
+      let credentialSecretId: string;
+      try {
+        credentialSecretId = await secretStore.put({
+          organizationId: connection.organizationId,
+          purpose: 'connection_credentials',
+          plaintext: credentialBytes,
+        });
+      } finally {
+        credentialBytes.fill(0);
+      }
+      try {
+        await db.transaction(async (tx) => {
+          const [updated] = await tx
+            .update(connections)
+            .set({
+              status: 'connected',
+              credentialSecretId,
+              connectedAt: new Date(),
+              expiresAt,
+              lastErrorCode: null,
+              metadata: {},
+              version: sql`${connections.version} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(eq(connections.id, connection.id), eq(connections.version, connection.version))
+            )
+            .returning({ id: connections.id });
+          if (!updated) throw new Error('Connection changed while OAuth was in progress');
+          await tx.insert(outboxEvents).values({
+            organizationId: connection.organizationId,
+            eventType: 'connection.connected',
+            payload: {
+              externalUserId: connection.externalUserId,
+              serviceId,
+              connectionId: connection.id,
+            },
+          });
+        });
+      } catch (error) {
+        await secretStore.delete?.(
+          credentialSecretId,
+          connection.organizationId,
+          'connection_credentials'
+        );
+        throw error;
+      }
+      if (connection.credentialSecretId && connection.credentialSecretId !== credentialSecretId) {
+        await secretStore.delete?.(
+          connection.credentialSecretId,
+          connection.organizationId,
+          'connection_credentials'
+        );
+      }
+
+      if (expiresAt && process.env.REDIS_URL) {
+        const { scheduleTokenRefresh } = await import('../jobs/setup.js');
+        await scheduleTokenRefresh(connection.id, serviceId, connection.organizationId, expiresAt);
+      }
+      const completedUrl = new URL('/connect/callback', publicApiBase(c.req.url));
+      completedUrl.searchParams.set('status', 'connected');
+      completedUrl.searchParams.set('serviceId', serviceId);
+      return c.redirect(completedUrl.toString());
+    });
   });
 
   router.delete('/connect/:serviceId', async (c) => {
@@ -489,35 +633,56 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     } catch {
       body = {};
     }
-    const token = connectTokenFromRequest(c.req.header('authorization'), body);
+    const token = connectTokenFromRequest(c.req.header('authorization'));
     if (!token || !body.parentOrigin || !isValidServiceId(serviceId)) {
       return c.json(Errors.unauthorized('A valid connect session is required'), 401);
     }
     const session = await loadConnectSession(db, token, serviceId, body.parentOrigin);
     if (!session) return c.json(Errors.unauthorized('Connect session is invalid or expired'), 401);
-
-    const [deleted] = await db
-      .delete(connections)
-      .where(
-        and(
-          eq(connections.organizationId, session.organizationId),
-          eq(connections.externalUserId, session.externalUserId),
-          eq(connections.serviceId, serviceId)
-        )
-      )
-      .returning({ id: connections.id });
-    if (deleted) {
-      await db.insert(outboxEvents).values({
-        organizationId: session.organizationId,
-        eventType: 'connection.disconnected',
-        payload: {
-          externalUserId: session.externalUserId,
-          serviceId,
-          connectionId: deleted.id,
-        },
-      });
+    if (!canPerformDestructiveAction(session)) {
+      return c.json(Errors.stepUpRequired(), 403);
     }
-    return c.json({ data: { disconnected: Boolean(deleted) }, error: null });
+
+    return withTenantContext(db, session.organizationId, async () => {
+      const deleted = await db.transaction(async (tx) => {
+        const [removed] = await tx
+          .delete(connections)
+          .where(
+            and(
+              eq(connections.organizationId, session.organizationId),
+              eq(connections.externalUserId, session.externalUserId),
+              eq(connections.serviceId, serviceId)
+            )
+          )
+          .returning({ id: connections.id, credentialSecretId: connections.credentialSecretId });
+        await tx
+          .update(connectSessions)
+          .set({ revokedAt: new Date() })
+          .where(eq(connectSessions.id, session.id));
+        if (removed) {
+          await tx.insert(outboxEvents).values({
+            organizationId: session.organizationId,
+            eventType: 'connection.disconnected',
+            payload: {
+              externalUserId: session.externalUserId,
+              serviceId,
+              connectionId: removed.id,
+            },
+          });
+        }
+        return removed;
+      });
+      if (deleted) {
+        if (deleted.credentialSecretId) {
+          await secretStore.delete?.(
+            deleted.credentialSecretId,
+            session.organizationId,
+            'connection_credentials'
+          );
+        }
+      }
+      return c.json({ data: { disconnected: Boolean(deleted) }, error: null });
+    });
   });
 
   return router;

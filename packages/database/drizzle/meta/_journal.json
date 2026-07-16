@@ -15,6 +15,13 @@
       "when": 1784201637604,
       "tag": "0001_chubby_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784202946712,
+      "tag": "0002_unique_penance",
+      "breakpoints": true
     }
   ]
 }

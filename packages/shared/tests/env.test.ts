@@ -7,6 +7,7 @@ const ring = (id: string, byte: string) => `${id}:${byte.repeat(64)}`;
 function setValidEnvironment() {
   process.env.DATABASE_URL = 'postgresql://authlane:test@localhost:5432/authlane';
   process.env.REDIS_URL = 'redis://localhost:6379';
+  process.env.SYSTEM_DATABASE_URL = 'postgresql://authlane-worker:test@localhost:5432/authlane';
   process.env.AUTHLANE_DATA_KEK_RING = ring('data-v1', '1');
   process.env.AUTHLANE_LOOKUP_KEY_RING = ring('lookup-v1', '2');
   process.env.AUTHLANE_REDIS_KEY_RING = ring('redis-v1', '3');
@@ -43,6 +44,14 @@ describe('security environment validation', () => {
     delete process.env.REDIS_URL;
 
     expect(() => getEnv()).toThrow(/REDIS_URL is required in production/);
+  });
+
+  it('requires an isolated system database role for production workers', () => {
+    setValidEnvironment();
+    process.env.NODE_ENV = 'production';
+    delete process.env.SYSTEM_DATABASE_URL;
+
+    expect(() => getEnv()).toThrow(/SYSTEM_DATABASE_URL/);
   });
 
   it('requires rotated auth secrets and HTTPS origins in production', () => {

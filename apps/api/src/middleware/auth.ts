@@ -2,7 +2,13 @@
 
 import { apiKeyRecordId, getLookupKeyring, type Keyring, verifyApiKey } from '@authlane/crypto';
 import type { Database, Organization } from '@authlane/database';
-import { apiKeys, eq, organization } from '@authlane/database';
+import {
+  apiKeys,
+  eq,
+  organization,
+  withSecurityLookupContext,
+  withTenantContext,
+} from '@authlane/database';
 import { Errors } from '@authlane/shared';
 import type { Context, Next } from 'hono';
 import { type ApiPrincipal, normalizeApiScopes } from '../lib/api-principal.js';
@@ -28,7 +34,9 @@ async function findApiKeyPrincipal(
 ): Promise<ApiPrincipal | null> {
   const recordId = apiKeyRecordId(rawApiKey);
   if (!recordId) return null;
-  const [key] = await db.select().from(apiKeys).where(eq(apiKeys.id, recordId)).limit(1);
+  const [key] = await withSecurityLookupContext(db, 'authlane.api_key_id', recordId, () =>
+    db.select().from(apiKeys).where(eq(apiKeys.id, recordId)).limit(1)
+  );
 
   if (
     !key?.enabled ||
@@ -90,7 +98,7 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
         apiKeyId: null,
         scopes: [],
       });
-      await next();
+      await withTenantContext(db, organizationId, next);
       return;
     }
 
@@ -110,6 +118,6 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
     c.set('organization', { id: principal.organizationId } as Organization);
     c.set('apiKey', rawApiKey);
     c.set('principal', principal);
-    await next();
+    await withTenantContext(db, principal.organizationId, next);
   };
 }

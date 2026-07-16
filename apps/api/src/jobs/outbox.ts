@@ -1,6 +1,18 @@
 import { createHmac } from 'node:crypto';
-import type { Database } from '@authlane/database';
-import { and, connections, eq, lte, organization, outboxEvents } from '@authlane/database';
+import {
+  type Database,
+  type SecretStore,
+  and,
+  connections,
+  createDatabaseSecretStore,
+  eq,
+  lt,
+  lte,
+  or,
+  organization,
+  outboxEvents,
+} from '@authlane/database';
+import { postWebhook, validateWebhookUrl } from '../lib/webhook-http.js';
 
 export interface WebhookEvent {
   id: string;
@@ -11,15 +23,15 @@ export interface WebhookEvent {
 
 export interface WebhookConfig {
   url: string;
-  secret: string;
+  secret: string | Buffer;
 }
 
-export function signWebhook(secret: string, timestamp: string, body: string): string {
+export function signWebhook(secret: string | Buffer, timestamp: string, body: string): string {
   return createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
 }
 
 export async function deliverWebhook(
-  fetchFn: typeof fetch,
+  fetchFn: typeof fetch | undefined,
   event: WebhookEvent,
   config: WebhookConfig,
   now: Date = new Date()
@@ -31,39 +43,46 @@ export async function deliverWebhook(
     createdAt: event.createdAt.toISOString(),
     data: event.payload,
   });
+  const headers = {
+    'Content-Type': 'application/json',
+    'Idempotency-Key': event.id,
+    'X-Authlane-Event': event.eventType,
+    'X-Authlane-Timestamp': timestamp,
+    'X-Authlane-Signature': signWebhook(config.secret, timestamp, body),
+  };
   try {
-    const response = await fetchFn(config.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': event.id,
-        'X-Authlane-Event': event.eventType,
-        'X-Authlane-Timestamp': timestamp,
-        'X-Authlane-Signature': signWebhook(config.secret, timestamp, body),
-      },
-      body,
-      signal: AbortSignal.timeout(10_000),
-    });
+    validateWebhookUrl(config.url);
+    const response = fetchFn
+      ? await fetchFn(config.url, {
+          method: 'POST',
+          headers,
+          body,
+          redirect: 'error',
+          signal: AbortSignal.timeout(10_000),
+        })
+      : await postWebhook(config.url, headers, body);
     return response.ok
       ? { delivered: true, error: null }
       : { delivered: false, error: `Webhook returned HTTP ${response.status}` };
-  } catch (error) {
-    return {
-      delivered: false,
-      error: error instanceof Error ? error.message : 'Webhook request failed',
-    };
+  } catch {
+    return { delivered: false, error: 'Webhook request failed security validation or delivery' };
   }
 }
 
-function webhookConfig(metadata: string | null): WebhookConfig | null {
+interface StoredWebhookConfig {
+  url: string;
+  secretId: string;
+}
+
+function webhookConfig(metadata: string | null): StoredWebhookConfig | null {
   if (!metadata) return null;
   try {
     const settings = JSON.parse(metadata) as {
       webhookUrl?: unknown;
-      webhookSecret?: unknown;
+      webhookSecretId?: unknown;
     };
-    return typeof settings.webhookUrl === 'string' && typeof settings.webhookSecret === 'string'
-      ? { url: settings.webhookUrl, secret: settings.webhookSecret }
+    return typeof settings.webhookUrl === 'string' && typeof settings.webhookSecretId === 'string'
+      ? { url: settings.webhookUrl, secretId: settings.webhookSecretId }
       : null;
   } catch {
     return null;
@@ -72,21 +91,39 @@ function webhookConfig(metadata: string | null): WebhookConfig | null {
 
 export async function processOutboxBatch(
   db: Database,
-  fetchFn: typeof fetch = fetch,
-  now: Date = new Date()
+  fetchFn?: typeof fetch,
+  now: Date = new Date(),
+  secretStore: SecretStore = createDatabaseSecretStore(db)
 ): Promise<number> {
+  const staleProcessing = new Date(now.getTime() - 5 * 60_000);
   const pending = await db
     .select()
     .from(outboxEvents)
-    .where(and(eq(outboxEvents.status, 'pending'), lte(outboxEvents.availableAt, now)))
+    .where(
+      or(
+        and(eq(outboxEvents.status, 'pending'), lte(outboxEvents.availableAt, now)),
+        and(eq(outboxEvents.status, 'processing'), lt(outboxEvents.processingAt, staleProcessing))
+      )
+    )
     .limit(25);
 
   let processed = 0;
   for (const event of pending) {
     const [claimed] = await db
       .update(outboxEvents)
-      .set({ status: 'processing' })
-      .where(and(eq(outboxEvents.id, event.id), eq(outboxEvents.status, 'pending')))
+      .set({ status: 'processing', processingAt: now })
+      .where(
+        and(
+          eq(outboxEvents.id, event.id),
+          or(
+            eq(outboxEvents.status, 'pending'),
+            and(
+              eq(outboxEvents.status, 'processing'),
+              lt(outboxEvents.processingAt, staleProcessing)
+            )
+          )
+        )
+      )
       .returning({ id: outboxEvents.id });
     if (!claimed) continue;
 
@@ -95,28 +132,45 @@ export async function processOutboxBatch(
       .from(organization)
       .where(eq(organization.id, event.organizationId))
       .limit(1);
-    const config = webhookConfig(tenant?.metadata ?? null);
-    if (!config) {
+    const storedConfig = webhookConfig(tenant?.metadata ?? null);
+    if (!storedConfig) {
       await db
         .update(outboxEvents)
-        .set({ status: 'delivered', deliveredAt: now })
+        .set({ status: 'delivered', deliveredAt: now, processingAt: null })
         .where(eq(outboxEvents.id, event.id));
       processed += 1;
       continue;
     }
 
-    const result = await deliverWebhook(fetchFn, event, config, now);
+    let result: Awaited<ReturnType<typeof deliverWebhook>>;
+    const secret = await secretStore.read(
+      storedConfig.secretId,
+      event.organizationId,
+      'webhook_signing_secret'
+    );
+    try {
+      result = await deliverWebhook(fetchFn, event, { url: storedConfig.url, secret }, now);
+    } finally {
+      secret.fill(0);
+    }
     const attempts = event.attempts + 1;
     await db
       .update(outboxEvents)
       .set(
         result.delivered
-          ? { status: 'delivered', attempts, deliveredAt: now, lastError: null }
+          ? {
+              status: 'delivered',
+              attempts,
+              deliveredAt: now,
+              processingAt: null,
+              lastError: null,
+            }
           : {
               status: attempts >= 10 ? 'failed' : 'pending',
               attempts,
               availableAt: new Date(now.getTime() + Math.min(3_600_000, 2 ** attempts * 1_000)),
-              lastError: result.error?.slice(0, 1_000) ?? 'Webhook delivery failed',
+              processingAt: null,
+              lastError: result.error,
             }
       )
       .where(eq(outboxEvents.id, event.id));
@@ -136,23 +190,32 @@ export async function markExpiredConnections(
     .limit(100);
   let transitioned = 0;
   for (const connection of expired) {
-    const [updated] = await db
-      .update(connections)
-      .set({ status: 'expired', updatedAt: now })
-      .where(and(eq(connections.id, connection.id), eq(connections.status, 'connected')))
-      .returning({ id: connections.id });
-    if (!updated) continue;
-    await db.insert(outboxEvents).values({
-      organizationId: connection.organizationId,
-      eventType: 'connection.expired',
-      payload: {
-        externalUserId: connection.externalUserId,
-        serviceId: connection.serviceId,
-        connectionId: connection.id,
-        expiresAt: connection.expiresAt?.toISOString() ?? null,
-      },
+    const didTransition = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(connections)
+        .set({ status: 'expired', version: connection.version + 1, updatedAt: now })
+        .where(
+          and(
+            eq(connections.id, connection.id),
+            eq(connections.status, 'connected'),
+            eq(connections.version, connection.version)
+          )
+        )
+        .returning({ id: connections.id });
+      if (!updated) return false;
+      await tx.insert(outboxEvents).values({
+        organizationId: connection.organizationId,
+        eventType: 'connection.expired',
+        payload: {
+          externalUserId: connection.externalUserId,
+          serviceId: connection.serviceId,
+          connectionId: connection.id,
+          expiresAt: connection.expiresAt?.toISOString() ?? null,
+        },
+      });
+      return true;
     });
-    transitioned += 1;
+    if (didTransition) transitioned += 1;
   }
   return transitioned;
 }

@@ -58,6 +58,7 @@ export class AuthlaneWidget {
       border-radius: ${this.config.theme?.borderRadius || '8px'};
     `;
     this.iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+    this.iframe.setAttribute('referrerpolicy', 'no-referrer');
     this.iframe.setAttribute('allow', 'clipboard-write');
 
     this.container.appendChild(this.iframe);

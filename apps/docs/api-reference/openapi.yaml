@@ -116,16 +116,26 @@ paths:
                   minimum: 60
                   maximum: 900
                   default: 600
+                reauthenticatedAt:
+                  type: string
+                  format: date-time
+                  description: Required to authorize disconnect. The tenant must have reauthenticated the end-user within five minutes.
       responses:
         '201':
           description: Raw token is returned once for browser handoff
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectSessionResult'
   /api/v1/connect/{serviceId}/authorize:
     post:
-      security: []
+      security:
+        - connectSession: []
       operationId: authorizeConnection
       summary: Start OAuth from a connect session
       parameters:
@@ -140,9 +150,11 @@ paths:
         '200':
           description: Provider authorization URL
     delete:
-      security: []
+      security:
+        - connectSession: []
       operationId: disconnectService
       summary: Disconnect through a connect session
+      description: Requires a connect session created immediately after tenant-controlled end-user reauthentication.
       parameters:
         - $ref: '#/components/parameters/ServiceId'
       requestBody:
@@ -179,6 +191,11 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Authlane scoped API key
+    connectSession:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Use `ConnectSession <opaque-token>`.
   parameters:
     ExternalUserId:
       name: externalUserId
@@ -336,10 +353,8 @@ components:
           type: 'null'
     ConnectAction:
       type: object
-      required: [connectToken, parentOrigin]
+      required: [parentOrigin]
       properties:
-        connectToken:
-          type: string
         parentOrigin:
           type: string
           format: uri

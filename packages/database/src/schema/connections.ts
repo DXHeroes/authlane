@@ -29,6 +29,8 @@ export const connections = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     lastErrorCode: text('last_error_code'),
+    refreshLockToken: text('refresh_lock_token'),
+    refreshLockExpiresAt: timestamp('refresh_lock_expires_at', { withTimezone: true }),
     version: integer('version').default(1).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

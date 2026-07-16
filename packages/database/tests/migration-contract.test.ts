@@ -6,6 +6,11 @@ const migration = readFileSync(
   join(import.meta.dirname, '../drizzle/0000_dashing_kat_farrell.sql'),
   'utf8'
 );
+const oauthMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0002_unique_penance.sql'),
+  'utf8'
+);
+const roles = readFileSync(join(import.meta.dirname, '../sql/roles.sql'), 'utf8');
 
 describe('control-plane migration', () => {
   it('enables organization RLS on every tenant-owned table', () => {
@@ -23,6 +28,19 @@ describe('control-plane migration', () => {
       expect(migration).toContain(`CREATE POLICY "${table}_tenant_isolation"`);
     }
     expect(migration).toContain("current_setting('authlane.organization_id', true)");
+  });
+
+  it('supports narrow pre-auth lookups and tenant-context OAuth transactions', () => {
+    expect(oauthMigration).toContain('ALTER TABLE "oauth_transactions" FORCE ROW LEVEL SECURITY');
+    expect(oauthMigration).toContain('"api_keys_authentication_lookup"');
+    expect(oauthMigration).toContain('"connect_sessions_authentication_lookup"');
+    expect(oauthMigration).toContain('"oauth_transactions_state_consume"');
+  });
+
+  it('keeps the runtime role under RLS and makes credential audit rows append-only', () => {
+    expect(roles).toContain('authlane_runtime');
+    expect(roles).toContain('NOBYPASSRLS');
+    expect(oauthMigration).toContain('credential_access_logs_append_only');
   });
 
   it('creates the envelope secret store without legacy credential ciphertext columns', () => {

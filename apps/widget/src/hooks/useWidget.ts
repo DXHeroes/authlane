@@ -3,10 +3,11 @@ import type { Service, WidgetConfig } from '../types';
 import { postMessageBridge } from '../utils/postMessage';
 
 function configFromLocation(): WidgetConfig | null {
-  const query = new URLSearchParams(window.location.search);
-  const connectToken = query.get('session');
-  const parentOrigin = query.get('origin');
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const connectToken = fragment.get('session');
+  const parentOrigin = fragment.get('origin');
   if (!connectToken || !parentOrigin) return null;
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
   return {
     connectToken,
     parentOrigin,
@@ -35,11 +36,14 @@ export const useWidget = (initialConfig?: WidgetConfig) => {
     setLoading(true);
     try {
       const apiUrl = config.apiUrl ?? `${window.location.origin}/api/v1`;
-      const query = new URLSearchParams({
-        session: config.connectToken,
-        origin: config.parentOrigin,
+      const response = await fetch(`${apiUrl}/connect/session`, {
+        method: 'POST',
+        headers: {
+          Authorization: `ConnectSession ${config.connectToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ parentOrigin: config.parentOrigin }),
       });
-      const response = await fetch(`${apiUrl}/connect/session?${query}`);
       const result = await response.json();
       if (!response.ok || result.error) {
         throw new Error(result.error?.message ?? 'Failed to load connect session');
@@ -91,9 +95,11 @@ export const useWidget = (initialConfig?: WidgetConfig) => {
       const apiUrl = config.apiUrl ?? `${window.location.origin}/api/v1`;
       const response = await fetch(`${apiUrl}/connect/${encodeURIComponent(serviceId)}/authorize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `ConnectSession ${config.connectToken}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          connectToken: config.connectToken,
           parentOrigin: config.parentOrigin,
         }),
       });
@@ -112,9 +118,11 @@ export const useWidget = (initialConfig?: WidgetConfig) => {
       const apiUrl = config.apiUrl ?? `${window.location.origin}/api/v1`;
       const response = await fetch(`${apiUrl}/connect/${encodeURIComponent(serviceId)}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `ConnectSession ${config.connectToken}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          connectToken: config.connectToken,
           parentOrigin: config.parentOrigin,
         }),
       });

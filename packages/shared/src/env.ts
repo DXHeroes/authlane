@@ -4,6 +4,7 @@
 
 interface Env {
   DATABASE_URL: string;
+  SYSTEM_DATABASE_URL?: string;
   REDIS_URL?: string;
   AUTHLANE_DATA_KEK_RING: string;
   AUTHLANE_LOOKUP_KEY_RING: string;
@@ -54,6 +55,11 @@ export function getEnv(): Env {
   if (nodeEnv === 'production' && !process.env.REDIS_URL) {
     throw new Error('REDIS_URL is required in production');
   }
+  if (nodeEnv === 'production' && !process.env.SYSTEM_DATABASE_URL) {
+    throw new Error(
+      'SYSTEM_DATABASE_URL is required for isolated background workers in production'
+    );
+  }
   if (nodeEnv === 'production') {
     if (!process.env.BETTER_AUTH_SECRETS || !isValidAuthSecrets(process.env.BETTER_AUTH_SECRETS)) {
       throw new Error(
@@ -71,6 +77,7 @@ export function getEnv(): Env {
 
   return {
     DATABASE_URL: databaseUrl,
+    SYSTEM_DATABASE_URL: process.env.SYSTEM_DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
     ...keyrings,
     API_PORT: process.env.API_PORT ? Number(process.env.API_PORT) : 3000,

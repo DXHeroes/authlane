@@ -108,7 +108,9 @@ export interface ApiKeyWithSecret extends ApiKey {
 export interface OrganizationSettings {
   organizationId: string;
   webhookUrl?: string;
-  webhookSecret?: string;
+  webhookSecretConfigured: boolean;
+  rotateWebhookSecret?: boolean;
+  newWebhookSecret?: string;
   rateLimit: {
     requestsPerMinute: number;
     requestsPerHour: number;

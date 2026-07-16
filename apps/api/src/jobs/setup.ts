@@ -5,7 +5,7 @@
 
 import type { Database } from '@authlane/database';
 import { refreshToken, type TokenRefreshData } from '@authlane/database';
-import { Queue, Worker } from 'bullmq';
+import { Queue, UnrecoverableError, Worker } from 'bullmq';
 import { markExpiredConnections, processOutboxBatch } from './outbox.js';
 
 let tokenRefreshQueue: Queue<TokenRefreshData> | null = null;
@@ -78,7 +78,18 @@ export function setupJobs(db: Database, redisUrl?: string) {
       async (job) => {
         const result = await refreshToken(db, job.data);
         if (!result.success) {
+          if (!result.retryable) {
+            throw new UnrecoverableError(result.error || 'Token refresh permanently failed');
+          }
           throw new Error(result.error || 'Token refresh failed');
+        }
+        if (result.expiresAt) {
+          await scheduleTokenRefresh(
+            job.data.connectionId,
+            job.data.serviceId,
+            job.data.organizationId,
+            new Date(result.expiresAt)
+          );
         }
         return result;
       },
@@ -155,8 +166,11 @@ export async function scheduleTokenRefresh(
     },
     {
       delay,
-      jobId: `token-refresh-${connectionId}`,
+      jobId: `token-refresh-${connectionId}-${expiresAt.getTime()}`,
+      attempts: 5,
+      backoff: { type: 'exponential', delay: 5_000 },
       removeOnComplete: true,
+      removeOnFail: 100,
     }
   );
 }

@@ -3,6 +3,7 @@
  * These routes are for the admin dashboard and use organization context from auth
  */
 
+import { randomBytes } from 'node:crypto';
 import { createApiKey, getLookupKeyring } from '@authlane/crypto';
 import {
   and,
@@ -29,11 +30,12 @@ import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js'
 import type { CacheStore } from '../lib/cache.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
+import { validateWebhookUrl } from '../lib/webhook-http.js';
 
 // Types for settings stored in organization.metadata JSONB
 interface OrganizationSettings {
   webhookUrl?: string;
-  webhookSecret?: string;
+  webhookSecretId?: string;
   rateLimit?: {
     requestsPerMinute: number;
     requestsPerHour: number;
@@ -473,7 +475,7 @@ export function createDashboardRouter(
         data: {
           organizationId: org.id,
           webhookUrl: settings.webhookUrl,
-          webhookSecret: settings.webhookSecret,
+          webhookSecretConfigured: Boolean(settings.webhookSecretId),
           rateLimit: settings.rateLimit || {
             requestsPerMinute: 60,
             requestsPerHour: 3600,
@@ -502,30 +504,83 @@ export function createDashboardRouter(
       }
 
       const body = await c.req.json();
-      const { webhookUrl, webhookSecret, rateLimit, customDomain } = body;
+      const { webhookUrl, rotateWebhookSecret, rateLimit, customDomain } = body;
 
       const settings = parseSettings(org.metadata);
+      if (webhookUrl !== undefined && typeof webhookUrl !== 'string') {
+        return c.json(Errors.validationError('Webhook URL must be a string'), 400);
+      }
+      if (webhookUrl !== undefined && webhookUrl !== '' && typeof webhookUrl === 'string') {
+        try {
+          validateWebhookUrl(webhookUrl);
+        } catch {
+          return c.json(Errors.validationError('Webhook URL must be a public HTTPS URL'), 400);
+        }
+      }
+
+      let newWebhookSecret: string | undefined;
+      let newWebhookSecretId = settings.webhookSecretId;
+      if (rotateWebhookSecret === true) {
+        newWebhookSecret = `whsec_${randomBytes(32).toString('base64url')}`;
+        const secretBytes = Buffer.from(newWebhookSecret, 'utf8');
+        try {
+          newWebhookSecretId = await secretStore.put({
+            organizationId: org.id,
+            purpose: 'webhook_signing_secret',
+            plaintext: secretBytes,
+          });
+        } finally {
+          secretBytes.fill(0);
+        }
+      }
+      if (webhookUrl && !newWebhookSecretId) {
+        return c.json(
+          Errors.validationError('Rotate the webhook signing secret when enabling a webhook'),
+          400
+        );
+      }
 
       // Update settings
+      const safeSettings = { ...settings } as OrganizationSettings & { webhookSecret?: unknown };
+      delete safeSettings.webhookSecret;
       const updatedSettings: OrganizationSettings = {
-        ...settings,
+        ...safeSettings,
         webhookUrl: webhookUrl !== undefined ? webhookUrl : settings.webhookUrl,
-        webhookSecret: webhookSecret !== undefined ? webhookSecret : settings.webhookSecret,
+        webhookSecretId: newWebhookSecretId,
         rateLimit: rateLimit || settings.rateLimit,
         customDomain: customDomain !== undefined ? customDomain : settings.customDomain,
         updatedAt: new Date().toISOString(),
       };
 
-      await db
-        .update(organization)
-        .set({ metadata: JSON.stringify(updatedSettings) })
-        .where(eq(organization.id, org.id));
+      try {
+        await db
+          .update(organization)
+          .set({ metadata: JSON.stringify(updatedSettings) })
+          .where(eq(organization.id, org.id));
+      } catch (error) {
+        if (newWebhookSecretId && newWebhookSecretId !== settings.webhookSecretId) {
+          await secretStore.delete?.(newWebhookSecretId, org.id, 'webhook_signing_secret');
+        }
+        throw error;
+      }
+      if (
+        settings.webhookSecretId &&
+        newWebhookSecretId &&
+        settings.webhookSecretId !== newWebhookSecretId
+      ) {
+        await secretStore.delete?.(settings.webhookSecretId, org.id, 'webhook_signing_secret');
+      }
+      if (newWebhookSecret) {
+        c.header('Cache-Control', 'no-store, private');
+        c.header('Pragma', 'no-cache');
+      }
 
       return c.json({
         data: {
           organizationId: org.id,
           webhookUrl: updatedSettings.webhookUrl,
-          webhookSecret: updatedSettings.webhookSecret,
+          webhookSecretConfigured: Boolean(updatedSettings.webhookSecretId),
+          newWebhookSecret,
           rateLimit: updatedSettings.rateLimit || {
             requestsPerMinute: 60,
             requestsPerHour: 3600,

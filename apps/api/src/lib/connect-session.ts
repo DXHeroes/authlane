@@ -8,9 +8,20 @@ export interface ConnectSessionPolicy {
   allowedOrigin: string;
 }
 
+export interface DestructiveActionPolicy {
+  destructiveActionExpiresAt: Date | null;
+}
+
 export function createConnectSessionToken(): { token: string; tokenHash: string } {
   const token = `acs_${randomBytes(32).toString('base64url')}`;
   return { token, tokenHash: hashApiKey(token) };
+}
+
+export function canPerformDestructiveAction(
+  session: DestructiveActionPolicy,
+  now: Date = new Date()
+): boolean {
+  return Boolean(session.destructiveActionExpiresAt && session.destructiveActionExpiresAt > now);
 }
 
 export function isUsableConnectSession(

@@ -12,7 +12,8 @@ export default function SettingsPage() {
   });
 
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [webhookSecret, setWebhookSecret] = useState('');
+  const [rotateWebhookSecret, setRotateWebhookSecret] = useState(false);
+  const [newWebhookSecret, setNewWebhookSecret] = useState('');
   const [requestsPerMinute, setRequestsPerMinute] = useState(60);
   const [requestsPerHour, setRequestsPerHour] = useState(3600);
   const [requestsPerDay, setRequestsPerDay] = useState(86400);
@@ -21,7 +22,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings) {
       setWebhookUrl(settings.webhookUrl || '');
-      setWebhookSecret(settings.webhookSecret || '');
       setRequestsPerMinute(settings.rateLimit.requestsPerMinute);
       setRequestsPerHour(settings.rateLimit.requestsPerHour);
       setRequestsPerDay(settings.rateLimit.requestsPerDay);
@@ -31,7 +31,9 @@ export default function SettingsPage() {
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<TenantSettings>) => api.put<TenantSettings>('/settings', data),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      setNewWebhookSecret(updated.newWebhookSecret || '');
+      setRotateWebhookSecret(false);
       queryClient.invalidateQueries({ queryKey: ['tenant-settings'] });
     },
   });
@@ -41,7 +43,7 @@ export default function SettingsPage() {
 
     updateMutation.mutate({
       webhookUrl: webhookUrl || undefined,
-      webhookSecret: webhookSecret || undefined,
+      rotateWebhookSecret,
       rateLimit: {
         requestsPerMinute,
         requestsPerHour,
@@ -49,13 +51,6 @@ export default function SettingsPage() {
       },
       customDomain: customDomain || undefined,
     });
-  };
-
-  const generateWebhookSecret = () => {
-    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
-    setWebhookSecret(secret);
   };
 
   if (isLoading) {
@@ -101,29 +96,30 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label htmlFor="webhook-secret" className="text-sm font-medium">
-                  Webhook Secret
-                </label>
-                <button
-                  type="button"
-                  onClick={generateWebhookSecret}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Generate Secret
-                </button>
-              </div>
-              <input
-                id="webhook-secret"
-                type="text"
-                value={webhookSecret}
-                onChange={(e) => setWebhookSecret(e.target.value)}
-                placeholder="Your webhook signing secret"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+              <div className="mb-2 text-sm font-medium">Webhook signing secret</div>
+              <button
+                type="button"
+                onClick={() => setRotateWebhookSecret(true)}
+                disabled={rotateWebhookSecret}
+                className="rounded-md bg-secondary px-3 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                {rotateWebhookSecret
+                  ? 'New secret will be generated on save'
+                  : settings?.webhookSecretConfigured
+                    ? 'Rotate secret'
+                    : 'Generate secret'}
+              </button>
               <p className="mt-1 text-xs text-muted-foreground">
-                Used to verify webhook signatures. Keep this secret!
+                The server generates and encrypts this secret. It is shown only once after saving.
               </p>
+              {newWebhookSecret && (
+                <div className="mt-3 rounded-md border border-amber-500 bg-amber-50 p-3 text-amber-950">
+                  <p className="text-sm font-medium">
+                    Copy this secret now. It cannot be shown again.
+                  </p>
+                  <code className="mt-2 block break-all font-mono text-sm">{newWebhookSecret}</code>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -222,7 +218,8 @@ export default function SettingsPage() {
             onClick={() => {
               if (settings) {
                 setWebhookUrl(settings.webhookUrl || '');
-                setWebhookSecret(settings.webhookSecret || '');
+                setRotateWebhookSecret(false);
+                setNewWebhookSecret('');
                 setRequestsPerMinute(settings.rateLimit.requestsPerMinute);
                 setRequestsPerHour(settings.rateLimit.requestsPerHour);
                 setRequestsPerDay(settings.rateLimit.requestsPerDay);

@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "node ../../scripts/run-next-dev.mjs --defaultPort 3002 --fallbackStartPort 3102",
     "build": "next build",
-    "start": "next start",
     "lint": "next lint",
+    "pretest": "pnpm --filter @authlane/shared build",
     "test": "vitest run",
+    "pretype-check": "pnpm --filter @authlane/shared build",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

@@ -10,6 +10,7 @@ build/
 .next/
 .turbo/
 *.tsbuildinfo
+apps/landing/out/
 
 # Environment variables
 .env

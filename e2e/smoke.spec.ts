@@ -63,7 +63,11 @@ test.describe('Landing Page', () => {
     await page.goto(URLS.landing);
 
     await expect(page).toHaveTitle(/Authlane/i);
-    await expect(page.locator('text=OAuth Made Simple')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Connected tools. Your traffic.' })
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Connect once', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Use everywhere', exact: true })).toBeVisible();
   });
 
   test('navigation links are present', async ({ page, request }) => {
@@ -72,9 +76,13 @@ test.describe('Landing Page', () => {
 
     await page.goto(URLS.landing);
 
-    await expect(page.locator('text=Features')).toBeVisible();
-    await expect(page.locator('text=Integrations')).toBeVisible();
-    await expect(page.locator('text=Docs')).toBeVisible();
+    const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
+    await expect(primaryNavigation.getByRole('link', { name: 'Product' })).toBeVisible();
+    await expect(primaryNavigation.getByRole('link', { name: 'Integrations' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Read the docs' })).toHaveAttribute(
+      'href',
+      'https://app.authlane.io/docs'
+    );
   });
 
   test('has call-to-action buttons', async ({ page, request }) => {
@@ -83,10 +91,8 @@ test.describe('Landing Page', () => {
 
     await page.goto(URLS.landing);
 
-    const startButton = page.locator('text=Start Building');
-    const docsButton = page.locator('text=View Documentation');
-
-    await expect(startButton.or(docsButton)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Start building' }).first()).toBeVisible();
+    await expect(page.locator('[data-primary-cta]')).toHaveCount(1);
   });
 });
 

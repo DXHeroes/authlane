@@ -1,15 +1,37 @@
 import type { Metadata } from 'next';
+import { IBM_Plex_Mono, Inter } from 'next/font/google';
 import './globals.css';
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-mono',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'Authlane - OAuth Made Simple',
+  metadataBase: new URL('https://authlane.io'),
+  title: 'Authlane — Connected tools. Your traffic.',
   description:
-    'Unified OAuth infrastructure for your apps. Connect to 50+ services with a single API.',
+    'A control plane for user-scoped connections and AI tools. Provider traffic stays on your infrastructure.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'Authlane',
+    description: 'The control plane for connected tools.',
+    url: 'https://authlane.io',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${mono.variable} scheme-only-dark antialiased`}>
       <body>{children}</body>
     </html>
   );

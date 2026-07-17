@@ -6,6 +6,7 @@ import { CredentialLeasesResource } from './resources/credential-leases.js';
 import { ServicesResource } from './resources/services.js';
 import { ToolsResource } from './resources/tools.js';
 import type { AuthlaneConfig } from './types.js';
+import { UserScope } from './user-scope.js';
 
 export class Authlane {
   readonly connections: ConnectionsResource;
@@ -26,7 +27,7 @@ export class Authlane {
       );
     }
     const args = [
-      (config.baseUrl ?? 'https://api.authlane.com').replace(/\/$/, ''),
+      (config.baseUrl ?? 'https://app.authlane.io').replace(/\/$/, ''),
       config.apiKey,
       config.fetch ?? fetch,
       config.timeout ?? 30_000,
@@ -37,5 +38,14 @@ export class Authlane {
     this.capabilities = new CapabilitiesResource(...args);
     this.connectSessions = new ConnectSessionsResource(...args);
     this.credentialLeases = new CredentialLeasesResource(...args);
+  }
+
+  user(externalUserId: string): UserScope {
+    return new UserScope(externalUserId, {
+      connections: this.connections,
+      capabilities: this.capabilities,
+      tools: this.tools,
+      credentialLeases: this.credentialLeases,
+    });
   }
 }

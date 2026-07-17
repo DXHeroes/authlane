@@ -108,6 +108,26 @@ export interface ToolOptions extends ExternalUserOptions {
   format?: ToolFormat;
 }
 
+export type UserScopeToolOptions = Omit<ToolOptions, 'externalUserId'>;
+export type UserScopeServiceOptions = Omit<UserServiceOptions, 'externalUserId'>;
+
+export interface UserScopeConnections {
+  list(): Promise<Result<Connection[]>>;
+  get(serviceId: string): Promise<Result<Connection>>;
+}
+
+export interface UserScopeCapabilities {
+  get(options?: UserScopeToolOptions): Promise<Result<CapabilitiesResponse>>;
+}
+
+export interface UserScopeTools {
+  list(options?: UserScopeToolOptions): Promise<Result<ToolsResponse>>;
+}
+
+export interface UserScopeCredentialLeases {
+  create(options: UserScopeServiceOptions): Promise<Result<CredentialLease>>;
+}
+
 export interface CreateConnectSessionOptions extends ExternalUserOptions {
   allowedServices: string[];
   allowedOrigin: string;

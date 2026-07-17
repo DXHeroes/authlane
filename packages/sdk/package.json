@@ -18,7 +18,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [
     "authlane",
@@ -35,6 +36,9 @@
     "type": "git",
     "url": "https://github.com/authlane/authlane.git",
     "directory": "packages/sdk"
+  },
+  "dependencies": {
+    "@authlane/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

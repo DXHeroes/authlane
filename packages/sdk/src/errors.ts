@@ -69,6 +69,9 @@ export const Errors = {
       docUrl: 'https://docs.authlane.dev/sdk/typescript',
     }),
 
+  validationError: (message: string): AuthlaneError =>
+    createError(message, ErrorCodes.VALIDATION_ERROR),
+
   invalidResponse: (message: string): AuthlaneError =>
     createError(`Invalid response: ${message}`, ErrorCodes.INVALID_RESPONSE, {
       hint: 'This may indicate a version mismatch or API issue',

@@ -36,6 +36,11 @@ import {
 import { logger, logRequest } from './lib/logger.js';
 import { recordHttpRequest } from './lib/metrics.js';
 import {
+  isProductOnlyPath,
+  type PublicSurface,
+  resolvePublicSurface,
+} from './lib/public-surface.js';
+import {
   authMiddleware,
   dashboardSessionSecurity,
   handleError,
@@ -65,6 +70,9 @@ export function createApp(
     trustedProxyCidrs?: string[];
     metricsBearerToken?: string;
     publicRoot?: string;
+    landingPublicRoot?: string;
+    landingHosts?: string[];
+    appHosts?: string[];
   }
 ) {
   const app = new Hono();
@@ -73,6 +81,50 @@ export function createApp(
     ? options.corsOrigin
     : [options?.corsOrigin || 'http://localhost:5173'];
   const trustedProxyCidrs = options?.trustedProxyCidrs ?? [];
+  const publicRoot = options?.publicRoot ?? process.env.AUTHLANE_PUBLIC_DIR ?? './public';
+  const landingPublicRoot = options?.landingPublicRoot ?? process.env.AUTHLANE_LANDING_DIR;
+  const landingHosts =
+    options?.landingHosts ?? (process.env.AUTHLANE_LANDING_HOSTS ?? 'authlane.io').split(',');
+  const appHosts =
+    options?.appHosts ?? (process.env.AUTHLANE_APP_HOSTS ?? 'app.authlane.io').split(',');
+
+  const landingStatic = landingPublicRoot ? serveStatic({ root: landingPublicRoot }) : undefined;
+  const landingIndex = landingPublicRoot
+    ? serveStatic({
+        root: landingPublicRoot,
+        path: 'index.html',
+        onFound: (_path, c) => c.header('Cache-Control', 'no-store'),
+      })
+    : undefined;
+  const landingNotFound = landingPublicRoot
+    ? serveStatic({
+        root: landingPublicRoot,
+        path: '404.html',
+        onFound: (_path, c) => c.header('Cache-Control', 'no-store'),
+      })
+    : undefined;
+  const docsStatic = landingPublicRoot ? serveStatic({ root: landingPublicRoot }) : undefined;
+  const docsIndex = landingPublicRoot
+    ? serveStatic({
+        root: landingPublicRoot,
+        path: 'docs/index.html',
+        onFound: (_path, c) => c.header('Cache-Control', 'no-store'),
+      })
+    : undefined;
+
+  const runStatic = async (
+    handler: ReturnType<typeof serveStatic> | undefined,
+    c: Context
+  ): Promise<Response | undefined> => {
+    if (!handler) return undefined;
+    return (await handler(c, async () => {})) ?? undefined;
+  };
+
+  const landing404 = async (c: Context): Promise<Response> => {
+    const response = await runStatic(landingNotFound, c);
+    if (!response) return c.notFound();
+    return new Response(response.body, { status: 404, headers: response.headers });
+  };
 
   // Create Better Auth instance
   const auth = createAuth(db, {
@@ -96,6 +148,18 @@ export function createApp(
     );
     await next();
     c.header('X-Request-ID', c.get('requestId'));
+  });
+  app.use('*', async (c, next) => {
+    if (c.req.path === '/health') {
+      await next();
+      return;
+    }
+
+    // The Node adapter builds the request URL from Host. The URL fallback keeps
+    // direct Fetch-based tests and local callers on the same trusted input.
+    const requestHost = c.req.header('host') ?? new URL(c.req.url).host;
+    c.set('publicSurface', resolvePublicSurface(requestHost, { landingHosts, appHosts }));
+    await next();
   });
   app.use('*', sentryMiddleware());
   app.use('*', async (c, next) => {
@@ -200,6 +264,33 @@ export function createApp(
     return c.json({ data: { status: 'ok', timestamp: new Date().toISOString() }, error: null });
   });
 
+  app.use('*', async (c, next) => {
+    const surface = c.get('publicSurface') as PublicSurface | undefined;
+    if (!surface) return c.json(Errors.notFound('Route', c.req.path), 404);
+    if (surface.kind === 'redirect') return c.redirect(surface.location, 308);
+    if (surface.kind === 'unavailable') {
+      return c.json(Errors.notFound('Route', c.req.path), 404);
+    }
+    if (surface.kind === 'app') {
+      await next();
+      return;
+    }
+
+    if (isProductOnlyPath(c.req.path)) return c.notFound();
+
+    let response: Response | undefined;
+    if (c.req.path === '/') {
+      response = await runStatic(landingIndex, c);
+    } else if (
+      c.req.path.startsWith('/_next/') ||
+      ['/favicon.ico', '/robots.txt', '/sitemap.xml'].includes(c.req.path)
+    ) {
+      response = await runStatic(landingStatic, c);
+    }
+
+    return response ?? landing404(c);
+  });
+
   // Metrics are protected even when network policy is accidentally permissive.
   app.get('/metrics', async (c) => {
     const expectedToken = options?.metricsBearerToken ?? process.env.METRICS_BEARER_TOKEN;
@@ -258,7 +349,6 @@ export function createApp(
 
   app.all('/api/*', (c) => c.json(Errors.notFound('API route', c.req.path), 404));
 
-  const publicRoot = options?.publicRoot ?? process.env.AUTHLANE_PUBLIC_DIR ?? './public';
   const immutableAsset = {
     root: publicRoot,
     onFound: (_path: string, c: Context) => {
@@ -274,6 +364,8 @@ export function createApp(
   };
   app.get('/connect', serveStatic(noStoreDocument));
   app.get('/connect/*', serveStatic(noStoreDocument));
+  app.get('/docs', async (c) => (await runStatic(docsIndex, c)) ?? c.notFound());
+  app.get('/docs/*', async (c) => (await runStatic(docsStatic, c)) ?? c.notFound());
   app.get(
     '*',
     serveStatic({
@@ -359,6 +451,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     authSecondaryStorage,
     trustedProxyCidrs: env.TRUSTED_PROXY_CIDRS,
     metricsBearerToken: env.METRICS_BEARER_TOKEN,
+    landingPublicRoot: process.env.AUTHLANE_LANDING_DIR,
+    landingHosts: (process.env.AUTHLANE_LANDING_HOSTS ?? 'authlane.io').split(','),
+    appHosts: (process.env.AUTHLANE_APP_HOSTS ?? 'app.authlane.io').split(','),
   });
 
   // Start server

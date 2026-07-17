@@ -4,6 +4,7 @@
 
 import type { User, Organization } from '@authlane/database';
 import type { ApiPrincipal } from '../lib/api-principal.js';
+import type { PublicSurface } from '../lib/public-surface.js';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -13,5 +14,6 @@ declare module 'hono' {
     apiKey: string | null;
     principal: ApiPrincipal;
     clientIp: string;
+    publicSurface: PublicSurface;
   }
 }

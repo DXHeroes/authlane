@@ -16,4 +16,5 @@ coverage
 *.log
 .DS_Store
 apps/*/dist
+apps/*/out
 packages/*/dist

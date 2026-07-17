@@ -89,6 +89,9 @@ export function createApp(
     options?.appHosts ?? (process.env.AUTHLANE_APP_HOSTS ?? 'app.authlane.io').split(',');
 
   const landingStatic = landingPublicRoot ? serveStatic({ root: landingPublicRoot }) : undefined;
+  const landingNextStatic = landingPublicRoot
+    ? serveStatic({ root: landingPublicRoot })
+    : undefined;
   const landingIndex = landingPublicRoot
     ? serveStatic({
         root: landingPublicRoot,
@@ -118,6 +121,21 @@ export function createApp(
   ): Promise<Response | undefined> => {
     if (!handler) return undefined;
     return (await handler(c, async () => {})) ?? undefined;
+  };
+
+  const runImmutableStatic = async (
+    handler: ReturnType<typeof serveStatic> | undefined,
+    c: Context
+  ): Promise<Response | undefined> => {
+    const response = await runStatic(handler, c);
+    if (!response) return undefined;
+    const headers = new Headers(response.headers);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   };
 
   const landing404 = async (c: Context): Promise<Response> => {
@@ -241,10 +259,9 @@ export function createApp(
     let response: Response | undefined;
     if (c.req.path === '/') {
       response = await runStatic(landingIndex, c);
-    } else if (
-      c.req.path.startsWith('/_next/') ||
-      ['/favicon.ico', '/robots.txt', '/sitemap.xml'].includes(c.req.path)
-    ) {
+    } else if (c.req.path.startsWith('/_next/static/')) {
+      response = await runImmutableStatic(landingNextStatic, c);
+    } else if (['/favicon.ico', '/icon.svg', '/robots.txt', '/sitemap.xml'].includes(c.req.path)) {
       response = await runStatic(landingStatic, c);
     }
 
@@ -352,6 +369,16 @@ export function createApp(
   app.route('/api/v1', createApiRouter(db, cacheStore));
 
   app.all('/api/*', (c) => c.json(Errors.notFound('API route', c.req.path), 404));
+
+  // The app-host docs document is exported by the landing build and references
+  // this narrow shared namespace. Misses terminate here instead of reaching the
+  // dashboard SPA fallback.
+  app.get('/_next/static/*', async (c) => {
+    return (await runImmutableStatic(landingNextStatic, c)) ?? c.notFound();
+  });
+  for (const path of ['/favicon.ico', '/icon.svg']) {
+    app.get(path, async (c) => (await runStatic(landingStatic, c)) ?? c.notFound());
+  }
 
   const immutableAsset = {
     root: publicRoot,

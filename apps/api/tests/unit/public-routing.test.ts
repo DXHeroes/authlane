@@ -40,16 +40,71 @@ describe('host-aware public routing', () => {
     expect(await product.text()).toContain('Product fixture');
   });
 
-  it('serves only allowlisted landing assets from the landing root', async () => {
-    const nextAsset = await request('/_next/static/landing.js', 'authlane.io');
-    const favicon = await request('/favicon.ico', 'authlane.io');
-    const productAsset = await request('/assets/product.js', 'authlane.io');
+  it('serves landing-built static and metadata assets on both configured surfaces', async () => {
+    for (const host of ['app.authlane.io', 'authlane.io']) {
+      const javascript = await request('/_next/static/landing.js', host);
+      const stylesheet = await request('/_next/static/landing.css', host);
+      const font = await request('/_next/static/landing.woff2', host);
+      const icon = await request('/icon.svg', host);
+      const favicon = await request('/favicon.ico', host);
 
-    expect(nextAsset.status).toBe(200);
-    expect(await nextAsset.text()).toContain('landing-static-fixture');
-    expect(favicon.status).toBe(200);
-    expect(productAsset.status).toBe(404);
-    expect(await productAsset.text()).not.toContain('product-static-fixture');
+      expect(javascript.status, host).toBe(200);
+      expect(javascript.headers.get('content-type'), host).toMatch(/javascript/);
+      expect(javascript.headers.get('cache-control'), host).toBe(
+        'public, max-age=31536000, immutable'
+      );
+      expect(await javascript.text(), host).toContain('landing-static-fixture');
+
+      expect(stylesheet.status, host).toBe(200);
+      expect(stylesheet.headers.get('content-type'), host).toContain('text/css');
+      expect(stylesheet.headers.get('cache-control'), host).toBe(
+        'public, max-age=31536000, immutable'
+      );
+
+      expect(font.status, host).toBe(200);
+      expect(font.headers.get('content-type'), host).toBe('font/woff2');
+      expect(font.headers.get('cache-control'), host).toBe('public, max-age=31536000, immutable');
+
+      expect(icon.status, host).toBe(200);
+      expect(icon.headers.get('content-type'), host).toContain('image/svg+xml');
+      expect(icon.headers.get('cache-control') ?? '', host).not.toContain('immutable');
+      expect(await icon.text(), host).toContain('landing-icon-fixture');
+
+      expect(favicon.status, host).toBe(200);
+      expect(favicon.headers.get('content-type'), host).toMatch(/^image\//);
+      expect(favicon.headers.get('cache-control') ?? '', host).not.toContain('immutable');
+      expect(await favicon.text(), host).toContain('landing-favicon-fixture');
+    }
+  });
+
+  it('terminates missing shared assets without returning product HTML', async () => {
+    for (const host of ['authlane.io', 'app.authlane.io']) {
+      for (const path of ['/_next/static/missing.js', '/_next/static/missing.woff2']) {
+        const response = await request(path, host);
+
+        expect(response.status, `${host}${path}`).toBe(404);
+        expect(await response.text(), `${host}${path}`).not.toContain('Product fixture');
+      }
+    }
+  });
+
+  it('keeps apex root metadata and product denial unchanged', async () => {
+    const root = await request('/', 'authlane.io');
+    const robots = await request('/robots.txt', 'authlane.io');
+    const sitemap = await request('/sitemap.xml', 'authlane.io');
+
+    expect(root.status).toBe(200);
+    expect(await root.text()).toContain('Landing fixture');
+    expect(robots.status).toBe(200);
+    expect(await robots.text()).toContain('User-agent: *');
+    expect(sitemap.status).toBe(200);
+    expect(await sitemap.text()).toContain('<urlset');
+
+    for (const path of ['/assets/product.js', '/connect', '/docs', '/api/v1/services']) {
+      const response = await request(path, 'authlane.io');
+      expect(response.status, path).toBe(404);
+      expect(await response.text(), path).not.toContain('Product fixture');
+    }
   });
 
   it('serves product assets and connect fallbacks only on the app surface', async () => {

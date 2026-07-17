@@ -9,8 +9,6 @@ const footerLinks = [
   { label: 'GitHub', href: landingLinks.github },
   { label: 'Security', href: '#security' },
   { label: 'Self-hosting', href: `${landingLinks.docs}/guides/self-hosting` },
-  { label: 'Privacy', href: `${landingLinks.app}/privacy` },
-  { label: 'Terms', href: `${landingLinks.app}/terms` },
 ] as const;
 
 export function SiteFooter() {

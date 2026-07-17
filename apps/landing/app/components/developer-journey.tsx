@@ -7,33 +7,51 @@ import { useRef, useState } from 'react';
 import { developerSteps } from '../content';
 
 const catalogSamples = {
-  sdk: `const { data: services } = await authlane.services.list();`,
+  sdk: `const { data: services, error } = await authlane.services.list();
+if (error) {
+  console.error('Could not load services', error.message);
+  return [];
+}
+return services;`,
   api: `curl https://app.authlane.io/api/v1/catalog/services \\
   -H "Authorization: Bearer $AUTHLANE_API_KEY"`,
 } as const;
 
 const frameworkSamples = {
   vercel: `const user = authlane.user(currentUser.id);
-const { data: tools } = await user.tools.list({ adapter: vercelAI() });
+const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+if (error) {
+  return Response.json({ message: error.message }, { status: 502 });
+}
 return streamText({ model, messages, tools });`,
   openai: `const user = authlane.user(currentUser.id);
-const { data: tools } = await user.tools.list({ adapter: openAIAgents() });
+const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
+if (error) {
+  return Response.json({ message: error.message }, { status: 502 });
+}
 const agent = new Agent({ name: 'Support', tools });`,
   mcp: `const user = authlane.user(currentUser.id);
-const { data: server } = await user.tools.list({ adapter: mcpServer() });
+const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
+if (error) {
+  console.error('Could not create MCP server', error.message);
+  return;
+}
 await server.connect(transport);`,
 } as const;
 
 const servicePickerSample = `<ServicePicker services={services} onSelect={createConnectSession} />`;
 
-const connectSessionSample = `const { data: session } = await authlane.connectSessions.create({
+const connectSessionSample = `const { data: session, error } = await authlane.connectSessions.create({
   externalUserId: currentUser.id,
   allowedServices: [serviceId],
   allowedOrigin: 'https://your-saas.com',
   expiresInSeconds: 600,
 });
+if (error) {
+  return <ConnectError message={error.message} />;
+}
 
-<AuthlaneConnect connectUrl={session.url} onEvent={refreshConnections} />`;
+return <AuthlaneConnect connectUrl={session.url} onEvent={refreshConnections} />;`;
 
 type TabOption = {
   id: string;

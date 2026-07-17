@@ -33,4 +33,62 @@ describe('Authlane landing', () => {
     );
     expect(container.querySelectorAll('[data-primary-cta]')).toHaveLength(1);
   });
+
+  it('teaches the non-throwing SDK result contract before using data', () => {
+    const { container } = render(<Home />);
+    const codeSamples = Array.from(container.querySelectorAll('code'), (sample) =>
+      sample.textContent?.trim()
+    ).filter((sample): sample is string => Boolean(sample));
+    const sdkContracts = [
+      {
+        call: 'authlane.services.list()',
+        result: 'data: services, error',
+        safeUse: 'return services;',
+      },
+      {
+        call: 'authlane.connectSessions.create',
+        result: 'data: session, error',
+        safeUse: 'session.url',
+      },
+      {
+        call: 'adapter: vercelAI()',
+        result: 'data: tools, error',
+        safeUse: 'return streamText({ model, messages, tools });',
+      },
+      {
+        call: 'adapter: openAIAgents()',
+        result: 'data: tools, error',
+        safeUse: "new Agent({ name: 'Support', tools })",
+      },
+      {
+        call: 'adapter: mcpServer()',
+        result: 'data: server, error',
+        safeUse: 'server.connect(transport)',
+      },
+    ];
+
+    for (const contract of sdkContracts) {
+      const sample = codeSamples.find((code) => code.includes(contract.call));
+      expect(sample, `missing SDK example for ${contract.call}`).toBeDefined();
+      if (!sample) continue;
+      expect(sample).toContain(`const { ${contract.result} } = await`);
+      expect(sample).toContain('if (error)');
+      expect(sample.indexOf(contract.safeUse)).toBeGreaterThan(sample.indexOf('if (error)'));
+    }
+  });
+
+  it('does not link the footer to unpublished legal routes', () => {
+    const { container } = render(<Home />);
+    const footerNavigation = container.querySelector<HTMLElement>(
+      'footer nav[aria-label="Footer navigation"]'
+    );
+    expect(footerNavigation).not.toBeNull();
+    if (!footerNavigation) return;
+    const footerLinks = Array.from(footerNavigation.querySelectorAll('a'));
+
+    expect(footerLinks.map((link) => link.getAttribute('href'))).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/\/(privacy|terms)\/?$/)])
+    );
+    expect(footerNavigation.textContent).not.toMatch(/Privacy|Terms/);
+  });
 });

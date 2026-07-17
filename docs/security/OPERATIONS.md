@@ -19,6 +19,35 @@ Before exposing Authlane to the internet:
 The Compose file provides process isolation and private data networks, but it does not terminate TLS.
 Do not use development HTTP origins or the development infrastructure compose file in production.
 
+## Single-runtime public surfaces
+
+Route both `authlane.io` and `app.authlane.io` to the same container and preserve the direct `Host`
+header. The one Node process serves the static landing, documentation entry, dashboard, connect widget,
+and API from these exact production roots and hosts:
+
+```dotenv
+AUTHLANE_PUBLIC_DIR=/app/public-product
+AUTHLANE_LANDING_DIR=/app/public-landing
+AUTHLANE_LANDING_HOSTS=authlane.io
+AUTHLANE_APP_HOSTS=app.authlane.io
+APP_URL=https://app.authlane.io
+BETTER_AUTH_URL=https://app.authlane.io
+CORS_ORIGIN=https://app.authlane.io
+AUTHLANE_ALLOW_SIGNUP=false
+```
+
+The image contains only public build artifacts. Supply `DATABASE_URL`, `SYSTEM_DATABASE_URL`,
+`REDIS_URL`, all three keyrings, `BETTER_AUTH_SECRETS`, and operational tokens at runtime through the
+deployment secret manager; never bake them into the image.
+
+The apex host serves only the landing allowlist. Product, API, connect, and documentation routes are
+available only on the app host, where `/docs` is read from `/app/public-landing/docs`. Unknown hosts
+fail closed, and `X-Forwarded-Host` does not select a surface. `/health` remains host-independent for
+container and load-balancer checks.
+
+`AUTHLANE_ALLOW_SIGNUP=false` remains the production default. Open signup only as a deliberate,
+time-bounded bootstrap action, then disable it again.
+
 ## Key rotation
 
 Keyring order is significant: the first entry is used for new writes, while later entries decrypt old

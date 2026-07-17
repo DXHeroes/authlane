@@ -14,7 +14,8 @@ RUN --mount=type=cache,id=authlane-pnpm-store,target=/pnpm/store \
 
 RUN pnpm --filter @authlane/api... build \
   && pnpm --filter @authlane/dashboard build \
-  && pnpm --filter @authlane/widget build
+  && pnpm --filter @authlane/widget build \
+  && pnpm --filter @authlane/landing build
 
 FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS runtime-base
 
@@ -34,13 +35,17 @@ RUN --mount=type=cache,id=authlane-pnpm-store,target=/pnpm/store \
   && pnpm install --frozen-lockfile --prod \
   && chown -R authlane:nodejs /app
 
-COPY --from=builder /app/apps/dashboard/dist ./public
-COPY --from=builder /app/apps/widget/dist ./public/connect
+COPY --from=builder --chown=authlane:nodejs /app/apps/dashboard/dist ./public-product
+COPY --from=builder --chown=authlane:nodejs /app/apps/widget/dist ./public-product/connect
+COPY --from=builder --chown=authlane:nodejs /app/apps/landing/out ./public-landing
 
 ENV NODE_ENV=production \
   API_HOST=0.0.0.0 \
   API_PORT=3000 \
-  AUTHLANE_PUBLIC_DIR=/app/public
+  AUTHLANE_PUBLIC_DIR=/app/public-product \
+  AUTHLANE_LANDING_DIR=/app/public-landing \
+  AUTHLANE_LANDING_HOSTS=authlane.io \
+  AUTHLANE_APP_HOSTS=app.authlane.io
 
 EXPOSE 3000
 USER authlane

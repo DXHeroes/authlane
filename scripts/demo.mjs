@@ -10,6 +10,7 @@ const runtimeFile = join(stateDirectory, 'runtime.env');
 const accessFile = join(stateDirectory, 'access.json');
 const processFile = join(stateDirectory, 'processes.json');
 const publicDirectory = join(stateDirectory, 'public');
+const landingPublicDirectory = join(stateDirectory, 'public-landing');
 const composeArguments = [
   'compose',
   '--project-name',
@@ -172,20 +173,30 @@ async function provisionInfrastructure(runtime) {
 }
 
 async function buildApplications() {
-  await command('pnpm', [
-    'exec',
-    'turbo',
-    'run',
-    'build',
-    '--filter=@authlane/api',
-    '--filter=@authlane/dashboard',
-    '--filter=@authlane/widget',
-    '--filter=example-saas',
-  ]);
+  await command(
+    'pnpm',
+    [
+      'exec',
+      'turbo',
+      'run',
+      'build',
+      '--filter=@authlane/api',
+      '--filter=@authlane/widget',
+      '--filter=@authlane/landing',
+      '--filter=example-saas',
+    ],
+    { env: childEnvironment({ VITE_API_URL: '/api/v1/dashboard' }) }
+  );
+  await command('pnpm', ['--filter', '@authlane/dashboard', 'build'], {
+    env: childEnvironment({ VITE_API_URL: '/api/v1/dashboard' }),
+  });
   await rm(publicDirectory, { recursive: true, force: true });
+  await rm(landingPublicDirectory, { recursive: true, force: true });
   await mkdir(join(publicDirectory, 'connect'), { recursive: true, mode: 0o700 });
+  await mkdir(landingPublicDirectory, { recursive: true, mode: 0o700 });
   await cp(join(root, 'apps/dashboard/dist'), publicDirectory, { recursive: true });
   await cp(join(root, 'apps/widget/dist'), join(publicDirectory, 'connect'), { recursive: true });
+  await cp(join(root, 'apps/landing/out'), landingPublicDirectory, { recursive: true });
 }
 
 async function bootstrap(runtime, urls) {
@@ -229,6 +240,9 @@ function startApplications(runtime, urls, access, githubEnabled) {
       BETTER_AUTH_URL: 'http://localhost:3000',
       CORS_ORIGIN: 'http://localhost:3000,http://localhost:5175',
       AUTHLANE_PUBLIC_DIR: publicDirectory,
+      AUTHLANE_LANDING_DIR: landingPublicDirectory,
+      AUTHLANE_LANDING_HOSTS: 'authlane.localhost',
+      AUTHLANE_APP_HOSTS: 'app.authlane.localhost',
       LOG_LEVEL: process.env.LOG_LEVEL ?? 'warn',
     },
     stdio: 'inherit',

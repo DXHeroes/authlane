@@ -17,6 +17,18 @@ function request(path: string, host: string, headers: Record<string, string> = {
   return app.request(path, { headers: { host, ...headers } });
 }
 
+function preflight(host: string) {
+  return app.request('/api/v1/services', {
+    method: 'OPTIONS',
+    headers: {
+      host,
+      origin: 'http://localhost:5173',
+      'access-control-request-method': 'GET',
+      'access-control-request-headers': 'authorization',
+    },
+  });
+}
+
 describe('host-aware public routing', () => {
   it('serves the landing and product documents from separate roots', async () => {
     const landing = await request('/', 'AUTHLANE.IO:443');
@@ -110,6 +122,34 @@ describe('host-aware public routing', () => {
       expect(body, path).not.toContain('Landing fixture');
       expect(body, path).not.toContain('Product fixture');
     }
+  });
+
+  it('denies landing, unknown, and malformed host preflights before CORS and API routing', async () => {
+    for (const host of ['authlane.io', 'unknown.example', 'malformed:443:80']) {
+      const response = await preflight(host);
+
+      expect(response.status, host).toBe(404);
+      expect(response.headers.get('access-control-allow-origin'), host).toBeNull();
+      expect(response.headers.get('x-content-type-options'), host).toBe('nosniff');
+      expect(response.headers.get('x-request-id'), host).toMatch(/^[0-9a-f-]{36}$/);
+    }
+  });
+
+  it('redirects the configured www host preflight before CORS and API routing', async () => {
+    const response = await preflight('www.authlane.io');
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get('location')).toBe('https://authlane.io');
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(response.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('continues app host preflights to CORS', async () => {
+    const response = await preflight('app.authlane.io');
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
   });
 
   it('ignores x-forwarded-host when selecting a public surface', async () => {

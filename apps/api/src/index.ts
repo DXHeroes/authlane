@@ -208,6 +208,48 @@ export function createApp(
       xFrameOptions: false,
     })
   );
+  app.use('*', async (c, next) => {
+    const startedAt = performance.now();
+    await next();
+    const route = sanitizeMetricRoute(c.req.path);
+    const durationMs = performance.now() - startedAt;
+    recordHttpRequest(c.req.method, route, c.res.status, durationMs / 1_000);
+    logRequest(c.req.method, route, c.res.status, durationMs, {
+      requestId: c.get('requestId'),
+      organizationId: c.get('principal')?.organizationId,
+    });
+  });
+  app.use('*', async (c, next) => {
+    if (c.req.path === '/health') {
+      await next();
+      return;
+    }
+
+    const surface = c.get('publicSurface') as PublicSurface | undefined;
+    if (!surface) return c.json(Errors.notFound('Route', c.req.path), 404);
+    if (surface.kind === 'redirect') return c.redirect(surface.location, 308);
+    if (surface.kind === 'unavailable') {
+      return c.json(Errors.notFound('Route', c.req.path), 404);
+    }
+    if (surface.kind === 'app') {
+      await next();
+      return;
+    }
+
+    if (isProductOnlyPath(c.req.path)) return c.notFound();
+
+    let response: Response | undefined;
+    if (c.req.path === '/') {
+      response = await runStatic(landingIndex, c);
+    } else if (
+      c.req.path.startsWith('/_next/') ||
+      ['/favicon.ico', '/robots.txt', '/sitemap.xml'].includes(c.req.path)
+    ) {
+      response = await runStatic(landingStatic, c);
+    }
+
+    return response ?? landing404(c);
+  });
   app.use(
     '*',
     bodyLimit({
@@ -237,17 +279,6 @@ export function createApp(
     }
     await next();
   });
-  app.use('*', async (c, next) => {
-    const startedAt = performance.now();
-    await next();
-    const route = sanitizeMetricRoute(c.req.path);
-    const durationMs = performance.now() - startedAt;
-    recordHttpRequest(c.req.method, route, c.res.status, durationMs / 1_000);
-    logRequest(c.req.method, route, c.res.status, durationMs, {
-      requestId: c.get('requestId'),
-      organizationId: c.get('principal')?.organizationId,
-    });
-  });
   app.use(
     '*',
     cors({
@@ -262,33 +293,6 @@ export function createApp(
   // Health check (no auth required)
   app.get('/health', (c) => {
     return c.json({ data: { status: 'ok', timestamp: new Date().toISOString() }, error: null });
-  });
-
-  app.use('*', async (c, next) => {
-    const surface = c.get('publicSurface') as PublicSurface | undefined;
-    if (!surface) return c.json(Errors.notFound('Route', c.req.path), 404);
-    if (surface.kind === 'redirect') return c.redirect(surface.location, 308);
-    if (surface.kind === 'unavailable') {
-      return c.json(Errors.notFound('Route', c.req.path), 404);
-    }
-    if (surface.kind === 'app') {
-      await next();
-      return;
-    }
-
-    if (isProductOnlyPath(c.req.path)) return c.notFound();
-
-    let response: Response | undefined;
-    if (c.req.path === '/') {
-      response = await runStatic(landingIndex, c);
-    } else if (
-      c.req.path.startsWith('/_next/') ||
-      ['/favicon.ico', '/robots.txt', '/sitemap.xml'].includes(c.req.path)
-    ) {
-      response = await runStatic(landingStatic, c);
-    }
-
-    return response ?? landing404(c);
   });
 
   // Metrics are protected even when network policy is accidentally permissive.

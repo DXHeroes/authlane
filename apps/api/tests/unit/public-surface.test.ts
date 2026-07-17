@@ -38,6 +38,16 @@ describe('public surface host policy', () => {
     ).toEqual({ kind: 'app' });
   });
 
+  it('canonicalizes expanded IPv6 loopback without accepting other IPv6 addresses', () => {
+    for (const host of ['[0:0:0:0:0:0:0:1]', '[0:0:0:0:0:0:0:1]:3000']) {
+      expect(resolvePublicSurface(host, config)).toEqual({ kind: 'app' });
+    }
+
+    expect(resolvePublicSurface('[0:0:0:0:0:0:0:2]:3000', config)).toEqual({
+      kind: 'unavailable',
+    });
+  });
+
   it('enables the www redirect only when the apex landing host is configured', () => {
     expect(
       resolvePublicSurface('www.authlane.io', {

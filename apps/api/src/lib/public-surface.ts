@@ -27,8 +27,9 @@ function normalizeHostname(value: string | undefined): string {
 
   if (authority.startsWith('[')) {
     const ipv6 = /^\[([^\]]+)](?::([^:]+))?$/.exec(authority);
-    if (!ipv6 || isIP(ipv6[1] ?? '') !== 6 || !validPort(ipv6[2])) return '';
-    return ipv6[1] ?? '';
+    const address = ipv6?.[1] ?? '';
+    if (!ipv6 || isIP(address) !== 6 || !validPort(ipv6[2])) return '';
+    return new URL(`http://[${address}]`).hostname.slice(1, -1);
   }
 
   const parts = authority.split(':');

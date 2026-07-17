@@ -1124,6 +1124,12 @@ li {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  .site-header .wordmark {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+  }
+
   .mobile-navigation__toggle {
     display: flex;
   }

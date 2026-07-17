@@ -20,5 +20,14 @@ describe('DeveloperJourney', () => {
     expect(screen.getByRole('tabpanel', { name: 'OpenAI Agents' }).textContent).toContain(
       'openAIAgents()'
     );
+    expect(screen.getByRole('tab', { name: 'REST API' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    expect(screen.getByRole('tabpanel', { name: 'REST API' }).textContent).toContain(
+      '/api/v1/catalog/services'
+    );
+    expect(screen.getByRole('tab', { name: 'OpenAI Agents' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
   });
 });

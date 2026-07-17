@@ -77,8 +77,19 @@ test.describe('Landing Page', () => {
     await page.goto(URLS.landing);
 
     const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
-    await expect(primaryNavigation.getByRole('link', { name: 'Product' })).toBeVisible();
-    await expect(primaryNavigation.getByRole('link', { name: 'Integrations' })).toBeVisible();
+    await expect(primaryNavigation.getByRole('link', { name: 'Product' })).toHaveAttribute(
+      'href',
+      '#product'
+    );
+    await expect(primaryNavigation.getByRole('link', { name: 'Integrations' })).toHaveAttribute(
+      'href',
+      '#integrations'
+    );
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Footer navigation' })
+        .getByRole('link', { name: 'Security' })
+    ).toHaveAttribute('href', '#security');
     await expect(page.getByRole('link', { name: 'Read the docs' })).toHaveAttribute(
       'href',
       'https://app.authlane.io/docs'
@@ -93,6 +104,122 @@ test.describe('Landing Page', () => {
 
     await expect(page.getByRole('link', { name: 'Start building' }).first()).toBeVisible();
     await expect(page.locator('[data-primary-cta]')).toHaveCount(1);
+  });
+
+  test('gives product docs app-host metadata and apex marketing navigation', async ({
+    page,
+    request,
+  }) => {
+    const isAvailable = await isServiceAvailable(URLS.landing, request);
+    test.skip(!isAvailable, 'Landing page service not running');
+
+    await page.goto(`${URLS.landing}/docs/`);
+
+    await expect(page).toHaveTitle('Build with Authlane');
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      'content',
+      'Start with the Authlane SDK, hosted connect, security model, and self-hosting docs.'
+    );
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://app.authlane.io/docs'
+    );
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      'Build with Authlane'
+    );
+    await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+      'content',
+      'Start with the Authlane SDK, hosted connect, security model, and self-hosting docs.'
+    );
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+      'content',
+      'https://app.authlane.io/docs'
+    );
+    await expect(page.locator('header a[href^="#"], footer a[href^="#"]')).toHaveCount(0);
+
+    const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
+    await expect(primaryNavigation.getByRole('link', { name: 'Product' })).toHaveAttribute(
+      'href',
+      'https://authlane.io/#product'
+    );
+    await expect(primaryNavigation.getByRole('link', { name: 'Security' })).toHaveAttribute(
+      'href',
+      'https://authlane.io/#security'
+    );
+    for (const homepageLink of await page.getByRole('link', { name: 'Homepage' }).all()) {
+      await expect(homepageLink).toHaveAttribute('href', 'https://authlane.io/');
+    }
+  });
+
+  test('keeps apex navigation available from the 404 surface', async ({ page, request }) => {
+    const isAvailable = await isServiceAvailable(URLS.landing, request);
+    test.skip(!isAvailable, 'Landing page service not running');
+
+    await page.goto(`${URLS.landing}/route-that-does-not-exist`);
+
+    await expect(
+      page.getByRole('heading', { name: 'This path is outside the public surface' })
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Return to Authlane' })).toHaveAttribute(
+      'href',
+      'https://authlane.io/'
+    );
+    for (const homepageLink of await page.getByRole('link', { name: 'Homepage' }).all()) {
+      await expect(homepageLink).toHaveAttribute('href', 'https://authlane.io/');
+    }
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Primary navigation' })
+        .getByRole('link', { name: 'Integrations' })
+    ).toHaveAttribute('href', 'https://authlane.io/#integrations');
+    await expect(page.locator('header a[href^="#"], footer a[href^="#"]')).toHaveCount(0);
+  });
+
+  test('keeps mobile navigation controls visible with 48px targets', async ({ page, request }) => {
+    const isAvailable = await isServiceAvailable(URLS.landing, request);
+    test.skip(!isAvailable, 'Landing page service not running');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(URLS.landing);
+
+    const wordmark = page.getByRole('banner').getByRole('link', { name: 'Homepage' });
+    const menuButton = page.getByRole('button', { name: 'Open navigation menu' });
+    await expect(wordmark).toBeVisible();
+    await expect(menuButton).toBeVisible();
+    expect((await wordmark.boundingBox())?.height).toBeGreaterThanOrEqual(48);
+    expect((await menuButton.boundingBox())?.height).toBeGreaterThanOrEqual(48);
+
+    await menuButton.click();
+
+    await expect(wordmark).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Close navigation menu' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
+  });
+
+  test('serves a metadata icon without a favicon console error', async ({ page, request }) => {
+    const isAvailable = await isServiceAvailable(URLS.landing, request);
+    test.skip(!isAvailable, 'Landing page service not running');
+    const faviconErrors: string[] = [];
+    page.on('console', (message) => {
+      if (
+        message.type() === 'error' &&
+        (message.text().includes('favicon') || message.location().url.includes('/favicon.ico'))
+      ) {
+        faviconErrors.push(message.text());
+      }
+    });
+
+    await page.goto(URLS.landing);
+
+    const iconHref = await page.locator('link[rel="icon"]').getAttribute('href');
+    expect(iconHref).toBeTruthy();
+    if (iconHref) {
+      const response = await request.get(new URL(iconHref, URLS.landing).toString());
+      expect(response.ok()).toBeTruthy();
+      expect(response.headers()['content-type']).toContain('image/svg+xml');
+    }
+    expect(faviconErrors).toEqual([]);
   });
 });
 

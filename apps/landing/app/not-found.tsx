@@ -5,7 +5,7 @@ import { SiteHeader } from './components/site-header';
 export default function NotFound() {
   return (
     <div className="site-shell not-found-shell antialiased">
-      <SiteHeader />
+      <SiteHeader navigationVariant="absolute" />
       <main id="main-content" className="isolate not-found-main">
         <section className="container not-found-panel" aria-labelledby="not-found-title">
           <p className="mono eyebrow">404 / Route not found</p>
@@ -14,12 +14,12 @@ export default function NotFound() {
             Authlane&apos;s public site stays deliberately small. Product, API, connect, dashboard,
             and full documentation routes live at app.authlane.io.
           </p>
-          <Link className="secondary-action secondary-action--outlined" href="/">
+          <Link className="secondary-action secondary-action--outlined" href="https://authlane.io/">
             Return to Authlane
           </Link>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter navigationVariant="absolute" />
     </div>
   );
 }

@@ -59,14 +59,21 @@ export const metadata: Metadata = {
   title: 'Build with Authlane',
   description:
     'Start with the Authlane SDK, hosted connect, security model, and self-hosting docs.',
-  alternates: { canonical: '/docs/' },
+  alternates: { canonical: 'https://app.authlane.io/docs' },
+  openGraph: {
+    title: 'Build with Authlane',
+    description:
+      'Start with the Authlane SDK, hosted connect, security model, and self-hosting docs.',
+    url: 'https://app.authlane.io/docs',
+    type: 'website',
+  },
   robots: { index: false, follow: true },
 };
 
 export default function DocsEntry() {
   return (
     <div className="site-shell docs-shell antialiased">
-      <SiteHeader />
+      <SiteHeader navigationVariant="absolute" />
       <main id="main-content" className="isolate">
         <section className="docs-hero section-shell" aria-labelledby="docs-title">
           <div className="container docs-hero__layout">
@@ -141,7 +148,7 @@ export default function DocsEntry() {
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter navigationVariant="absolute" />
     </div>
   );
 }

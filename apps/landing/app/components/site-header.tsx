@@ -5,30 +5,35 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { landingLinks } from '../content';
+import {
+  getMarketingHomepage,
+  getMarketingSectionHref,
+  type MarketingNavigationVariant,
+  marketingNavigationItems,
+} from './marketing-navigation';
 
-const navigationItems = [
-  { label: 'Product', href: '#product' },
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'SDKs', href: '#sdks' },
-  { label: 'Security', href: '#security' },
-  { label: 'Integrations', href: '#integrations' },
-] as const;
+type SiteHeaderProps = {
+  navigationVariant?: MarketingNavigationVariant;
+};
 
-export function SiteHeader() {
+export function SiteHeader({ navigationVariant = 'landing' }: SiteHeaderProps) {
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
+  const homepageHref = getMarketingHomepage(navigationVariant);
 
   return (
     <header className="site-header">
       <div className="container site-header__inner">
-        <Link className="wordmark" href="/" aria-label="Homepage">
+        <Link className="wordmark" href={homepageHref} aria-label="Homepage">
           Authlane
         </Link>
 
         <nav className="desktop-navigation" aria-label="Primary navigation">
           <ul className="desktop-navigation__links" role="list">
-            {navigationItems.map((item) => (
-              <li key={item.href}>
-                <Link href={item.href}>{item.label}</Link>
+            {marketingNavigationItems.map((item) => (
+              <li key={item.sectionId}>
+                <Link href={getMarketingSectionHref(item.sectionId, navigationVariant)}>
+                  {item.label}
+                </Link>
               </li>
             ))}
           </ul>
@@ -59,9 +64,12 @@ export function SiteHeader() {
         hidden={!isNavigationOpen}
       >
         <ul className="container mobile-navigation__links" role="list">
-          {navigationItems.map((item) => (
-            <li key={item.href}>
-              <Link href={item.href} onClick={() => setIsNavigationOpen(false)}>
+          {marketingNavigationItems.map((item) => (
+            <li key={item.sectionId}>
+              <Link
+                href={getMarketingSectionHref(item.sectionId, navigationVariant)}
+                onClick={() => setIsNavigationOpen(false)}
+              >
                 {item.label}
               </Link>
             </li>

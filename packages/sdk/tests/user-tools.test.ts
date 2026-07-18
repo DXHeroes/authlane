@@ -53,14 +53,26 @@ const capabilities = {
       status: 'expired',
       connected: false,
       expiresAt: '2026-07-17T12:00:00.000Z',
-      tools: [{ ...githubTool, name: 'linear_create_issue' }],
+      tools: [
+        {
+          ...githubTool,
+          name: 'linear_create_issue',
+          inputSchema: { ...githubTool.inputSchema },
+        },
+      ],
     },
     {
       serviceId: 'sentry',
       status: 'error',
       connected: false,
       expiresAt: null,
-      tools: [{ ...githubTool, name: 'sentry_get_issue' }],
+      tools: [
+        {
+          ...githubTool,
+          name: 'sentry_get_issue',
+          inputSchema: { ...githubTool.inputSchema },
+        },
+      ],
     },
   ],
 };
@@ -480,8 +492,154 @@ describe('user tool adapter contract', () => {
     }
   });
 
+  it('observes a self-resolving foreign thenable exactly once without native assimilation', async () => {
+    let thenCalls = 0;
+    const assimilationGuard = new Error('bounded self-resolution guard');
+    let selfResolvingThenable: {
+      then(resolve: (value: unknown) => void): void;
+    };
+    selfResolvingThenable = {
+      // biome-ignore lint/suspicious/noThenProperty: Exercises adversarial thenable observation.
+      then(resolve) {
+        thenCalls += 1;
+        if (thenCalls > 4) {
+          throw assimilationGuard;
+        }
+        resolve(selfResolvingThenable);
+      },
+    };
+    const execute = vi.fn(async (): Promise<Result<unknown>> => ({ data: {}, error: null }));
+    const adapter: UserToolAdapter<typeof selfResolvingThenable> = {
+      format: 'mcp',
+      build: () => selfResolvingThenable,
+      execute,
+    };
+    const fetchFn = vi.fn(async () => response(capabilities));
+
+    const result = await createClient(fetchFn as typeof fetch)
+      .user('user_123')
+      .tools.list({ adapter });
+    await Promise.resolve();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(result).toMatchObject({
+      data: null,
+      error: { code: 'ADAPTER_ERROR', message: 'Tool adapter failed to build.' },
+    });
+    expect(thenCalls).toBe(1);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   const cyclicInputSchema: Record<string, unknown> = { type: 'object' };
   cyclicInputSchema.self = cyclicInputSchema;
+
+  it('rejects repeated object aliases in a capability snapshot', async () => {
+    const sharedSchemaNode = { type: 'string' };
+    const aliasedCapabilities = {
+      ...capabilities,
+      services: [
+        {
+          ...capabilities.services[0],
+          tools: [
+            {
+              ...githubTool,
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  first: sharedSchemaNode,
+                  second: sharedSchemaNode,
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const { adapter, buildContexts, execute } = createAdapter();
+    const fetchFn = vi.fn(async () => rawResponse(aliasedCapabilities));
+
+    const result = await createClient(fetchFn as typeof fetch)
+      .user('user_123')
+      .tools.list({ adapter });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toMatchObject({ code: 'INVALID_RESPONSE' });
+    expect(buildContexts).toHaveLength(0);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('rejects a capability snapshot deeper than the clone budget', async () => {
+    let overDepthSchema: Record<string, unknown> = { type: 'string' };
+    for (let depth = 0; depth < 70; depth += 1) {
+      overDepthSchema = { nested: overDepthSchema };
+    }
+    const overDepthCapabilities = {
+      ...capabilities,
+      services: [
+        {
+          ...capabilities.services[0],
+          tools: [{ ...githubTool, inputSchema: overDepthSchema }],
+        },
+      ],
+    };
+    const { adapter, buildContexts, execute } = createAdapter();
+    const fetchFn = vi.fn(async () => rawResponse(overDepthCapabilities));
+
+    const result = await createClient(fetchFn as typeof fetch)
+      .user('user_123')
+      .tools.list({ adapter });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toMatchObject({ code: 'INVALID_RESPONSE' });
+    expect(buildContexts).toHaveLength(0);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('clones an array from its stable length descriptor without reading raw length', async () => {
+    let rawLengthReads = 0;
+    let lengthDescriptorReads = 0;
+    const proxiedArray = new Proxy(['safe'], {
+      get(target, property, receiver) {
+        if (property === 'length') {
+          rawLengthReads += 1;
+          throw new Error('raw array length must not be read');
+        }
+        return Reflect.get(target, property, receiver);
+      },
+      getOwnPropertyDescriptor(target, property) {
+        if (property === 'length') {
+          lengthDescriptorReads += 1;
+        }
+        return Reflect.getOwnPropertyDescriptor(target, property);
+      },
+    });
+    const capabilityData = {
+      ...capabilities,
+      services: [
+        {
+          ...capabilities.services[0],
+          tools: [
+            {
+              ...githubTool,
+              inputSchema: { type: 'object', examples: proxiedArray },
+            },
+          ],
+        },
+      ],
+    };
+    const { adapter, buildContexts } = createAdapter();
+    const fetchFn = vi.fn(async () => rawResponse(capabilityData));
+
+    const result = await createClient(fetchFn as typeof fetch)
+      .user('user_123')
+      .tools.list({ adapter });
+
+    expect(result.error).toBeNull();
+    expect(buildContexts[0].tools[0].inputSchema.examples).toEqual(['safe']);
+    expect(rawLengthReads).toBe(0);
+    expect(lengthDescriptorReads).toBe(1);
+  });
 
   it.each([
     [

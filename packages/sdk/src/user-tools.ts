@@ -96,6 +96,32 @@ const observeNativePromise = (promise: Promise<unknown>): void => {
   }
 };
 
+const callForeignThen = (
+  value: ObjectLike,
+  then: unknown,
+  seen: WeakSet<ObjectLike>,
+  depth: number
+): void => {
+  if (typeof then !== 'function') {
+    return;
+  }
+  let returned: unknown;
+  const observeFulfillment = (fulfilled: unknown): undefined => {
+    try {
+      observeReturnedThenable(fulfilled, seen, depth + 1);
+    } catch {
+      // Foreign settlement callbacks must not escape the adapter boundary.
+    }
+    return undefined;
+  };
+  try {
+    returned = Reflect.apply(then, value, [observeFulfillment, ignoreRejection]);
+  } catch {
+    return;
+  }
+  observeReturnedThenable(returned, seen, depth + 1);
+};
+
 const observeReturnedThenable = (
   value: unknown,
   seen: WeakSet<ObjectLike>,
@@ -122,17 +148,7 @@ const observeReturnedThenable = (
   if (typeof then !== 'function') {
     return;
   }
-
-  let returned: unknown;
-  const assimilation = new Promise<unknown>((resolve, reject) => {
-    try {
-      returned = Reflect.apply(then, value, [resolve, reject]);
-    } catch (error) {
-      reject(error);
-    }
-  });
-  observeNativePromise(assimilation);
-  observeReturnedThenable(returned, seen, depth + 1);
+  callForeignThen(value, then, seen, depth);
 };
 
 const absorbThenable = (value: unknown): boolean => {
@@ -157,16 +173,7 @@ const absorbThenable = (value: unknown): boolean => {
 
   const seen = new WeakSet<ObjectLike>();
   seen.add(value);
-  let returned: unknown;
-  const assimilation = new Promise<unknown>((resolve, reject) => {
-    try {
-      returned = Reflect.apply(then, value, [resolve, reject]);
-    } catch (error) {
-      reject(error);
-    }
-  });
-  observeNativePromise(assimilation);
-  observeReturnedThenable(returned, seen, 0);
+  callForeignThen(value, then, seen, 0);
   return true;
 };
 
@@ -174,7 +181,41 @@ type JsonCloneResult = { ok: true; value: unknown } | { ok: false };
 
 const invalidJsonClone: JsonCloneResult = { ok: false };
 
-const cloneJsonValue = (value: unknown, ancestors = new WeakSet<object>()): JsonCloneResult => {
+// Capability snapshots are small; these conservative limits bound clone and freeze work.
+const jsonSnapshotMaxDepth = 64;
+const jsonSnapshotMaxContainerNodes = 10_000;
+const jsonSnapshotMaxContainerEntries = 10_000;
+const jsonSnapshotMaxTotalEntries = 50_000;
+
+interface JsonCloneState {
+  readonly seen: WeakSet<object>;
+  containerNodes: number;
+  totalEntries: number;
+}
+
+const reserveCloneEntries = (state: JsonCloneState, count: number): boolean => {
+  if (
+    count > jsonSnapshotMaxContainerEntries ||
+    state.totalEntries > jsonSnapshotMaxTotalEntries - count
+  ) {
+    return false;
+  }
+  state.totalEntries += count;
+  return true;
+};
+
+const cloneJsonValue = (
+  value: unknown,
+  state: JsonCloneState = {
+    seen: new WeakSet<object>(),
+    containerNodes: 0,
+    totalEntries: 0,
+  },
+  depth = 0
+): JsonCloneResult => {
+  if (depth > jsonSnapshotMaxDepth) {
+    return invalidJsonClone;
+  }
   if (
     value === null ||
     typeof value === 'string' ||
@@ -186,68 +227,88 @@ const cloneJsonValue = (value: unknown, ancestors = new WeakSet<object>()): Json
   if (typeof value !== 'object') {
     return invalidJsonClone;
   }
-  if (ancestors.has(value)) {
+  if (state.seen.has(value)) {
+    return invalidJsonClone;
+  }
+  state.containerNodes += 1;
+  if (state.containerNodes > jsonSnapshotMaxContainerNodes) {
     return invalidJsonClone;
   }
 
-  ancestors.add(value);
-  try {
-    if (Array.isArray(value)) {
-      if (Object.getPrototypeOf(value) !== Array.prototype) {
-        return invalidJsonClone;
-      }
-      const keys = Reflect.ownKeys(value);
-      if (
-        keys.some(
-          (key) => typeof key !== 'string' || (key !== 'length' && !/^(0|[1-9]\d*)$/.test(key))
-        )
-      ) {
-        return invalidJsonClone;
-      }
-
-      const clone: unknown[] = [];
-      for (let index = 0; index < value.length; index += 1) {
-        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-        if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
-          return invalidJsonClone;
-        }
-        const item = cloneJsonValue(descriptor.value, ancestors);
-        if (!item.ok) {
-          return invalidJsonClone;
-        }
-        clone.push(item.value);
-      }
-      return { ok: true, value: clone };
-    }
-
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) {
+  state.seen.add(value);
+  if (Array.isArray(value)) {
+    if (Object.getPrototypeOf(value) !== Array.prototype) {
       return invalidJsonClone;
     }
-    const clone = Object.create(null) as Record<string, unknown>;
-    for (const key of Reflect.ownKeys(value)) {
-      if (typeof key !== 'string') {
-        return invalidJsonClone;
-      }
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
+    if (
+      !lengthDescriptor ||
+      !('value' in lengthDescriptor) ||
+      lengthDescriptor.configurable ||
+      lengthDescriptor.enumerable ||
+      !Number.isSafeInteger(lengthDescriptor.value) ||
+      lengthDescriptor.value < 0 ||
+      !reserveCloneEntries(state, lengthDescriptor.value)
+    ) {
+      return invalidJsonClone;
+    }
+    const length = lengthDescriptor.value;
+    const keys = Reflect.ownKeys(value);
+    if (
+      keys.length !== length + 1 ||
+      keys.some(
+        (key) =>
+          typeof key !== 'string' ||
+          (key !== 'length' && (!/^(0|[1-9]\d*)$/.test(key) || Number.parseInt(key, 10) >= length))
+      )
+    ) {
+      return invalidJsonClone;
+    }
+
+    const clone: unknown[] = [];
+    for (let index = 0; index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
       if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
         return invalidJsonClone;
       }
-      const property = cloneJsonValue(descriptor.value, ancestors);
-      if (!property.ok) {
+      const item = cloneJsonValue(descriptor.value, state, depth + 1);
+      if (!item.ok) {
         return invalidJsonClone;
       }
-      Object.defineProperty(clone, key, {
-        configurable: true,
-        enumerable: true,
-        value: property.value,
-        writable: true,
-      });
+      clone.push(item.value);
     }
     return { ok: true, value: clone };
-  } finally {
-    ancestors.delete(value);
   }
+
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    return invalidJsonClone;
+  }
+  const clone = Object.create(null) as Record<string, unknown>;
+  const keys = Reflect.ownKeys(value);
+  if (!reserveCloneEntries(state, keys.length)) {
+    return invalidJsonClone;
+  }
+  for (const key of keys) {
+    if (typeof key !== 'string') {
+      return invalidJsonClone;
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+      return invalidJsonClone;
+    }
+    const property = cloneJsonValue(descriptor.value, state, depth + 1);
+    if (!property.ok) {
+      return invalidJsonClone;
+    }
+    Object.defineProperty(clone, key, {
+      configurable: true,
+      enumerable: true,
+      value: property.value,
+      writable: true,
+    });
+  }
+  return { ok: true, value: clone };
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
@@ -258,14 +319,70 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   return prototype === Object.prototype || prototype === null;
 };
 
-const deepFreezeJsonValue = (value: unknown): void => {
+const deepFreezeJsonValue = (value: unknown): boolean => {
   if (typeof value !== 'object' || value === null) {
-    return;
+    return true;
   }
-  for (const child of Object.values(value)) {
-    deepFreezeJsonValue(child);
+
+  const visited = new WeakSet<object>();
+  const stack: Array<{ depth: number; expanded: boolean; value: object }> = [
+    { depth: 0, expanded: false, value },
+  ];
+  let containerNodes = 0;
+  let totalEntries = 0;
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      return false;
+    }
+    if (current.expanded) {
+      Object.freeze(current.value);
+      continue;
+    }
+    if (visited.has(current.value)) {
+      continue;
+    }
+    if (current.depth > jsonSnapshotMaxDepth) {
+      return false;
+    }
+    visited.add(current.value);
+    containerNodes += 1;
+    if (containerNodes > jsonSnapshotMaxContainerNodes) {
+      return false;
+    }
+
+    const keys = Reflect.ownKeys(current.value);
+    let entryCount = keys.length;
+    if (Array.isArray(current.value)) {
+      const lengthDescriptor = Object.getOwnPropertyDescriptor(current.value, 'length');
+      if (!lengthDescriptor || !('value' in lengthDescriptor)) {
+        return false;
+      }
+      entryCount = lengthDescriptor.value;
+    }
+    if (
+      entryCount > jsonSnapshotMaxContainerEntries ||
+      totalEntries > jsonSnapshotMaxTotalEntries - entryCount
+    ) {
+      return false;
+    }
+    totalEntries += entryCount;
+
+    stack.push({ ...current, expanded: true });
+    for (const key of keys) {
+      if (Array.isArray(current.value) && key === 'length') {
+        continue;
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(current.value, key);
+      if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+        return false;
+      }
+      if (typeof descriptor.value === 'object' && descriptor.value !== null) {
+        stack.push({ depth: current.depth + 1, expanded: false, value: descriptor.value });
+      }
+    }
   }
-  Object.freeze(value);
+  return true;
 };
 
 const connectionStatuses = new Set(['disconnected', 'pending', 'connected', 'expired', 'error']);
@@ -326,7 +443,9 @@ const validateCapabilityTools = (
           return null;
         }
         visibleToolNames.add(tool.name);
-        deepFreezeJsonValue(inputSchema);
+        if (!deepFreezeJsonValue(inputSchema)) {
+          return null;
+        }
         visibleTools.push(
           Object.freeze({
             serviceId: service.serviceId,

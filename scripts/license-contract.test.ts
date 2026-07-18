@@ -4,6 +4,15 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
+const staleAuthlaneLicenseClaim =
+  /Elastic License|ELv2|Elastic-2\.0|cannot offer Authlane as a managed service|can't offer (?:it|Authlane) as (?:a )?(?:managed service|SaaS)|❌\s*Offer as a competing SaaS|Authlane[^\n]{0,120}restricted SaaS/i;
+
+function isThirdPartyLicenseNotice(file: string): boolean {
+  return (
+    /(?:^|\/)(?:vendor|third[-_]?party)\//i.test(file) ||
+    /(?:^|\/)third[-_]?party[-_]?notices?(?:\.[^/]*)?$/i.test(file)
+  );
+}
 
 function trackedTextFiles(): string[] {
   return execFileSync('git', ['ls-files', '-z'], {
@@ -12,7 +21,9 @@ function trackedTextFiles(): string[] {
   })
     .split('\0')
     .filter(Boolean)
-    .filter((file) => file !== 'scripts/license-contract.test.ts');
+    .filter(
+      (file) => file !== 'scripts/license-contract.test.ts' && !isThirdPartyLicenseNotice(file)
+    );
 }
 
 describe('Authlane licensing contract', () => {
@@ -36,13 +47,16 @@ describe('Authlane licensing contract', () => {
       } catch {
         return [];
       }
-      return /Elastic License|ELv2|Elastic-2\.0|cannot offer Authlane as a managed service|can't offer (?:it|Authlane) as (?:a )?(?:managed service|SaaS)/i.test(
-        contents
-      )
-        ? [file]
-        : [];
+      return staleAuthlaneLicenseClaim.test(contents) ? [file] : [];
     });
 
     expect(staleClaims).toEqual([]);
+  });
+
+  it('recognizes historical Authlane SaaS restriction phrasing', () => {
+    expect(staleAuthlaneLicenseClaim.test('❌ Offer as a competing SaaS')).toBe(true);
+    expect(staleAuthlaneLicenseClaim.test('Authlane is fully open but restricted SaaS')).toBe(true);
+    expect(isThirdPartyLicenseNotice('THIRD_PARTY_NOTICES.md')).toBe(true);
+    expect(isThirdPartyLicenseNotice('marketing/notice.md')).toBe(false);
   });
 });

@@ -20,4 +20,8 @@ describe('OpenAPI credential security contract', () => {
     expect(openApi).not.toContain('refreshToken:');
     expect(openApi).not.toContain('idToken:');
   });
+
+  it('allows duplicate explicit connect-session service IDs for server-side deduplication', () => {
+    expect(openApi).not.toContain('uniqueItems: true');
+  });
 });

@@ -110,6 +110,25 @@ describe('POST /api/v1/connect-sessions', () => {
     expect(insertedValues[0]).toMatchObject({ allowedServices: ['github', 'slack'] });
   });
 
+  it('accepts duplicate explicit IDs and stores each service once', async () => {
+    const { db, insertedValues } = fakeDatabase({
+      selectResults: [[{ serviceId: 'github' }]],
+    });
+
+    const response = await appFor(db).request('/api/v1/connect-sessions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        externalUserId: 'user_1',
+        allowedServices: ['github', 'github'],
+        allowedOrigin: 'https://saas.example',
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(insertedValues[0]).toMatchObject({ allowedServices: ['github'] });
+  });
+
   it.each([
     ['missing', undefined],
     ['non-array', 'github'],

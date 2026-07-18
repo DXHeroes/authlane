@@ -71,20 +71,102 @@ const toolError = (code: string, message: string): ToolErrorResult => ({
 
 const adapterBuildContext = new AsyncLocalStorage<boolean>();
 const asyncBuildResult = Symbol('asyncBuildResult');
+const thenableObservationDepthLimit = 16;
+
+type ObjectLike = object | ((...args: never[]) => unknown);
+
+const isObjectLike = (value: unknown): value is ObjectLike =>
+  (typeof value === 'object' && value !== null) || typeof value === 'function';
+
+const ignoreRejection = (): undefined => undefined;
+
+const isNativePromise = (value: ObjectLike): value is Promise<unknown> => {
+  try {
+    return value instanceof Promise;
+  } catch {
+    return false;
+  }
+};
+
+const observeNativePromise = (promise: Promise<unknown>): void => {
+  try {
+    void Reflect.apply(Promise.prototype.then, promise, [undefined, ignoreRejection]);
+  } catch {
+    // An incompatible promise-like object is rejected by the adapter boundary.
+  }
+};
+
+const observeReturnedThenable = (
+  value: unknown,
+  seen: WeakSet<ObjectLike>,
+  depth: number
+): void => {
+  if (!isObjectLike(value)) {
+    return;
+  }
+  if (isNativePromise(value)) {
+    observeNativePromise(value);
+    return;
+  }
+  if (depth >= thenableObservationDepthLimit || seen.has(value)) {
+    return;
+  }
+  seen.add(value);
+
+  let then: unknown;
+  try {
+    then = Reflect.get(value, 'then');
+  } catch {
+    return;
+  }
+  if (typeof then !== 'function') {
+    return;
+  }
+
+  let returned: unknown;
+  const assimilation = new Promise<unknown>((resolve, reject) => {
+    try {
+      returned = Reflect.apply(then, value, [resolve, reject]);
+    } catch (error) {
+      reject(error);
+    }
+  });
+  observeNativePromise(assimilation);
+  observeReturnedThenable(returned, seen, depth + 1);
+};
 
 const absorbThenable = (value: unknown): boolean => {
-  if ((typeof value !== 'object' || value === null) && typeof value !== 'function') {
+  if (!isObjectLike(value)) {
     return false;
   }
 
-  const then = (value as { then?: unknown }).then;
+  if (isNativePromise(value)) {
+    observeNativePromise(value);
+    return true;
+  }
+
+  let then: unknown;
+  try {
+    then = Reflect.get(value, 'then');
+  } catch {
+    return true;
+  }
   if (typeof then !== 'function') {
     return false;
   }
 
-  void new Promise<unknown>((resolve, reject) => {
-    then.call(value, resolve, reject);
-  }).catch(() => undefined);
+  const seen = new WeakSet<ObjectLike>();
+  seen.add(value);
+  let returned: unknown;
+  const assimilation = new Promise<unknown>((resolve, reject) => {
+    try {
+      returned = Reflect.apply(then, value, [resolve, reject]);
+    } catch (error) {
+      reject(error);
+    }
+  });
+  observeNativePromise(assimilation);
+  observeReturnedThenable(returned, seen, 0);
   return true;
 };
 
@@ -142,7 +224,7 @@ const cloneJsonValue = (value: unknown, ancestors = new WeakSet<object>()): Json
     if (prototype !== Object.prototype && prototype !== null) {
       return invalidJsonClone;
     }
-    const clone: Record<string, unknown> = {};
+    const clone = Object.create(null) as Record<string, unknown>;
     for (const key of Reflect.ownKeys(value)) {
       if (typeof key !== 'string') {
         return invalidJsonClone;
@@ -192,12 +274,16 @@ const validateCapabilityTools = (
   data: unknown,
   externalUserId: string
 ): UserToolDefinition[] | null => {
+  const clonedSnapshot = cloneJsonValue(data);
+  if (!clonedSnapshot.ok || !isPlainObject(clonedSnapshot.value)) {
+    return null;
+  }
+  const snapshot = clonedSnapshot.value;
   if (
-    !isPlainObject(data) ||
-    data.externalUserId !== externalUserId ||
-    data.format !== 'mcp' ||
-    typeof data.version !== 'string' ||
-    !Array.isArray(data.services)
+    snapshot.externalUserId !== externalUserId ||
+    snapshot.format !== 'mcp' ||
+    typeof snapshot.version !== 'string' ||
+    !Array.isArray(snapshot.services)
   ) {
     return null;
   }
@@ -205,7 +291,7 @@ const validateCapabilityTools = (
   const serviceIds = new Set<string>();
   const visibleToolNames = new Set<string>();
   const visibleTools: UserToolDefinition[] = [];
-  for (const service of data.services) {
+  for (const service of snapshot.services) {
     if (
       !isPlainObject(service) ||
       typeof service.serviceId !== 'string' ||
@@ -230,8 +316,8 @@ const validateCapabilityTools = (
       ) {
         return null;
       }
-      const inputSchema = cloneJsonValue(tool.inputSchema);
-      if (!inputSchema.ok || !isPlainObject(inputSchema.value)) {
+      const inputSchema = tool.inputSchema;
+      if (!isPlainObject(inputSchema)) {
         return null;
       }
 
@@ -240,13 +326,13 @@ const validateCapabilityTools = (
           return null;
         }
         visibleToolNames.add(tool.name);
-        deepFreezeJsonValue(inputSchema.value);
+        deepFreezeJsonValue(inputSchema);
         visibleTools.push(
           Object.freeze({
             serviceId: service.serviceId,
             name: tool.name,
             description: tool.description,
-            inputSchema: inputSchema.value,
+            inputSchema,
           })
         );
       }
@@ -289,19 +375,24 @@ export class UserToolsResource {
       return { data: null, error: Errors.adapterError() };
     }
 
-    const candidate = options as {
-      adapter?: unknown;
-      format?: unknown;
-    };
-    const adapter = candidate.adapter;
+    const adapterDescriptor = Object.getOwnPropertyDescriptor(options, 'adapter');
+    const formatDescriptor = Object.getOwnPropertyDescriptor(options, 'format');
+    if (
+      (adapterDescriptor !== undefined && !('value' in adapterDescriptor)) ||
+      (formatDescriptor !== undefined && !('value' in formatDescriptor))
+    ) {
+      return { data: null, error: Errors.adapterError() };
+    }
+
+    const adapter = adapterDescriptor?.value;
+    const optionFormat = formatDescriptor?.value;
     if (adapter === undefined) {
-      const format = candidate.format;
-      if (format !== undefined && format !== 'mcp' && format !== 'openai') {
+      if (optionFormat !== undefined && optionFormat !== 'mcp' && optionFormat !== 'openai') {
         return { data: null, error: Errors.adapterError() };
       }
       return this.resources.tools.list({
         externalUserId: this.#externalUserId,
-        format,
+        format: optionFormat,
       });
     }
     if ((typeof adapter !== 'object' || adapter === null) && typeof adapter !== 'function') {

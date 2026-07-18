@@ -421,8 +421,261 @@ describe('user tool adapter contract', () => {
     }
   });
 
+  it('observes a rejected promise returned by a custom async then method', async () => {
+    const secretError = new Error('async then leaked provider-access-token-secret');
+    const unhandledRejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => {
+      unhandledRejections.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandledRejection);
+    try {
+      let thenCalls = 0;
+      let buildOriginExecution: Promise<unknown> | undefined;
+      const execute = vi.fn(async (): Promise<Result<unknown>> => ({ data: {}, error: null }));
+      const adapter: UserToolAdapter<{
+        then(
+          resolve: (value: { ready: true }) => void,
+          reject: (reason: unknown) => void
+        ): Promise<void>;
+      }> = {
+        format: 'mcp',
+        build: ({ execute: guardedExecute }) => ({
+          // biome-ignore lint/suspicious/noThenProperty: Exercises adversarial thenable observation.
+          async then(resolve) {
+            thenCalls += 1;
+            buildOriginExecution = guardedExecute('github', 'github_create_issue', {
+              eager: true,
+            });
+            resolve({ ready: true });
+            throw secretError;
+          },
+        }),
+        execute,
+      };
+      const fetchFn = vi.fn(async () => response(capabilities));
+
+      const result = await createClient(fetchFn as typeof fetch)
+        .user('user_123')
+        .tools.list({ adapter });
+      await Promise.resolve();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+      expect(result).toMatchObject({
+        data: null,
+        error: { code: 'ADAPTER_ERROR', message: 'Tool adapter failed to build.' },
+      });
+      expect(thenCalls).toBe(1);
+      expect(await buildOriginExecution).toEqual({
+        error: {
+          code: 'TOOL_NOT_AVAILABLE',
+          message: 'Tool execution is not available during adapter build.',
+        },
+      });
+      expect(unhandledRejections).toEqual([]);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(execute).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
+  });
+
   const cyclicInputSchema: Record<string, unknown> = { type: 'object' };
   cyclicInputSchema.self = cyclicInputSchema;
+
+  it.each([
+    [
+      'connected',
+      () => {
+        let reads = 0;
+        const service = { ...capabilities.services[0] };
+        Object.defineProperty(service, 'connected', {
+          enumerable: true,
+          get: () => {
+            reads += 1;
+            return reads === 1;
+          },
+        });
+        return {
+          capabilityData: { ...capabilities, services: [service] },
+          getReads: () => reads,
+        };
+      },
+    ],
+    [
+      'serviceId',
+      () => {
+        let reads = 0;
+        const service = { ...capabilities.services[0] };
+        Object.defineProperty(service, 'serviceId', {
+          enumerable: true,
+          get: () => {
+            reads += 1;
+            return reads <= 4 ? 'github' : 'slack';
+          },
+        });
+        return {
+          capabilityData: { ...capabilities, services: [service] },
+          getReads: () => reads,
+        };
+      },
+    ],
+    [
+      'tool name',
+      () => {
+        let reads = 0;
+        const tool = { ...githubTool };
+        Object.defineProperty(tool, 'name', {
+          enumerable: true,
+          get: () => {
+            reads += 1;
+            return reads <= 4 ? 'github_create_issue' : 'slack_send_message';
+          },
+        });
+        return {
+          capabilityData: {
+            ...capabilities,
+            services: [{ ...capabilities.services[0], tools: [tool] }],
+          },
+          getReads: () => reads,
+        };
+      },
+    ],
+  ])('rejects a changing %s accessor before adapter build', async (_case, createFixture) => {
+    const { capabilityData, getReads } = createFixture();
+    const { adapter, buildContexts, execute } = createAdapter();
+    const fetchFn = vi.fn(async () => rawResponse(capabilityData));
+
+    const result = await createClient(fetchFn as typeof fetch)
+      .user('user_123')
+      .tools.list({ adapter });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toMatchObject({ code: 'INVALID_RESPONSE' });
+    expect(getReads()).toBe(0);
+    expect(buildContexts).toHaveLength(0);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'connected service field',
+      'connected',
+      true,
+      () => {
+        const { connected: _connected, ...serviceWithoutConnected } = capabilities.services[0];
+        return { ...capabilities, services: [serviceWithoutConnected] };
+      },
+    ],
+    [
+      'tool name field',
+      'name',
+      githubTool.name,
+      () => {
+        const { name: _name, ...toolWithoutName } = githubTool;
+        return {
+          ...capabilities,
+          services: [{ ...capabilities.services[0], tools: [toolWithoutName] }],
+        };
+      },
+    ],
+  ])('rejects an inherited %s from a polluted prototype', async (_case, property, inheritedValue, createFixture) => {
+    Object.defineProperty(Object.prototype, property, {
+      configurable: true,
+      enumerable: true,
+      value: inheritedValue,
+      writable: true,
+    });
+    try {
+      const { adapter, buildContexts, execute } = createAdapter();
+      const fetchFn = vi.fn(async () => rawResponse(createFixture()));
+
+      const result = await createClient(fetchFn as typeof fetch)
+        .user('user_123')
+        .tools.list({ adapter });
+
+      expect(result.data).toBeNull();
+      expect(result.error).toMatchObject({ code: 'INVALID_RESPONSE' });
+      expect(buildContexts).toHaveLength(0);
+      expect(execute).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(Object.prototype, property);
+    }
+  });
+
+  it.each([
+    [
+      'snapshot ownKeys trap',
+      () =>
+        new Proxy(capabilities, {
+          ownKeys: () => {
+            throw new Error('snapshot clone leaked provider-access-token-secret');
+          },
+        }),
+    ],
+    [
+      'service descriptor trap',
+      () => ({
+        ...capabilities,
+        services: [
+          new Proxy(capabilities.services[0], {
+            getOwnPropertyDescriptor: () => {
+              throw new Error('service clone leaked provider-access-token-secret');
+            },
+          }),
+        ],
+      }),
+    ],
+  ])('turns a %s into INVALID_RESPONSE without rejecting', async (_case, createFixture) => {
+    const { adapter, buildContexts, execute } = createAdapter();
+    const fetchFn = vi.fn(async () => rawResponse(createFixture()));
+
+    const result = await createClient(fetchFn as typeof fetch)
+      .user('user_123')
+      .tools.list({ adapter });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toMatchObject({ code: 'INVALID_RESPONSE' });
+    expect(JSON.stringify(result)).not.toMatch(/secret|stack/i);
+    expect(buildContexts).toHaveLength(0);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'adapter',
+    'format',
+  ] as const)('rejects an own %s accessor without invoking it', async (property) => {
+    let accessorCalls = 0;
+    const { adapter } = createAdapter();
+    const options = {};
+    Object.defineProperty(options, property, {
+      enumerable: true,
+      get: () => {
+        accessorCalls += 1;
+        return property === 'adapter' ? adapter : 'mcp';
+      },
+    });
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/tools?format=mcp')) {
+        return response({ tools: [githubTool], version: 'version-1' });
+      }
+      if (url.endsWith('/capabilities?format=mcp')) {
+        return response(capabilities);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const runtimeTools = createClient(fetchFn as typeof fetch).user('user_123')
+      .tools as unknown as {
+      list(options: unknown): Promise<Result<unknown>>;
+    };
+
+    const result = await runtimeTools.list(options);
+
+    expect(result).toMatchObject({ data: null, error: { code: 'ADAPTER_ERROR' } });
+    expect(accessorCalls).toBe(0);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
 
   it.each([
     ['a null payload', null],
@@ -787,16 +1040,83 @@ describe('user tool adapter contract', () => {
   });
 
   it.each([
+    ['no own format', undefined, 'mcp'],
+    ['an own format', 'openai', 'openai'],
+  ] as const)('ignores an inherited adapter and inherited format with %s', async (_case, ownFormat, expectedFormat) => {
+    const definitions = { tools: [githubTool], version: 'version-1' };
+    const { adapter, buildContexts, execute } = createAdapter();
+    const options = Object.create({ adapter, format: 'openai' }) as Record<string, unknown>;
+    if (ownFormat !== undefined) {
+      Object.defineProperty(options, 'format', {
+        configurable: true,
+        enumerable: true,
+        value: ownFormat,
+        writable: true,
+      });
+    }
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/tools?format=mcp') || url.endsWith('/tools?format=openai')) {
+        return response(definitions);
+      }
+      if (url.endsWith('/capabilities?format=mcp')) {
+        return response(capabilities);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const runtimeTools = createClient(fetchFn as typeof fetch).user('user_123')
+      .tools as unknown as {
+      list(options: unknown): Promise<Result<unknown>>;
+    };
+
+    const result = await runtimeTools.list(options);
+
+    expect(result).toEqual({ data: definitions, error: null });
+    expect(fetchFn.mock.calls.map(([url]) => String(url))).toEqual([
+      `https://authlane.test/api/v1/users/user_123/tools?format=${expectedFormat}`,
+    ]);
+    expect(buildContexts).toHaveLength(0);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('accepts adapter methods defined on a class prototype', async () => {
+    class ClassAdapter implements UserToolAdapter<{ ready: true }> {
+      readonly format = 'mcp' as const;
+      buildCalls = 0;
+
+      build(): { ready: true } {
+        this.buildCalls += 1;
+        return { ready: true };
+      }
+
+      async execute(): Promise<Result<unknown>> {
+        return { data: { ok: true }, error: null };
+      }
+    }
+
+    const adapter = new ClassAdapter();
+    const fetchFn = vi.fn(async () => response(capabilities));
+
+    const result = await createClient(fetchFn as typeof fetch)
+      .user('user_123')
+      .tools.list({ adapter });
+
+    expect(result).toEqual({ data: { ready: true }, error: null });
+    expect(adapter.buildCalls).toBe(1);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
     ['null options', () => null],
     ['primitive options', () => 1],
     [
-      'an options getter that throws',
+      'an options descriptor trap that throws',
       () =>
         new Proxy(
           {},
           {
-            get: () => {
-              throw new Error('options getter with provider-access-token-secret');
+            getOwnPropertyDescriptor: () => {
+              throw new Error('options descriptor with provider-access-token-secret');
             },
           }
         ),

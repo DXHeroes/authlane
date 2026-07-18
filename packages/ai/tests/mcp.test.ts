@@ -148,11 +148,11 @@ describe('mcpServer', () => {
     }
   });
 
-  it('redacts safe-error values returned by the bound executor', async () => {
+  it('redacts exact safe-error values returned by the SDK-bound executor', async () => {
     const execute = vi.fn(async () => ({
       error: {
         code: 'ADAPTER_ERROR',
-        message: 'credential-secret rejected by provider',
+        message: 'Tool execution failed.',
       },
     }));
     const server = mcpServer().build({
@@ -179,7 +179,6 @@ describe('mcpServer', () => {
         isError: true,
         content: [{ type: 'text', text: 'Tool execution failed.' }],
       });
-      expect(JSON.stringify(result)).not.toContain('credential-secret');
       expect(JSON.stringify(result)).not.toContain('ADAPTER_ERROR');
     } finally {
       await connection.close();
@@ -213,8 +212,140 @@ describe('mcpServer', () => {
           arguments: { visibility: 'private' },
         });
         expect(result).toEqual({
-          content: [{ type: 'text', text: JSON.stringify(output) }],
+          content: [{ type: 'text', text: JSON.stringify({ result: output }) }],
           structuredContent: { result: output },
+        });
+        expect(
+          JSON.parse(result.content[0]?.type === 'text' ? result.content[0].text : '')
+        ).toEqual(result.structuredContent);
+      }
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it('canonicalizes successful output once for identical text and structured content', async () => {
+    const execute = vi.fn(async () => ({ values: [-0, { ok: true }] }));
+    const server = mcpServer().build({
+      externalUserId: 'user_123',
+      tools: [
+        {
+          serviceId: 'github',
+          name: 'github_list_repositories',
+          description: 'List repositories.',
+          inputSchema: repositorySchema,
+        },
+      ],
+      execute,
+    });
+    const connection = await connect(server);
+
+    try {
+      const result = await connection.client.callTool({
+        name: 'github_list_repositories',
+        arguments: { visibility: 'private' },
+      });
+
+      expect(result).toEqual({
+        content: [{ type: 'text', text: '{"values":[0,{"ok":true}]}' }],
+        structuredContent: { values: [0, { ok: true }] },
+      });
+      expect(JSON.parse(result.content[0]?.type === 'text' ? result.content[0].text : '')).toEqual(
+        result.structuredContent
+      );
+      expect(Object.is((result.structuredContent?.values as number[])[0], -0)).toBe(false);
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it('rejects recursively transformed protocol keys and oversized object keys', async () => {
+    const transformed = JSON.parse(
+      '{"__proto__":{"credential":"credential-secret-prototype"},"ok":true}'
+    ) as Record<string, unknown>;
+    const nestedTransformed = {
+      nested: JSON.parse('{"__proto__":"credential-secret-nested","ok":true}'),
+    };
+    const oversizedKey = `credential-secret-${'x'.repeat(1_000_001)}`;
+    const oversized = { [oversizedKey]: true };
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce(transformed)
+      .mockResolvedValueOnce(nestedTransformed)
+      .mockResolvedValueOnce(oversized);
+    const server = mcpServer().build({
+      externalUserId: 'user_123',
+      tools: [
+        {
+          serviceId: 'github',
+          name: 'github_list_repositories',
+          description: 'List repositories.',
+          inputSchema: repositorySchema,
+        },
+      ],
+      execute,
+    });
+    const connection = await connect(server);
+
+    try {
+      for (let index = 0; index < 3; index += 1) {
+        const result = await connection.client.callTool({
+          name: 'github_list_repositories',
+          arguments: { visibility: 'private' },
+        });
+        expect(result).toEqual({
+          isError: true,
+          content: [{ type: 'text', text: 'Tool execution failed.' }],
+        });
+        expect(JSON.stringify(result)).not.toContain('credential-secret');
+      }
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it('preserves domain outputs that merely contain error fields', async () => {
+    const domainOutputs = [
+      { error: 'warning', ok: true },
+      { nested: { error: { code: 'DOMAIN_WARNING', message: 'Retry suggested.' } }, ok: true },
+      {
+        error: { code: 'ADAPTER_ERROR', message: 'Domain-shaped warning.' },
+        ok: true,
+      },
+      {
+        error: { code: 'DOMAIN_WARNING', message: 'Domain-shaped warning.' },
+      },
+      {
+        error: { code: 'ADAPTER_ERROR', message: 'Domain warning.' },
+      },
+    ];
+    const execute = vi.fn();
+    for (const output of domainOutputs) {
+      execute.mockResolvedValueOnce(output);
+    }
+    const server = mcpServer().build({
+      externalUserId: 'user_123',
+      tools: [
+        {
+          serviceId: 'github',
+          name: 'github_list_repositories',
+          description: 'List repositories.',
+          inputSchema: repositorySchema,
+        },
+      ],
+      execute,
+    });
+    const connection = await connect(server);
+
+    try {
+      for (const output of domainOutputs) {
+        const result = await connection.client.callTool({
+          name: 'github_list_repositories',
+          arguments: { visibility: 'private' },
+        });
+        expect(result).toEqual({
+          content: [{ type: 'text', text: JSON.stringify(output) }],
+          structuredContent: output,
         });
       }
     } finally {
@@ -339,5 +470,22 @@ describe('mcpServer', () => {
         execute: vi.fn(async () => ({ ok: true })),
       })
     ).toThrow('Duplicate MCP tool definitions are not supported.');
+  });
+
+  it('fails synchronously and safely for an invalid MCP tool schema', () => {
+    expect(() =>
+      mcpServer().build({
+        externalUserId: 'user_123',
+        tools: [
+          {
+            serviceId: 'github',
+            name: 'github_list_repositories',
+            description: 'List repositories.',
+            inputSchema: { type: 'array', items: { type: 'string' } },
+          },
+        ],
+        execute: vi.fn(async () => ({ ok: true })),
+      })
+    ).toThrow('Invalid MCP tool definition.');
   });
 });

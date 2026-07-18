@@ -3,8 +3,10 @@ import type { UserToolAdapter } from '@authlane/sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
+  CallToolResultSchema,
   ListToolsRequestSchema,
   type Tool,
+  ToolSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { createBuiltInAdapter, type FrameworkAdapterOptions } from './adapter.js';
 
@@ -18,21 +20,70 @@ function isExecutorError(value: unknown): boolean {
     return false;
   }
   if (isProxy(value)) {
-    return true;
+    return false;
   }
 
   try {
-    const descriptor = Object.getOwnPropertyDescriptor(value, 'error');
-    return Boolean(
-      descriptor &&
-        'value' in descriptor &&
-        descriptor.value !== null &&
-        descriptor.value !== undefined
-    );
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      return false;
+    }
+    const keys = Reflect.ownKeys(value);
+    if (keys.length !== 1 || keys[0] !== 'error') {
+      return false;
+    }
+    const errorDescriptor = Object.getOwnPropertyDescriptor(value, 'error');
+    if (
+      !errorDescriptor ||
+      !errorDescriptor.enumerable ||
+      !('value' in errorDescriptor) ||
+      typeof errorDescriptor.value !== 'object' ||
+      errorDescriptor.value === null ||
+      isProxy(errorDescriptor.value)
+    ) {
+      return false;
+    }
+
+    const error = errorDescriptor.value;
+    const errorPrototype = Object.getPrototypeOf(error);
+    if (errorPrototype !== Object.prototype && errorPrototype !== null) {
+      return false;
+    }
+    const errorKeys = Reflect.ownKeys(error);
+    if (errorKeys.length !== 2 || !errorKeys.includes('code') || !errorKeys.includes('message')) {
+      return false;
+    }
+    const codeDescriptor = Object.getOwnPropertyDescriptor(error, 'code');
+    const messageDescriptor = Object.getOwnPropertyDescriptor(error, 'message');
+    if (
+      !codeDescriptor ||
+      !codeDescriptor.enumerable ||
+      !('value' in codeDescriptor) ||
+      typeof codeDescriptor.value !== 'string' ||
+      !messageDescriptor ||
+      !messageDescriptor.enumerable ||
+      !('value' in messageDescriptor) ||
+      typeof messageDescriptor.value !== 'string'
+    ) {
+      return false;
+    }
+    return knownSdkExecutionErrors.get(codeDescriptor.value)?.has(messageDescriptor.value) === true;
   } catch {
-    return true;
+    return false;
   }
 }
+
+const knownSdkExecutionErrors = new Map<string, ReadonlySet<string>>([
+  [
+    'TOOL_NOT_AVAILABLE',
+    new Set([
+      'Tool execution is not available during adapter build.',
+      'Tool is not available for this user.',
+    ]),
+  ],
+  ['CREDENTIAL_LEASE_ERROR', new Set(['Credential lease could not be issued.'])],
+  ['ADAPTER_ERROR', new Set(['Tool execution failed.'])],
+]);
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 type JsonCloneResult = { readonly ok: true; readonly value: JsonValue } | { readonly ok: false };
@@ -49,6 +100,14 @@ interface JsonCloneState {
   containerNodes: number;
   totalEntries: number;
   stringCharacters: number;
+}
+
+function reserveStringCharacters(state: JsonCloneState, count: number): boolean {
+  if (state.stringCharacters > maxJsonStringCharacters - count) {
+    return false;
+  }
+  state.stringCharacters += count;
+  return true;
 }
 
 function reserveEntries(state: JsonCloneState, count: number): boolean {
@@ -79,10 +138,9 @@ function cloneJsonValue(
     return Number.isFinite(value) ? { ok: true, value } : invalidJsonClone;
   }
   if (typeof value === 'string') {
-    if (state.stringCharacters > maxJsonStringCharacters - value.length) {
+    if (!reserveStringCharacters(state, value.length)) {
       return invalidJsonClone;
     }
-    state.stringCharacters += value.length;
     return { ok: true, value };
   }
   if (typeof value !== 'object' || isProxy(value)) {
@@ -142,11 +200,17 @@ function cloneJsonValue(
     if (!reserveEntries(state, keys.length)) {
       return invalidJsonClone;
     }
-    const clone = Object.create(null) as { [key: string]: JsonValue };
     for (const key of keys) {
-      if (typeof key !== 'string') {
+      if (
+        typeof key !== 'string' ||
+        key === '__proto__' ||
+        !reserveStringCharacters(state, key.length)
+      ) {
         return invalidJsonClone;
       }
+    }
+    const clone = Object.create(null) as { [key: string]: JsonValue };
+    for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
         return invalidJsonClone;
@@ -182,7 +246,23 @@ function normalizeToolOutput(value: unknown): {
       ? (cloned.value as Record<string, unknown>)
       : { result: cloned.value };
   try {
-    return { text: JSON.stringify(cloned.value), structuredContent };
+    const text = JSON.stringify(structuredContent);
+    const canonical = JSON.parse(text) as unknown;
+    if (typeof canonical !== 'object' || canonical === null || Array.isArray(canonical)) {
+      return null;
+    }
+    const parsed = CallToolResultSchema.safeParse({
+      content: [{ type: 'text', text }],
+      structuredContent: canonical,
+    });
+    if (
+      !parsed.success ||
+      parsed.data.structuredContent === undefined ||
+      JSON.stringify(parsed.data.structuredContent) !== text
+    ) {
+      return null;
+    }
+    return { text, structuredContent: parsed.data.structuredContent };
   } catch {
     return null;
   }
@@ -215,11 +295,15 @@ export function mcpServer(options: FrameworkAdapterOptions = {}): UserToolAdapte
       { name: 'authlane-user-tools', version: '0.1.0' },
       { capabilities: { tools: {} } }
     );
-    const protocolTools: Tool[] = tools.map(({ name, description, inputSchema }) => ({
-      name,
-      description,
-      inputSchema: inputSchema as Tool['inputSchema'],
-    }));
+    const protocolTools: Tool[] = [];
+    for (const { name, description, inputSchema } of tools) {
+      const clonedInputSchema = cloneToolInput(inputSchema);
+      const parsed = ToolSchema.safeParse({ name, description, inputSchema: clonedInputSchema });
+      if (!clonedInputSchema || !parsed.success) {
+        throw new Error('Invalid MCP tool definition.');
+      }
+      protocolTools.push(parsed.data);
+    }
 
     server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: protocolTools }));
     server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {

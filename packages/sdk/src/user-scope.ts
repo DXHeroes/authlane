@@ -11,6 +11,7 @@ import type {
   UserScopeCredentialLeases,
   UserScopeTools,
 } from './types.js';
+import { UserToolsResource } from './user-tools.js';
 
 interface UserScopeResources {
   connections: ConnectionsResource;
@@ -39,9 +40,7 @@ export class UserScope {
     this.capabilities = {
       get: ({ format } = {}) => run(() => resources.capabilities.get({ externalUserId, format })),
     };
-    this.tools = {
-      list: ({ format } = {}) => run(() => resources.tools.list({ externalUserId, format })),
-    };
+    this.tools = new UserToolsResource(externalUserId, resources, run);
     this.credentialLeases = {
       create: ({ serviceId }) =>
         run(() => resources.credentialLeases.create({ externalUserId, serviceId })),

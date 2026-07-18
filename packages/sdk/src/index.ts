@@ -22,3 +22,4 @@ export { Authlane } from './client.js';
 export * from './errors.js';
 export * from './types.js';
 export { UserScope } from './user-scope.js';
+export type { UserToolAdapter, UserToolDefinition } from './user-tools.js';

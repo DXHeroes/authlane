@@ -1,3 +1,5 @@
+import type { UserToolAdapterOptions } from './user-tools.js';
+
 export type Result<T, E = AuthlaneError> = { data: T; error: null } | { data: null; error: E };
 
 export interface AuthlaneError {
@@ -125,7 +127,9 @@ export interface UserScopeCapabilities {
 }
 
 export interface UserScopeTools {
-  list(options?: UserScopeToolOptions): Promise<Result<ToolsResponse>>;
+  list<T>(options: UserToolAdapterOptions<T>): Promise<Result<T>>;
+  list(): Promise<Result<ToolsResponse>>;
+  list(options: UserScopeToolOptions): Promise<Result<ToolsResponse>>;
 }
 
 export interface UserScopeCredentialLeases {

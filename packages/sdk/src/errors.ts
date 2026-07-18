@@ -43,6 +43,11 @@ export const ErrorCodes = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 
+  // Local tool adapter errors
+  ADAPTER_ERROR: 'ADAPTER_ERROR',
+  TOOL_NOT_AVAILABLE: 'TOOL_NOT_AVAILABLE',
+  CREDENTIAL_LEASE_ERROR: 'CREDENTIAL_LEASE_ERROR',
+
   // Response errors
   INVALID_RESPONSE: 'INVALID_RESPONSE',
 } as const;
@@ -75,6 +80,11 @@ export const Errors = {
       docUrl: 'https://app.authlane.io/docs/sdk/typescript',
       statusCode: 400,
     }),
+
+  adapterError: (): AuthlaneError => ({
+    message: 'Tool adapter failed to build.',
+    code: ErrorCodes.ADAPTER_ERROR,
+  }),
 
   invalidResponse: (message: string): AuthlaneError =>
     createError(`Invalid response: ${message}`, ErrorCodes.INVALID_RESPONSE, {

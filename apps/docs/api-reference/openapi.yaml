@@ -105,7 +105,8 @@ paths:
                   type: string
                 allowedServices:
                   type: array
-                  minItems: 1
+                  uniqueItems: true
+                  description: Required concrete service allowlist. An empty array snapshots every service currently enabled globally and for the organization; the resolved IDs are stored on the session.
                   items:
                     type: string
                 allowedOrigin:

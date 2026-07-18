@@ -291,5 +291,4 @@ pnpm db:migrate
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same license as the project (Elastic License 2.0).
-
+By contributing, you agree that your contributions will be licensed under the same license as the project (MIT License).

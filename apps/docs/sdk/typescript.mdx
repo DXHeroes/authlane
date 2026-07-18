@@ -179,3 +179,7 @@ await authlane.user(currentUser.id).tools.list({ format: 'openai' });
 Return only `session.data?.url` to the browser. Raw tool definitions contain no execution
 callbacks; executable toolsets from an adapter are server-only. Provider requests originate in
 your SaaS process and never pass through Authlane.
+
+An empty `allowedServices` array snapshots every service currently enabled globally and for the
+organization. Authlane stores the resolved IDs on the session; later additions are not included,
+and later-disabled services are hidden and cannot start a new authorization.

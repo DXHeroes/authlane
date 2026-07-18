@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Open-source platform for managing third-party integrations in AI agents and SaaS applications",
-  "license": "Elastic-2.0",
+  "license": "MIT",
   "pnpm": {
     "overrides": {
       "@babel/core": "7.29.6",
@@ -40,7 +40,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:performance": "node scripts/benchmark-hot-read.mjs",
-    "test:repo": "vitest run scripts/benchmark-hot-read.test.ts scripts/biome-config.test.ts scripts/coolify-compose-config.test.ts scripts/docs-quickstart.test.ts --environment node",
+    "test:repo": "vitest run scripts/benchmark-hot-read.test.ts scripts/biome-config.test.ts scripts/coolify-compose-config.test.ts scripts/docs-quickstart.test.ts scripts/license-contract.test.ts --environment node",
     "test:performance:unit": "vitest run scripts/benchmark-hot-read.test.ts --environment node",
     "lint": "biome check .",
     "lint:runtime": "biome check apps/api/src apps/widget/src packages/crypto/src packages/database/src packages/shared/src",

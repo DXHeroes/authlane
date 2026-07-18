@@ -75,6 +75,8 @@ const session = await authlane.connectSessions.create({
 
 Use `session.data?.url` as a hosted page or pass it to `@authlane/react`.
 
+Pass `allowedServices: []` to snapshot every service currently enabled globally and for your organization. The session stores concrete IDs, not a wildcard. Services enabled later are not added, while services disabled later are hidden and cannot start a new authorization.
+
 ## Definitions without execution callbacks
 
 ```typescript

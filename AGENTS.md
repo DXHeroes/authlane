@@ -303,10 +303,9 @@ async method(params: Params): Promise<Result<Data, Error>> {
 
 ## License
 
-- **Core**: Elastic License 2.0 (ELv2)
-- **Self-hosting**: Free for internal use
-- **Commercial use**: Allowed in own products
-- **Restriction**: Cannot offer as managed service (competes with cloud version)
+- **Repository**: MIT License
+- **Copyright**: 2026 Authlane contributors
+- **Use**: Permissive use, modification, distribution, sublicensing, and sale are allowed
 
 ## Resources
 
@@ -336,7 +335,6 @@ If you're unsure about:
 ---
 
 *This document is maintained to help AI assistants understand the Authlane codebase. Update it as the project evolves.*
-
 
 
 

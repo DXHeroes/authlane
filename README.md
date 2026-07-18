@@ -112,6 +112,8 @@ const { data: connectSession } = await authlane.connectSessions.create({
 // Send only connectSession.url to the browser.
 ```
 
+Use `allowedServices: []` to snapshot every service currently enabled globally and for your organization. Authlane stores the concrete IDs on the session; services enabled later are not added, and services disabled later are hidden from that session.
+
 The API-key SDK intentionally throws in a browser. Use `@authlane/react` with the short-lived URL:
 
 ```tsx
@@ -178,4 +180,4 @@ See [Security](./SECURITY.md), [Security operations](./docs/security/OPERATIONS.
 
 ## License
 
-Elastic License 2.0 (ELv2).
+[MIT](./LICENSE) © 2026 Authlane contributors. You may use, modify, distribute, sublicense, and sell copies of Authlane subject to the MIT License terms.

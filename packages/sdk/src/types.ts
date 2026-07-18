@@ -137,6 +137,7 @@ export interface UserScopeCredentialLeases {
 }
 
 export interface CreateConnectSessionOptions extends ExternalUserOptions {
+  /** Concrete service IDs to snapshot. An empty array snapshots every currently enabled tenant service. */
   allowedServices: string[];
   allowedOrigin: string;
   expiresInSeconds?: number;

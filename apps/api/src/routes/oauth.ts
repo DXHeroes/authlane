@@ -1,6 +1,7 @@
 import type { ConnectSession, Database, SecretStore } from '@authlane/database';
 import {
   and,
+  asc,
   connections,
   connectSessions,
   eq,
@@ -28,7 +29,9 @@ import { Hono } from 'hono';
 import {
   canPerformDestructiveAction,
   createConnectSessionToken,
+  filterCurrentlyEnabledServices,
   isUsableConnectSession,
+  resolveAllowedServiceSnapshot,
 } from '../lib/connect-session.js';
 import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
 import { requireScope } from '../middleware/scope.js';
@@ -118,6 +121,22 @@ function publicApiBase(requestUrl: string): string {
   return process.env.BETTER_AUTH_URL || new URL(requestUrl).origin;
 }
 
+async function listEnabledServiceIds(db: Database, organizationId: string): Promise<string[]> {
+  const rows = await db
+    .select({ serviceId: organizationServices.serviceId })
+    .from(organizationServices)
+    .innerJoin(services, eq(services.id, organizationServices.serviceId))
+    .where(
+      and(
+        eq(organizationServices.organizationId, organizationId),
+        eq(organizationServices.enabled, true),
+        eq(services.enabled, true)
+      )
+    )
+    .orderBy(asc(organizationServices.serviceId));
+  return rows.map((row) => row.serviceId);
+}
+
 export function createOAuthRouter(db: Database, secretStore: SecretStore) {
   const router = new Hono();
   router.use('*', async (c, next) => {
@@ -136,18 +155,11 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
 
     const externalUserId = body.externalUserId;
-    const requestedServices = [...new Set(body.allowedServices ?? [])];
     const allowedOrigin = body.allowedOrigin ? parseAllowedOrigin(body.allowedOrigin) : null;
     const now = new Date();
     const expiresInSeconds = Math.min(Math.max(body.expiresInSeconds ?? 600, 60), 900);
     const reauthenticatedAt = parseRecentReauthentication(body.reauthenticatedAt, now);
-    if (
-      !isValidUserId(externalUserId) ||
-      requestedServices.length === 0 ||
-      requestedServices.some((serviceId) => !isValidServiceId(serviceId)) ||
-      !allowedOrigin ||
-      reauthenticatedAt === false
-    ) {
+    if (!isValidUserId(externalUserId) || !allowedOrigin || reauthenticatedAt === false) {
       return c.json(
         Errors.validationError(
           'externalUserId, allowedServices, an HTTPS allowedOrigin, and a valid reauthentication timestamp are required'
@@ -157,18 +169,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
 
     const principal = c.get('principal');
-    const enabledServices = await db
-      .select({ serviceId: organizationServices.serviceId })
-      .from(organizationServices)
-      .where(
-        and(
-          eq(organizationServices.organizationId, principal.organizationId),
-          eq(organizationServices.enabled, true),
-          inArray(organizationServices.serviceId, requestedServices)
-        )
-      );
-    if (enabledServices.length !== requestedServices.length) {
-      return c.json(Errors.validationError('One or more requested services are disabled'), 400);
+    const enabledServiceIds = await listEnabledServiceIds(db, principal.organizationId);
+    const allowedServices = resolveAllowedServiceSnapshot(body.allowedServices, enabledServiceIds);
+    if (allowedServices.error) {
+      return c.json(allowedServices.error, 400);
     }
 
     const { token, tokenHash } = createConnectSessionToken();
@@ -182,7 +186,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         organizationId: principal.organizationId,
         externalUserId,
         tokenHash,
-        allowedServices: requestedServices,
+        allowedServices: allowedServices.data,
         allowedOrigin,
         expiresAt,
         destructiveActionExpiresAt,
@@ -221,27 +225,48 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     if (!session) return c.json(Errors.unauthorized('Connect session is invalid or expired'), 401);
 
     return withTenantContext(db, session.organizationId, async () => {
-      const [allowedServiceRows, connectionRows] = await Promise.all([
-        db
-          .select({ id: services.id, name: services.name, authType: services.authType })
-          .from(services)
-          .where(and(eq(services.enabled, true), inArray(services.id, session.allowedServices))),
-        db
-          .select({
-            serviceId: connections.serviceId,
-            status: connections.status,
-            credentialSecretId: connections.credentialSecretId,
-            expiresAt: connections.expiresAt,
-          })
-          .from(connections)
-          .where(
-            and(
-              eq(connections.organizationId, session.organizationId),
-              eq(connections.externalUserId, session.externalUserId),
-              inArray(connections.serviceId, session.allowedServices)
-            )
-          ),
-      ]);
+      const allowedServiceRows = await db
+        .select({ id: services.id, name: services.name, authType: services.authType })
+        .from(organizationServices)
+        .innerJoin(services, eq(services.id, organizationServices.serviceId))
+        .where(
+          and(
+            eq(organizationServices.organizationId, session.organizationId),
+            eq(organizationServices.enabled, true),
+            eq(services.enabled, true),
+            inArray(organizationServices.serviceId, session.allowedServices)
+          )
+        )
+        .orderBy(asc(organizationServices.serviceId));
+      const visibleServiceIds = filterCurrentlyEnabledServices(
+        session.allowedServices,
+        allowedServiceRows.map((service) => service.id)
+      );
+      if (visibleServiceIds.length === 0) {
+        return c.json({
+          data: {
+            externalUserId: session.externalUserId,
+            expiresAt: session.expiresAt.toISOString(),
+            services: [],
+          },
+          error: null,
+        });
+      }
+      const connectionRows = await db
+        .select({
+          serviceId: connections.serviceId,
+          status: connections.status,
+          credentialSecretId: connections.credentialSecretId,
+          expiresAt: connections.expiresAt,
+        })
+        .from(connections)
+        .where(
+          and(
+            eq(connections.organizationId, session.organizationId),
+            eq(connections.externalUserId, session.externalUserId),
+            inArray(connections.serviceId, visibleServiceIds)
+          )
+        );
       const connectionsByService = new Map(
         connectionRows.map((connection) => [connection.serviceId, connection])
       );
@@ -287,7 +312,11 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
 
     return withTenantContext(db, session.organizationId, async () => {
       const [[service], [tenantService]] = await Promise.all([
-        db.select().from(services).where(eq(services.id, serviceId)).limit(1),
+        db
+          .select()
+          .from(services)
+          .where(and(eq(services.id, serviceId), eq(services.enabled, true)))
+          .limit(1),
         db
           .select()
           .from(organizationServices)

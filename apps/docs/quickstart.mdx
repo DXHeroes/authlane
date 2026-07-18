@@ -69,6 +69,10 @@ return Response.json({ connectUrl: data.url });
 Authlane stores only a hash of the short-lived session token. The session is restricted to one
 tenant, external user, service allowlist, exact parent origin, and expiry.
 
+Set `allowedServices: []` to snapshot every service currently enabled globally and for the
+organization. Authlane stores the concrete service IDs, so services enabled later are not added.
+If a snapshotted service is disabled later, it is hidden and cannot start a new authorization.
+
 ## 4. Render the hosted connection UI
 
 ```bash

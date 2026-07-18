@@ -169,8 +169,7 @@ if (!result.success) {
 
 ## License
 
-Elastic License 2.0 (ELv2)
-
+MIT License. Copyright © 2026 Authlane contributors.
 
 
 

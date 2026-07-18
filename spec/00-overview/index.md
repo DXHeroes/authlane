@@ -84,8 +84,10 @@ DevOps and IT professionals who deploy and maintain Authlane instances.
 
 ## License
 
-Authlane is licensed under the **Elastic License 2.0** (ELv2):
-- ✅ Self-hosting for internal use
-- ✅ Code modifications
-- ✅ Commercial use in your own products
-- ❌ Offering Authlane as a managed service (competing with cloud version)
+Authlane is licensed under the permissive **MIT License**:
+- ✅ Use, copy, and self-host
+- ✅ Modify and distribute the code
+- ✅ Commercial use, sublicensing, and sale
+- ✅ Hosted and managed offerings
+
+Copyright © 2026 Authlane contributors. Copies or substantial portions must retain the copyright and permission notice.

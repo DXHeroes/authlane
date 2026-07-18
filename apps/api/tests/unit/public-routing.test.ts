@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 
 process.env.AUTHLANE_LOOKUP_KEY_RING ??= `test-lookup:${'02'.repeat(32)}`;
@@ -35,9 +36,26 @@ describe('host-aware public routing', () => {
     const product = await request('/', 'app.authlane.io');
 
     expect(landing.status).toBe(200);
+    expect(landing.headers.get('content-security-policy')).toContain("script-src 'self'");
+    expect(landing.headers.get('content-security-policy')).not.toContain('sha256-');
+    expect(landing.headers.get('content-security-policy')).not.toContain(
+      "script-src 'self' 'unsafe-inline'"
+    );
     expect(await landing.text()).toContain('Landing fixture');
     expect(product.status).toBe(200);
+    expect(product.headers.get('content-security-policy')).toContain("script-src 'self'");
+    expect(product.headers.get('content-security-policy')).not.toContain('sha256-');
     expect(await product.text()).toContain('Product fixture');
+  });
+
+  it('compresses cacheable static documents for clients that accept gzip', async () => {
+    const response = await request('/', 'authlane.io', { 'accept-encoding': 'gzip' });
+
+    expect(response.headers.get('content-encoding')).toBe('gzip');
+    expect(response.headers.get('vary')).toContain('Accept-Encoding');
+    expect(gunzipSync(Buffer.from(await response.arrayBuffer())).toString()).toContain(
+      'Landing fixture'
+    );
   });
 
   it('serves landing-built static and metadata assets on both configured surfaces', async () => {

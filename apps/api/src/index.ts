@@ -16,6 +16,7 @@ import { getConnInfo } from '@hono/node-server/conninfo';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { compress } from 'hono/compress';
 import { cors } from 'hono/cors';
 import { requestId } from 'hono/request-id';
 import { secureHeaders } from 'hono/secure-headers';
@@ -114,7 +115,6 @@ export function createApp(
         onFound: (_path, c) => c.header('Cache-Control', 'no-store'),
       })
     : undefined;
-
   const runStatic = async (
     handler: ReturnType<typeof serveStatic> | undefined,
     c: Context
@@ -226,6 +226,23 @@ export function createApp(
       xFrameOptions: false,
     })
   );
+  const compressResponse = compress();
+  app.use('*', async (c, next) => {
+    await compressResponse(c, next);
+    if (!c.res.headers.has('Content-Encoding')) return;
+
+    const vary = c.res.headers.get('Vary');
+    const varyValues = vary
+      ? vary
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : [];
+    if (!varyValues.some((value) => value.toLowerCase() === 'accept-encoding')) {
+      varyValues.push('Accept-Encoding');
+      c.res.headers.set('Vary', varyValues.join(', '));
+    }
+  });
   app.use('*', async (c, next) => {
     const startedAt = performance.now();
     await next();

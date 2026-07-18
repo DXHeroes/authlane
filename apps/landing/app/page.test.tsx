@@ -19,6 +19,9 @@ describe('Authlane landing', () => {
     expectVisible(screen.getByText('Connect once'));
     expectVisible(screen.getByText('Use everywhere'));
     expectVisible(screen.getByText('Authlane is not in this path'));
+    expect(screen.getByRole('heading', { level: 2, name: 'Connect once' })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 2, name: 'Use everywhere' })).toBeDefined();
+    expect(screen.getAllByRole('link', { name: 'Authlane' })).toHaveLength(2);
     expect(
       screen.getAllByText(
         /Load services|Offer them in your UI|Connect by user ID|Give tools to your agent/

@@ -165,22 +165,23 @@ async function expectTextAsset(
   return body;
 }
 
-test('separates landing and product surfaces in one runtime', async ({ request }) => {
+test('separates landing and product surfaces in one runtime', async ({ page, request }) => {
   const landing = await request.get(origin, { headers: { Host: landingHost } });
   expect(landing.status()).toBe(200);
   const landingDocument = await landing.text();
   expect(landingDocument).toContain('<main id="main-content"');
   expect(landingDocument).toContain('data-primary-cta="true"');
+  expect(landingDocument).not.toContain('__next_f');
   await expectTextAsset(
     request,
     emittedAsset(landingDocument, 'css', landingPublicOrigin, ['/_next/static/']),
     'css'
   );
-  await expectTextAsset(
-    request,
-    emittedAsset(landingDocument, 'javascript', landingPublicOrigin, ['/_next/static/']),
-    'javascript'
-  );
+  const landingJavascript = emittedAsset(landingDocument, 'javascript', landingPublicOrigin, [
+    '/_next/static/',
+  ]);
+  expect(landingJavascript.pathname).toMatch(/authlane-interactions-[a-f0-9]{12}\.js$/);
+  await expectTextAsset(request, landingJavascript, 'javascript');
 
   const product = await request.get(origin, { headers: { Host: appHost } });
   expect(product.status()).toBe(200);
@@ -215,6 +216,7 @@ test('separates landing and product surfaces in one runtime', async ({ request }
   expect(docs.status()).toBe(200);
   const docsDocument = await docs.text();
   expect(docsDocument).toContain('site-shell docs-shell');
+  expect(docsDocument).not.toContain('__next_f');
   const docsCssAsset = emittedAsset(docsDocument, 'css', appPublicOrigin, ['/_next/static/']);
   const docsCss = await expectTextAsset(request, docsCssAsset, 'css');
   await expectTextAsset(
@@ -270,6 +272,28 @@ test('separates landing and product surfaces in one runtime', async ({ request }
     expect(health.status(), host).toBe(200);
     expect(await health.json(), host).toMatchObject({ data: { status: 'ok' }, error: null });
   }
+
+  const browserErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const browserLandingUrl = new URL(origin);
+  browserLandingUrl.hostname = 'authlane.localhost';
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(browserLandingUrl.href);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Connected tools. Your traffic.'
+  );
+
+  await page.getByRole('tab', { name: 'REST API' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'REST API' })).toContainText(
+    '/api/v1/catalog/services'
+  );
+  const navigationToggle = page.getByRole('button', { name: 'Open navigation menu' });
+  await navigationToggle.click();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
+  expect(browserErrors).toEqual([]);
 });
 
 test.describe('packaged asset parsing regressions', () => {

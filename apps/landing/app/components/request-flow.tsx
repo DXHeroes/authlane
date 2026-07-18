@@ -16,7 +16,7 @@ export function RequestFlow() {
             <span className="mono request-lane__index" aria-hidden="true">
               01
             </span>
-            <h3 id="connect-once-title">Connect once</h3>
+            <h2 id="connect-once-title">Connect once</h2>
           </div>
           <ol className="request-route" role="list">
             <li>
@@ -42,7 +42,7 @@ export function RequestFlow() {
             <span className="mono request-lane__index" aria-hidden="true">
               02
             </span>
-            <h3 id="use-everywhere-title">Use everywhere</h3>
+            <h2 id="use-everywhere-title">Use everywhere</h2>
           </div>
           <ol className="request-route" role="list">
             <li>

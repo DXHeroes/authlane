@@ -81,21 +81,53 @@ describe('createBuiltInAdapter', () => {
     expect(replacement).not.toHaveBeenCalled();
   });
 
-  it('does not let a custom execute method observe later receiver mutation', async () => {
-    const custom = {
-      serviceId: 'github',
-      definitions: [],
-      marker: 'initial',
-      async execute() {
-        return { data: this.marker, error: null };
-      },
-    } satisfies IntegrationAdapter & { marker: string };
+  it('preserves a class integration receiver with private and prototype state', async () => {
+    class StatefulIntegration implements IntegrationAdapter {
+      readonly serviceId = 'github';
+      readonly definitions = [];
+      readonly #marker = 'private-state';
+
+      private resultFromPrototype(): string {
+        return this.#marker;
+      }
+
+      async execute(
+        _toolName: string,
+        _arguments: Record<string, unknown>,
+        _credential: CredentialMaterial
+      ) {
+        return { data: this.resultFromPrototype(), error: null };
+      }
+    }
+
+    const custom = new StatefulIntegration();
     const adapter = createBuiltInAdapter(({ tools }) => tools, { integrations: [custom] });
 
-    custom.marker = 'changed';
     const result = await adapter.execute(input);
 
-    expect(result).toEqual({ data: 'initial', error: null });
+    expect(result).toEqual({ data: 'private-state', error: null });
+  });
+
+  it('preserves callable integration identity as the execute receiver', async () => {
+    type CallableIntegration = IntegrationAdapter & (() => void) & { marker: string };
+    const custom = function callableIntegration() {} as CallableIntegration;
+    custom.serviceId = 'github';
+    custom.definitions = [];
+    custom.marker = 'function-object';
+    custom.execute = async function execute(this: CallableIntegration) {
+      return {
+        data: { marker: this.marker, sameReceiver: this === custom },
+        error: null,
+      };
+    };
+    const adapter = createBuiltInAdapter(({ tools }) => tools, { integrations: [custom] });
+
+    const result = await adapter.execute(input);
+
+    expect(result).toEqual({
+      data: { marker: 'function-object', sameReceiver: true },
+      error: null,
+    });
   });
 
   it('converts API-key leases without forwarding lease metadata', async () => {

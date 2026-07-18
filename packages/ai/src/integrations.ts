@@ -50,37 +50,12 @@ function snapshotIntegration(
       return null;
     }
     const typedExecute = execute as IntegrationAdapter['execute'];
-    const receiver = Object.create(null) as Record<PropertyKey, unknown>;
-    for (const key of Reflect.ownKeys(candidate)) {
-      if (key === 'serviceId' || key === 'execute') {
-        continue;
-      }
-      const descriptor = Object.getOwnPropertyDescriptor(candidate, key);
-      if (!descriptor || !('value' in descriptor)) {
-        continue;
-      }
-      const snapshotValue =
-        key === 'definitions' && Array.isArray(descriptor.value)
-          ? Object.freeze([...descriptor.value])
-          : descriptor.value;
-      Object.defineProperty(receiver, key, {
-        value: snapshotValue,
-        enumerable: descriptor.enumerable,
-        configurable: false,
-        writable: false,
-      });
-    }
-    Object.defineProperties(receiver, {
-      serviceId: { value: serviceId, enumerable: true },
-      execute: { value: typedExecute, enumerable: true },
-    });
-    Object.freeze(receiver);
 
     return Object.freeze({
       serviceId,
       definitions: [],
       execute: (...args: Parameters<IntegrationAdapter['execute']>) =>
-        typedExecute.apply(receiver, args),
+        typedExecute.apply(candidate, args),
     });
   } catch {
     return null;

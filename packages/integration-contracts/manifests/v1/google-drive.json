@@ -1,0 +1,482 @@
+{
+  "$schema": "../../schema/integration-manifest.schema.json",
+  "schemaVersion": "1.0",
+  "serviceId": "google-drive",
+  "tools": [
+    {
+      "name": "gdrive_copy_file",
+      "description": "Creates a copy of a file",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File ID to copy"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name for the copied file. If not specified, uses \"Copy of [original name]\""
+          },
+          "parent_folder_id": {
+            "type": "string",
+            "description": "ID of the parent folder for the copy. If not specified, copies to same location"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_create_folder",
+      "description": "Creates a new folder in Google Drive",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the folder to create"
+          },
+          "parent_folder_id": {
+            "type": "string",
+            "description": "ID of the parent folder. If not specified, creates in root folder"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the folder"
+          },
+          "starred": {
+            "type": "boolean",
+            "description": "Whether to star the folder (default: false)",
+            "default": false
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_delete_file",
+      "description": "Permanently deletes a file from Google Drive (bypasses trash)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File or folder ID to delete permanently"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_download_file",
+      "description": "Downloads a file from Google Drive (returns base64 encoded content)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File ID to download"
+          },
+          "mime_type": {
+            "type": "string",
+            "description": "For Google Workspace files (Docs, Sheets, Slides), specify export MIME type (e.g., \"application/pdf\", \"text/plain\", \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\")"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_export_file",
+      "description": "Exports a Google Workspace document (Docs, Sheets, Slides) to a different format",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "Google Workspace file ID to export"
+          },
+          "mime_type": {
+            "type": "string",
+            "description": "Export MIME type (e.g., \"application/pdf\", \"text/plain\" for Docs, \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" for Sheets)"
+          }
+        },
+        "required": [
+          "file_id",
+          "mime_type"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_get_file",
+      "description": "Gets metadata for a specific file or folder by ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File or folder ID"
+          },
+          "fields": {
+            "type": "string",
+            "description": "Specific fields to retrieve (e.g., \"id,name,mimeType,size,owners,permissions\"). If not specified, returns all fields"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_list_files",
+      "description": "Lists files and folders in Google Drive with optional filtering and pagination",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query using Google Drive query syntax (e.g., \"name contains 'report'\", \"mimeType = 'image/jpeg'\", \"'parent_folder_id' in parents\")"
+          },
+          "max_results": {
+            "type": "number",
+            "description": "Maximum number of files to return (default: 10, max: 1000)",
+            "default": 10,
+            "maximum": 1000
+          },
+          "page_token": {
+            "type": "string",
+            "description": "Page token for pagination to get next page of results"
+          },
+          "order_by": {
+            "type": "string",
+            "description": "Sort order (e.g., \"folder,modifiedTime desc,name\"). Options: createdTime, folder, modifiedByMeTime, modifiedTime, name, quotaBytesUsed, recency, sharedWithMeTime, starred, viewedByMeTime"
+          },
+          "folder_id": {
+            "type": "string",
+            "description": "List files only in this folder (folder ID). If not specified, lists from root or uses query"
+          },
+          "include_trashed": {
+            "type": "boolean",
+            "description": "Include trashed files in results (default: false)",
+            "default": false
+          },
+          "spaces": {
+            "type": "string",
+            "description": "Comma-separated list of spaces to query (drive, appDataFolder, photos)",
+            "default": "drive"
+          },
+          "fields": {
+            "type": "string",
+            "description": "Fields to include in response (e.g., \"files(id,name,mimeType,size,createdTime)\"). If not specified, returns all fields"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Include items from all drives (including shared drives) (default: false)",
+            "default": false
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "gdrive_list_permissions",
+      "description": "Lists all permissions for a file or folder",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File or folder ID"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_remove_permission",
+      "description": "Removes a permission from a file or folder",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File or folder ID"
+          },
+          "permission_id": {
+            "type": "string",
+            "description": "Permission ID to remove"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id",
+          "permission_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_search_files",
+      "description": "Searches for files using Google Drive query syntax (convenience wrapper for gdrive_list_files with search focus)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query using Drive query syntax (e.g., \"name contains 'report' and mimeType contains 'pdf'\", \"modifiedTime > '2024-01-01T00:00:00'\")"
+          },
+          "max_results": {
+            "type": "number",
+            "description": "Maximum number of results (default: 10, max: 1000)",
+            "default": 10,
+            "maximum": 1000
+          },
+          "order_by": {
+            "type": "string",
+            "description": "Sort order (e.g., \"modifiedTime desc\", \"name\")",
+            "default": "modifiedTime desc"
+          },
+          "page_token": {
+            "type": "string",
+            "description": "Page token for pagination"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Include items from all drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_share_file",
+      "description": "Creates a permission to share a file or folder with a user or make it publicly accessible",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File or folder ID to share"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "organizer",
+              "fileOrganizer",
+              "writer",
+              "commenter",
+              "reader"
+            ],
+            "description": "Permission role (owner, organizer, fileOrganizer, writer, commenter, reader)"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "group",
+              "domain",
+              "anyone"
+            ],
+            "description": "Type of grantee (user, group, domain, anyone for public)"
+          },
+          "email_address": {
+            "type": "string",
+            "description": "Email address of user or group (required when type is user or group)"
+          },
+          "domain": {
+            "type": "string",
+            "description": "Domain name (required when type is domain)"
+          },
+          "send_notification_email": {
+            "type": "boolean",
+            "description": "Whether to send notification email to the recipient (default: true)",
+            "default": true
+          },
+          "email_message": {
+            "type": "string",
+            "description": "Custom message to include in notification email"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id",
+          "role",
+          "type"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_trash_file",
+      "description": "Moves a file to trash (can be restored later)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File or folder ID to move to trash"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_update_file",
+      "description": "Updates file metadata or content",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "File ID to update"
+          },
+          "name": {
+            "type": "string",
+            "description": "New file name"
+          },
+          "description": {
+            "type": "string",
+            "description": "New file description"
+          },
+          "content": {
+            "type": "string",
+            "description": "New file content (base64 encoded). If provided, updates file content"
+          },
+          "mime_type": {
+            "type": "string",
+            "description": "New MIME type (required if updating content)"
+          },
+          "starred": {
+            "type": "boolean",
+            "description": "Whether the file is starred"
+          },
+          "trashed": {
+            "type": "boolean",
+            "description": "Whether the file is in trash"
+          },
+          "add_parents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of parent folder IDs to add"
+          },
+          "remove_parents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of parent folder IDs to remove"
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      }
+    },
+    {
+      "name": "gdrive_upload_file",
+      "description": "Uploads a file to Google Drive",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the file to create"
+          },
+          "content": {
+            "type": "string",
+            "description": "Base64 encoded file content"
+          },
+          "mime_type": {
+            "type": "string",
+            "description": "MIME type of the file (e.g., \"text/plain\", \"image/jpeg\", \"application/pdf\")"
+          },
+          "parent_folder_id": {
+            "type": "string",
+            "description": "ID of the parent folder. If not specified, uploads to root folder"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the file"
+          },
+          "starred": {
+            "type": "boolean",
+            "description": "Whether to star the file (default: false)",
+            "default": false
+          },
+          "supports_all_drives": {
+            "type": "boolean",
+            "description": "Whether the requesting application supports both My Drives and shared drives (default: false)",
+            "default": false
+          }
+        },
+        "required": [
+          "name",
+          "content",
+          "mime_type"
+        ]
+      }
+    }
+  ]
+}

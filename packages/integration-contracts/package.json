@@ -1,0 +1,40 @@
+{
+  "name": "@authlane/integration-contracts",
+  "version": "0.1.0",
+  "description": "Versioned, language-neutral public integration contracts for Authlane",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./generated/v1.json": "./generated/v1/integrations.json",
+    "./schema/v1.json": "./schema/integration-manifest.schema.json"
+  },
+  "files": [
+    "dist",
+    "generated",
+    "manifests",
+    "schema"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "generate:check": "node scripts/generate.mjs --check",
+    "prebuild": "pnpm generate:check",
+    "build": "tsc",
+    "test": "pnpm generate:check",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@authlane/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

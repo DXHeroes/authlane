@@ -1,0 +1,101 @@
+{
+  "$schema": "../../schema/integration-manifest.schema.json",
+  "schemaVersion": "1.0",
+  "serviceId": "discord",
+  "tools": [
+    {
+      "name": "discord_create_channel",
+      "description": "Creates a new channel in a Discord guild",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "guild_id": {
+            "type": "string",
+            "description": "Discord guild (server) ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Channel name (1-100 characters)"
+          },
+          "type": {
+            "type": "number",
+            "description": "Channel type (0=text, 2=voice, 4=category)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "Channel topic (0-1024 characters)"
+          }
+        },
+        "required": [
+          "guild_id",
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "discord_list_channels",
+      "description": "Lists channels in a Discord guild (server)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "guild_id": {
+            "type": "string",
+            "description": "Discord guild (server) ID"
+          }
+        },
+        "required": [
+          "guild_id"
+        ]
+      }
+    },
+    {
+      "name": "discord_send_dm",
+      "description": "Sends a direct message to a Discord user",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Discord user ID to send DM to"
+          },
+          "content": {
+            "type": "string",
+            "description": "Message text content"
+          }
+        },
+        "required": [
+          "user_id",
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "discord_send_message",
+      "description": "Sends a message to a Discord channel",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "Discord channel ID to send the message to"
+          },
+          "content": {
+            "type": "string",
+            "description": "Message text content (supports Discord markdown)"
+          },
+          "embeds": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Optional embeds for rich message formatting"
+          }
+        },
+        "required": [
+          "channel_id",
+          "content"
+        ]
+      }
+    }
+  ]
+}

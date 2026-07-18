@@ -97,6 +97,50 @@ const result = await run(agent, prompt);
 return Response.json({ output: result.finalOutput });
 ```
 
+## Mastra
+
+`@mastra/core` is an optional peer. Install it only in applications that use the Mastra adapter:
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @mastra/core zod
+```
+
+```typescript
+import { mastraAI } from '@authlane/ai/mastra';
+import { Authlane } from '@authlane/sdk';
+import { Agent } from '@mastra/core/agent';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+const currentUser = await requireUser(request);
+const { data: tools, error } = await authlane
+  .user(currentUser.id)
+  .tools.list({ adapter: mastraAI() });
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+const agent = new Agent({
+  id: 'workspace-assistant',
+  name: 'Workspace assistant',
+  instructions: 'Use connected services only when needed.',
+  model: 'openai/gpt-5-mini',
+  tools,
+});
+
+return Response.json({ output: await agent.generate(prompt) });
+```
+
+The returned object contains Mastra-native tools with JSON Schema input validation. Each tool is
+bound to the authenticated external user and delegates provider work through the same fresh,
+audited credential-lease path as the other adapters.
+
 ## Local MCP with a caller-owned transport
 
 `@modelcontextprotocol/sdk` is an optional peer, so install it explicitly:

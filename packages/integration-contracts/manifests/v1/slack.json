@@ -1,0 +1,161 @@
+{
+  "$schema": "../../schema/integration-manifest.schema.json",
+  "schemaVersion": "1.0",
+  "serviceId": "slack",
+  "tools": [
+    {
+      "name": "slack_create_channel",
+      "description": "Creates a new channel in the Slack workspace",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Channel name (lowercase, no spaces, max 80 chars)"
+          },
+          "is_private": {
+            "type": "boolean",
+            "description": "Create a private channel"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "slack_list_channels",
+      "description": "Lists all channels in the Slack workspace",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "string",
+            "description": "Comma-separated list of channel types (public_channel, private_channel)"
+          },
+          "exclude_archived": {
+            "type": "boolean",
+            "description": "Exclude archived channels"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of channels to return (max 1000)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "slack_list_users",
+      "description": "Lists all users in the Slack workspace",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of users to return (max 1000)"
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Pagination cursor for next page of results"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "slack_post_file",
+      "description": "Uploads and shares a file to a Slack channel",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "string",
+            "description": "Comma-separated list of channel IDs to share file to"
+          },
+          "content": {
+            "type": "string",
+            "description": "File content as string"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Filename"
+          },
+          "filetype": {
+            "type": "string",
+            "description": "File type identifier (e.g., \"text\", \"javascript\", \"python\")"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the file"
+          },
+          "initial_comment": {
+            "type": "string",
+            "description": "Initial comment to add with the file"
+          }
+        },
+        "required": [
+          "channels",
+          "content",
+          "filename"
+        ]
+      }
+    },
+    {
+      "name": "slack_send_message",
+      "description": "Sends a message to a Slack channel or direct message",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "Channel ID or name (e.g., \"#general\") to send message to"
+          },
+          "text": {
+            "type": "string",
+            "description": "Message text content (supports Slack markdown formatting)"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Optional Block Kit blocks for rich message formatting"
+          },
+          "thread_ts": {
+            "type": "string",
+            "description": "Timestamp of parent message to reply in thread"
+          }
+        },
+        "required": [
+          "channel",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "slack_set_status",
+      "description": "Sets the status of the authenticated user",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status_text": {
+            "type": "string",
+            "description": "Status text (max 100 chars)"
+          },
+          "status_emoji": {
+            "type": "string",
+            "description": "Status emoji (e.g., \":calendar:\", \":house:\")"
+          },
+          "status_expiration": {
+            "type": "number",
+            "description": "Unix timestamp when status expires (0 for no expiration)"
+          }
+        },
+        "required": [
+          "status_text"
+        ]
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@
   "name": "@authlane/ai",
   "version": "0.1.0",
   "description": "Local AI framework adapters for Authlane user-scoped tools",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,6 +22,10 @@
     "./mcp": {
       "types": "./dist/mcp.d.ts",
       "import": "./dist/mcp.js"
+    },
+    "./mastra": {
+      "types": "./dist/mastra.d.ts",
+      "import": "./dist/mastra.js"
     }
   },
   "files": [
@@ -56,11 +61,15 @@
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@mastra/core": "^1.51.0",
     "@openai/agents": "^0.13.4",
     "ai": "^7.0.30"
   },
   "peerDependenciesMeta": {
     "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "@mastra/core": {
       "optional": true
     },
     "@openai/agents": {
@@ -72,10 +81,12 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@mastra/core": "^1.51.0",
     "@openai/agents": "^0.13.4",
     "@types/node": "^24.10.1",
     "ai": "^7.0.30",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "zod": "^4.1.8"
   }
 }

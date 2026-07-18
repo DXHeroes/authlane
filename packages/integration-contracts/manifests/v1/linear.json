@@ -1,0 +1,159 @@
+{
+  "$schema": "../../schema/integration-manifest.schema.json",
+  "schemaVersion": "1.0",
+  "serviceId": "linear",
+  "tools": [
+    {
+      "name": "linear_create_issue",
+      "description": "Creates a new issue in Linear",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Issue title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Issue description (markdown supported)"
+          },
+          "teamId": {
+            "type": "string",
+            "description": "Team ID to create issue in"
+          },
+          "priority": {
+            "type": "number",
+            "description": "Priority level (0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low)"
+          },
+          "assigneeId": {
+            "type": "string",
+            "description": "User ID to assign the issue to"
+          },
+          "labelIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of label IDs to apply"
+          }
+        },
+        "required": [
+          "title",
+          "teamId"
+        ]
+      }
+    },
+    {
+      "name": "linear_create_project",
+      "description": "Creates a new project in Linear",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Project description"
+          },
+          "teamIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of team IDs to associate with the project"
+          },
+          "leadId": {
+            "type": "string",
+            "description": "User ID of project lead"
+          },
+          "targetDate": {
+            "type": "string",
+            "description": "Target completion date (ISO 8601 format)"
+          }
+        },
+        "required": [
+          "name",
+          "teamIds"
+        ]
+      }
+    },
+    {
+      "name": "linear_list_issues",
+      "description": "Lists issues in Linear with optional filters",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string",
+            "description": "Filter by team ID"
+          },
+          "assigneeId": {
+            "type": "string",
+            "description": "Filter by assignee user ID"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of issues to return (max 250)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "linear_list_projects",
+      "description": "Lists projects in Linear",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string",
+            "description": "Filter by team ID"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of projects to return (max 250)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "linear_update_issue",
+      "description": "Updates an existing issue in Linear",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string",
+            "description": "Issue ID to update"
+          },
+          "title": {
+            "type": "string",
+            "description": "New title"
+          },
+          "description": {
+            "type": "string",
+            "description": "New description"
+          },
+          "priority": {
+            "type": "number",
+            "description": "New priority level (0-4)"
+          },
+          "assigneeId": {
+            "type": "string",
+            "description": "New assignee user ID"
+          },
+          "stateId": {
+            "type": "string",
+            "description": "New workflow state ID"
+          }
+        },
+        "required": [
+          "issueId"
+        ]
+      }
+    }
+  ]
+}

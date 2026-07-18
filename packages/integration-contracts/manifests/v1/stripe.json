@@ -1,0 +1,83 @@
+{
+  "$schema": "../../schema/integration-manifest.schema.json",
+  "schemaVersion": "1.0",
+  "serviceId": "stripe",
+  "tools": [
+    {
+      "name": "stripe_get_charge",
+      "description": "Retrieves details of a specific charge (payment)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "The Stripe charge ID"
+          }
+        },
+        "required": [
+          "charge_id"
+        ]
+      }
+    },
+    {
+      "name": "stripe_get_customer",
+      "description": "Retrieves details of a specific customer",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "The Stripe customer ID"
+          }
+        },
+        "required": [
+          "customer_id"
+        ]
+      }
+    },
+    {
+      "name": "stripe_list_charges",
+      "description": "Lists charges (payments) in your Stripe account",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of charges to return (max 100)"
+          },
+          "starting_after": {
+            "type": "string",
+            "description": "Cursor for pagination - charge ID to start after"
+          },
+          "customer": {
+            "type": "string",
+            "description": "Filter by customer ID"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "stripe_list_customers",
+      "description": "Lists customers in your Stripe account with pagination support",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of customers to return (max 100)"
+          },
+          "starting_after": {
+            "type": "string",
+            "description": "Cursor for pagination - customer ID to start after"
+          },
+          "email": {
+            "type": "string",
+            "description": "Filter customers by email address"
+          }
+        },
+        "required": []
+      }
+    }
+  ]
+}

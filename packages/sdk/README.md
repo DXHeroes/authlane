@@ -57,8 +57,9 @@ serialize it to a browser or cache it across identities. A fresh, audited, acces
 lease is created only when a local generated callback executes; the integration consumes it and
 calls the provider from your process. Provider traffic never flows through Authlane.
 
-See [`@authlane/ai`](../ai/README.md) for Vercel AI SDK, OpenAI Agents, local MCP, custom integration,
-and security examples.
+See [`@authlane/ai`](../ai/README.md) for Vercel AI SDK, OpenAI Agents, Mastra, local MCP, custom
+integration, and security examples. Mastra applications import `mastraAI` from
+`@authlane/ai/mastra` and pass it to the same user-scoped `tools.list` call.
 
 ## Hosted connect UI
 

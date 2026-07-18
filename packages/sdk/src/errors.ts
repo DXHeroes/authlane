@@ -59,38 +59,38 @@ export const Errors = {
   missingApiKey: (): AuthlaneError =>
     createError('API key is required', ErrorCodes.MISSING_API_KEY, {
       hint: 'Provide an API key in the Authlane constructor',
-      docUrl: 'https://docs.authlane.dev/sdk/typescript',
+      docUrl: 'https://authlane.io/docs/sdk/typescript',
     }),
 
   networkError: (message: string): AuthlaneError =>
     createError(`Network error: ${message}`, ErrorCodes.NETWORK_ERROR, {
       hint: 'Check your internet connection and the base URL',
-      docUrl: 'https://docs.authlane.dev/sdk/typescript',
+      docUrl: 'https://authlane.io/docs/sdk/typescript',
     }),
 
   timeoutError: (): AuthlaneError =>
     createError('Request timeout', ErrorCodes.TIMEOUT_ERROR, {
       hint: 'Increase the timeout or check your network connection',
-      docUrl: 'https://docs.authlane.dev/sdk/typescript',
+      docUrl: 'https://authlane.io/docs/sdk/typescript',
     }),
 
   validationError: (message: string): AuthlaneError =>
     createError(message, ErrorCodes.VALIDATION_ERROR, {
       hint: 'Provide a non-empty external user ID with no more than 255 characters.',
-      docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+      docUrl: 'https://authlane.io/docs/sdk/typescript',
       statusCode: 400,
     }),
 
   adapterError: (): AuthlaneError =>
     createError('Tool adapter failed to build.', ErrorCodes.ADAPTER_ERROR, {
       hint: 'Check the adapter configuration and ensure build completes synchronously.',
-      docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+      docUrl: 'https://authlane.io/docs/sdk/typescript',
     }),
 
   invalidResponse: (message: string): AuthlaneError =>
     createError(`Invalid response: ${message}`, ErrorCodes.INVALID_RESPONSE, {
       hint: 'This may indicate a version mismatch or API issue',
-      docUrl: 'https://docs.authlane.dev/support',
+      docUrl: 'https://authlane.io/docs',
     }),
 };
 

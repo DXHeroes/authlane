@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isProductOnlyPath, resolvePublicSurface } from '../../src/lib/public-surface.js';
+import {
+  isDocsPath,
+  isProductOnlyPath,
+  resolvePublicSurface,
+} from '../../src/lib/public-surface.js';
 
 const config = {
   landingHosts: ['authlane.io', 'authlane.localhost'],
@@ -85,11 +89,15 @@ describe('public surface path policy', () => {
       '/register/confirm',
       '/dashboard',
       '/dashboard/settings',
-      '/docs',
-      '/docs/getting-started',
     ]) {
       expect(isProductOnlyPath(path)).toBe(true);
     }
+  });
+
+  it('keeps the docs namespace on the public landing surface', () => {
+    expect(isDocsPath('/docs')).toBe(true);
+    expect(isDocsPath('/docs/getting-started')).toBe(true);
+    expect(isProductOnlyPath('/docs')).toBe(false);
   });
 
   it('does not deny similarly named landing paths', () => {

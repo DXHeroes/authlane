@@ -70,7 +70,7 @@ export function WelcomeEmail({
 
           <Text style={footer}>
             Need help getting started? Check out our{' '}
-            <Link href="https://docs.authlane.dev" style={link}>
+            <Link href="https://authlane.io/docs" style={link}>
               documentation
             </Link>{' '}
             or reach out to your team administrator.

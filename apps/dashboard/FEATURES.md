@@ -411,7 +411,7 @@ VITE_API_URL=http://localhost:3000/api/v1
 
 For issues or questions:
 - GitHub Issues: [authlane/issues](https://github.com/authlane/authlane/issues)
-- Documentation: [docs.authlane.com](https://docs.authlane.com)
+- Documentation: [authlane.io/docs](https://authlane.io/docs)
 - Email: support@authlane.com
 
 ---

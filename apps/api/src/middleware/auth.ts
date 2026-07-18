@@ -12,6 +12,7 @@ import {
 import { Errors } from '@authlane/shared';
 import type { Context, Next } from 'hono';
 import { type ApiPrincipal, normalizeApiScopes } from '../lib/api-principal.js';
+import { errorResult } from '../lib/api-response.js';
 import type { Auth } from '../lib/auth.js';
 
 interface AuthMiddlewareOptions {
@@ -79,7 +80,10 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
         .limit(1);
 
       if (!activeOrganization) {
-        return c.json(Errors.unauthorized('The active organization no longer exists'), 401);
+        return c.json(
+          errorResult(Errors.unauthorized('The active organization no longer exists')),
+          401
+        );
       }
 
       c.set('user', {
@@ -104,13 +108,13 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
 
     const rawApiKey = extractApiKey(c);
     if (!rawApiKey) {
-      return c.json(Errors.unauthorized('A scoped Authlane API key is required'), 401);
+      return c.json(errorResult(Errors.unauthorized('A scoped Authlane API key is required')), 401);
     }
 
     const principal = await findApiKeyPrincipal(db, rawApiKey, lookupKeyring, now());
 
     if (!principal) {
-      return c.json(Errors.unauthorized('Invalid, disabled, or expired API key'), 401);
+      return c.json(errorResult(Errors.unauthorized('Invalid, disabled, or expired API key')), 401);
     }
 
     c.set('user', null);

@@ -1,24 +1,147 @@
 # Authlane
 
-Authlane is an open-source control plane for third-party connections in SaaS products and AI agents. It manages tenant policy, OAuth, encrypted credentials, connection status, and tool definitions. It does not proxy provider API traffic.
+Give every signed-in user tools backed by their own GitHub, Slack, Google, CRM, and productivity
+connections—without putting another proxy in the provider request path.
 
-## Architecture
+Authlane is an MIT-licensed control plane for SaaS products and AI agents. One Hono application
+serves the dashboard, hosted connect UI, OAuth callbacks, documentation, and versioned API. It keeps
+tenant policy, encrypted credentials, connection status, and canonical tool definitions. Your
+trusted runtime executes tools and calls providers directly.
 
-```text
-Browser ── short-lived connect session ──▶ Authlane UI + OAuth
-SaaS backend ── scoped API key ─────────▶ catalog / status / credential leases
-AI agent ── @authlane/integration-* ────▶ GitHub, Slack, Google, ... directly
+[Documentation](https://authlane.io/docs) ·
+[API reference](https://authlane.io/docs/api-reference) ·
+[OpenAPI YAML](https://authlane.io/docs/openapi.yaml) ·
+[Security](./SECURITY.md)
+
+## First success in four steps
+
+### 1. Load services on your backend
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+const { data: services, error } = await authlane.services.list();
 ```
 
-One Node.js/Hono process serves the dashboard, hosted connect UI, auth endpoints, and `/api/v1`. PostgreSQL is the source of truth; Redis backs hot-read caches, rate limits, and BullMQ token refresh jobs.
+All public SDK calls return `{ data, error }`; expected API failures do not throw.
 
-Provider requests never pass through Authlane. Your SaaS backend retrieves access-only credential material, then a local integration adapter calls the provider directly.
+### 2. Offer services in your product UI
 
-## Turnkey local demo
+Render the safe catalog using your own components, copy, filtering, and permissions. The tenant API
+key stays on the server.
 
-The repository includes a self-contained demo with a local OAuth 2.1 provider, PostgreSQL, Redis,
-the Authlane runtime, and an Example SaaS BFF. It does not need third-party credentials or network
-access after dependencies and container images are installed.
+```tsx
+<ServicePicker services={services ?? []} onConnect={(serviceId) => connect(serviceId)} />
+```
+
+### 3. Connect one external user
+
+```typescript
+const { data: session, error: sessionError } = await authlane.connectSessions.create({
+  externalUserId: 'user_123',
+  allowedServices: [],
+  allowedOrigin: 'https://app.example.com',
+});
+
+// Return only session.url to the browser.
+```
+
+`allowedServices: []` snapshots every service currently enabled for the tenant. Pass explicit IDs
+such as `['github', 'slack']` to limit the session. Duplicate IDs are accepted and deduplicated by
+the server.
+
+### 4. Give that user's tools to your framework
+
+```typescript
+import { vercelAI } from '@authlane/ai/vercel';
+
+const { data: tools, error: toolsError } = await authlane
+  .user('user_123')
+  .tools.list({ adapter: vercelAI() });
+
+if (toolsError) return Response.json(toolsError, { status: 502 });
+return streamText({ model, messages, tools });
+```
+
+Adapters are available for Vercel AI SDK, OpenAI Agents, Mastra, and an in-process local MCP
+server. Authlane does not expose a hosted MCP server or tool-execution endpoint.
+
+## Python
+
+```bash
+pip install authlane
+```
+
+```python
+import os
+
+from authlane import Authlane
+from authlane.adapters import langchain
+
+with Authlane(
+    api_key=os.environ["AUTHLANE_API_KEY"],
+    base_url="https://app.authlane.io",
+) as authlane:
+    result = authlane.user("user_123").tools.list(adapter=langchain())
+
+if result.error:
+    print(result.error.message)
+else:
+    tools = result.data
+```
+
+Python provides synchronous and asynchronous clients plus generic, Agno, LangChain, and OpenAI
+Agents adapters. See the [Python SDK](https://authlane.io/docs/sdk/python) and
+[framework adapters](https://authlane.io/docs/sdk/frameworks).
+
+## The boundary
+
+```text
+CONNECT / CONTROL PLANE
+
+Your SaaS backend ── scoped API key ──▶ Authlane catalog + connection state
+Signed-in browser ── origin-bound session ──▶ Authlane hosted connect + OAuth
+
+EXECUTION / DATA PLANE
+
+Your agent runtime ── local Authlane adapter ──▶ Provider API
+                         (GitHub, Slack, Google, CRM, ...)
+
+                         Authlane is not in this path
+```
+
+Credential leases contain only access material needed for direct execution. They are audited,
+non-cacheable, and never expose OAuth refresh or ID tokens. The adapter requests a lease when a
+selected tool runs, then sends tool inputs and receives provider payloads entirely inside your
+runtime.
+
+## API and performance
+
+The canonical [OpenAPI 3.1 specification](./apps/docs/api-reference/openapi.yaml) is also published
+as deterministic [YAML](https://authlane.io/docs/openapi.yaml) and
+[JSON](https://authlane.io/docs/openapi.json). Core hot reads are:
+
+- `GET /api/v1/catalog/services`
+- `GET /api/v1/users/{externalUserId}/connections`
+- `GET /api/v1/users/{externalUserId}/capabilities?format=mcp|openai`
+- `GET /api/v1/users/{externalUserId}/tools?format=mcp|openai`
+- `POST /api/v1/users/{externalUserId}/connections/{serviceId}/credential-leases`
+- `POST /api/v1/connect-sessions`
+
+API-key scopes are `catalog:read`, `connections:read`, `credentials:issue`, and
+`connect-sessions:create`. The warm capability-read target is P95 below 100 ms at 500 RPS on
+2 vCPU / 1 GB:
+
+```bash
+PERF_API_KEY=ak_... PERF_EXTERNAL_USER_ID=user_123 pnpm test:performance
+```
+
+## Run the secure local demo
 
 Prerequisites: Node.js 22+, pnpm 10, and Docker with Compose.
 
@@ -27,61 +150,35 @@ pnpm install --frozen-lockfile
 pnpm demo
 ```
 
-Open <http://localhost:5175> for the Example SaaS and <http://localhost:3000> for the Authlane
-dashboard. A fresh admin password and scoped Example SaaS API key are generated on every start and
-written only to `.authlane-demo/access.json`. Runtime keys live in `.authlane-demo/runtime.env`.
-The directory is mode `0700`; both files are mode `0600`; raw secrets are never printed.
+Open <http://localhost:5175> for the Example SaaS and <http://localhost:3000> for Authlane. The
+demo includes a local OAuth 2.1 provider, PostgreSQL, Redis, Authlane, and an Example SaaS BFF; it
+needs no third-party credentials.
 
 ```bash
-# Install the browser once, then run the complete deterministic acceptance flow.
 pnpm exec playwright install chromium
 pnpm demo:test
-
-# Stop processes and containers but retain the encrypted database/audit history.
-pnpm demo:down
-
-# Also remove demo volumes and all locally generated demo secrets/artifacts.
-pnpm demo:reset
+pnpm demo:down   # Keep encrypted database and audit history
+pnpm demo:reset  # Remove volumes and generated local secrets
 ```
 
-`demo:test` proves the iframe OAuth flow with S256 PKCE and state validation, one-shot authorization
-codes, rotating refresh tokens, automatic background refresh, BFF-only provider access, encrypted
-database records, opaque encrypted Redis session storage, encrypted TOTP data, append-only access
-audit, least-privilege database roles, MFA login, and durable API-key revocation. The local provider
-is mounted only when `AUTHLANE_DEMO_MODE=true` outside production.
+Fresh credentials are written only to mode-protected files under `.authlane-demo/` and are never
+printed. The deterministic acceptance flow proves PKCE/state validation, refresh rotation,
+BFF-only provider access, encrypted storage, MFA, audit logging, and API-key revocation.
 
-To add an optional real GitHub connection, create an OAuth app with callback
-`http://localhost:3000/api/v1/oauth/github/callback`, then pass the credentials only to the process:
-
-```bash
-DEMO_GITHUB_CLIENT_ID=... DEMO_GITHUB_CLIENT_SECRET=... pnpm demo
-```
-
-The demo requests only `read:user` and `public_repo`. The client secret is envelope-encrypted before
-database storage and is not copied into the generated runtime file.
-
-## Quick start
-
-Prerequisites: Docker with Compose.
+## Self-host one application
 
 ```bash
 cp .env.example .env
-# Fill every required value. Generate independent 32-byte keys/passwords:
-openssl rand -hex 32
+# Fill every required value; generate independent keys with: openssl rand -hex 32
 docker compose up --build
 ```
 
-Production configuration is fail-closed: `APP_URL` and CORS origins must be exact HTTPS origins,
-all keyrings must be versioned, and PostgreSQL, Redis, worker, auth, and metrics secrets have no
-insecure defaults. The one-shot migrator runs separately from the least-privileged application role.
+Only the Authlane application port is exposed. PostgreSQL and Redis remain on the internal network;
+the one-shot migrator uses a separate role. Production configuration requires exact HTTPS origins,
+versioned keyrings, and explicit database, Redis, worker, auth, and metrics secrets. Follow the
+[self-hosting guide](https://authlane.io/docs/guides/self-hosting) before launch.
 
-Only the application port is exposed. PostgreSQL and Redis stay on the internal Compose network. Optional monitoring:
-
-```bash
-docker compose --profile monitoring up --build
-```
-
-## Development
+## Develop Authlane
 
 ```bash
 pnpm install
@@ -91,93 +188,30 @@ pnpm db:migrate
 pnpm dev
 ```
 
-`pnpm dev` starts only the API, dashboard, and connect UI. Vite proxies `/api` during development; production uses one same-origin runtime.
-
-## Server-side SDK
-
-```typescript
-import { Authlane } from '@authlane/sdk';
-
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://authlane.example.com',
-});
-
-const { data: connectSession } = await authlane.connectSessions.create({
-  externalUserId: 'user_123',
-  allowedServices: ['github', 'slack'],
-  allowedOrigin: 'https://app.example.com',
-});
-
-// Send only connectSession.url to the browser.
-```
-
-Use `allowedServices: []` to snapshot every service currently enabled globally and for your organization. Authlane stores the concrete IDs on the session; services enabled later are not added, and services disabled later are hidden from that session.
-
-The API-key SDK intentionally throws in a browser. Use `@authlane/react` with the short-lived URL:
-
-```tsx
-import { AuthlaneConnect } from '@authlane/react';
-
-<AuthlaneConnect connectUrl={connectSession.url} />;
-```
-
-## Direct provider execution
-
-```typescript
-import github from '@authlane/integration-github';
-
-const { data: credential } = await authlane.credentialLeases.create({
-  externalUserId: 'user_123',
-  serviceId: 'github',
-});
-
-if (credential) {
-  const result = await github.execute(
-    'github_list_repos',
-    { limit: 20 },
-    credential
-  );
-}
-```
-
-This request goes from your application to GitHub, not through Authlane.
-
-## Hot-read API
-
-- `GET /api/v1/catalog/services`
-- `GET /api/v1/users/{externalUserId}/capabilities?format=mcp|openai`
-- `GET /api/v1/users/{externalUserId}/connections`
-- `GET /api/v1/users/{externalUserId}/tools?format=mcp|openai`
-- `POST /api/v1/users/{externalUserId}/connections/{serviceId}/credential-leases`
-- `POST /api/v1/connect-sessions`
-
-API key scopes are `catalog:read`, `connections:read`, `credentials:issue`, and `connect-sessions:create`.
-
-Credential lease responses use `Cache-Control: no-store, private`, never expose OAuth refresh or ID tokens, and create an audit record.
-
-## Performance target
-
-The hot capability read is designed for P95 below 100 ms at 500 RPS on 2 vCPU / 1 GB after caches are warm. Run the acceptance benchmark against a configured instance:
+Useful checks:
 
 ```bash
-PERF_API_KEY=ak_... PERF_EXTERNAL_USER_ID=user_123 pnpm test:performance
+pnpm test
+pnpm type-check
+pnpm build
+pnpm openapi:check
 ```
 
-## Stack
+The monorepo uses Node.js 22, Hono, React, PostgreSQL 16, Drizzle, Redis, BullMQ, pnpm, Turborepo,
+Vitest, and Playwright. See [AGENTS.md](./AGENTS.md) for repository conventions and
+[security operations](./docs/security/OPERATIONS.md) for production procedures.
 
-| Area | Technology |
-|---|---|
-| Runtime/API | Node.js 22, Hono |
-| UI | React, Vite, Tailwind |
-| Database | PostgreSQL 16, Drizzle, RLS |
-| Cache/queue | Redis 7, BullMQ |
-| Monorepo | pnpm 10, Turborepo |
-| Tests | Vitest, Playwright |
+## AI coding plugin marketplace
 
-See [Security](./SECURITY.md), [Security operations](./docs/security/OPERATIONS.md),
-[OpenAPI](./apps/docs/api-reference/openapi.yaml), and [AGENTS.md](./AGENTS.md).
+Task 05 will publish one shared repository plugin for Claude Code, Codex CLI/app, and Cursor IDE/CLI.
+The planned skills are `integrate-authlane` and `develop-authlane-connection`. Reserved marketplace
+entry points are `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, and
+`.cursor-plugin/marketplace.json`; the shared plugin root is `plugins/authlane`. These are inline
+placeholders, not installation links, until those manifests and skills are committed and validated.
+
+The plugin will contain instructions only—no hosted MCP server and no external credentials.
 
 ## License
 
-[MIT](./LICENSE) © 2026 Authlane contributors. You may use, modify, distribute, sublicense, and sell copies of Authlane subject to the MIT License terms.
+[MIT](./LICENSE) © 2026 Authlane contributors. You may use, copy, modify, merge, publish, distribute,
+sublicense, and sell copies subject to the MIT License terms.

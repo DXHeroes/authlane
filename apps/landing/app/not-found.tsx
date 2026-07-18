@@ -11,8 +11,8 @@ export default function NotFound() {
           <p className="mono eyebrow">404 / Route not found</p>
           <h1 id="not-found-title">This path is outside the public surface</h1>
           <p>
-            Authlane&apos;s public site stays deliberately small. Product, API, connect, dashboard,
-            and full documentation routes live at app.authlane.io.
+            This route does not exist. Documentation lives under authlane.io/docs; the dashboard,
+            hosted connect flow, and API live at app.authlane.io.
           </p>
           <Link className="secondary-action secondary-action--outlined" href="https://authlane.io/">
             Return to Authlane

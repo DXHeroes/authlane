@@ -149,7 +149,10 @@ describe('POST /api/v1/connect-sessions', () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ code: 'VALIDATION_ERROR' });
+    expect(await response.json()).toMatchObject({
+      data: null,
+      error: { code: 'VALIDATION_ERROR' },
+    });
     expect(insertedValues).toEqual([]);
   });
 
@@ -170,8 +173,11 @@ describe('POST /api/v1/connect-sessions', () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
-      code: 'VALIDATION_ERROR',
-      message: 'Validation error: These services are not currently enabled: slack',
+      data: null,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Validation error: These services are not currently enabled: slack',
+      },
     });
     expect(insertedValues).toEqual([]);
   });
@@ -191,8 +197,11 @@ describe('POST /api/v1/connect-sessions', () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
-      code: 'VALIDATION_ERROR',
-      hint: 'Enable at least one service before creating a connect session',
+      data: null,
+      error: {
+        code: 'VALIDATION_ERROR',
+        hint: 'Enable at least one service before creating a connect session',
+      },
     });
   });
 });

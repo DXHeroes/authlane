@@ -12,6 +12,7 @@ import {
   isValidUserId,
 } from '@authlane/shared';
 import { Hono } from 'hono';
+import { errorResult } from '../lib/api-response.js';
 import { requireScope } from '../middleware/scope.js';
 
 export interface ControlPlaneService {
@@ -204,7 +205,7 @@ export function createControlPlaneRouter(
   router.get('/users/:externalUserId/connections', requireScope('connections:read'), async (c) => {
     const externalUserId = c.req.param('externalUserId');
     if (!isValidUserId(externalUserId)) {
-      return c.json(Errors.validationError('Invalid external user ID'), 400);
+      return c.json(errorResult(Errors.validationError('Invalid external user ID')), 400);
     }
 
     const principal = c.get('principal');
@@ -226,7 +227,9 @@ export function createControlPlaneRouter(
     const format = parseFormat(c.req.query('format'));
     if (!isValidUserId(externalUserId) || !format) {
       return c.json(
-        Errors.validationError('Invalid external user ID or tool format', 'Use mcp or openai'),
+        errorResult(
+          Errors.validationError('Invalid external user ID or tool format', 'Use mcp or openai')
+        ),
         400
       );
     }
@@ -281,7 +284,10 @@ export function createControlPlaneRouter(
     const externalUserId = c.req.param('externalUserId');
     const format = parseFormat(c.req.query('format'));
     if (!isValidUserId(externalUserId) || !format) {
-      return c.json(Errors.validationError('Invalid external user ID or tool format'), 400);
+      return c.json(
+        errorResult(Errors.validationError('Invalid external user ID or tool format')),
+        400
+      );
     }
     const principal = c.get('principal');
     const storedConnections = await repository.listConnections(
@@ -316,7 +322,10 @@ export function createControlPlaneRouter(
       const externalUserId = c.req.param('externalUserId');
       const serviceId = c.req.param('serviceId');
       if (!isValidUserId(externalUserId) || !isValidServiceId(serviceId)) {
-        return c.json(Errors.validationError('Invalid external user ID or service ID'), 400);
+        return c.json(
+          errorResult(Errors.validationError('Invalid external user ID or service ID')),
+          400
+        );
       }
 
       const principal = c.get('principal');
@@ -326,7 +335,7 @@ export function createControlPlaneRouter(
         serviceId
       );
       if (!connection) {
-        return c.json(Errors.notFound('Connection'), 404);
+        return c.json(errorResult(Errors.notFound('Connection')), 404);
       }
       const requestTime = now();
       const effectiveStatus = getEffectiveConnectionStatus(
@@ -339,7 +348,7 @@ export function createControlPlaneRouter(
       );
       if (effectiveStatus !== 'connected' || !connection.credentialSecretId) {
         return c.json(
-          Errors.connectionNotConnected(`Connection to ${serviceId} is not connected`),
+          errorResult(Errors.connectionNotConnected(`Connection to ${serviceId} is not connected`)),
           409
         );
       }
@@ -353,17 +362,26 @@ export function createControlPlaneRouter(
       try {
         parsed = JSON.parse(secret.toString('utf8')) as unknown;
       } catch {
-        return c.json(Errors.encryptionError('Stored credential material is invalid'), 500);
+        return c.json(
+          errorResult(Errors.encryptionError('Stored credential material is invalid')),
+          500
+        );
       } finally {
         secret.fill(0);
       }
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return c.json(Errors.encryptionError('Stored credential material is invalid'), 500);
+        return c.json(
+          errorResult(Errors.encryptionError('Stored credential material is invalid')),
+          500
+        );
       }
       const stored = parsed as StoredCredentials;
       const lease = toCredentialLease(stored, createLeaseId(), connection.expiresAt);
       if (!lease) {
-        return c.json(Errors.encryptionError('Stored credential material is invalid'), 500);
+        return c.json(
+          errorResult(Errors.encryptionError('Stored credential material is invalid')),
+          500
+        );
       }
 
       await repository.auditCredentialAccess({

@@ -1323,7 +1323,7 @@ describe('user tool adapter contract', () => {
         code: 'ADAPTER_ERROR',
         message: 'Tool adapter failed to build.',
         hint: 'Check the adapter configuration and ensure build completes synchronously.',
-        docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+        docUrl: 'https://authlane.io/docs/sdk/typescript',
       },
     });
   });
@@ -1442,7 +1442,7 @@ describe('user tool adapter contract', () => {
         code: 'ADAPTER_ERROR',
         message: 'Tool adapter failed to build.',
         hint: 'Check the adapter configuration and ensure build completes synchronously.',
-        docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+        docUrl: 'https://authlane.io/docs/sdk/typescript',
       },
     });
     expect(JSON.stringify(result)).not.toMatch(/secret|stack/i);
@@ -1499,7 +1499,7 @@ describe('user tool adapter contract', () => {
         message: 'Invalid external user ID',
         statusCode: 400,
         hint: 'Provide a non-empty external user ID with no more than 255 characters.',
-        docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+        docUrl: 'https://authlane.io/docs/sdk/typescript',
       },
     });
     expect(result.error).toBe(validationResult.error);

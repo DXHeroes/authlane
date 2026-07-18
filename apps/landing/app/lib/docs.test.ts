@@ -1,0 +1,57 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+import { getAllDocs, getDocsNavigation } from './docs';
+
+const docsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs');
+
+function sourceSlugs(): string[] {
+  return readdirSync(docsRoot, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.mdx'))
+    .map((entry) => relative(docsRoot, resolve(entry.parentPath, entry.name)).replace(/\.mdx$/, ''))
+    .sort();
+}
+
+describe('build-time documentation source', () => {
+  it('keeps Mint navigation in exact equality with every MDX source', () => {
+    const sources = sourceSlugs();
+    const loaded = getAllDocs()
+      .map((doc) => doc.slug)
+      .sort();
+    const navigation = getDocsNavigation()
+      .flatMap((group) => group.pages)
+      .sort();
+
+    expect(sources).toHaveLength(37);
+    expect(loaded).toEqual(sources);
+    expect(navigation).toEqual(sources);
+  });
+
+  it('does not publish broken internal Markdown links', () => {
+    const knownRoutes = new Set([
+      ...sourceSlugs(),
+      'api-reference',
+      'openapi.json',
+      'openapi.yaml',
+    ]);
+    const broken: string[] = [];
+
+    for (const doc of getAllDocs()) {
+      const source = readFileSync(resolve(docsRoot, `${doc.slug}.mdx`), 'utf8');
+      for (const match of source.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+        const href = match[1].split('#')[0];
+        if (!href || /^(?:https?:|mailto:)/.test(href)) continue;
+        const slug = href
+          .replace(/^\/docs\/?/, '')
+          .replace(/^\//, '')
+          .replace(/\/$/, '');
+        if (!knownRoutes.has(slug) && !existsSync(resolve(docsRoot, `${slug}.mdx`))) {
+          broken.push(`${doc.slug}: ${href}`);
+        }
+      }
+    }
+
+    expect(broken).toEqual([]);
+  });
+});

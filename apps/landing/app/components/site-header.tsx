@@ -23,7 +23,7 @@ export function SiteHeader({ navigationVariant = 'landing' }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <div className="container site-header__inner">
-        <Link className="wordmark" href={homepageHref}>
+        <Link className="wordmark" href={homepageHref} aria-label="Authlane homepage">
           Authlane
         </Link>
 

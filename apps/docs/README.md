@@ -46,7 +46,8 @@ apps/docs/
 
 ## Deployment
 
-The documentation is automatically deployed to docs.authlane.com on push to main branch.
+The landing build compiles these MDX sources to `https://authlane.io/docs/**` and ships them in the
+same Hono production runtime as the rest of Authlane.
 
 ## Contributing
 

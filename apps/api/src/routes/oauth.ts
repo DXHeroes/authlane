@@ -26,6 +26,7 @@ import {
   isValidUserId,
 } from '@authlane/shared';
 import { Hono } from 'hono';
+import { errorResult } from '../lib/api-response.js';
 import {
   canPerformDestructiveAction,
   createConnectSessionToken,
@@ -151,7 +152,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     try {
       body = await c.req.json();
     } catch {
-      return c.json(Errors.validationError('Request body must be valid JSON'), 400);
+      return c.json(errorResult(Errors.validationError('Request body must be valid JSON')), 400);
     }
 
     const externalUserId = body.externalUserId;
@@ -161,8 +162,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     const reauthenticatedAt = parseRecentReauthentication(body.reauthenticatedAt, now);
     if (!isValidUserId(externalUserId) || !allowedOrigin || reauthenticatedAt === false) {
       return c.json(
-        Errors.validationError(
-          'externalUserId, allowedServices, an HTTPS allowedOrigin, and a valid reauthentication timestamp are required'
+        errorResult(
+          Errors.validationError(
+            'externalUserId, allowedServices, an HTTPS allowedOrigin, and a valid reauthentication timestamp are required'
+          )
         ),
         400
       );
@@ -172,7 +175,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     const enabledServiceIds = await listEnabledServiceIds(db, principal.organizationId);
     const allowedServices = resolveAllowedServiceSnapshot(body.allowedServices, enabledServiceIds);
     if (allowedServices.error) {
-      return c.json(allowedServices.error, 400);
+      return c.json(errorResult(allowedServices.error), 400);
     }
 
     const { token, tokenHash } = createConnectSessionToken();
@@ -219,10 +222,12 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
     const token = connectTokenFromRequest(c.req.header('authorization'));
     if (!token || !body.parentOrigin) {
-      return c.json(Errors.unauthorized('A valid connect session is required'), 401);
+      return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
     }
     const session = await loadConnectSessionByToken(db, token, body.parentOrigin);
-    if (!session) return c.json(Errors.unauthorized('Connect session is invalid or expired'), 401);
+    if (!session) {
+      return c.json(errorResult(Errors.unauthorized('Connect session is invalid or expired')), 401);
+    }
 
     return withTenantContext(db, session.organizationId, async () => {
       const allowedServiceRows = await db
@@ -299,15 +304,15 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     try {
       body = await c.req.json();
     } catch {
-      return c.json(Errors.validationError('Request body must be valid JSON'), 400);
+      return c.json(errorResult(Errors.validationError('Request body must be valid JSON')), 400);
     }
     const token = connectTokenFromRequest(c.req.header('authorization'));
     if (!token || !body.parentOrigin || !isValidServiceId(serviceId)) {
-      return c.json(Errors.unauthorized('A valid connect session is required'), 401);
+      return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
     }
     const session = await loadConnectSession(db, token, serviceId, body.parentOrigin);
     if (!session) {
-      return c.json(Errors.unauthorized('Connect session is invalid or expired'), 401);
+      return c.json(errorResult(Errors.unauthorized('Connect session is invalid or expired')), 401);
     }
 
     return withTenantContext(db, session.organizationId, async () => {
@@ -330,10 +335,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           .limit(1),
       ]);
       if (!service || !tenantService) {
-        return c.json(Errors.notFound('Enabled service', serviceId), 404);
+        return c.json(errorResult(Errors.notFound('Enabled service', serviceId)), 404);
       }
       if (service.authType !== 'oauth2') {
-        return c.json(Errors.oauthError('This service does not use OAuth2'), 400);
+        return c.json(errorResult(Errors.oauthError('This service does not use OAuth2')), 400);
       }
 
       const config = service.config as {
@@ -341,7 +346,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         scopes?: string[];
       };
       if (!config.authorization_url || !tenantService.oauthClientId) {
-        return c.json(Errors.oauthError('OAuth provider is not configured'), 409);
+        return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);
       }
 
       let authorizationEndpoint: string;
@@ -352,7 +357,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           config.authorization_url
         );
       } catch {
-        return c.json(Errors.oauthError('OAuth provider endpoint is not approved'), 409);
+        return c.json(
+          errorResult(Errors.oauthError('OAuth provider endpoint is not approved')),
+          409
+        );
       }
 
       const { codeVerifier, codeChallenge } = generatePKCE();
@@ -436,9 +444,11 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     const code = c.req.query('code');
     const state = c.req.query('state');
     const providerError = c.req.query('error');
-    if (providerError) return c.json(Errors.oauthError('Provider denied authorization'), 400);
+    if (providerError) {
+      return c.json(errorResult(Errors.oauthError('Provider denied authorization')), 400);
+    }
     if (!code || !state || state.length > 512 || !isValidServiceId(serviceId)) {
-      return c.json(Errors.oauthError('Missing OAuth code or state'), 400);
+      return c.json(errorResult(Errors.oauthError('Missing OAuth code or state')), 400);
     }
 
     const now = new Date();
@@ -462,7 +472,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           .returning()
     );
     if (!oauthTransaction) {
-      return c.json(Errors.oauthStateMismatch('Unknown, expired, or consumed state'), 400);
+      return c.json(
+        errorResult(Errors.oauthStateMismatch('Unknown, expired, or consumed state')),
+        400
+      );
     }
 
     return withTenantContext(db, oauthTransaction.organizationId, async () => {
@@ -492,11 +505,14 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           .limit(1),
       ]);
       if (!connection || !service || !tenantService?.oauthClientId) {
-        return c.json(Errors.oauthError('OAuth provider is no longer configured'), 409);
+        return c.json(
+          errorResult(Errors.oauthError('OAuth provider is no longer configured')),
+          409
+        );
       }
       const config = service.config as { token_url?: string };
       if (!config.token_url) {
-        return c.json(Errors.oauthError('OAuth flow metadata is incomplete'), 400);
+        return c.json(errorResult(Errors.oauthError('OAuth flow metadata is incomplete')), 400);
       }
 
       const verifierBuffer = await secretStore.read(
@@ -550,7 +566,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
             updatedAt: new Date(),
           })
           .where(eq(connections.id, connection.id));
-        return c.json(Errors.oauthTokenExchangeFailed('Provider rejected the token exchange'), 400);
+        return c.json(
+          errorResult(Errors.oauthTokenExchangeFailed('Provider rejected the token exchange')),
+          400
+        );
       }
       if (!tokenResult.response.ok) {
         await db
@@ -561,13 +580,16 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
             updatedAt: new Date(),
           })
           .where(eq(connections.id, connection.id));
-        return c.json(Errors.oauthTokenExchangeFailed('Provider rejected the token exchange'), 400);
+        return c.json(
+          errorResult(Errors.oauthTokenExchangeFailed('Provider rejected the token exchange')),
+          400
+        );
       }
 
       const tokens = tokenResult.body;
       if (typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
         return c.json(
-          Errors.oauthTokenExchangeFailed('Provider did not return an access token'),
+          errorResult(Errors.oauthTokenExchangeFailed('Provider did not return an access token')),
           400
         );
       }
@@ -665,12 +687,14 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
     const token = connectTokenFromRequest(c.req.header('authorization'));
     if (!token || !body.parentOrigin || !isValidServiceId(serviceId)) {
-      return c.json(Errors.unauthorized('A valid connect session is required'), 401);
+      return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
     }
     const session = await loadConnectSession(db, token, serviceId, body.parentOrigin);
-    if (!session) return c.json(Errors.unauthorized('Connect session is invalid or expired'), 401);
+    if (!session) {
+      return c.json(errorResult(Errors.unauthorized('Connect session is invalid or expired')), 401);
+    }
     if (!canPerformDestructiveAction(session)) {
-      return c.json(Errors.stepUpRequired(), 403);
+      return c.json(errorResult(Errors.stepUpRequired()), 403);
     }
 
     return withTenantContext(db, session.organizationId, async () => {

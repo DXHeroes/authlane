@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/docs/', '/api/', '/connect/', '/login/', '/register/', '/dashboard/'],
+      disallow: ['/api/', '/connect/', '/login/', '/register/', '/dashboard/'],
     },
     sitemap: 'https://authlane.io/sitemap.xml',
     host: 'https://authlane.io',

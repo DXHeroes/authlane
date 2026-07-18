@@ -64,13 +64,13 @@ export const developerSteps = [
     id: 'use-tools',
     index: '04',
     title: 'Give tools to your agent',
-    description: 'Vercel AI, OpenAI Agents, or MCP.',
+    description: 'Vercel AI, OpenAI Agents, Mastra, or MCP.',
   },
 ] as const;
 
 export const landingLinks = {
   app: 'https://app.authlane.io',
   signIn: 'https://app.authlane.io/login',
-  docs: 'https://app.authlane.io/docs',
+  docs: 'https://authlane.io/docs',
   github: 'https://github.com/dxheroes/authlane',
 } as const;

@@ -18,6 +18,7 @@ describe('error handler', () => {
 
     expect(response.status).toBe(500);
     expect(body).toEqual({
+      data: null,
       error: expect.objectContaining({
         code: 'INTERNAL_ERROR',
         message: expect.stringContaining('The request could not be completed'),

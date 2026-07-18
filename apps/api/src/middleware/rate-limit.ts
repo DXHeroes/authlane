@@ -83,7 +83,7 @@ export function rateLimitMiddleware(
             message: 'Rate limit exceeded',
             code: 'RATE_LIMIT_EXCEEDED',
             hint: `Maximum ${options.maxRequests} requests per ${options.windowMs / 1_000} seconds`,
-            docUrl: 'https://docs.authlane.dev/rate-limiting',
+            docUrl: 'https://authlane.io/docs/api-reference/authentication',
             statusCode: 429,
           },
         },

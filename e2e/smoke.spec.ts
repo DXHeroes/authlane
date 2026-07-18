@@ -92,7 +92,7 @@ test.describe('Landing Page', () => {
     ).toHaveAttribute('href', '#security');
     await expect(page.getByRole('link', { name: 'Read the docs' })).toHaveAttribute(
       'href',
-      'https://app.authlane.io/docs'
+      'https://authlane.io/docs'
     );
   });
 
@@ -106,35 +106,32 @@ test.describe('Landing Page', () => {
     await expect(page.locator('[data-primary-cta]')).toHaveCount(1);
   });
 
-  test('gives product docs app-host metadata and apex marketing navigation', async ({
-    page,
-    request,
-  }) => {
+  test('gives apex docs canonical metadata and marketing navigation', async ({ page, request }) => {
     const isAvailable = await isServiceAvailable(URLS.landing, request);
     test.skip(!isAvailable, 'Landing page service not running');
 
     await page.goto(`${URLS.landing}/docs/`);
 
-    await expect(page).toHaveTitle('Build with Authlane');
+    await expect(page).toHaveTitle('Documentation — Authlane');
     await expect(page.locator('meta[name="description"]')).toHaveAttribute(
       'content',
-      'Start with the Authlane SDK, hosted connect, security model, and self-hosting docs.'
+      'Authlane is the connection and tool control plane for SaaS applications'
     );
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
-      'https://app.authlane.io/docs'
+      'https://authlane.io/docs/'
     );
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
       'content',
-      'Build with Authlane'
+      'Authlane documentation'
     );
     await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
       'content',
-      'Start with the Authlane SDK, hosted connect, security model, and self-hosting docs.'
+      'Authlane is the connection and tool control plane for SaaS applications'
     );
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
       'content',
-      'https://app.authlane.io/docs'
+      'https://authlane.io/docs/'
     );
     await expect(page.locator('header a[href^="#"], footer a[href^="#"]')).toHaveCount(0);
 

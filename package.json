@@ -40,7 +40,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:performance": "node scripts/benchmark-hot-read.mjs",
-    "test:repo": "vitest run scripts/benchmark-hot-read.test.ts scripts/biome-config.test.ts scripts/coolify-compose-config.test.ts scripts/docs-quickstart.test.ts scripts/integration-contracts.test.ts scripts/license-contract.test.ts --environment node",
+    "test:repo": "vitest run scripts/benchmark-hot-read.test.ts scripts/biome-config.test.ts scripts/coolify-compose-config.test.ts scripts/docs-domain-contract.test.ts scripts/docs-quickstart.test.ts scripts/integration-contracts.test.ts scripts/license-contract.test.ts scripts/readme-devex.test.ts --environment node",
     "test:performance:unit": "vitest run scripts/benchmark-hot-read.test.ts --environment node",
     "lint": "biome check .",
     "lint:runtime": "biome check apps/api/src apps/widget/src packages/crypto/src packages/database/src packages/shared/src",
@@ -52,6 +52,8 @@
     "type-check:performance": "tsc -p tsconfig.performance.json",
     "contracts:generate": "pnpm --filter @authlane/integration-contracts generate",
     "contracts:check": "pnpm --filter @authlane/integration-contracts generate:check",
+    "openapi:generate": "node scripts/generate-openapi.mjs",
+    "openapi:check": "node scripts/generate-openapi.mjs --check",
     "clean": "turbo run clean && rm -rf node_modules",
     "setup": "./scripts/setup.sh",
     "db:create": "pnpm --filter @authlane/database db:create",
@@ -61,6 +63,7 @@
     "db:studio": "pnpm --filter @authlane/database studio"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
     "@biomejs/biome": "^2.3.7",
     "@playwright/test": "^1.57.0",
     "@types/node": "^24.10.1",
@@ -69,7 +72,8 @@
     "postgres": "^3.4.7",
     "turbo": "^2.6.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "yaml": "2.8.3"
   },
   "engines": {
     "node": ">=22.0.0",

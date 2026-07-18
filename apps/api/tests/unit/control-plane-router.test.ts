@@ -212,7 +212,10 @@ describe('credential leases', () => {
     });
 
     expect(response.status).toBe(403);
-    expect(await response.json()).toMatchObject({ code: 'INSUFFICIENT_SCOPE' });
+    expect(await response.json()).toMatchObject({
+      data: null,
+      error: { code: 'INSUFFICIENT_SCOPE' },
+    });
   });
 
   it('issues an API key only with an explicit provider placement', async () => {
@@ -276,7 +279,10 @@ describe('credential leases', () => {
     );
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({ code: 'ENCRYPTION_ERROR' });
+    expect(await response.json()).toMatchObject({
+      data: null,
+      error: { code: 'ENCRYPTION_ERROR' },
+    });
     expect(plaintext.equals(Buffer.alloc(plaintext.length))).toBe(true);
     expect(repo.auditCredentialAccess).not.toHaveBeenCalled();
   });

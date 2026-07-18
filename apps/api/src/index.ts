@@ -22,6 +22,7 @@ import { requestId } from 'hono/request-id';
 import { secureHeaders } from 'hono/secure-headers';
 import Redis from 'ioredis';
 import { setupJobs } from './jobs/setup.js';
+import { errorResult } from './lib/api-response.js';
 import { createAuth } from './lib/auth.js';
 import {
   type AuthSecondaryStorage,
@@ -37,6 +38,8 @@ import {
 import { logger, logRequest } from './lib/logger.js';
 import { recordHttpRequest } from './lib/metrics.js';
 import {
+  canonicalRedirectLocation,
+  isDocsPath,
   isProductOnlyPath,
   type PublicSurface,
   resolvePublicSurface,
@@ -259,12 +262,17 @@ export function createApp(
     }
 
     const surface = c.get('publicSurface') as PublicSurface | undefined;
-    if (!surface) return c.json(Errors.notFound('Route', c.req.path), 404);
-    if (surface.kind === 'redirect') return c.redirect(surface.location, 308);
+    if (!surface) return c.json(errorResult(Errors.notFound('Route', c.req.path)), 404);
+    if (surface.kind === 'redirect') {
+      return c.redirect(canonicalRedirectLocation(c.req.url, surface.location), 308);
+    }
     if (surface.kind === 'unavailable') {
-      return c.json(Errors.notFound('Route', c.req.path), 404);
+      return c.json(errorResult(Errors.notFound('Route', c.req.path)), 404);
     }
     if (surface.kind === 'app') {
+      if (isDocsPath(c.req.path)) {
+        return c.redirect(canonicalRedirectLocation(c.req.url), 308);
+      }
       await next();
       return;
     }
@@ -272,7 +280,10 @@ export function createApp(
     if (isProductOnlyPath(c.req.path)) return c.notFound();
 
     let response: Response | undefined;
-    if (c.req.path === '/') {
+    if (isDocsPath(c.req.path)) {
+      response =
+        c.req.path === '/docs' ? await runStatic(docsIndex, c) : await runStatic(docsStatic, c);
+    } else if (c.req.path === '/') {
       response = await runStatic(landingIndex, c);
     } else if (c.req.path.startsWith('/_next/static/')) {
       response = await runImmutableStatic(landingNextStatic, c);
@@ -286,7 +297,8 @@ export function createApp(
     '*',
     bodyLimit({
       maxSize: 256 * 1024,
-      onError: (c) => c.json(Errors.validationError('Request body exceeds 256 KiB'), 413),
+      onError: (c) =>
+        c.json(errorResult(Errors.validationError('Request body exceeds 256 KiB')), 413),
     })
   );
   app.use('*', async (c, next) => {
@@ -294,7 +306,10 @@ export function createApp(
       const contentLength = Number(c.req.header('content-length') || 0);
       const contentType = c.req.header('content-type') || '';
       if (contentLength > 0 && !contentType.toLowerCase().startsWith('application/json')) {
-        return c.json(Errors.validationError('Content-Type must be application/json'), 415);
+        return c.json(
+          errorResult(Errors.validationError('Content-Type must be application/json')),
+          415
+        );
       }
       if (c.req.raw.body) {
         const rawRequest = c.req.raw;
@@ -303,7 +318,7 @@ export function createApp(
           c.req.raw = new Request(rawRequest, { body, duplex: 'half' });
         } catch (error) {
           if (error instanceof Error && error.name === 'BodyLimitError') {
-            return c.json(Errors.validationError('Request body exceeds 256 KiB'), 413);
+            return c.json(errorResult(Errors.validationError('Request body exceeds 256 KiB')), 413);
           }
           throw error;
         }
@@ -335,10 +350,10 @@ export function createApp(
       const expectedHash = createHash('sha256').update(expectedToken).digest();
       const providedHash = createHash('sha256').update(provided).digest();
       if (!timingSafeEqual(expectedHash, providedHash)) {
-        return c.json(Errors.notFound('Route'), 404);
+        return c.json(errorResult(Errors.notFound('Route')), 404);
       }
     } else if (process.env.NODE_ENV === 'production') {
-      return c.json(Errors.notFound('Route'), 404);
+      return c.json(errorResult(Errors.notFound('Route')), 404);
     }
     const { register } = await import('./lib/metrics.js');
     const metrics = await register.metrics();
@@ -355,7 +370,7 @@ export function createApp(
       return await auth.handler(new Request(c.req.raw, { headers }));
     } catch (error) {
       logger.error({ error, requestId: c.get('requestId') }, 'Authentication handler failed');
-      return c.json({ error: Errors.internalError('Authentication request failed') }, 500);
+      return c.json(errorResult(Errors.internalError('Authentication request failed')), 500);
     }
   });
 
@@ -383,11 +398,9 @@ export function createApp(
   );
   app.route('/api/v1', createApiRouter(db, cacheStore));
 
-  app.all('/api/*', (c) => c.json(Errors.notFound('API route', c.req.path), 404));
+  app.all('/api/*', (c) => c.json(errorResult(Errors.notFound('API route', c.req.path)), 404));
 
-  // The app-host docs document is exported by the landing build and references
-  // this narrow shared namespace. Misses terminate here instead of reaching the
-  // dashboard SPA fallback.
+  // Landing-built assets are shared by the apex docs and app product shell.
   app.get('/_next/static/*', async (c) => {
     return (await runImmutableStatic(landingNextStatic, c)) ?? c.notFound();
   });
@@ -410,8 +423,6 @@ export function createApp(
   };
   app.get('/connect', serveStatic(noStoreDocument));
   app.get('/connect/*', serveStatic(noStoreDocument));
-  app.get('/docs', async (c) => (await runStatic(docsIndex, c)) ?? c.notFound());
-  app.get('/docs/*', async (c) => (await runStatic(docsStatic, c)) ?? c.notFound());
   app.get(
     '*',
     serveStatic({

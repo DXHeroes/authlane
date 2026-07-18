@@ -17,21 +17,21 @@
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:support@authlane.com"
+      "url": "mailto:support@authlane.io"
     }
   ],
   "topbarCtaButton": {
     "name": "Dashboard",
-    "url": "https://app.authlane.com"
+    "url": "https://app.authlane.io"
   },
   "tabs": [
     {
       "name": "API Reference",
-      "url": "api-reference"
+      "url": "/docs/api-reference"
     },
     {
       "name": "Integrations",
-      "url": "integrations"
+      "url": "/docs/integrations/github"
     }
   ],
   "anchors": [
@@ -64,7 +64,7 @@
     },
     {
       "group": "SDK",
-      "pages": ["sdk/typescript", "sdk/react"]
+      "pages": ["sdk/typescript", "sdk/react", "sdk/python", "sdk/frameworks"]
     },
     {
       "group": "API Documentation",

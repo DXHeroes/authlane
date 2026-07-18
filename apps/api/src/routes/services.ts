@@ -6,6 +6,7 @@ import type { Database } from '@authlane/database';
 import { eq, services } from '@authlane/database';
 import { Errors } from '@authlane/shared';
 import { Hono } from 'hono';
+import { errorResult } from '../lib/api-response.js';
 import { logger } from '../lib/logger.js';
 
 export function createServicesRouter(db: Database) {
@@ -25,7 +26,7 @@ export function createServicesRouter(db: Database) {
       });
     } catch (error) {
       logger.error({ error, requestId: c.get('requestId') }, 'Failed to list services');
-      return c.json(Errors.internalError('Failed to retrieve services'), 500);
+      return c.json(errorResult(Errors.internalError('Failed to retrieve services')), 500);
     }
   });
 
@@ -40,7 +41,7 @@ export function createServicesRouter(db: Database) {
       const [service] = await db.select().from(services).where(eq(services.id, serviceId)).limit(1);
 
       if (!service) {
-        return c.json(Errors.notFound('Service', serviceId), 404);
+        return c.json(errorResult(Errors.notFound('Service', serviceId)), 404);
       }
 
       return c.json({
@@ -49,7 +50,7 @@ export function createServicesRouter(db: Database) {
       });
     } catch (error) {
       logger.error({ error, requestId: c.get('requestId') }, 'Failed to get service');
-      return c.json(Errors.internalError('Failed to retrieve service'), 500);
+      return c.json(errorResult(Errors.internalError('Failed to retrieve service')), 500);
     }
   });
 

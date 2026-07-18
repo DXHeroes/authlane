@@ -126,7 +126,7 @@ describe('host-aware public routing', () => {
     expect(sitemap.status).toBe(200);
     expect(await sitemap.text()).toContain('<urlset');
 
-    for (const path of ['/assets/product.js', '/connect', '/docs', '/api/v1/services']) {
+    for (const path of ['/assets/product.js', '/connect', '/api/v1/services']) {
       const response = await request(path, 'authlane.io');
       expect(response.status, path).toBe(404);
       expect(await response.text(), path).not.toContain('Product fixture');
@@ -146,20 +146,20 @@ describe('host-aware public routing', () => {
     expect(await connect.text()).toContain('Connect fixture');
   });
 
-  it('serves landing-built docs only on the app surface', async () => {
+  it('serves landing-built docs on apex and redirects the app surface', async () => {
     const appDocs = await request('/docs', 'app.authlane.io');
     const appDocsSlash = await request('/docs/', 'app.authlane.io');
     const missingAppDocs = await request('/docs/missing', 'app.authlane.io');
     const landingDocs = await request('/docs', 'authlane.io');
 
-    expect(appDocs.status).toBe(200);
-    expect(await appDocs.text()).toContain('Docs fixture');
-    expect(appDocsSlash.status).toBe(200);
-    expect(await appDocsSlash.text()).toContain('Docs fixture');
-    expect(missingAppDocs.status).toBe(404);
-    expect(await missingAppDocs.text()).not.toContain('Product fixture');
-    expect(landingDocs.status).toBe(404);
-    expect(await landingDocs.text()).not.toContain('Docs fixture');
+    expect(appDocs.status).toBe(308);
+    expect(appDocs.headers.get('location')).toBe('https://authlane.io/docs');
+    expect(appDocsSlash.status).toBe(308);
+    expect(appDocsSlash.headers.get('location')).toBe('https://authlane.io/docs/');
+    expect(missingAppDocs.status).toBe(308);
+    expect(missingAppDocs.headers.get('location')).toBe('https://authlane.io/docs/missing');
+    expect(landingDocs.status).toBe(200);
+    expect(await landingDocs.text()).toContain('Docs fixture');
   });
 
   it('retains product authentication and dashboard fallbacks on the app surface', async () => {
@@ -171,14 +171,7 @@ describe('host-aware public routing', () => {
   });
 
   it('denies every product-only route on the landing surface', async () => {
-    for (const path of [
-      '/api/v1/services',
-      '/connect',
-      '/login',
-      '/register',
-      '/dashboard',
-      '/docs',
-    ]) {
+    for (const path of ['/api/v1/services', '/connect', '/login', '/register', '/dashboard']) {
       const response = await request(path, 'authlane.io');
       expect(response.status, path).toBe(404);
       expect(await response.text(), path).not.toContain('Product fixture');
@@ -220,7 +213,7 @@ describe('host-aware public routing', () => {
     const response = await preflight('www.authlane.io');
 
     expect(response.status).toBe(308);
-    expect(response.headers.get('location')).toBe('https://authlane.io');
+    expect(response.headers.get('location')).toBe('https://authlane.io/api/v1/services');
     expect(response.headers.get('access-control-allow-origin')).toBeNull();
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
@@ -257,7 +250,7 @@ describe('host-aware public routing', () => {
     const local = await request('/', '[::1]:3000');
 
     expect(redirect.status).toBe(308);
-    expect(redirect.headers.get('location')).toBe('https://authlane.io');
+    expect(redirect.headers.get('location')).toBe('https://authlane.io/');
     expect(local.status).toBe(200);
     expect(await local.text()).toContain('Product fixture');
   });

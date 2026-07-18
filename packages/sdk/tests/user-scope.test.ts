@@ -121,7 +121,7 @@ describe('user-scoped SDK facade', () => {
         message: 'Invalid external user ID',
         statusCode: 400,
         hint: 'Provide a non-empty external user ID with no more than 255 characters.',
-        docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+        docUrl: 'https://authlane.io/docs/sdk/typescript',
       },
     });
     for (const result of results.slice(1)) {

@@ -6,7 +6,7 @@ description: 'Configure provider applications and hosted connection flows'
 Each OAuth provider application must redirect to the Authlane origin, not to your SaaS:
 
 ```text
-https://authlane.example.com/api/v1/oauth/{serviceId}/callback
+https://app.authlane.io/api/v1/oauth/{serviceId}/callback
 ```
 
 For local development use `http://localhost:3000/api/v1/oauth/{serviceId}/callback` and replace `{serviceId}` with a concrete ID such as `github` or `slack`.

@@ -70,21 +70,21 @@ export const Errors = {
     createError('Unauthorized', ErrorCodes.UNAUTHORIZED, {
       hint: hint || 'Check your API key',
       statusCode: 401,
-      docUrl: 'https://docs.authlane.dev/authentication',
+      docUrl: 'https://authlane.io/docs/api-reference/authentication',
     }),
 
   insufficientScope: (hint?: string): AuthlaneError =>
     createError('Forbidden', ErrorCodes.INSUFFICIENT_SCOPE, {
       hint: hint || 'Use credentials with the required authorization scope',
       statusCode: 403,
-      docUrl: 'https://docs.authlane.dev/authentication',
+      docUrl: 'https://authlane.io/docs/api-reference/authentication',
     }),
 
   csrfFailed: (): AuthlaneError =>
     createError('Forbidden', ErrorCodes.CSRF_FAILED, {
       hint: 'Retry the request from the authenticated Authlane origin',
       statusCode: 403,
-      docUrl: 'https://docs.authlane.dev/guides/security',
+      docUrl: 'https://authlane.io/docs/guides/security',
     }),
 
   mfaEnrollmentRequired: (): AuthlaneError =>
@@ -94,7 +94,7 @@ export const Errors = {
       {
         hint: 'Enroll a TOTP authenticator before changing security-sensitive settings',
         statusCode: 403,
-        docUrl: 'https://docs.authlane.dev/guides/security',
+        docUrl: 'https://authlane.io/docs/guides/security',
       }
     ),
 
@@ -102,72 +102,72 @@ export const Errors = {
     createError('Fresh authentication is required', ErrorCodes.STEP_UP_REQUIRED, {
       hint: 'Sign in again, complete MFA, and retry the operation',
       statusCode: 403,
-      docUrl: 'https://docs.authlane.dev/guides/security',
+      docUrl: 'https://authlane.io/docs/guides/security',
     }),
 
   notFound: (resource: string, id?: string): AuthlaneError =>
     createError(`${resource} not found${id ? `: ${id}` : ''}`, ErrorCodes.NOT_FOUND, {
       statusCode: 404,
-      docUrl: 'https://docs.authlane.dev/api-reference',
+      docUrl: 'https://authlane.io/docs/api-reference',
     }),
 
   validationError: (message: string, hint?: string): AuthlaneError =>
     createError(`Validation error: ${message}`, ErrorCodes.VALIDATION_ERROR, {
       hint,
       statusCode: 400,
-      docUrl: 'https://docs.authlane.dev/api-reference',
+      docUrl: 'https://authlane.io/docs/api-reference',
     }),
 
   oauthError: (message: string, hint?: string): AuthlaneError =>
     createError(`OAuth error: ${message}`, ErrorCodes.OAUTH_ERROR, {
       hint,
       statusCode: 400,
-      docUrl: 'https://docs.authlane.dev/guides/oauth-setup',
+      docUrl: 'https://authlane.io/docs/guides/oauth-setup',
     }),
 
   oauthStateMismatch: (message: string): AuthlaneError =>
     createError(`OAuth state mismatch: ${message}`, ErrorCodes.OAUTH_STATE_MISMATCH, {
       hint: 'The OAuth state parameter does not match. This may indicate a security issue.',
       statusCode: 400,
-      docUrl: 'https://docs.authlane.dev/guides/oauth-setup',
+      docUrl: 'https://authlane.io/docs/guides/oauth-setup',
     }),
 
   oauthTokenExchangeFailed: (message: string): AuthlaneError =>
     createError(`OAuth token exchange failed: ${message}`, ErrorCodes.OAUTH_TOKEN_EXCHANGE_FAILED, {
       hint: 'Check your OAuth client credentials and redirect URI',
       statusCode: 400,
-      docUrl: 'https://docs.authlane.dev/guides/oauth-setup',
+      docUrl: 'https://authlane.io/docs/guides/oauth-setup',
     }),
 
   connectionExpired: (service: string): AuthlaneError =>
     createError(`Connection to ${service} has expired`, ErrorCodes.CONNECTION_EXPIRED, {
       hint: 'Reconnect the service to refresh credentials',
       statusCode: 401,
-      docUrl: 'https://docs.authlane.dev/guides/connections',
+      docUrl: 'https://authlane.io/docs/api-reference/connections/list-connections',
     }),
 
   connectionNotConnected: (message: string): AuthlaneError =>
     createError(message, ErrorCodes.CONNECTION_NOT_CONNECTED, {
       hint: 'The connection must be in "connected" status',
       statusCode: 400,
-      docUrl: 'https://docs.authlane.dev/guides/connections',
+      docUrl: 'https://authlane.io/docs/api-reference/connections/list-connections',
     }),
 
   connectionError: (message: string): AuthlaneError =>
     createError(message, ErrorCodes.CONNECTION_ERROR, {
       statusCode: 400,
-      docUrl: 'https://docs.authlane.dev/guides/connections',
+      docUrl: 'https://authlane.io/docs/api-reference/connections/list-connections',
     }),
 
   encryptionError: (message: string): AuthlaneError =>
     createError(message, ErrorCodes.ENCRYPTION_ERROR, {
       statusCode: 500,
-      docUrl: 'https://docs.authlane.dev/guides/security',
+      docUrl: 'https://authlane.io/docs/guides/security',
     }),
 
   internalError: (message: string): AuthlaneError =>
     createError(`Internal error: ${message}`, ErrorCodes.INTERNAL_ERROR, {
       statusCode: 500,
-      docUrl: 'https://docs.authlane.dev/support',
+      docUrl: 'https://authlane.io/docs',
     }),
 };

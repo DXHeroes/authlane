@@ -66,7 +66,22 @@ export function resolvePublicSurface(
   return { kind: 'unavailable' };
 }
 
-const PRODUCT_PREFIXES = ['/api', '/connect', '/login', '/register', '/dashboard', '/docs'];
+export function canonicalRedirectLocation(
+  requestUrl: string,
+  origin = 'https://authlane.io'
+): string {
+  const request = new URL(requestUrl);
+  const canonical = new URL(origin);
+  canonical.pathname = request.pathname;
+  canonical.search = request.search;
+  return canonical.toString();
+}
+
+export function isDocsPath(path: string): boolean {
+  return path === '/docs' || path.startsWith('/docs/');
+}
+
+const PRODUCT_PREFIXES = ['/api', '/connect', '/login', '/register', '/dashboard'];
 
 export function isProductOnlyPath(path: string): boolean {
   return PRODUCT_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));

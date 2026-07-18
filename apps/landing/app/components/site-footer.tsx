@@ -27,7 +27,7 @@ export function SiteFooter({ navigationVariant = 'landing' }: SiteFooterProps) {
     <footer className="site-footer">
       <div className="container site-footer__inner">
         <div className="site-footer__identity">
-          <Link className="wordmark" href={homepageHref}>
+          <Link className="wordmark" href={homepageHref} aria-label="Authlane homepage">
             Authlane
           </Link>
           <p>The control plane for connected tools.</p>

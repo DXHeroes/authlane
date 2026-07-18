@@ -142,6 +142,11 @@ API-key scopes are `catalog:read`, `connections:read`, `credentials:issue`, and
 PERF_API_KEY=ak_... PERF_EXTERNAL_USER_ID=user_123 pnpm test:performance
 ```
 
+Run the benchmark against a dedicated environment whose server-side rate limit is at least the
+profile's total request count (10,000 by default). For the local demo, start Authlane with
+`RATE_LIMIT_MAX_REQUESTS=20000 pnpm demo`; production rate limits should remain enabled and sized
+for the intended workload.
+
 ## Run the secure local demo
 
 Prerequisites: Node.js 22+, pnpm 10, and Docker with Compose.

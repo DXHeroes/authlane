@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
 import { getAllDocs } from '../lib/docs';
 import robots from '../robots';
 import sitemap from '../sitemap';
+import ApiReferencePage from './api-reference/page';
 
 const landingRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const repositoryRoot = resolve(landingRoot, '../..');
@@ -31,6 +34,22 @@ describe('documentation publication contract', () => {
     expect(viewer).not.toMatch(/try it/i);
     expect(viewer).toContain("highlightCode(code, 'json')");
     expect(viewer).toContain('<details');
+    expect(viewer).toContain('Request example');
+    expect(viewer).toContain('Response example');
+    expect(viewer).toContain('Webhook example');
+  });
+
+  it('renders resolved operation and webhook examples into static HTML', () => {
+    vi.stubGlobal('React', React);
+    const html = renderToStaticMarkup(ApiReferencePage());
+    vi.unstubAllGlobals();
+
+    expect(html).toContain('Request example');
+    expect(html).toContain('Response example');
+    expect(html).toContain('Webhook example');
+    expect(html).toContain('user_123');
+    expect(html).toContain('github_create_issue');
+    expect(html).toContain('connection.connected');
   });
 
   it('allows docs crawling and lists all MDX routes in the sitemap', () => {

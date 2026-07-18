@@ -2,6 +2,7 @@ import type { SecretStore } from '@authlane/database';
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
 import { createOAuthRouter } from '../../src/routes/oauth.js';
+import { assertOpenApiRequest, assertOpenApiResponse } from '../helpers/openapi-response.js';
 
 interface FakeDatabaseOptions {
   selectResults?: unknown[][];
@@ -221,11 +222,41 @@ describe('connect-session service availability after snapshot creation', () => {
       body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
     });
 
+    const body = await response.json();
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
+    expect(body).toMatchObject({
       data: { services: [{ id: 'github' }] },
       error: null,
     });
+    expect(body.data).not.toHaveProperty('allowedOrigin');
+    assertOpenApiRequest('/api/v1/connect/session', 'post', {
+      parentOrigin: 'https://saas.example',
+    });
+    assertOpenApiResponse('/api/v1/connect/session', 'post', 200, body);
+  });
+
+  it('keeps an empty hosted session payload valid against OpenAPI', async () => {
+    const { db } = fakeDatabase({ selectResults: [[session()], []] });
+
+    const response = await appFor(db).request('/api/v1/connect/session', {
+      method: 'POST',
+      headers: {
+        authorization: 'ConnectSession acs_test',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
+    });
+    const body = await response.json();
+
+    expect(body).toEqual({
+      data: {
+        externalUserId: 'user_1',
+        expiresAt: expect.any(String),
+        services: [],
+      },
+      error: null,
+    });
+    assertOpenApiResponse('/api/v1/connect/session', 'post', 200, body);
   });
 
   it('rejects a new authorization for a later-disabled service', async () => {
@@ -240,7 +271,38 @@ describe('connect-session service availability after snapshot creation', () => {
       body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
     });
 
+    const body = await response.json();
     expect(response.status).toBe(404);
+    assertOpenApiResponse('/api/v1/connect/{serviceId}/authorize', 'post', 404, body);
+  });
+
+  it('documents a configured-service conflict as an OpenAPI 409 error', async () => {
+    const { db } = fakeDatabase({
+      selectResults: [
+        [session()],
+        [
+          {
+            id: 'github',
+            authType: 'oauth2',
+            config: { authorization_url: 'https://github.com/login/oauth/authorize' },
+          },
+        ],
+        [{ oauthClientId: null }],
+      ],
+    });
+
+    const response = await appFor(db).request('/api/v1/connect/github/authorize', {
+      method: 'POST',
+      headers: {
+        authorization: 'ConnectSession acs_test',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    assertOpenApiResponse('/api/v1/connect/{serviceId}/authorize', 'post', 409, body);
   });
 
   it('still allows disconnect for a snapshotted service after it is disabled', async () => {
@@ -264,7 +326,35 @@ describe('connect-session service availability after snapshot creation', () => {
       body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
     });
 
+    const body = await response.json();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ data: { disconnected: false }, error: null });
+    expect(body).toEqual({ data: { disconnected: false }, error: null });
+    assertOpenApiResponse('/api/v1/connect/{serviceId}', 'delete', 200, body);
+  });
+
+  it('keeps a successful disconnect payload valid against OpenAPI', async () => {
+    const { db } = fakeDatabase({
+      selectResults: [
+        [
+          session({
+            destructiveActionExpiresAt: new Date(Date.now() + 60_000),
+          }),
+        ],
+      ],
+      deleteResults: [[{ id: 'connection_1', credentialSecretId: null }]],
+    });
+
+    const response = await appFor(db).request('/api/v1/connect/github', {
+      method: 'DELETE',
+      headers: {
+        authorization: 'ConnectSession acs_test',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
+    });
+    const body = await response.json();
+
+    expect(body).toEqual({ data: { disconnected: true }, error: null });
+    assertOpenApiResponse('/api/v1/connect/{serviceId}', 'delete', 200, body);
   });
 });

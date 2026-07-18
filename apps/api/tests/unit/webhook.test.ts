@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { deliverWebhook, signWebhook } from '../../src/jobs/outbox.js';
+import { assertOpenApiWebhook } from '../helpers/openapi-response.js';
 
 describe('webhook delivery', () => {
   it('signs the exact timestamp and JSON payload', () => {
@@ -17,7 +18,7 @@ describe('webhook delivery', () => {
       {
         id: 'event_1',
         eventType: 'connection.connected',
-        payload: { serviceId: 'github' },
+        payload: { externalUserId: 'user_1', serviceId: 'github', connectionId: 'connection_1' },
         createdAt: new Date('2025-12-31T23:59:00Z'),
       },
       { url: 'https://saas.test/webhooks/authlane', secret: 'secret' },
@@ -38,9 +39,13 @@ describe('webhook delivery', () => {
       })
     );
     const request = fetchFn.mock.calls[0]?.[1] as RequestInit;
-    expect(JSON.parse(String(request.body))).toMatchObject({
+    const body = JSON.parse(String(request.body));
+    expect(body).toMatchObject({
       id: 'event_1',
+      type: 'connection.connected',
       createdAt: '2025-12-31T23:59:00.000Z',
+      data: { externalUserId: 'user_1', serviceId: 'github', connectionId: 'connection_1' },
     });
+    assertOpenApiWebhook(body);
   });
 });

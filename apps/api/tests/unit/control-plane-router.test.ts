@@ -5,6 +5,7 @@ import {
   type ControlPlaneRepository,
   createControlPlaneRouter,
 } from '../../src/routes/control-plane.js';
+import { assertOpenApiResponse } from '../helpers/openapi-response.js';
 
 const services = [
   { id: 'github', name: 'GitHub', authType: 'oauth2', enabled: true, config: {} },
@@ -145,6 +146,30 @@ describe('control-plane read API', () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it.each([
+    ['mcp', 'tools'],
+    ['openai', 'functions'],
+  ] as const)('keeps the %s tools payload valid against OpenAPI', async (format, definitionKey) => {
+    const response = await appFor(repository()).request(
+      `/api/v1/users/user_1/tools?format=${format}`
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({
+      [definitionKey]: [
+        expect.objectContaining({
+          name: 'github_tool',
+          description: 'github',
+        }),
+      ],
+      version: 'cafebabe',
+    });
+    expect(body.data).not.toHaveProperty('externalUserId');
+    expect(body.data).not.toHaveProperty('format');
+    assertOpenApiResponse('/api/v1/users/{externalUserId}/tools', 'get', 200, body);
   });
 });
 

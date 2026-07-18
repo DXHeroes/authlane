@@ -33,7 +33,7 @@ paths:
       responses:
         '200':
           description: Tenant service catalog
-          headers:
+          headers: &RateLimitedSuccessHeaders
             X-RateLimit-Limit:
               $ref: '#/components/headers/RateLimitLimit'
             X-RateLimit-Remaining:
@@ -44,6 +44,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CatalogResult'
+              examples:
+                catalog:
+                  $ref: '#/components/examples/CatalogResponseExample'
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -62,10 +65,16 @@ paths:
       responses:
         '200':
           description: Connection state snapshot
+          headers: *RateLimitedSuccessHeaders
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionsResult'
+              examples:
+                connections:
+                  $ref: '#/components/examples/ConnectionsResponseExample'
+        '400':
+          $ref: '#/components/responses/Error'
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -84,10 +93,16 @@ paths:
       responses:
         '200':
           description: Versioned capability snapshot
+          headers: *RateLimitedSuccessHeaders
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CapabilitiesResult'
+              examples:
+                capabilities:
+                  $ref: '#/components/examples/CapabilitiesResponseExample'
+        '400':
+          $ref: '#/components/responses/Error'
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -107,10 +122,18 @@ paths:
       responses:
         '200':
           description: Versioned MCP tools or OpenAI functions
+          headers: *RateLimitedSuccessHeaders
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolsResult'
+              examples:
+                mcp:
+                  $ref: '#/components/examples/ToolsResponseExample'
+                openai:
+                  $ref: '#/components/examples/OpenAIToolsResponseExample'
+        '400':
+          $ref: '#/components/responses/Error'
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -133,6 +156,12 @@ paths:
         '201':
           description: Short-lived credential lease
           headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
             Cache-Control:
               schema:
                 type: string
@@ -149,6 +178,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CredentialLeaseResult'
+              examples:
+                oauth:
+                  $ref: '#/components/examples/CredentialLeaseResponseExample'
+        '400':
+          $ref: '#/components/responses/Error'
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -159,6 +193,8 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Error'
   /api/v1/connect-sessions:
     post:
       tags: [Connect sessions]
@@ -171,10 +207,19 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateConnectSession'
+            examples:
+              connectSession:
+                $ref: '#/components/examples/CreateConnectSessionRequestExample'
       responses:
         '201':
           description: Raw session token returned once
           headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
             Cache-Control:
               schema:
                 type: string
@@ -191,6 +236,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectSessionResult'
+              examples:
+                connectSession:
+                  $ref: '#/components/examples/CreateConnectSessionResponseExample'
         '400':
           $ref: '#/components/responses/Error'
         '401':
@@ -206,22 +254,50 @@ paths:
       summary: Resolve a hosted connect session
       security:
         - ConnectSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectAction'
+            examples:
+              parentOrigin:
+                $ref: '#/components/examples/HostedConnectSessionRequestExample'
       responses:
         '200':
           description: Hosted connect session and effective services
           headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
             Cache-Control:
               schema:
                 type: string
                 const: no-store, private
+            Pragma:
+              schema:
+                type: string
+                const: no-cache
+            Referrer-Policy:
+              schema:
+                type: string
+                const: no-referrer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostedConnectSessionResult'
+              examples:
+                hostedSession:
+                  $ref: '#/components/examples/HostedConnectSessionResponseExample'
         '401':
           $ref: '#/components/responses/Error'
-        '410':
+        '403':
           $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/v1/connect/{serviceId}/authorize:
     post:
       tags: [Hosted connect]
@@ -237,19 +313,50 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ConnectAction'
+            examples:
+              parentOrigin:
+                $ref: '#/components/examples/AuthorizeRequestExample'
       responses:
         '200':
           description: Provider authorization URL
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
+            Pragma:
+              schema:
+                type: string
+                const: no-cache
+            Referrer-Policy:
+              schema:
+                type: string
+                const: no-referrer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthorizeResult'
+              examples:
+                authorizationUrl:
+                  $ref: '#/components/examples/AuthorizeResponseExample'
         '400':
           $ref: '#/components/responses/Error'
         '401':
           $ref: '#/components/responses/Error'
         '403':
           $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/v1/connect/{serviceId}:
     delete:
       tags: [Hosted connect]
@@ -266,19 +373,44 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ConnectAction'
+            examples:
+              parentOrigin:
+                $ref: '#/components/examples/DisconnectRequestExample'
       responses:
         '200':
           description: Updated disconnected state
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
+            Pragma:
+              schema:
+                type: string
+                const: no-cache
+            Referrer-Policy:
+              schema:
+                type: string
+                const: no-referrer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DisconnectResult'
+              examples:
+                disconnected:
+                  $ref: '#/components/examples/DisconnectResponseExample'
         '401':
           $ref: '#/components/responses/Error'
         '403':
           $ref: '#/components/responses/Error'
-        '409':
-          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/v1/oauth/{serviceId}/callback:
     get:
       tags: [OAuth]
@@ -291,11 +423,13 @@ paths:
           in: query
           schema:
             type: string
+            example: provider-code-redacted
         - name: state
           in: query
           required: true
           schema:
             type: string
+            example: opaque-state-redacted
         - name: error
           in: query
           schema:
@@ -303,8 +437,36 @@ paths:
       responses:
         '302':
           description: Redirect to the hosted connect callback
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
+            Pragma:
+              schema:
+                type: string
+                const: no-cache
+            Referrer-Policy:
+              schema:
+                type: string
+                const: no-referrer
+            Location:
+              schema:
+                type: string
+                format: uri
+                example: https://app.authlane.io/connect/callback?status=connected&serviceId=github
         '400':
           $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 webhooks:
   connectionLifecycle:
     post:
@@ -339,6 +501,9 @@ webhooks:
           application/json:
             schema:
               $ref: '#/components/schemas/WebhookEvent'
+            examples:
+              connection:
+                $ref: '#/components/examples/ConnectionWebhookExample'
       responses:
         '200':
           description: Event accepted
@@ -396,10 +561,14 @@ components:
   responses:
     Error:
       description: Authlane request error
+      headers: *RateLimitedSuccessHeaders
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResult'
+          examples:
+            error:
+              $ref: '#/components/examples/ErrorResponseExample'
     RateLimited:
       description: Rate limit exceeded
       headers:
@@ -416,6 +585,9 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResult'
+          examples:
+            rateLimited:
+              $ref: '#/components/examples/RateLimitedResponseExample'
   schemas:
     AuthlaneError:
       type: object
@@ -501,6 +673,10 @@ components:
       type: object
       additionalProperties: true
     ToolDefinition:
+      oneOf:
+        - $ref: '#/components/schemas/McpToolDefinition'
+        - $ref: '#/components/schemas/OpenAIFunctionDefinition'
+    McpToolDefinition:
       type: object
       required: [name, description, inputSchema]
       properties:
@@ -509,6 +685,16 @@ components:
         description:
           type: string
         inputSchema:
+          $ref: '#/components/schemas/JsonSchema'
+    OpenAIFunctionDefinition:
+      type: object
+      required: [name, description, parameters]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        parameters:
           $ref: '#/components/schemas/JsonSchema'
     CapabilityService:
       allOf:
@@ -546,20 +732,25 @@ components:
       required: [data, error]
       properties:
         data:
-          type: object
-          required: [externalUserId, format, version, tools]
-          properties:
-            externalUserId:
-              type: string
-            format:
-              type: string
-              enum: [mcp, openai]
-            version:
-              type: string
-            tools:
-              type: array
-              items:
-                $ref: '#/components/schemas/ToolDefinition'
+          oneOf:
+            - type: object
+              required: [tools, version]
+              properties:
+                tools:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/McpToolDefinition'
+                version:
+                  type: string
+            - type: object
+              required: [functions, version]
+              properties:
+                functions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OpenAIFunctionDefinition'
+                version:
+                  type: string
         error:
           type: 'null'
     CredentialLeaseResult:
@@ -673,23 +864,34 @@ components:
               format: date-time
         error:
           type: 'null'
+    HostedConnectService:
+      type: object
+      required: [id, name, authType, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        authType:
+          type: string
+          enum: [oauth2, api_key]
+        status:
+          type: string
+          enum: [disconnected, pending, connected, expired, error]
     HostedConnectSessionResult:
       type: object
       required: [data, error]
       properties:
         data:
           type: object
-          required: [externalUserId, allowedOrigin, services, expiresAt]
+          required: [externalUserId, services, expiresAt]
           properties:
             externalUserId:
               type: string
-            allowedOrigin:
-              type: string
-              format: uri
             services:
               type: array
               items:
-                $ref: '#/components/schemas/Connection'
+                $ref: '#/components/schemas/HostedConnectService'
             expiresAt:
               type: string
               format: date-time
@@ -720,7 +922,11 @@ components:
       required: [data, error]
       properties:
         data:
-          $ref: '#/components/schemas/Connection'
+          type: object
+          required: [disconnected]
+          properties:
+            disconnected:
+              type: boolean
         error:
           type: 'null'
     WebhookEventName:
@@ -733,19 +939,227 @@ components:
         - connection.error
     WebhookEvent:
       type: object
-      required: [id, event, createdAt, externalUserId, serviceId]
+      required: [id, type, createdAt, data]
       properties:
         id:
           type: string
           format: uuid
-        event:
+        type:
           $ref: '#/components/schemas/WebhookEventName'
         createdAt:
           type: string
           format: date-time
+        data:
+          $ref: '#/components/schemas/WebhookEventData'
+    WebhookEventData:
+      type: object
+      required: [externalUserId, serviceId]
+      properties:
         externalUserId:
           type: string
         serviceId:
           type: string
-        connection:
-          $ref: '#/components/schemas/Connection'
+        connectionId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        errorCode:
+          type: string
+  examples:
+    CatalogResponseExample:
+      summary: Tenant-enabled services
+      value:
+        data:
+          - id: github
+            name: GitHub
+            authType: oauth2
+            enabled: true
+            config: {}
+          - id: slack
+            name: Slack
+            authType: oauth2
+            enabled: true
+            config: {}
+        error: null
+    ConnectionsResponseExample:
+      summary: Effective connection states for one external user
+      value:
+        data:
+          - serviceId: github
+            status: connected
+            connected: true
+            expiresAt: '2026-08-01T12:00:00.000Z'
+            connectedAt: '2026-07-18T10:00:00.000Z'
+            lastCheckedAt: null
+            errorCode: null
+          - serviceId: slack
+            status: disconnected
+            connected: false
+            expiresAt: null
+            connectedAt: null
+            lastCheckedAt: null
+            errorCode: null
+        error: null
+    CapabilitiesResponseExample:
+      summary: MCP capabilities for one external user
+      value:
+        data:
+          externalUserId: user_123
+          format: mcp
+          version: cafebabe
+          services:
+            - serviceId: github
+              status: connected
+              connected: true
+              expiresAt: '2026-08-01T12:00:00.000Z'
+              tools:
+                - name: github_create_issue
+                  description: Create an issue in a GitHub repository.
+                  inputSchema:
+                    type: object
+                    properties:
+                      owner:
+                        type: string
+                      repo:
+                        type: string
+                      title:
+                        type: string
+                    required: [owner, repo, title]
+        error: null
+    ToolsResponseExample:
+      summary: MCP tool definitions
+      value:
+        data:
+          tools:
+            - name: github_create_issue
+              description: Create an issue in a GitHub repository.
+              inputSchema:
+                type: object
+                properties:
+                  owner:
+                    type: string
+                  repo:
+                    type: string
+                  title:
+                    type: string
+                required: [owner, repo, title]
+          version: cafebabe
+        error: null
+    OpenAIToolsResponseExample:
+      summary: OpenAI function definitions
+      value:
+        data:
+          functions:
+            - name: github_create_issue
+              description: Create an issue in a GitHub repository.
+              parameters:
+                type: object
+                properties:
+                  owner:
+                    type: string
+                  repo:
+                    type: string
+                  title:
+                    type: string
+                required: [owner, repo, title]
+          version: cafebabe
+        error: null
+    CredentialLeaseResponseExample:
+      summary: Access-only OAuth credential lease
+      value:
+        data:
+          type: oauth2
+          leaseId: 550e8400-e29b-41d4-a716-446655440000
+          accessToken: provider-access-token-redacted
+          tokenType: Bearer
+          scopes: [repo, user:email]
+          expiresAt: '2026-07-18T12:05:00.000Z'
+        error: null
+    CreateConnectSessionRequestExample:
+      summary: Origin-bound session with all currently enabled services
+      value:
+        externalUserId: user_123
+        allowedServices: []
+        allowedOrigin: https://app.example.com
+        expiresInSeconds: 600
+    CreateConnectSessionResponseExample:
+      summary: One-time hosted connect handoff
+      value:
+        data:
+          id: 550e8400-e29b-41d4-a716-446655440000
+          token: acs_redacted
+          url: https://app.authlane.io/connect?origin=https%3A%2F%2Fapp.example.com#session=acs_redacted
+          expiresAt: '2026-07-18T12:10:00.000Z'
+        error: null
+    HostedConnectSessionRequestExample:
+      summary: Resolve the session for its exact parent origin
+      value:
+        parentOrigin: https://app.example.com
+    HostedConnectSessionResponseExample:
+      summary: Services visible in the hosted connect UI
+      value:
+        data:
+          externalUserId: user_123
+          expiresAt: '2026-07-18T12:10:00.000Z'
+          services:
+            - id: github
+              name: GitHub
+              authType: oauth2
+              status: connected
+            - id: slack
+              name: Slack
+              authType: oauth2
+              status: disconnected
+        error: null
+    AuthorizeRequestExample:
+      summary: Bind authorization to the parent origin
+      value:
+        parentOrigin: https://app.example.com
+    AuthorizeResponseExample:
+      summary: Provider authorization redirect URL
+      value:
+        data:
+          authorizationUrl: https://github.com/login/oauth/authorize?client_id=redacted&state=redacted&code_challenge=redacted&code_challenge_method=S256
+        error: null
+    DisconnectRequestExample:
+      summary: Bind disconnect to the parent origin
+      value:
+        parentOrigin: https://app.example.com
+    DisconnectResponseExample:
+      summary: Existing connection removed
+      value:
+        data:
+          disconnected: true
+        error: null
+    ErrorResponseExample:
+      summary: Supabase-style request error
+      value:
+        data: null
+        error:
+          message: Invalid external user ID
+          code: VALIDATION_ERROR
+          hint: Use the external user ID from your authenticated SaaS session.
+          docUrl: https://authlane.io/docs/api-reference
+          statusCode: 400
+    RateLimitedResponseExample:
+      summary: Rate limit exceeded
+      value:
+        data: null
+        error:
+          message: Rate limit exceeded
+          code: RATE_LIMIT_EXCEEDED
+          hint: Maximum 100 requests per 60 seconds
+          docUrl: https://authlane.io/docs/api-reference/authentication
+          statusCode: 429
+    ConnectionWebhookExample:
+      summary: Signed connection lifecycle delivery
+      value:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        type: connection.connected
+        createdAt: '2026-07-18T12:00:00.000Z'
+        data:
+          externalUserId: user_123
+          serviceId: github
+          connectionId: 6ba7b810-9dad-41d1-80b4-00c04fd430c8

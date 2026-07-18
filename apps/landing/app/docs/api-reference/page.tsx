@@ -13,9 +13,61 @@ type Operation = {
   scope?: string;
   security: string;
   responses: string[];
+  requestExample?: unknown;
+  responseExample?: unknown;
 };
 
 const methods = new Set(['get', 'post', 'put', 'patch', 'delete']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function resolveExample(example: unknown): unknown {
+  if (!isRecord(example)) return undefined;
+  if ('value' in example) return example.value;
+  const reference = example.$ref;
+  if (typeof reference !== 'string') return undefined;
+  const prefix = '#/components/examples/';
+  if (!reference.startsWith(prefix)) return undefined;
+  const name = reference.slice(prefix.length);
+  const component = (openApi.components.examples as Record<string, unknown>)[name];
+  return isRecord(component) ? component.value : undefined;
+}
+
+function firstJsonExample(content: unknown): unknown {
+  if (!isRecord(content)) return undefined;
+  const mediaType = content['application/json'];
+  if (!isRecord(mediaType)) return undefined;
+  if ('example' in mediaType) return mediaType.example;
+  if (!isRecord(mediaType.examples)) return undefined;
+  for (const example of Object.values(mediaType.examples)) {
+    const value = resolveExample(example);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function firstResponseExample(responses: unknown): unknown {
+  if (!isRecord(responses)) return undefined;
+  for (const [status, response] of Object.entries(responses)) {
+    if (!/^[23]/.test(status) || !isRecord(response)) continue;
+    const jsonExample = firstJsonExample(response.content);
+    if (jsonExample !== undefined) return jsonExample;
+    if (!isRecord(response.headers)) continue;
+    const headers = Object.fromEntries(
+      Object.entries(response.headers).flatMap(([name, header]) => {
+        if (!isRecord(header) || !isRecord(header.schema) || !('example' in header.schema)) {
+          return [];
+        }
+        return [[name, header.schema.example]];
+      })
+    );
+    if (Object.keys(headers).length > 0) return headers;
+  }
+  return undefined;
+}
+
 const operations: Operation[] = Object.entries(openApi.paths).flatMap(([path, pathItem]) =>
   Object.entries(pathItem)
     .filter(([method]) => methods.has(method))
@@ -25,6 +77,7 @@ const operations: Operation[] = Object.entries(openApi.paths).flatMap(([path, pa
         summary?: string;
         security?: Array<Record<string, unknown>>;
         responses?: Record<string, unknown>;
+        requestBody?: { content?: unknown };
         'x-authlane-scope'?: string;
       };
       const schemes = operation.security ?? openApi.security;
@@ -38,6 +91,8 @@ const operations: Operation[] = Object.entries(openApi.paths).flatMap(([path, pa
           ? schemes.map((entry) => Object.keys(entry).join(', ')).join(' or ')
           : 'Public callback',
         responses: Object.keys(operation.responses ?? {}),
+        requestExample: firstJsonExample(operation.requestBody?.content),
+        responseExample: firstResponseExample(operation.responses),
       };
     })
 );
@@ -127,6 +182,18 @@ export default function ApiReferencePage() {
                   <dd>{operation.responses.join(', ')}</dd>
                 </div>
               </dl>
+              {operation.requestExample !== undefined ? (
+                <section className="api-example" aria-label={`${operation.operationId} request`}>
+                  <h3>Request example</h3>
+                  <HighlightedJson value={operation.requestExample} />
+                </section>
+              ) : null}
+              {operation.responseExample !== undefined ? (
+                <section className="api-example" aria-label={`${operation.operationId} response`}>
+                  <h3>Response example</h3>
+                  <HighlightedJson value={operation.responseExample} />
+                </section>
+              ) : null}
             </details>
           ))}
         </div>
@@ -138,6 +205,9 @@ export default function ApiReferencePage() {
           Lifecycle webhooks are signed with the timestamp and exact raw body. Verify the HMAC
           before parsing JSON, then deduplicate deliveries with the idempotency key.
         </p>
+        <h3>Webhook example</h3>
+        <HighlightedJson value={openApi.components.examples.ConnectionWebhookExample.value} />
+        <h3>Webhook contract</h3>
         <HighlightedJson value={openApi.webhooks} />
       </section>
 

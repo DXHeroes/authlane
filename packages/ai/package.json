@@ -1,0 +1,81 @@
+{
+  "name": "@authlane/ai",
+  "version": "0.1.0",
+  "description": "Local AI framework adapters for Authlane user-scoped tools",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vercel": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./openai": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prebuild": "pnpm --filter '@authlane/ai^...' build",
+    "build": "tsc",
+    "pretest": "pnpm --filter '@authlane/ai^...' build",
+    "test": "vitest run",
+    "pretype-check": "pnpm --filter '@authlane/ai^...' build",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@authlane/integration-airtable": "workspace:*",
+    "@authlane/integration-discord": "workspace:*",
+    "@authlane/integration-github": "workspace:*",
+    "@authlane/integration-gmail": "workspace:*",
+    "@authlane/integration-google-calendar": "workspace:*",
+    "@authlane/integration-google-drive": "workspace:*",
+    "@authlane/integration-hubspot": "workspace:*",
+    "@authlane/integration-jira": "workspace:*",
+    "@authlane/integration-linear": "workspace:*",
+    "@authlane/integration-notion": "workspace:*",
+    "@authlane/integration-pipedrive": "workspace:*",
+    "@authlane/integration-salesforce": "workspace:*",
+    "@authlane/integration-sentry": "workspace:*",
+    "@authlane/integration-slack": "workspace:*",
+    "@authlane/integration-stripe": "workspace:*",
+    "@authlane/sdk": "workspace:*",
+    "@authlane/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@openai/agents": "^0.13.4",
+    "ai": "^7.0.30"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "@openai/agents": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@openai/agents": "^0.13.4",
+    "@types/node": "^24.10.1",
+    "ai": "^7.0.30",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

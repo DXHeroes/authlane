@@ -49,9 +49,11 @@ pnpm exec vitest run scripts/plugin-release-contract.test.ts --environment node
 `release:pack` builds all workspaces, runs `npm pack --dry-run --json` for all 20 public npm
 packages, creates real tarballs, installs them in a clean fixture, and imports every public export.
 It rejects unexpected source, test, fixture, cache, and secret-like files. The Python check runs
-`uv build --clear --no-sources --out-dir packages/python/dist packages/python`, Twine, wheel/sdist
-inventory checks, and independent
-isolated smoke tests for both artifacts.
+the build and Twine 6.2.0 from `packages/python/uv.lock`. Its committed
+`packages/python/release-requirements.txt` is a hash-pinned export of the base and release dependency
+groups. Each wheel/sdist smoke test installs those hashes into a fresh environment, installs the
+artifact without resolving dependencies or using workspace source, and verifies the imported SDK
+comes from that environment. CI pins uv 0.11.14 explicitly.
 
 Also run the plugin/skill validators in [the agent plugin guide](./agent-plugins.md), workflow YAML
 linting, Cursor schema tests, and documentation link checks. Review the complete dry-run and real

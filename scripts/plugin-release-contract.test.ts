@@ -298,9 +298,71 @@ describe('manual release safety contracts', () => {
       } else {
         expect(source).toMatch(/attestations:\s+true/);
         expect(source.match(/enable-cache: false/g)).toHaveLength(2);
+        expect(source.match(/version: 0\.11\.14/g)).toHaveLength(2);
+        expect(source).not.toMatch(/\buvx\s+twine\b/);
+        expect(source).not.toMatch(/uv run --isolated --no-project --with/);
+        expect(
+          source.match(
+            /uv sync --project packages\/python --frozen --no-dev --group release --no-install-project/g
+          )
+        ).toHaveLength(2);
+        expect(source.match(/python3 scripts\/smoke-python-artifact\.py/g)).toHaveLength(4);
       }
     });
   }
+
+  it('resolves Python release and artifact-smoke dependencies from committed hashes', () => {
+    const rootManifest = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8'));
+    const scripts = object(rootManifest.scripts);
+    expect(scripts['release:python:lock:check']).toBe(
+      'python3 scripts/validate-python-release-lock.py'
+    );
+    expect(String(scripts['release:python:build'])).toContain(
+      'uv sync --project packages/python --frozen --no-dev --group release --no-install-project'
+    );
+    expect(String(scripts['release:python:build'])).toContain(
+      'uv run --project packages/python --no-sync uv build'
+    );
+    expect(String(scripts['release:python:check'])).toContain(
+      'uv run --project packages/python --no-sync twine check'
+    );
+    expect(String(scripts['release:python:check'])).not.toContain('uvx twine');
+    expect(
+      String(scripts['release:python:check']).match(/smoke-python-artifact\.py/g)
+    ).toHaveLength(2);
+
+    const pyproject = readFileSync(join(repositoryRoot, 'packages/python/pyproject.toml'), 'utf8');
+    expect(pyproject).toContain('release = [');
+    expect(pyproject).toContain('"hatchling==1.27.0"');
+    expect(pyproject).toContain('"twine==6.2.0"');
+
+    const requirements = readFileSync(
+      join(repositoryRoot, 'packages/python/release-requirements.txt'),
+      'utf8'
+    );
+    for (const dependency of [
+      'hatchling==1.27.0',
+      'httpx==0.28.1',
+      'jsonschema==4.26.0',
+      'twine==6.2.0',
+    ]) {
+      expect(requirements).toContain(dependency);
+    }
+    expect(requirements).toContain('--hash=sha256:');
+
+    const lockValidator = readFileSync(
+      join(repositoryRoot, 'scripts/validate-python-release-lock.py'),
+      'utf8'
+    );
+    expect(lockValidator).toMatch(/"lock",\s+"--project",\s+"packages\/python",\s+"--check"/);
+
+    const smoke = readFileSync(join(repositoryRoot, 'scripts/smoke-python-artifact.py'), 'utf8');
+    expect(smoke).toContain('--require-hashes');
+    expect(smoke).toContain('--no-deps');
+    expect(smoke).toContain('--no-build-isolation');
+    expect(smoke).toMatch(/"--python",\s+"3\.11"/);
+    expect(smoke).toContain('"-I"');
+  });
 });
 
 describe('public plugin and release documentation', () => {

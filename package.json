@@ -66,8 +66,9 @@
     "changeset:status": "changeset status",
     "release:pack": "pnpm build && node scripts/validate-npm-packages.mjs",
     "release:npm:prepare": "pnpm changeset:status && pnpm release:pack",
-    "release:python:build": "uv build --clear --no-sources --out-dir packages/python/dist packages/python",
-    "release:python:check": "pnpm release:python:build && uvx twine check packages/python/dist/* && python3 scripts/validate-python-artifacts.py && uv run --isolated --no-project --with packages/python/dist/*.whl scripts/python-package-smoke.py && uv run --isolated --no-project --with packages/python/dist/*.tar.gz scripts/python-package-smoke.py"
+    "release:python:lock:check": "python3 scripts/validate-python-release-lock.py",
+    "release:python:build": "pnpm release:python:lock:check && uv sync --project packages/python --frozen --no-dev --group release --no-install-project && uv run --project packages/python --no-sync uv build --clear --no-sources --no-build-isolation --out-dir packages/python/dist packages/python",
+    "release:python:check": "pnpm release:python:build && uv run --project packages/python --no-sync twine check packages/python/dist/* && python3 scripts/validate-python-artifacts.py && python3 scripts/smoke-python-artifact.py packages/python/dist/*.whl && python3 scripts/smoke-python-artifact.py packages/python/dist/*.tar.gz"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",

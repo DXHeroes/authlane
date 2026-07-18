@@ -51,6 +51,10 @@ dev = [
   "ruff>=0.11,<1",
   "types-jsonschema>=4.23,<5",
 ]
+release = [
+  "hatchling==1.27.0",
+  "twine==6.2.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/authlane"]

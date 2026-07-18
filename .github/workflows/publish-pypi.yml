@@ -29,17 +29,22 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
+          version: 0.11.14
           enable-cache: false
+      - name: Verify frozen release requirements
+        run: python3 scripts/validate-python-release-lock.py
+      - name: Install locked release tools without workspace source
+        run: uv sync --project packages/python --frozen --no-dev --group release --no-install-project
       - name: Build wheel and source distribution
-        run: uv build --clear --no-sources --out-dir packages/python/dist packages/python
+        run: uv run --project packages/python --no-sync uv build --clear --no-sources --no-build-isolation --out-dir packages/python/dist packages/python
       - name: Check package metadata
-        run: uvx twine check packages/python/dist/*
+        run: uv run --project packages/python --no-sync twine check packages/python/dist/*
       - name: Inspect package inventories
         run: python3 scripts/validate-python-artifacts.py
       - name: Smoke-test wheel
-        run: uv run --isolated --no-project --with packages/python/dist/*.whl scripts/python-package-smoke.py
+        run: python3 scripts/smoke-python-artifact.py packages/python/dist/*.whl
       - name: Smoke-test source distribution
-        run: uv run --isolated --no-project --with packages/python/dist/*.tar.gz scripts/python-package-smoke.py
+        run: python3 scripts/smoke-python-artifact.py packages/python/dist/*.tar.gz
 
   publish:
     name: Publish Python artifacts
@@ -61,15 +66,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
+          version: 0.11.14
           enable-cache: false
+      - name: Verify frozen release requirements
+        run: python3 scripts/validate-python-release-lock.py
+      - name: Install locked release tools without workspace source
+        run: uv sync --project packages/python --frozen --no-dev --group release --no-install-project
       - name: Rebuild wheel and source distribution
-        run: uv build --clear --no-sources --out-dir packages/python/dist packages/python
+        run: uv run --project packages/python --no-sync uv build --clear --no-sources --no-build-isolation --out-dir packages/python/dist packages/python
       - name: Recheck package metadata and inventory
         run: |
-          uvx twine check packages/python/dist/*
+          uv run --project packages/python --no-sync twine check packages/python/dist/*
           python3 scripts/validate-python-artifacts.py
-          uv run --isolated --no-project --with packages/python/dist/*.whl scripts/python-package-smoke.py
-          uv run --isolated --no-project --with packages/python/dist/*.tar.gz scripts/python-package-smoke.py
+          python3 scripts/smoke-python-artifact.py packages/python/dist/*.whl
+          python3 scripts/smoke-python-artifact.py packages/python/dist/*.tar.gz
       - name: Publish with PyPI Trusted Publishing
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1, retrieved 2026-07-18
         with:

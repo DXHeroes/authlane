@@ -81,10 +81,11 @@ export const Errors = {
       statusCode: 400,
     }),
 
-  adapterError: (): AuthlaneError => ({
-    message: 'Tool adapter failed to build.',
-    code: ErrorCodes.ADAPTER_ERROR,
-  }),
+  adapterError: (): AuthlaneError =>
+    createError('Tool adapter failed to build.', ErrorCodes.ADAPTER_ERROR, {
+      hint: 'Check the adapter configuration and ensure build completes synchronously.',
+      docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+    }),
 
   invalidResponse: (message: string): AuthlaneError =>
     createError(`Invalid response: ${message}`, ErrorCodes.INVALID_RESPONSE, {

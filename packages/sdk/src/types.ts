@@ -112,6 +112,7 @@ export interface ToolOptions extends ExternalUserOptions {
 
 export type UserScopeToolOptions = Omit<ToolOptions, 'externalUserId'> & {
   externalUserId?: never;
+  adapter?: never;
 };
 export type UserScopeServiceOptions = Omit<UserServiceOptions, 'externalUserId'> & {
   externalUserId?: never;
@@ -128,8 +129,7 @@ export interface UserScopeCapabilities {
 
 export interface UserScopeTools {
   list<T>(options: UserToolAdapterOptions<T>): Promise<Result<T>>;
-  list(): Promise<Result<ToolsResponse>>;
-  list(options: UserScopeToolOptions): Promise<Result<ToolsResponse>>;
+  list(options?: UserScopeToolOptions): Promise<Result<ToolsResponse>>;
 }
 
 export interface UserScopeCredentialLeases {

@@ -20,22 +20,36 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <button
+        type="button"
+        aria-label="Dismiss dialog backdrop"
+        className="absolute inset-0 h-full w-full cursor-default"
+        onClick={onClose}
+      />
       <div
-        className="w-full max-w-2xl rounded-lg border border-border bg-card p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="connection-details-title"
+        className="relative w-full max-w-2xl rounded-lg border border-border bg-card p-6 shadow-lg"
       >
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Connection Details</h2>
+          <h2 id="connection-details-title" className="text-2xl font-bold">
+            Connection Details
+          </h2>
           <button
+            type="button"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
           >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -48,24 +62,24 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Connection ID</label>
+            <span className="text-sm font-medium text-muted-foreground">Connection ID</span>
             <p className="mt-1 font-mono text-sm">{connection.id}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">User ID</label>
+              <span className="text-sm font-medium text-muted-foreground">User ID</span>
               <p className="mt-1 font-mono text-sm">{connection.userId}</p>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Service</label>
+              <span className="text-sm font-medium text-muted-foreground">Service</span>
               <p className="mt-1 text-sm">{connection.serviceId}</p>
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Status</label>
+            <span className="text-sm font-medium text-muted-foreground">Status</span>
             <p
               className={`mt-1 text-sm font-semibold uppercase ${getStatusColor(connection.status)}`}
             >
@@ -75,19 +89,19 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Created At</label>
+              <span className="text-sm font-medium text-muted-foreground">Created At</span>
               <p className="mt-1 text-sm">{new Date(connection.createdAt).toLocaleString()}</p>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Updated At</label>
+              <span className="text-sm font-medium text-muted-foreground">Updated At</span>
               <p className="mt-1 text-sm">{new Date(connection.updatedAt).toLocaleString()}</p>
             </div>
           </div>
 
           {connection.lastHealthCheck && (
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Last Health Check</label>
+              <span className="text-sm font-medium text-muted-foreground">Last Health Check</span>
               <p className="mt-1 text-sm">
                 {new Date(connection.lastHealthCheck).toLocaleString()}
               </p>
@@ -104,6 +118,7 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
 
         <div className="mt-6 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
           >

@@ -16,7 +16,9 @@ test('debug console logs', async ({ page }) => {
   await page.waitForTimeout(3000);
 
   console.log('=== BROWSER CONSOLE LOGS ===');
-  logs.forEach((log) => console.log(log));
+  logs.forEach((log) => {
+    console.log(log);
+  });
 
   const bodyText = await page.locator('body').textContent();
   console.log('\n=== BODY TEXT ===');

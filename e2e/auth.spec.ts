@@ -246,7 +246,3 @@ test.describe('Authentication', () => {
     });
   });
 });
-
-
-
-

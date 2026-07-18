@@ -444,7 +444,7 @@ test.describe('Security and Error Handling', () => {
 
   test.describe('Data Encryption', () => {
     test('sensitive data is encrypted in transit', async ({ page }) => {
-      const user = generateTestUser();
+      const _user = generateTestUser();
 
       await page.goto(`${URLS.dashboard}/register`);
 

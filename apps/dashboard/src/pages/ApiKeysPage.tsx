@@ -40,6 +40,7 @@ export default function ApiKeysPage() {
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setIsCreateModalOpen(true)}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
@@ -118,6 +119,7 @@ export default function ApiKeysPage() {
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <button
+                            type="button"
                             onClick={() => handleRevoke(key.id, key.name)}
                             disabled={revokeMutation.isPending}
                             className="text-red-600 hover:text-red-800 disabled:opacity-50"
@@ -135,6 +137,7 @@ export default function ApiKeysPage() {
             <div className="p-12 text-center">
               <div className="mb-4 text-muted-foreground">No API keys created yet</div>
               <button
+                type="button"
                 onClick={() => setIsCreateModalOpen(true)}
                 className="text-primary hover:underline"
               >

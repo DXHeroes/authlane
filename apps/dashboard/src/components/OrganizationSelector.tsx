@@ -43,6 +43,7 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading}
         className="flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
@@ -56,6 +57,7 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
           </span>
         </div>
         <svg
+          aria-hidden="true"
           className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
@@ -73,6 +75,7 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
             ) : (
               organizations.map((org) => (
                 <button
+                  type="button"
                   key={org.id}
                   onClick={() => handleSwitch(org.id)}
                   className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent ${
@@ -85,6 +88,7 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
                   <span className="truncate">{org.name}</span>
                   {org.id === organization?.id && (
                     <svg
+                      aria-hidden="true"
                       className="ml-auto h-4 w-4 text-primary"
                       fill="none"
                       stroke="currentColor"
@@ -104,13 +108,20 @@ export default function OrganizationSelector({ onCreateNew }: OrganizationSelect
           </div>
           <div className="border-t border-border">
             <button
+              type="button"
               onClick={() => {
                 setIsOpen(false);
                 onCreateNew();
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-accent"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"

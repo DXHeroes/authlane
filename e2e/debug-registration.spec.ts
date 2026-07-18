@@ -20,7 +20,7 @@ test('debug registration flow', async ({ page }) => {
       let body = '';
       try {
         body = await response.text();
-      } catch (e) {
+      } catch (_e) {
         body = '<unable to read>';
       }
       console.log(`API Response: ${url} - Status: ${status}`);
@@ -44,11 +44,15 @@ test('debug registration flow', async ({ page }) => {
   await page.waitForTimeout(5000);
 
   console.log('\n=== CONSOLE LOGS ===');
-  logs.forEach((log) => console.log(log));
+  logs.forEach((log) => {
+    console.log(log);
+  });
 
   if (errors.length > 0) {
     console.log('\n=== ERRORS ===');
-    errors.forEach((err) => console.log(err));
+    errors.forEach((err) => {
+      console.log(err);
+    });
   }
 
   console.log('\n=== FINAL URL ===');

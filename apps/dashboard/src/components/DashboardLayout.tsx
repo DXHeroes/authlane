@@ -28,7 +28,13 @@ export default function DashboardLayout() {
         <nav className="flex-1 space-y-1 p-4">
           <NavLink to="/dashboard" end className={({ isActive }) => navLinkClass(isActive)}>
             <div className="flex items-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -41,7 +47,13 @@ export default function DashboardLayout() {
           </NavLink>
           <NavLink to="/dashboard/connections" className={({ isActive }) => navLinkClass(isActive)}>
             <div className="flex items-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -54,7 +66,13 @@ export default function DashboardLayout() {
           </NavLink>
           <NavLink to="/dashboard/services" className={({ isActive }) => navLinkClass(isActive)}>
             <div className="flex items-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -67,7 +85,13 @@ export default function DashboardLayout() {
           </NavLink>
           <NavLink to="/dashboard/api-keys" className={({ isActive }) => navLinkClass(isActive)}>
             <div className="flex items-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -80,7 +104,13 @@ export default function DashboardLayout() {
           </NavLink>
           <NavLink to="/dashboard/security" className={({ isActive }) => navLinkClass(isActive)}>
             <div className="flex items-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -99,7 +129,13 @@ export default function DashboardLayout() {
             </p>
             <NavLink to="/dashboard/members" className={({ isActive }) => navLinkClass(isActive)}>
               <div className="flex items-center gap-2">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -115,7 +151,13 @@ export default function DashboardLayout() {
               className={({ isActive }) => navLinkClass(isActive)}
             >
               <div className="flex items-center gap-2">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -128,7 +170,13 @@ export default function DashboardLayout() {
             </NavLink>
             <NavLink to="/dashboard/settings" className={({ isActive }) => navLinkClass(isActive)}>
               <div className="flex items-center gap-2">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -154,6 +202,7 @@ export default function DashboardLayout() {
             <div className="text-xs text-muted-foreground">{user?.email}</div>
           </div>
           <button
+            type="button"
             onClick={() => logout()}
             className="w-full rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
           >

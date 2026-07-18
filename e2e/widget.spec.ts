@@ -232,11 +232,11 @@ test.describe('Authlane Widget', () => {
     });
 
     test('widget sends events to parent window', async ({ page }) => {
-      let receivedMessage = false;
+      let _receivedMessage = false;
 
       // Listen for messages from widget
-      await page.exposeFunction('handleMessage', (msg: any) => {
-        receivedMessage = true;
+      await page.exposeFunction('handleMessage', (_msg: any) => {
+        _receivedMessage = true;
       });
 
       await page.setContent(`

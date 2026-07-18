@@ -15,7 +15,7 @@ test('debug registration flow in detail', async ({ page }) => {
       let body = '';
       try {
         body = await response.text();
-      } catch (e) {
+      } catch (_e) {
         body = '<unable to read>';
       }
       apiCalls.push({ url, status, body });
@@ -48,7 +48,11 @@ test('debug registration flow in detail', async ({ page }) => {
   });
 
   console.log('\n=== CONSOLE LOGS (filtered for auth) ===');
-  logs.filter((log) => log.includes('Auth')).forEach((log) => console.log(log));
+  logs
+    .filter((log) => log.includes('Auth'))
+    .forEach((log) => {
+      console.log(log);
+    });
 
   console.log(`\n=== CURRENT URL ===`);
   console.log(page.url());

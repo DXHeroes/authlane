@@ -154,6 +154,7 @@ export default function ConnectionsPage() {
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <button
+                          type="button"
                           onClick={() => setSelectedConnection(connection)}
                           className="text-primary hover:underline"
                         >

@@ -217,7 +217,3 @@ export async function clearTestData(page: Page) {
     await logout(page);
   }
 }
-
-
-
-

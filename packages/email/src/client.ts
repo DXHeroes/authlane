@@ -63,7 +63,3 @@ export function getEmailClient(): Resend {
   }
   return clientInstance;
 }
-
-
-
-

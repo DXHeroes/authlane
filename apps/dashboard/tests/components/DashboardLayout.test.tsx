@@ -14,7 +14,9 @@ vi.mock('@/contexts/AuthContext', () => ({
 vi.mock('@/components/OrganizationSelector', () => ({
   default: ({ onCreateNew }: { onCreateNew: () => void }) => (
     <div data-testid="organization-selector">
-      <button onClick={onCreateNew}>Create New Org</button>
+      <button type="button" onClick={onCreateNew}>
+        Create New Org
+      </button>
     </div>
   ),
 }));
@@ -22,8 +24,12 @@ vi.mock('@/components/OrganizationSelector', () => ({
 vi.mock('@/components/CreateOrganizationModal', () => ({
   default: ({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) => (
     <div data-testid="create-org-modal">
-      <button onClick={onClose}>Close Modal</button>
-      <button onClick={onSuccess}>Success</button>
+      <button type="button" onClick={onClose}>
+        Close Modal
+      </button>
+      <button type="button" onClick={onSuccess}>
+        Success
+      </button>
     </div>
   ),
 }));

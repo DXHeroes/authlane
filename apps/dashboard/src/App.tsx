@@ -10,10 +10,10 @@ import LoginPage from '@/pages/LoginPage';
 import MembersPage from '@/pages/MembersPage';
 import OrganizationPage from '@/pages/OrganizationPage';
 import RegisterPage from '@/pages/RegisterPage';
+import SecurityPage from '@/pages/SecurityPage';
 import ServiceDetailPage from '@/pages/ServiceDetailPage';
 import ServicesPage from '@/pages/ServicesPage';
 import SettingsPage from '@/pages/SettingsPage';
-import SecurityPage from '@/pages/SecurityPage';
 import TwoFactorPage from '@/pages/TwoFactorPage';
 
 const queryClient = new QueryClient({

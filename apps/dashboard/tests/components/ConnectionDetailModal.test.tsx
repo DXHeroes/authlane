@@ -102,7 +102,9 @@ describe('ConnectionDetailModal', () => {
 
       expect(screen.queryByRole('button', { name: /Show Credentials/i })).not.toBeInTheDocument();
       expect(screen.queryByText('Access Token')).not.toBeInTheDocument();
-      expect(screen.getByText(/credentials are only issued to scoped server-side API keys/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/credentials are only issued to scoped server-side API keys/i)
+      ).toBeInTheDocument();
       await waitFor(() => expect(apiModule.api.get).not.toHaveBeenCalled());
     });
   });

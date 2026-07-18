@@ -82,7 +82,7 @@ test.describe('OAuth Flow', () => {
       await registerUser(page);
 
       // Simulate OAuth callback with mock authorization code
-      const mockAuthCode = 'test_auth_code_' + Date.now();
+      const mockAuthCode = `test_auth_code_${Date.now()}`;
       const callbackUrl = `${URLS.api}/api/v1/oauth/github/callback?code=${mockAuthCode}&state=test_state`;
 
       // Navigate to callback URL

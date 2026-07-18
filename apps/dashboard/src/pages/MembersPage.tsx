@@ -116,10 +116,17 @@ export default function MembersPage() {
         </div>
         {canManageMembers && (
           <button
+            type="button"
             onClick={() => setShowInviteModal(true)}
             className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -135,7 +142,11 @@ export default function MembersPage() {
       {error && (
         <div className="mb-4 rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700">
           {error}
-          <button onClick={() => setError(null)} className="ml-2 font-medium underline">
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="ml-2 font-medium underline"
+          >
             Dismiss
           </button>
         </div>
@@ -239,6 +250,7 @@ export default function MembersPage() {
                       <td className="px-4 py-3 text-right">
                         {canModify && (
                           <button
+                            type="button"
                             onClick={() => handleRemoveMember(member.id, member.user.name)}
                             disabled={isActionLoading}
                             className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"

@@ -53,6 +53,15 @@
   "files": {
     "includes": [
       "**",
+      "!!**/.claude",
+      "!!**/.playwright-cli",
+      "!!**/.superpowers",
+      "!!**/.worktrees",
+      "!!**/output",
+      "!!**/playwright-report",
+      "!!**/test-results",
+      "!!**/dist-server",
+      "!!**/out",
       "!**/node_modules",
       "!**/dist",
       "!**/build",

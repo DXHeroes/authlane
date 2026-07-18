@@ -327,6 +327,7 @@ function PublicApiSection({ service }: { service: Service }) {
               {config.api_base_url}
             </code>
             <button
+              type="button"
               onClick={handleCopyUrl}
               className="rounded-md bg-secondary px-3 py-2 text-sm font-medium hover:bg-secondary/80"
             >
@@ -349,8 +350,8 @@ function PublicApiSection({ service }: { service: Service }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {config.endpoints.map((endpoint, i) => (
-                  <tr key={i}>
+                {config.endpoints.map((endpoint) => (
+                  <tr key={`${endpoint.method}:${endpoint.path}`}>
                     <td className="px-3 py-2">
                       <span
                         className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
@@ -467,6 +468,7 @@ export default function ServiceDetailPage() {
   return (
     <div className="p-8">
       <button
+        type="button"
         onClick={() => navigate('/dashboard/services')}
         className="mb-6 text-sm text-primary hover:underline"
       >

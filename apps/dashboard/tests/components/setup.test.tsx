@@ -17,7 +17,7 @@ describe('Test Setup Validation', () => {
     const ButtonComponent = () => {
       const [count, setCount] = React.useState(0);
       return (
-        <button data-testid="counter-btn" onClick={() => setCount((c) => c + 1)}>
+        <button type="button" data-testid="counter-btn" onClick={() => setCount((c) => c + 1)}>
           Count: {count}
         </button>
       );

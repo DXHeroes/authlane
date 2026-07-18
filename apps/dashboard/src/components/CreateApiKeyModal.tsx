@@ -1,8 +1,4 @@
-import {
-  API_SCOPES,
-  type ApiScope,
-  DEFAULT_API_SCOPES,
-} from '@authlane/shared/api-scopes';
+import { API_SCOPES, type ApiScope, DEFAULT_API_SCOPES } from '@authlane/shared/api-scopes';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '@/lib/api';
@@ -264,7 +260,8 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
               </div>
               {scopes.includes('credentials:issue') && (
                 <p className="mt-2 rounded-md border border-yellow-500 bg-yellow-50 p-2 text-xs text-yellow-800">
-                  This key can retrieve short-lived credentials. Treat it as a high-privilege secret.
+                  This key can retrieve short-lived credentials. Treat it as a high-privilege
+                  secret.
                 </p>
               )}
             </fieldset>

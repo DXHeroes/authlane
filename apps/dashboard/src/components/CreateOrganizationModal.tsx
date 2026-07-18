@@ -50,22 +50,36 @@ export default function CreateOrganizationModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <button
+        type="button"
+        aria-label="Dismiss dialog backdrop"
+        className="absolute inset-0 h-full w-full cursor-default"
+        onClick={onClose}
+      />
       <div
-        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-organization-title"
+        className="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
       >
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Create Organization</h2>
+          <h2 id="create-organization-title" className="text-2xl font-bold">
+            Create Organization
+          </h2>
           <button
+            type="button"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
           >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -138,7 +152,3 @@ export default function CreateOrganizationModal({
     </div>
   );
 }
-
-
-
-

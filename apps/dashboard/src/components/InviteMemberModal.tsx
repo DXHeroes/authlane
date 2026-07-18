@@ -34,24 +34,36 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <button
+        type="button"
+        aria-label="Dismiss dialog backdrop"
+        className="absolute inset-0 h-full w-full cursor-default"
+        onClick={onClose}
+      />
       <div
-        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="invite-member-title"
+        className="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
       >
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">
+          <h2 id="invite-member-title" className="text-2xl font-bold">
             {success ? 'Invitation Sent' : 'Invite Team Member'}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
           >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -72,6 +84,7 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
             </div>
             <div className="flex justify-end gap-3 pt-4">
               <button
+                type="button"
                 onClick={() => {
                   setEmail('');
                   setRole('member');
@@ -82,6 +95,7 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
                 Invite Another
               </button>
               <button
+                type="button"
                 onClick={() => {
                   onSuccess();
                   onClose();
@@ -178,7 +192,3 @@ export default function InviteMemberModal({ onClose, onSuccess }: InviteMemberMo
     </div>
   );
 }
-
-
-
-

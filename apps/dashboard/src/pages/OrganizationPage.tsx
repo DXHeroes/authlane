@@ -161,14 +161,14 @@ export default function OrganizationPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Organization ID</label>
+            <span className="mb-2 block text-sm font-medium">Organization ID</span>
             <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm font-mono">
               {organization.id}
             </p>
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Your Role</label>
+            <span className="mb-2 block text-sm font-medium">Your Role</span>
             <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm capitalize">
               {currentUserRole || 'Loading...'}
             </p>
@@ -212,6 +212,7 @@ export default function OrganizationPage() {
                 this organization will be permanently removed.
               </p>
               <button
+                type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 className="rounded-md border border-red-500 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
               >
@@ -233,6 +234,7 @@ export default function OrganizationPage() {
               />
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={handleDelete}
                   disabled={isDeleting || deleteConfirmText !== organization.name}
                   className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
@@ -240,6 +242,7 @@ export default function OrganizationPage() {
                   {isDeleting ? 'Deleting...' : 'Permanently Delete Organization'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowDeleteConfirm(false);
                     setDeleteConfirmText('');

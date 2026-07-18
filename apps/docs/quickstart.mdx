@@ -1,6 +1,6 @@
 ---
 title: 'Quickstart'
-description: 'Connect an end user without exposing your API key'
+description: 'Connect a user and give an AI model their tools without proxying provider traffic'
 ---
 
 ## 1. Create a server-side client
@@ -14,17 +14,41 @@ import { Authlane } from '@authlane/sdk';
 
 export const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: process.env.AUTHLANE_URL!,
+  baseUrl: 'https://app.authlane.io',
 });
 ```
 
-<Warning>The scoped API key belongs only on your server. The SDK rejects browser usage.</Warning>
+<Warning>
+  The tenant API key belongs only on your server. The SDK rejects browser usage.
+</Warning>
 
-## 2. Create a connect session
+## 2. Show the services your tenant enabled
 
-In an authenticated route in your SaaS backend:
+Call Authlane from an authenticated route in your SaaS backend. Derive the external user ID from
+your trusted session; never accept it from the browser request body or a model-generated tool call.
 
 ```typescript
+const currentUser = await requireUser(request);
+const { data: services, error } = await authlane.services.list();
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+return Response.json({ services });
+```
+
+Use this catalog to offer only the integrations enabled for your organization.
+
+## 3. Create a connect session
+
+In another authenticated backend route:
+
+```typescript
+const currentUser = await requireUser(request);
 const { data, error } = await authlane.connectSessions.create({
   externalUserId: currentUser.id,
   allowedServices: ['github', 'slack'],
@@ -32,13 +56,20 @@ const { data, error } = await authlane.connectSessions.create({
   expiresInSeconds: 600,
 });
 
-if (error) return Response.json({ error }, { status: 400 });
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
 return Response.json({ connectUrl: data.url });
 ```
 
-Authlane stores only a hash of the short-lived session token. The session is restricted to one tenant, external user, service allowlist, parent origin, and expiry.
+Authlane stores only a hash of the short-lived session token. The session is restricted to one
+tenant, external user, service allowlist, exact parent origin, and expiry.
 
-## 3. Render the hosted connection UI
+## 4. Render the hosted connection UI
 
 ```bash
 pnpm add @authlane/react
@@ -48,49 +79,60 @@ pnpm add @authlane/react
 import { AuthlaneConnect } from '@authlane/react';
 
 export function Integrations({ connectUrl }: { connectUrl: string }) {
-  return (
-    <AuthlaneConnect
-      connectUrl={connectUrl}
-      onEvent={(event) => console.log(event)}
-    />
-  );
+  return <AuthlaneConnect connectUrl={connectUrl} />;
 }
 ```
 
-OAuth authorization and callbacks stay on the Authlane origin. No SaaS API key reaches the iframe.
+OAuth authorization and callbacks stay on the Authlane origin. Neither the Authlane API key nor
+provider credentials reach the iframe.
 
-## 4. Read capabilities
+## 5. Give the model this user's tools
 
-```typescript
-const { data: capabilities, error } = await authlane.capabilities.get({
-  externalUserId: currentUser.id,
-  format: 'mcp',
-});
-```
-
-The response contains every enabled service, its effective `connected`, `disconnected`, `expired`, or `error` status, and tool definitions only for usable connections.
-
-## 5. Call the provider directly
+Install the Vercel AI adapter and its optional `ai` peer:
 
 ```bash
-pnpm add @authlane/integration-github
+pnpm add @authlane/ai ai zod
 ```
+
+The following server route loads one capability snapshot, creates executable callbacks bound to
+the authenticated user, and passes them to the AI SDK:
 
 ```typescript
-import github from '@authlane/integration-github';
+import { vercelAI } from '@authlane/ai/vercel';
+import { createTextStreamResponse, streamText, toTextStream } from 'ai';
+import { authlane } from './authlane.js';
 
-const { data: credential } = await authlane.credentialLeases.create({
-  externalUserId: currentUser.id,
-  serviceId: 'github',
-});
+export async function POST(request: Request) {
+  const currentUser = await requireUser(request);
+  const { messages } = await request.json();
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
 
-if (!credential) throw new Error('GitHub is not connected');
+  if (error) {
+    return Response.json(
+      { error: { code: error.code, message: error.message } },
+      { status: error.statusCode ?? 400 },
+    );
+  }
 
-const { data: repositories, error } = await github.execute(
-  'github_list_repos',
-  { limit: 20 },
-  credential
-);
+  const result = streamText({
+    model: 'openai/gpt-5-mini',
+    messages,
+    tools,
+  });
+
+  return createTextStreamResponse({
+    stream: toTextStream({ stream: result.stream }),
+  });
+}
 ```
 
-The GitHub request originates from your backend. Authlane is not in the provider data path. Never return the credential lease to browser code or persist it.
+Listing tools is a fast control-plane read and does not issue credentials. Only when the AI SDK
+invokes one generated local callback does Authlane issue one fresh, audited, access-only lease.
+The matching integration consumes that lease immediately and sends the provider request from your
+SaaS process. Provider traffic never passes through Authlane.
+
+<Warning>
+  Never serialize `tools` into browser data, cache it across users, or derive `currentUser.id` from
+  model or tool input. Build a new user-scoped toolset for the server-authenticated user.
+</Warning>

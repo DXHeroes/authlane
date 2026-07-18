@@ -61,9 +61,12 @@ Do not add custom Compose networks: Coolify attaches its proxy network to the pu
 For the DX Heroes demo use:
 
 - repository `DXHeroes/authlane`, branch `main`, and compose path `/docker-compose.coolify.yml`;
-- public app service domain `https://authlane.io:3000`;
-- `APP_URL` and `CORS_ORIGIN` set to `https://authlane.io`; the runtime derives
-  `BETTER_AUTH_URL` from `APP_URL`;
+- both public service domains on the same `app` service: `https://authlane.io:3000` and
+  `https://app.authlane.io:3000`;
+- `APP_URL=https://app.authlane.io`, `BETTER_AUTH_URL=https://app.authlane.io`, and
+  `CORS_ORIGIN=https://app.authlane.io` plus only explicitly required tenant origins;
+- `AUTHLANE_LANDING_HOSTS=authlane.io`, `AUTHLANE_APP_HOSTS=app.authlane.io`, and
+  `AUTHLANE_ALLOW_SIGNUP=false`;
 - independent URL-safe 64-hex database/Redis passwords, `v1:<64-hex>` keyrings,
   `1:<64-hex>` Better Auth secrets, and a 64-hex metrics token;
 - `RATE_LIMIT_MAX_REQUESTS=30000` and `RATE_LIMIT_WINDOW_MS=60000` for the acceptance benchmark;
@@ -75,6 +78,10 @@ containers start so Coolify does not inject them into build arguments or image m
 deployment has an exited-zero `migrate` container, healthy PostgreSQL and Redis, and a healthy `app`
 container responding on `/health`.
 
+The apex host serves only the public landing. Dashboard, authentication, docs, connect, and API
+routes are served only from `app.authlane.io`. No gateway, MCP, provider proxy, or tool-execution
+service belongs in this stack; SaaS runtimes call providers directly.
+
 ### First-owner bootstrap
 
 1. Set `AUTHLANE_ALLOW_SIGNUP=true` and deploy.
@@ -82,8 +89,8 @@ container responding on `/health`.
 3. Enable MFA, sign in again to obtain a fresh session, and create the initial organization settings.
 4. Set `AUTHLANE_ALLOW_SIGNUP=false`, redeploy, and verify registration is rejected while sign-in works.
 
-For GitHub OAuth create an app with homepage `https://authlane.io` and callback
-`https://authlane.io/api/v1/oauth/github/callback`. Enter its client ID and secret only in
+For GitHub OAuth create an app with homepage `https://app.authlane.io` and callback
+`https://app.authlane.io/api/v1/oauth/github/callback`. Enter its client ID and secret only in
 the Authlane dashboard. Roll back application code through Coolify deployment history; never perform
 a destructive database rollback. This demo keeps data on local named volumes and does not provide a
 production backup SLA. Move PostgreSQL and Redis to managed, backed-up services before production.

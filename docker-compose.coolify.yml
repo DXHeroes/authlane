@@ -3,9 +3,12 @@ x-app-environment: &app-environment
   API_HOST: 0.0.0.0
   API_PORT: 3000
   APP_URL:
+  BETTER_AUTH_URL:
   BETTER_AUTH_SECRETS:
   AUTHLANE_ALLOW_SIGNUP:
   CORS_ORIGIN:
+  AUTHLANE_LANDING_HOSTS:
+  AUTHLANE_APP_HOSTS:
   AUTHLANE_RUNTIME_DB_PASSWORD:
   AUTHLANE_WORKER_DB_PASSWORD:
   REDIS_PASSWORD:
@@ -65,7 +68,6 @@ services:
       - sh
       - -c
       - |
-        export BETTER_AUTH_URL="$$APP_URL"
         export DATABASE_URL="postgresql://authlane_app:$$AUTHLANE_RUNTIME_DB_PASSWORD@postgres:5432/authlane"
         export SYSTEM_DATABASE_URL="postgresql://authlane_job:$$AUTHLANE_WORKER_DB_PASSWORD@postgres:5432/authlane"
         export REDIS_URL="redis://:$$REDIS_PASSWORD@redis:6379"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Develop Authlane Connection"
+  short_description: "Build complete Authlane connections across runtimes"
+  default_prompt: "Use $develop-authlane-connection to build or change this Authlane connection."

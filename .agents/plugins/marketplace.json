@@ -1,0 +1,20 @@
+{
+  "name": "authlane",
+  "interface": {
+    "displayName": "Authlane"
+  },
+  "plugins": [
+    {
+      "name": "authlane",
+      "source": {
+        "source": "local",
+        "path": "./plugins/authlane"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

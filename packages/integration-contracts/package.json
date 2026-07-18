@@ -18,7 +18,9 @@
     "dist",
     "generated",
     "manifests",
-    "schema"
+    "schema",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "generate": "node scripts/generate.mjs",
@@ -36,5 +38,17 @@
     "ajv": "^8.17.1",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dxheroes/authlane.git",
+    "directory": "packages/integration-contracts"
+  },
+  "homepage": "https://authlane.io/docs",
+  "bugs": {
+    "url": "https://github.com/dxheroes/authlane/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

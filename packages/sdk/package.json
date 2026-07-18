@@ -12,7 +12,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "prebuild": "pnpm --filter @authlane/shared build",
@@ -39,7 +41,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/authlane/authlane.git",
+    "url": "git+https://github.com/dxheroes/authlane.git",
     "directory": "packages/sdk"
   },
   "dependencies": {
@@ -49,5 +51,12 @@
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
     "vitest": "^4.1.10"
+  },
+  "homepage": "https://authlane.io/docs",
+  "bugs": {
+    "url": "https://github.com/dxheroes/authlane/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

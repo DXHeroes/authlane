@@ -1,0 +1,22 @@
+{
+  "name": "authlane",
+  "version": "0.1.0",
+  "description": "Secure Authlane integration and connection development skills.",
+  "author": {
+    "name": "Authlane contributors"
+  },
+  "homepage": "https://authlane.io/docs",
+  "repository": "https://github.com/dxheroes/authlane",
+  "license": "MIT",
+  "keywords": ["authlane", "integrations", "ai-tools", "oauth"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Authlane",
+    "shortDescription": "Build and integrate Authlane safely.",
+    "longDescription": "Skills for secure Authlane application integration and complete cross-runtime connections.",
+    "developerName": "Authlane contributors",
+    "category": "Developer Tools",
+    "capabilities": ["Authlane integration", "Authlane connection development"],
+    "defaultPrompt": "Use the appropriate Authlane skill to integrate the SDK or develop a connection."
+  }
+}

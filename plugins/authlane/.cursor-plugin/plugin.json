@@ -1,0 +1,14 @@
+{
+  "name": "authlane",
+  "displayName": "Authlane",
+  "version": "0.1.0",
+  "description": "Secure Authlane integration and connection development skills.",
+  "author": { "name": "Authlane contributors" },
+  "publisher": "Authlane",
+  "homepage": "https://authlane.io/docs",
+  "repository": "https://github.com/dxheroes/authlane",
+  "license": "MIT",
+  "keywords": ["authlane", "integrations", "ai-tools", "oauth"],
+  "category": "developer-tools",
+  "skills": "./skills/"
+}

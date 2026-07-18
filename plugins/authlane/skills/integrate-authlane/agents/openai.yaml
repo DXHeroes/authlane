@@ -1,0 +1,4 @@
+interface:
+  display_name: "Integrate Authlane"
+  short_description: "Integrate Authlane into secure SaaS and AI runtimes"
+  default_prompt: "Use $integrate-authlane to add Authlane to this application safely."

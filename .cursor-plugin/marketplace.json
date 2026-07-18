@@ -1,0 +1,14 @@
+{
+  "name": "authlane",
+  "owner": { "name": "Authlane contributors" },
+  "metadata": {
+    "description": "Official Authlane agent skills."
+  },
+  "plugins": [
+    {
+      "name": "authlane",
+      "source": "plugins/authlane",
+      "description": "Secure Authlane integration and connection development skills."
+    }
+  ]
+}

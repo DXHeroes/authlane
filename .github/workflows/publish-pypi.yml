@@ -1,0 +1,77 @@
+name: Publish Python package
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the validated Python artifacts to PyPI
+        required: true
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: pypi-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate Python artifacts
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out dispatched SHA
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: false
+      - name: Build wheel and source distribution
+        run: uv build --clear --no-sources --out-dir packages/python/dist packages/python
+      - name: Check package metadata
+        run: uvx twine check packages/python/dist/*
+      - name: Inspect package inventories
+        run: python3 scripts/validate-python-artifacts.py
+      - name: Smoke-test wheel
+        run: uv run --isolated --no-project --with packages/python/dist/*.whl scripts/python-package-smoke.py
+      - name: Smoke-test source distribution
+        run: uv run --isolated --no-project --with packages/python/dist/*.tar.gz scripts/python-package-smoke.py
+
+  publish:
+    name: Publish Python artifacts
+    if: ${{ inputs.publish }}
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: pypi-publish
+    concurrency:
+      group: pypi-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # OIDC authentication for PyPI Trusted Publishing.
+    steps:
+      - name: Check out dispatched SHA
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: false
+      - name: Rebuild wheel and source distribution
+        run: uv build --clear --no-sources --out-dir packages/python/dist packages/python
+      - name: Recheck package metadata and inventory
+        run: |
+          uvx twine check packages/python/dist/*
+          python3 scripts/validate-python-artifacts.py
+          uv run --isolated --no-project --with packages/python/dist/*.whl scripts/python-package-smoke.py
+          uv run --isolated --no-project --with packages/python/dist/*.tar.gz scripts/python-package-smoke.py
+      - name: Publish with PyPI Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1, retrieved 2026-07-18
+        with:
+          packages-dir: packages/python/dist
+          attestations: true

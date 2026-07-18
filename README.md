@@ -11,6 +11,7 @@ trusted runtime executes tools and calls providers directly.
 [Documentation](https://authlane.io/docs) ·
 [API reference](https://authlane.io/docs/api-reference) ·
 [OpenAPI YAML](https://authlane.io/docs/openapi.yaml) ·
+[Agent plugin](./docs/agent-plugins.md) ·
 [Security](./SECURITY.md)
 
 ## First success in four steps
@@ -199,17 +200,15 @@ pnpm openapi:check
 
 The monorepo uses Node.js 22, Hono, React, PostgreSQL 16, Drizzle, Redis, BullMQ, pnpm, Turborepo,
 Vitest, and Playwright. See [AGENTS.md](./AGENTS.md) for repository conventions and
-[security operations](./docs/security/OPERATIONS.md) for production procedures.
+[security operations](./docs/security/OPERATIONS.md) for production procedures. Maintainers should
+follow the manual OIDC [release guide](./docs/releasing.md); merging code never publishes packages.
 
 ## AI coding plugin marketplace
 
-Task 05 will publish one shared repository plugin for Claude Code, Codex CLI/app, and Cursor IDE/CLI.
-The planned skills are `integrate-authlane` and `develop-authlane-connection`. Reserved marketplace
-entry points are `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, and
-`.cursor-plugin/marketplace.json`; the shared plugin root is `plugins/authlane`. These are inline
-placeholders, not installation links, until those manifests and skills are committed and validated.
-
-The plugin will contain instructions only—no hosted MCP server and no external credentials.
+Install the shared repository plugin for Claude Code, Codex, or Cursor by following the
+[agent plugin guide](./docs/agent-plugins.md). It provides `integrate-authlane` and
+`develop-authlane-connection` from one shared source tree. The plugin contains instructions only—no
+hosted MCP server, provider access, tenant API key, or external credential.
 
 ## License
 

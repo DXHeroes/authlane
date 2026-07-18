@@ -32,8 +32,23 @@
     }
   },
   "files": [
-    "dist",
+    "dist/index.*",
+    "dist/tools.*",
     "config.yaml",
-    "README.md"
-  ]
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dxheroes/authlane.git",
+    "directory": "integrations/github"
+  },
+  "homepage": "https://authlane.io/docs",
+  "bugs": {
+    "url": "https://github.com/dxheroes/authlane/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

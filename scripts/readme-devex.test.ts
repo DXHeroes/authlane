@@ -29,16 +29,17 @@ describe('README developer experience', () => {
     expect(existsSync(resolve(repositoryRoot, 'apps/docs/api-reference/openapi.yaml'))).toBe(true);
   });
 
-  it('reserves non-clickable Task 05 marketplace and skill entry points', () => {
-    for (const value of [
-      'integrate-authlane',
-      'develop-authlane-connection',
+  it('links the completed shared agent plugin', () => {
+    expect(readme).toContain('[Agent plugin](./docs/agent-plugins.md)');
+    expect(readme).toContain('`integrate-authlane`');
+    expect(readme).toContain('`develop-authlane-connection`');
+    for (const path of [
       '.claude-plugin/marketplace.json',
       '.agents/plugins/marketplace.json',
       '.cursor-plugin/marketplace.json',
       'plugins/authlane',
     ]) {
-      expect(readme).toContain(`\`${value}\``);
+      expect(existsSync(resolve(repositoryRoot, path))).toBe(true);
     }
   });
 });

@@ -29,7 +29,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "prebuild": "pnpm --filter '@authlane/ai^...' build",
@@ -88,5 +90,17 @@
     "typescript": "^5.9.3",
     "vitest": "^4.1.10",
     "zod": "^4.1.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dxheroes/authlane.git",
+    "directory": "packages/ai"
+  },
+  "homepage": "https://authlane.io/docs",
+  "bugs": {
+    "url": "https://github.com/dxheroes/authlane/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

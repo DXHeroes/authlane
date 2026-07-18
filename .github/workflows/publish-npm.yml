@@ -1,0 +1,80 @@
+name: Publish npm packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish validated packages to npm
+        required: true
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate npm artifacts
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out dispatched SHA
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@9fd676a19091d4595eefd76e4bd31c97133911f1 # v4.2.0
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Verify npm trusted-publishing support
+        run: node scripts/verify-npm-version.mjs
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test repository
+        run: pnpm test
+      - name: Check release intent
+        run: pnpm changeset:status
+      - name: Build and inspect npm artifacts
+        run: pnpm release:pack
+
+  publish:
+    name: Publish npm artifacts
+    if: ${{ inputs.publish }}
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: npm-publish
+    concurrency:
+      group: npm-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # OIDC authentication for npm Trusted Publishing.
+    steps:
+      - name: Check out dispatched SHA
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@9fd676a19091d4595eefd76e4bd31c97133911f1 # v4.2.0
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Verify npm trusted-publishing support
+        run: node scripts/verify-npm-version.mjs
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Rebuild and inspect npm artifacts
+        run: pnpm release:pack
+      - name: Publish with npm Trusted Publishing
+        run: pnpm changeset publish
+        env:
+          NPM_CONFIG_PROVENANCE: "true"

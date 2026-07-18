@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/cursor/plugins",
+  "commit": "3fe2823ce17c1656c222d4b7c59d3f82fbf20143",
+  "retrievedAt": "2026-07-18",
+  "files": ["schemas/marketplace.schema.json", "schemas/plugin.schema.json"]
+}

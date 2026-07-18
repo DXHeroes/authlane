@@ -89,13 +89,7 @@ def test_installed_framework_adapters_create_native_tools_with_canonical_schema(
     assert native_tool.name == definition.name
     assert native_tool.description == definition.description
     schema = getattr(native_tool, schema_attribute)
-    if expected_module == "agents.tool":
-        assert schema["additionalProperties"] is False
-        assert {key: value for key, value in schema.items() if key != "additionalProperties"} == (
-            definition.input_schema
-        )
-    else:
-        assert schema == definition.input_schema
+    assert schema == definition.input_schema
     assert requests == []
     arguments = {"owner": "dxheroes", "repo": "authlane", "title": "Python SDK"}
     if expected_module == "agno.tools.function":

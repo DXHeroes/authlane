@@ -89,6 +89,7 @@ class FrameworkAdapter:
             description=tool.description,
             params_json_schema=tool.input_schema,
             on_invoke_tool=on_invoke_tool,
+            strict_json_schema=False,
         )
 
     def _convert_async(self, tool: AsyncGenericTool) -> Any:
@@ -126,6 +127,7 @@ class FrameworkAdapter:
             description=tool.description,
             params_json_schema=tool.input_schema,
             on_invoke_tool=on_invoke_tool,
+            strict_json_schema=False,
         )
 
 

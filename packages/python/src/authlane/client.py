@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable, Mapping
 from typing import Any, Literal, Protocol, TypeVar, cast
 from urllib.parse import quote
@@ -744,11 +745,12 @@ class AsyncUserToolsResource:
                     service_id=service_id,
                 )
 
-            built = adapter.build_async(
+            build_result = adapter.build_async(
                 external_user_id=self._external_user_id,
                 tools=tools,
                 lease=guarded_lease,
             )
+            built = await build_result if inspect.isawaitable(build_result) else build_result
             building = False
             if lease_attempted:
                 return Result.failure(adapter_error())

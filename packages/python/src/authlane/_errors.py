@@ -47,3 +47,11 @@ def credential_lease_error() -> AuthlaneError:
         "A credential lease could not be issued.",
         "Reconnect the service or check API-key scopes.",
     )
+
+
+def credential_type_unsupported() -> AuthlaneError:
+    return error(
+        "CREDENTIAL_TYPE_UNSUPPORTED",
+        "This integration requires OAuth2 credential material.",
+        "Reconnect the service using its OAuth2 flow.",
+    )

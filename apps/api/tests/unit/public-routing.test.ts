@@ -58,6 +58,14 @@ describe('host-aware public routing', () => {
     );
   });
 
+  it('varies identity static documents by accepted encoding', async () => {
+    const response = await request('/', 'authlane.io', { 'accept-encoding': 'identity' });
+
+    expect(response.headers.get('content-encoding')).toBeNull();
+    expect(response.headers.get('vary')).toContain('Accept-Encoding');
+    expect(await response.text()).toContain('Landing fixture');
+  });
+
   it('serves landing-built static and metadata assets on both configured surfaces', async () => {
     for (const host of ['app.authlane.io', 'authlane.io']) {
       const javascript = await request('/_next/static/landing.js', host);

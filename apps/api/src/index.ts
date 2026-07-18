@@ -229,8 +229,6 @@ export function createApp(
   const compressResponse = compress();
   app.use('*', async (c, next) => {
     await compressResponse(c, next);
-    if (!c.res.headers.has('Content-Encoding')) return;
-
     const vary = c.res.headers.get('Vary');
     const varyValues = vary
       ? vary

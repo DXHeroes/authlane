@@ -6,6 +6,7 @@ const repositoryArtifactDirectories = [
   '.playwright-cli',
   '.superpowers',
   '.worktrees',
+  '.venv',
   'output',
   'playwright-report',
   'test-results',
@@ -29,7 +30,7 @@ describe('Biome repository scope', () => {
     for (const directory of generatedDirectories) {
       expect(biomeConfig.files?.includes).toContain(`!!**/${directory}`);
     }
-    expect(packageJson.scripts?.['format:check']).toBe('biome format .');
-    expect(packageJson.scripts?.lint).toBe('biome check .');
+    expect(packageJson.scripts?.['format:check']).toBe('node scripts/run-biome-tracked.mjs format');
+    expect(packageJson.scripts?.lint).toBe('node scripts/run-biome-tracked.mjs lint');
   });
 });

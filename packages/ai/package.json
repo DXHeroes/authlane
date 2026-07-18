@@ -19,8 +19,8 @@
       "import": "./dist/openai.js"
     },
     "./mcp": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js"
     }
   },
   "files": [

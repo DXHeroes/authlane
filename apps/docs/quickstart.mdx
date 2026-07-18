@@ -100,24 +100,130 @@ the authenticated user, and passes them to the AI SDK:
 ```typescript
 import { vercelAI } from '@authlane/ai/vercel';
 import { createTextStreamResponse, streamText, toTextStream } from 'ai';
+import { z } from 'zod';
 import { authlane } from './authlane.js';
+
+const MAX_CHAT_REQUEST_BYTES = 64 * 1024;
+const MAX_CHAT_MESSAGES = 50;
+const MAX_CHAT_MESSAGE_CHARACTERS = 8_000;
+
+const chatMessageSchema = z.discriminatedUnion('role', [
+  z
+    .object({
+      role: z.literal('system'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal('user'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal('assistant'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+]);
+
+const chatRequestSchema = z
+  .object({
+    messages: z.array(chatMessageSchema).min(1).max(MAX_CHAT_MESSAGES),
+  })
+  .strict();
+
+type ChatRequest = z.infer<typeof chatRequestSchema>;
+
+function invalidChatRequest() {
+  return Response.json(
+    {
+      error: {
+        code: 'INVALID_CHAT_REQUEST',
+        message: 'The chat request is invalid.',
+      },
+    },
+    { status: 400 },
+  );
+}
+
+async function readChatRequest(request: Request): Promise<ChatRequest | null> {
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    const declaredBytes = Number(contentLength);
+    if (
+      !/^\d+$/.test(contentLength) ||
+      !Number.isSafeInteger(declaredBytes) ||
+      declaredBytes > MAX_CHAT_REQUEST_BYTES
+    ) {
+      return null;
+    }
+  }
+
+  if (request.body === null) return null;
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let receivedBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      receivedBytes += value.byteLength;
+      if (receivedBytes > MAX_CHAT_REQUEST_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  } finally {
+    reader.releaseLock();
+  }
+
+  try {
+    const bytes = new Uint8Array(receivedBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    const parsed = chatRequestSchema.safeParse(json);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   const currentUser = await requireUser(request);
-  const { messages } = await request.json();
+  const chatRequest = await readChatRequest(request);
+  if (chatRequest === null) return invalidChatRequest();
+
   const user = authlane.user(currentUser.id);
   const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
 
   if (error) {
     return Response.json(
-      { error: { code: error.code, message: error.message } },
-      { status: error.statusCode ?? 400 },
+      {
+        error: {
+          code: 'TOOLS_UNAVAILABLE',
+          message: 'The tools for this user are temporarily unavailable.',
+        },
+      },
+      { status: 502 },
     );
   }
 
   const result = streamText({
     model: 'openai/gpt-5-mini',
-    messages,
+    messages: chatRequest.messages,
     tools,
   });
 

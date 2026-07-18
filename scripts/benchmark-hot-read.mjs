@@ -11,6 +11,33 @@ export const MAX_REQUEST_TIMEOUT_MS = 30_000;
 
 const MAX_TOTAL_REQUESTS = 250_000;
 
+/**
+ * @typedef {Readonly<{
+ *   baseUrl: URL;
+ *   externalUserId: string;
+ *   requestsPerSecond: number;
+ *   durationSeconds: number;
+ *   totalRequests: number;
+ *   p95TargetMs: number;
+ *   requestTimeoutMs: number;
+ * }>} BenchmarkConfig
+ */
+
+/**
+ * @typedef {Readonly<{
+ *   achievedRps: number;
+ *   failures: number;
+ *   p95Ms: number;
+ *   p95TargetMs: unknown;
+ *   targetRps: unknown;
+ * }>} BenchmarkGateInput
+ */
+
+/**
+ * @param {unknown} value
+ * @param {string} name
+ * @returns {number}
+ */
 function positiveInteger(value, name) {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
@@ -19,6 +46,11 @@ function positiveInteger(value, name) {
   return parsed;
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} name
+ * @returns {number}
+ */
 function positiveNumber(value, name) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -27,6 +59,10 @@ function positiveNumber(value, name) {
   return parsed;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number}
+ */
 function requestTimeout(value) {
   const parsed = positiveInteger(value, 'PERF_REQUEST_TIMEOUT_MS');
   if (parsed > MAX_REQUEST_TIMEOUT_MS) {
@@ -35,7 +71,14 @@ function requestTimeout(value) {
   return parsed;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {URL}
+ */
 function benchmarkBaseUrl(value) {
+  if (typeof value !== 'string') {
+    throw new Error('PERF_BASE_URL must be a valid HTTP or HTTPS URL');
+  }
   let url;
   try {
     url = new URL(value);
@@ -54,6 +97,10 @@ function benchmarkBaseUrl(value) {
   return url;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function externalUserId(value) {
   if (typeof value !== 'string' || value.trim().length === 0 || value.length > 255) {
     throw new Error('PERF_EXTERNAL_USER_ID must be a non-empty user ID');
@@ -61,10 +108,18 @@ function externalUserId(value) {
   return value;
 }
 
+/**
+ * @param {unknown} [value]
+ * @returns {number}
+ */
 export function effectiveP95Target(value = HARD_P95_TARGET_MS) {
   return Math.min(positiveNumber(value, 'PERF_P95_TARGET_MS'), HARD_P95_TARGET_MS);
 }
 
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {BenchmarkConfig}
+ */
 export function readBenchmarkConfig(env = process.env) {
   const requestsPerSecond = positiveInteger(env.PERF_RPS ?? 500, 'PERF_RPS');
   const durationSeconds = positiveInteger(env.PERF_DURATION_SECONDS ?? 20, 'PERF_DURATION_SECONDS');
@@ -84,6 +139,9 @@ export function readBenchmarkConfig(env = process.env) {
   });
 }
 
+/**
+ * @param {BenchmarkGateInput} input
+ */
 export function evaluateBenchmarkGate({ achievedRps, failures, p95Ms, p95TargetMs, targetRps }) {
   if (!Number.isSafeInteger(failures) || failures < 0) {
     throw new Error('failures must be a non-negative integer');
@@ -114,6 +172,10 @@ export function evaluateBenchmarkGate({ achievedRps, failures, p95Ms, p95TargetM
   });
 }
 
+/**
+ * @param {BenchmarkConfig} config
+ * @returns {URL}
+ */
 function requestTarget(config) {
   const target = new URL(config.baseUrl);
   const basePath = target.pathname.replace(/\/+$/, '');
@@ -124,10 +186,19 @@ function requestTarget(config) {
   return target;
 }
 
+/**
+ * @param {readonly number[]} latencies
+ * @param {number} value
+ * @returns {number}
+ */
 function percentile(latencies, value) {
   return latencies[Math.ceil((value / 100) * latencies.length) - 1] ?? 0;
 }
 
+/**
+ * @param {BenchmarkConfig} config
+ * @param {unknown} apiKey
+ */
 export async function runBenchmark(config, apiKey) {
   if (typeof apiKey !== 'string' || apiKey.length === 0) {
     throw new Error('PERF_API_KEY is required');
@@ -135,6 +206,7 @@ export async function runBenchmark(config, apiKey) {
 
   const target = requestTarget(config);
   const requestTimeoutMs = requestTimeout(config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
+  /** @type {number[]} */
   const latencies = [];
   let failures = 0;
   const benchmarkStartedAt = performance.now();
@@ -197,6 +269,9 @@ export async function runBenchmark(config, apiKey) {
   });
 }
 
+/**
+ * @param {BenchmarkConfig} config
+ */
 function publicConfig(config) {
   return {
     benchmark: BENCHMARK_NAME,
@@ -218,6 +293,7 @@ function publicConfig(config) {
   };
 }
 
+/** @returns {void} */
 function printHelp() {
   console.log(`Usage: node scripts/benchmark-hot-read.mjs [--config-only]
 
@@ -238,6 +314,11 @@ Options:
   --help                   show this help`);
 }
 
+/**
+ * @param {readonly string[]} [argv]
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {Promise<number>}
+ */
 export async function runCli(argv = process.argv.slice(2), env = process.env) {
   const supportedArguments = new Set(['--config-only', '--help']);
   const unknownArgument = argv.find((argument) => !supportedArguments.has(argument));

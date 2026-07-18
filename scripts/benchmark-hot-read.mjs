@@ -5,6 +5,9 @@ export const BENCHMARK_ENDPOINT = 'GET /api/v1/users/{external_user_id}/capabili
 export const BENCHMARK_SCOPE =
   'Status and tool-definition capability reads only; excludes credential lease issuance and provider execution.';
 export const HARD_P95_TARGET_MS = 100;
+export const MIN_ACHIEVED_RPS_RATIO = 0.95;
+export const DEFAULT_REQUEST_TIMEOUT_MS = 5_000;
+export const MAX_REQUEST_TIMEOUT_MS = 30_000;
 
 const MAX_TOTAL_REQUESTS = 250_000;
 
@@ -20,6 +23,14 @@ function positiveNumber(value, name) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`${name} must be a finite positive number`);
+  }
+  return parsed;
+}
+
+function requestTimeout(value) {
+  const parsed = positiveInteger(value, 'PERF_REQUEST_TIMEOUT_MS');
+  if (parsed > MAX_REQUEST_TIMEOUT_MS) {
+    throw new Error(`PERF_REQUEST_TIMEOUT_MS must not exceed ${MAX_REQUEST_TIMEOUT_MS}`);
   }
   return parsed;
 }
@@ -69,21 +80,37 @@ export function readBenchmarkConfig(env = process.env) {
     durationSeconds,
     totalRequests,
     p95TargetMs: effectiveP95Target(env.PERF_P95_TARGET_MS ?? HARD_P95_TARGET_MS),
+    requestTimeoutMs: requestTimeout(env.PERF_REQUEST_TIMEOUT_MS ?? DEFAULT_REQUEST_TIMEOUT_MS),
   });
 }
 
-export function evaluateBenchmarkGate({ failures, p95Ms, p95TargetMs }) {
+export function evaluateBenchmarkGate({ achievedRps, failures, p95Ms, p95TargetMs, targetRps }) {
   if (!Number.isSafeInteger(failures) || failures < 0) {
     throw new Error('failures must be a non-negative integer');
   }
   if (!Number.isFinite(p95Ms) || p95Ms < 0) {
     throw new Error('p95Ms must be a finite non-negative number');
   }
+  if (!Number.isFinite(achievedRps) || achievedRps < 0) {
+    throw new Error('achievedRps must be a finite non-negative number');
+  }
+  const validatedTargetRps = positiveNumber(targetRps, 'targetRps');
   const effectiveTargetMs = effectiveP95Target(p95TargetMs);
+  const minimumAchievedRps = validatedTargetRps * MIN_ACHIEVED_RPS_RATIO;
+  const failureFree = failures === 0;
+  const p95Passed = p95Ms <= effectiveTargetMs;
+  const achievedRpsPassed = achievedRps >= minimumAchievedRps;
   return Object.freeze({
+    achievedRpsPassed,
+    actualAchievedRps: achievedRps,
     effectiveP95TargetMs: effectiveTargetMs,
+    failureFree,
     hardMaximumP95Ms: HARD_P95_TARGET_MS,
-    passed: failures === 0 && p95Ms <= effectiveTargetMs,
+    minimumAchievedRps,
+    minimumAchievedRpsRatio: MIN_ACHIEVED_RPS_RATIO,
+    p95Passed,
+    passed: failureFree && p95Passed && achievedRpsPassed,
+    targetRps: validatedTargetRps,
   });
 }
 
@@ -107,6 +134,7 @@ export async function runBenchmark(config, apiKey) {
   }
 
   const target = requestTarget(config);
+  const requestTimeoutMs = requestTimeout(config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
   const latencies = [];
   let failures = 0;
   const benchmarkStartedAt = performance.now();
@@ -122,6 +150,7 @@ export async function runBenchmark(config, apiKey) {
       try {
         const response = await fetch(target, {
           headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(requestTimeoutMs),
         });
         if (!response.ok) failed = true;
         // Reading the complete body is intentionally part of the measured request latency.
@@ -137,11 +166,14 @@ export async function runBenchmark(config, apiKey) {
 
   latencies.sort((a, b) => a - b);
   const elapsedSeconds = (performance.now() - benchmarkStartedAt) / 1_000;
-  const p95Ms = Number(percentile(latencies, 95).toFixed(1));
+  const achievedRps = config.totalRequests / elapsedSeconds;
+  const rawP95Ms = percentile(latencies, 95);
   const gate = evaluateBenchmarkGate({
+    achievedRps,
     failures,
-    p95Ms,
+    p95Ms: rawP95Ms,
     p95TargetMs: config.p95TargetMs,
+    targetRps: config.requestsPerSecond,
   });
 
   return Object.freeze({
@@ -151,13 +183,14 @@ export async function runBenchmark(config, apiKey) {
     profile: {
       requestsPerSecond: config.requestsPerSecond,
       durationSeconds: config.durationSeconds,
+      requestTimeoutMs,
       requests: config.totalRequests,
     },
     results: {
       failures,
-      achievedRps: Number((config.totalRequests / elapsedSeconds).toFixed(1)),
+      achievedRps: Number(achievedRps.toFixed(1)),
       p50Ms: Number(percentile(latencies, 50).toFixed(1)),
-      p95Ms,
+      p95Ms: Number(rawP95Ms.toFixed(1)),
       p99Ms: Number(percentile(latencies, 99).toFixed(1)),
     },
     gate,
@@ -172,11 +205,15 @@ function publicConfig(config) {
     profile: {
       requestsPerSecond: config.requestsPerSecond,
       durationSeconds: config.durationSeconds,
+      requestTimeoutMs: config.requestTimeoutMs,
       requests: config.totalRequests,
     },
     gate: {
       effectiveP95TargetMs: config.p95TargetMs,
       hardMaximumP95Ms: HARD_P95_TARGET_MS,
+      minimumAchievedRps: config.requestsPerSecond * MIN_ACHIEVED_RPS_RATIO,
+      minimumAchievedRpsRatio: MIN_ACHIEVED_RPS_RATIO,
+      targetRps: config.requestsPerSecond,
     },
   };
 }
@@ -194,6 +231,7 @@ Environment:
   PERF_RPS                 positive integer (default: 500)
   PERF_DURATION_SECONDS    positive integer (default: 20)
   PERF_P95_TARGET_MS       positive number; can only tighten the hard 100 ms ceiling
+  PERF_REQUEST_TIMEOUT_MS  positive integer up to 30000 (default: 5000)
 
 Options:
   --config-only            validate and print the non-sensitive effective profile

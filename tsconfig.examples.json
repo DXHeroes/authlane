@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "outDir": "./.tmp/example-types",
+    "paths": {
+      "@authlane/ai/vercel": ["packages/ai/src/vercel.ts"],
+      "@authlane/integration-*": ["integrations/*/index.ts"],
+      "@authlane/sdk": ["packages/sdk/src/index.ts"],
+      "@authlane/shared": ["packages/shared/src/index.ts"]
+    },
+    "rootDir": ".",
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": ["packages/sdk/examples/basic-usage.ts"]
+}

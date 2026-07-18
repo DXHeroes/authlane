@@ -15,6 +15,17 @@ const ajv = new Ajv2020({ allErrors: true, strict: true });
 const validate = ajv.compile(schema);
 const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
+function validateToolInputSchema(serviceId, tool) {
+  try {
+    new Ajv2020({ allErrors: true, strict: true, validateFormats: false }).compile(
+      tool.inputSchema
+    );
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'unknown JSON Schema error';
+    throw new Error(`Invalid input schema for ${serviceId}/${tool.name}: ${reason}`);
+  }
+}
+
 const manifestFileNames = (await readdir(manifestDirectory))
   .filter((fileName) => fileName.endsWith('.json'))
   .sort();
@@ -39,6 +50,7 @@ for (const fileName of manifestFileNames) {
 
   const tools = [...manifest.tools].sort((left, right) => compareText(left.name, right.name));
   for (const tool of tools) {
+    validateToolInputSchema(manifest.serviceId, tool);
     if (toolNames.has(tool.name)) {
       throw new Error(`Duplicate public tool ID: ${tool.name}`);
     }

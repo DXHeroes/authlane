@@ -126,6 +126,35 @@ describe('canonical integration contracts', () => {
     }
   });
 
+  it('rejects malformed tool JSON Schemas with service and tool context', () => {
+    const manifestPath = join(manifestDirectory, 'airtable.json');
+    const before = readFileSync(manifestPath, 'utf8');
+    const malformedManifest = JSON.parse(before) as IntegrationManifest;
+    const [firstTool] = malformedManifest.tools;
+    expect(firstTool?.name).toBe('airtable_create_record');
+    if (!firstTool) throw new Error('Expected the canonical Airtable tool fixture');
+    firstTool.inputSchema = {
+      type: 'object',
+      properties: {
+        invalid: { type: 'not-a-json-schema-type' },
+      },
+    };
+
+    writeFileSync(manifestPath, `${JSON.stringify(malformedManifest, null, 2)}\n`);
+    try {
+      const malformedCheck = spawnSync(process.execPath, [generatorPath, '--check'], {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+      });
+      expect(malformedCheck.status).not.toBe(0);
+      expect(`${malformedCheck.stdout}${malformedCheck.stderr}`).toContain(
+        'Invalid input schema for airtable/airtable_create_record'
+      );
+    } finally {
+      writeFileSync(manifestPath, before);
+    }
+  });
+
   it('matches every executable TypeScript integration definition', async () => {
     const manifests = readManifests();
 

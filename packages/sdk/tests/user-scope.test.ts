@@ -114,9 +114,15 @@ describe('user-scoped SDK facade', () => {
       user.credentialLeases.create({ serviceId: 'github' }),
     ]);
 
-    expect(results[0]).toMatchObject({
+    expect(results[0]).toEqual({
       data: null,
-      error: { code: 'VALIDATION_ERROR', message: 'Invalid external user ID' },
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid external user ID',
+        statusCode: 400,
+        hint: 'Provide a non-empty external user ID with no more than 255 characters.',
+        docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+      },
     });
     for (const result of results.slice(1)) {
       expect(result.data).toBeNull();

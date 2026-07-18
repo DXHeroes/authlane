@@ -108,8 +108,12 @@ export interface ToolOptions extends ExternalUserOptions {
   format?: ToolFormat;
 }
 
-export type UserScopeToolOptions = Omit<ToolOptions, 'externalUserId'>;
-export type UserScopeServiceOptions = Omit<UserServiceOptions, 'externalUserId'>;
+export type UserScopeToolOptions = Omit<ToolOptions, 'externalUserId'> & {
+  externalUserId?: never;
+};
+export type UserScopeServiceOptions = Omit<UserServiceOptions, 'externalUserId'> & {
+  externalUserId?: never;
+};
 
 export interface UserScopeConnections {
   list(): Promise<Result<Connection[]>>;

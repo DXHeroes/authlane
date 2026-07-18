@@ -70,7 +70,11 @@ export const Errors = {
     }),
 
   validationError: (message: string): AuthlaneError =>
-    createError(message, ErrorCodes.VALIDATION_ERROR),
+    createError(message, ErrorCodes.VALIDATION_ERROR, {
+      hint: 'Provide a non-empty external user ID with no more than 255 characters.',
+      docUrl: 'https://app.authlane.io/docs/sdk/typescript',
+      statusCode: 400,
+    }),
 
   invalidResponse: (message: string): AuthlaneError =>
     createError(`Invalid response: ${message}`, ErrorCodes.INVALID_RESPONSE, {

@@ -1,6 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeLandingInteractions } from './landing-interactions.js';
 
+function deferredClipboardWrite() {
+  let resolve = () => {};
+  let reject = (_reason?: unknown) => {};
+  const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
 describe('dependency-free landing interactions', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -90,6 +100,7 @@ describe('dependency-free landing interactions', () => {
     });
     document.body.innerHTML = `
       <div class="docs-code-shell" data-code-source="const value = '&lt;safe&gt;';">
+        <span data-copy-status aria-live="polite" aria-atomic="true"></span>
         <button data-copy-code aria-label="Copy TypeScript code">Copy</button>
       </div>`;
     initializeLandingInteractions();
@@ -97,9 +108,14 @@ describe('dependency-free landing interactions', () => {
     await Promise.resolve();
     expect(writeText).toHaveBeenCalledWith("const value = '<safe>';");
     expect(document.querySelector('[data-copy-code]')?.textContent).toBe('Copied');
+    expect(document.querySelector('[data-copy-status]')?.textContent).toBe('Copied');
+    expect(document.querySelector('[data-copy-code]')?.getAttribute('aria-label')).toBe(
+      'Copy TypeScript code'
+    );
 
     vi.advanceTimersByTime(1_500);
     expect(document.querySelector('[data-copy-code]')?.textContent).toBe('Copy');
+    expect(document.querySelector('[data-copy-status]')?.textContent).toBe('');
   });
 
   it('announces clipboard failure without throwing', async () => {
@@ -111,6 +127,7 @@ describe('dependency-free landing interactions', () => {
     });
     document.body.innerHTML = `
       <div class="docs-code-shell" data-code-source="const ok = false;">
+        <span data-copy-status aria-live="polite" aria-atomic="true"></span>
         <button data-copy-code aria-label="Copy TypeScript code">Copy</button>
       </div>`;
     initializeLandingInteractions();
@@ -119,7 +136,86 @@ describe('dependency-free landing interactions', () => {
     await Promise.resolve();
 
     expect(document.querySelector('[data-copy-code]')?.textContent).toBe('Copy failed');
+    expect(document.querySelector('[data-copy-status]')?.textContent).toBe('Copy failed');
     vi.advanceTimersByTime(1_500);
     expect(document.querySelector('[data-copy-code]')?.textContent).toBe('Copy');
+    expect(document.querySelector('[data-copy-status]')?.textContent).toBe('');
+  });
+
+  it('ignores stale clipboard completions from rapid copy attempts', async () => {
+    vi.useFakeTimers();
+    const firstWrite = deferredClipboardWrite();
+    const secondWrite = deferredClipboardWrite();
+    const writeText = vi
+      .fn()
+      .mockReturnValueOnce(firstWrite.promise)
+      .mockReturnValueOnce(secondWrite.promise);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    document.body.innerHTML = `
+      <div class="docs-code-shell" data-code-source="const newest = true;">
+        <span data-copy-status aria-live="polite" aria-atomic="true"></span>
+        <button data-copy-code aria-label="Copy TypeScript code">Copy</button>
+      </div>`;
+    initializeLandingInteractions();
+    const control = document.querySelector<HTMLButtonElement>('[data-copy-code]');
+    const status = document.querySelector<HTMLElement>('[data-copy-status]');
+
+    control?.click();
+    control?.click();
+    secondWrite.resolve();
+    await Promise.resolve();
+    expect(control?.textContent).toBe('Copied');
+    expect(status?.textContent).toBe('Copied');
+
+    firstWrite.reject(new Error('Stale failure'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(control?.textContent).toBe('Copied');
+    expect(status?.textContent).toBe('Copied');
+  });
+
+  it('clears the prior reset timer when a newer copy attempt starts', async () => {
+    vi.useFakeTimers();
+    const firstWrite = deferredClipboardWrite();
+    const secondWrite = deferredClipboardWrite();
+    const writeText = vi
+      .fn()
+      .mockReturnValueOnce(firstWrite.promise)
+      .mockReturnValueOnce(secondWrite.promise);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    document.body.innerHTML = `
+      <div class="docs-code-shell" data-code-source="const newest = true;">
+        <span data-copy-status aria-live="polite" aria-atomic="true"></span>
+        <button data-copy-code aria-label="Copy TypeScript code">Copy</button>
+      </div>`;
+    initializeLandingInteractions();
+    const control = document.querySelector<HTMLButtonElement>('[data-copy-code]');
+    const status = document.querySelector<HTMLElement>('[data-copy-status]');
+
+    control?.click();
+    firstWrite.resolve();
+    await Promise.resolve();
+    expect(status?.textContent).toBe('Copied');
+
+    vi.advanceTimersByTime(1_000);
+    control?.click();
+    secondWrite.resolve();
+    await Promise.resolve();
+    expect(status?.textContent).toBe('Copied');
+
+    vi.advanceTimersByTime(500);
+    expect(control?.textContent).toBe('Copied');
+    expect(status?.textContent).toBe('Copied');
+    vi.advanceTimersByTime(999);
+    expect(status?.textContent).toBe('Copied');
+    vi.advanceTimersByTime(1);
+    expect(control?.textContent).toBe('Copy');
+    expect(status?.textContent).toBe('');
   });
 });

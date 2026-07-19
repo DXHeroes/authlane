@@ -1572,6 +1572,11 @@ li {
   border-bottom: 1px solid var(--line);
 }
 
+.docs-article__eyebrow {
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
 .docs-article__header h1 {
   max-width: 18ch;
   font-size: clamp(2.5rem, 5vw, 4rem);
@@ -1663,6 +1668,18 @@ li {
 .docs-code-language {
   color: var(--subtle);
   font-size: 0.75rem;
+}
+
+.docs-code-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  white-space: nowrap;
 }
 
 .docs-code-copy {

@@ -23,6 +23,9 @@ describe('documentation page components', () => {
     );
     expect(html).toContain('data-copy-code');
     expect(html).toContain('aria-label="Copy TypeScript code"');
+    expect(html).toContain('data-copy-status');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-atomic="true"');
     expect(html).toContain('const user');
   });
 
@@ -151,6 +154,11 @@ describe('documentation page components', () => {
 
   it('styles the docs shell with muted surfaces and responsive touch targets', () => {
     const css = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8');
+    const page = renderToStaticMarkup(
+      <DocsPage doc={getDoc('introduction')}>
+        <p>Article body.</p>
+      </DocsPage>
+    );
 
     expect(css).toMatch(/\.docs-code-shell\s*{/);
     expect(css).toMatch(/\.docs-prose-steps\s*{/);
@@ -161,5 +169,7 @@ describe('documentation page components', () => {
     expect(css).toMatch(
       /@media \(max-width: 68rem\)[\s\S]*\.docs-code-copy,[\s\S]*min-height: 3rem;/
     );
+    expect(page).toContain('class="mono eyebrow docs-article__eyebrow">Documentation</p>');
+    expect(css).toMatch(/\.docs-article__eyebrow\s*{[^}]*text-transform: none;[^}]*}/);
   });
 });

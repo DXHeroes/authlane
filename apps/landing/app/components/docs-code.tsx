@@ -26,13 +26,12 @@ export function DocsCodeBlock({ language, source }: { language: string; source: 
     <div className="docs-code-shell" data-code-source={source}>
       <div className="docs-code-toolbar">
         <span className="mono docs-code-language">{languageLabel}</span>
+        <span className="docs-code-status" data-copy-status aria-live="polite" aria-atomic="true" />
         <button
           className="docs-code-copy"
           type="button"
           data-copy-code
           aria-label={`Copy ${languageLabel} code`}
-          aria-live="polite"
-          aria-atomic="true"
         >
           Copy
         </button>

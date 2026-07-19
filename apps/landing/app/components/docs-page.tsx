@@ -126,7 +126,7 @@ export function DocsPage({ doc, children }: { doc: DocRecord; children?: ReactNo
         <article id="docs-content" className="docs-article">
           <Breadcrumbs doc={doc} />
           <header className="docs-article__header">
-            <p className="mono eyebrow">Documentation</p>
+            <p className="mono eyebrow docs-article__eyebrow">Documentation</p>
             <h1>{doc.title}</h1>
             {doc.description ? <p>{doc.description}</p> : null}
           </header>

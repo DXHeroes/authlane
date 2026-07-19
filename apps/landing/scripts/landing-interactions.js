@@ -72,23 +72,43 @@ export function initializeLandingInteractions(root = document) {
   root.querySelectorAll('[data-copy-code]').forEach((control) => {
     if (!(control instanceof HTMLButtonElement)) return;
     const originalLabel = control.textContent ?? 'Copy';
+    const sourceContainer = control.closest('[data-code-source]');
+    const status = sourceContainer?.querySelector('[data-copy-status]');
+    let attempt = 0;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let resetTimer;
 
     control.addEventListener('click', async () => {
-      const sourceContainer = control.closest('[data-code-source]');
+      const currentAttempt = ++attempt;
+      if (resetTimer !== undefined) {
+        clearTimeout(resetTimer);
+        resetTimer = undefined;
+      }
+      control.textContent = originalLabel;
+      if (status instanceof HTMLElement) status.textContent = '';
+
       const source = sourceContainer?.getAttribute('data-code-source');
+      let feedback;
 
       try {
         if (source === undefined || source === null || !navigator.clipboard?.writeText) {
           throw new Error('Clipboard access is unavailable.');
         }
         await navigator.clipboard.writeText(source);
-        control.textContent = 'Copied';
+        feedback = 'Copied';
       } catch {
-        control.textContent = 'Copy failed';
+        feedback = 'Copy failed';
       }
 
-      setTimeout(() => {
+      if (currentAttempt !== attempt) return;
+      control.textContent = feedback;
+      if (status instanceof HTMLElement) status.textContent = feedback;
+
+      resetTimer = setTimeout(() => {
+        if (currentAttempt !== attempt) return;
         control.textContent = originalLabel;
+        if (status instanceof HTMLElement) status.textContent = '';
+        resetTimer = undefined;
       }, 1_500);
     });
   });

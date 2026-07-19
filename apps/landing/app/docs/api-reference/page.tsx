@@ -30,7 +30,7 @@ export default function ApiReferencePage() {
       <SiteHeader navigationVariant="absolute" />
       <main id="api-reference-content" className="api-reference-page container">
         <nav className="docs-breadcrumbs" aria-label="Breadcrumb">
-          <ol role="list">
+          <ol>
             <li>
               <Link href="/docs">Docs</Link>
             </li>
@@ -54,13 +54,13 @@ export default function ApiReferencePage() {
         </nav>
 
         <section className="authlane-api-reference" aria-label="Authlane OpenAPI reference">
-          <div className="api-reference-fallback" role="status">
+          <output className="api-reference-fallback" aria-live="polite" aria-atomic="true">
             <strong>Loading the interactive API reference…</strong>
             <p>
               The complete OpenAPI contract remains available from the YAML and JSON downloads
               above.
             </p>
-          </div>
+          </output>
           <ApiReferenceClient />
         </section>
       </main>

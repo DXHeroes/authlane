@@ -154,7 +154,6 @@ export function staticDocumentViolations(html, mode) {
   let nextFlightScripts = 0;
   for (const match of html.matchAll(scriptPattern)) {
     const attributes = match[1] ?? '';
-    const content = match[2] ?? '';
     const source = attributes.match(scriptSourcePattern)?.[2];
     if (source) {
       if (source.startsWith('/_next/static/authlane-interactions')) {

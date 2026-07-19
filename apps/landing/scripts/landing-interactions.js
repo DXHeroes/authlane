@@ -360,8 +360,16 @@ export function initializeLandingInteractions(root = document) {
         return;
       }
       event.preventDefault();
+      const activeElement = ownerDocument.activeElement;
+      const primarySearchTrigger = root.querySelector('[data-docs-search-open]');
       openSearch(
-        ownerDocument.activeElement instanceof HTMLElement ? ownerDocument.activeElement : null
+        activeElement instanceof HTMLElement &&
+          activeElement !== ownerDocument.body &&
+          activeElement !== ownerDocument.documentElement
+          ? activeElement
+          : primarySearchTrigger instanceof HTMLButtonElement
+            ? primarySearchTrigger
+            : null
       );
     });
   }

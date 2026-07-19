@@ -192,6 +192,37 @@ describe('dependency-free landing interactions', () => {
     expect(fetchSearchIndex).toHaveBeenCalledTimes(1);
   });
 
+  it('restores the primary search trigger after a shortcut opens from the document body', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue(searchEntries),
+      })
+    );
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+
+    const trigger = document.querySelector<HTMLButtonElement>('[data-docs-search-open]');
+    const dialog = document.querySelector<HTMLDialogElement>('#docs-search');
+    const input = document.querySelector<HTMLInputElement>('[data-docs-search-input]');
+    expect(document.activeElement).toBe(document.body);
+    expect(trigger).not.toBeNull();
+    expect(dialog).not.toBeNull();
+    expect(input).not.toBeNull();
+    if (!trigger || !dialog || !input) return;
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true })
+    );
+    expect(dialog.open).toBe(true);
+    expect(document.activeElement).toBe(input);
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(dialog.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('traverses result links, closes on Escape, and restores focus', async () => {
     const traversalEntries = searchEntries.map((entry) => ({
       ...entry,

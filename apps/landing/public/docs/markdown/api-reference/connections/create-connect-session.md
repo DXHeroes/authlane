@@ -1,8 +1,6 @@
----
-title: 'Create connect session'
-description: 'Create a short-lived browser handoff bound to one user, service allowlist, and exact HTTPS origin'
-api: 'POST /api/v1/connect-sessions'
----
+# Create connect session
+
+Create a short-lived browser handoff bound to one user, service allowlist, and exact HTTPS origin
 
 Creates a 60–900 second browser handoff bound to an external user, service allowlist, and exact HTTPS parent origin. Requires `connect-sessions:create`.
 

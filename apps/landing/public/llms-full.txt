@@ -1,0 +1,1486 @@
+# Authlane documentation
+
+Source: https://authlane.io/docs
+
+# Introduction
+
+Authlane is the connection and tool control plane for SaaS applications
+
+Authlane manages tenant service policy, end-user OAuth connections, encrypted credentials, connection status, and AI tool definitions.
+
+## Control plane, not middleware
+
+```text
+flowchart LR
+  Browser -->|short-lived connect session| Authlane
+  SaaS -->|catalog, status, credentials| Authlane
+  Agent -->|local integration adapter| Provider
+```
+
+Provider requests go directly from your SaaS or agent runtime to GitHub, Slack, Google, and other providers. Authlane never receives tool inputs or provider response payloads.
+
+## One deployment unit
+
+One Node.js/Hono runtime serves:
+
+- Dashboard login and tenant configuration
+- Hosted and embedded connection UI
+- OAuth authorization and callbacks
+- Versioned `/api/v1` control-plane endpoints
+- Token-refresh and webhook outbox workers
+
+PostgreSQL stores policy and encrypted credentials. Redis provides hot-read caches, atomic rate limiting, and BullMQ queues.
+
+## Security boundaries
+
+- SaaS API keys are server-only and scope-limited.
+- Browsers receive short-lived connect sessions bound to tenant, external user, service allowlist, parent origin, and expiry.
+- Credential reads never expose OAuth refresh tokens, are audited, and cannot be cached.
+- PostgreSQL RLS policies protect every tenant-owned table.
+
+Follow the [Quickstart](/quickstart) or [Self-hosting guide](/guides/self-hosting).
+
+Source: https://authlane.io/docs/quickstart
+
+# Quickstart
+
+Connect a user and give an AI model their tools without proxying provider traffic
+
+## 1. Create a server-side client
+
+```bash
+pnpm add @authlane/sdk
+```
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+export const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+```
+
+> **Warning**
+> The tenant API key belongs only on your server. The SDK rejects browser usage.
+
+## 2. Show the services your tenant enabled
+
+Call Authlane from an authenticated route in your SaaS backend. Derive the external user ID from
+your trusted session; never accept it from the browser request body or a model-generated tool call.
+
+```typescript
+const currentUser = await requireUser(request);
+const { data: services, error } = await authlane.services.list();
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+return Response.json({ services });
+```
+
+Use this catalog to offer only the integrations enabled for your organization.
+
+## 3. Create a connect session
+
+In another authenticated backend route:
+
+```typescript
+const currentUser = await requireUser(request);
+const { data, error } = await authlane.connectSessions.create({
+  externalUserId: currentUser.id,
+  allowedServices: ['github', 'slack'],
+  allowedOrigin: 'https://app.example.com',
+  expiresInSeconds: 600,
+});
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+return Response.json({ connectUrl: data.url });
+```
+
+Authlane stores only a hash of the short-lived session token. The session is restricted to one
+tenant, external user, service allowlist, exact parent origin, and expiry.
+
+Set `allowedServices: []` to snapshot every service currently enabled globally and for the
+organization. Authlane stores the concrete service IDs, so services enabled later are not added.
+If a snapshotted service is disabled later, it is hidden and cannot start a new authorization.
+
+## 4. Render the hosted connection UI
+
+```bash
+pnpm add @authlane/react
+```
+
+```tsx
+import { AuthlaneConnect } from '@authlane/react';
+
+export function Integrations({ connectUrl }: { connectUrl: string }) {
+  return <AuthlaneConnect connectUrl={connectUrl} />;
+}
+```
+
+OAuth authorization and callbacks stay on the Authlane origin. Neither the Authlane API key nor
+provider credentials reach the iframe.
+
+## 5. Give the model this user's tools
+
+Install the Vercel AI adapter and its optional `ai` peer:
+
+```bash
+pnpm add @authlane/ai ai zod
+```
+
+The following server route loads one capability snapshot, creates executable callbacks bound to
+the authenticated user, and passes them to the AI SDK:
+
+```typescript
+import { vercelAI } from '@authlane/ai/vercel';
+import { createTextStreamResponse, streamText, toTextStream } from 'ai';
+import { z } from 'zod';
+import { authlane } from './authlane.js';
+
+const MAX_CHAT_REQUEST_BYTES = 64 * 1024;
+const MAX_CHAT_MESSAGES = 50;
+const MAX_CHAT_MESSAGE_CHARACTERS = 8_000;
+
+const chatMessageSchema = z.discriminatedUnion('role', [
+  z
+    .object({
+      role: z.literal('system'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal('user'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal('assistant'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+]);
+
+const chatRequestSchema = z
+  .object({
+    messages: z.array(chatMessageSchema).min(1).max(MAX_CHAT_MESSAGES),
+  })
+  .strict();
+
+type ChatRequest = z.infer<typeof chatRequestSchema>;
+
+function invalidChatRequest() {
+  return Response.json(
+    {
+      error: {
+        code: 'INVALID_CHAT_REQUEST',
+        message: 'The chat request is invalid.',
+      },
+    },
+    { status: 400 },
+  );
+}
+
+async function readChatRequest(request: Request): Promise<ChatRequest | null> {
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    const declaredBytes = Number(contentLength);
+    if (
+      !/^\d+$/.test(contentLength) ||
+      !Number.isSafeInteger(declaredBytes) ||
+      declaredBytes > MAX_CHAT_REQUEST_BYTES
+    ) {
+      return null;
+    }
+  }
+
+  if (request.body === null) return null;
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let receivedBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      receivedBytes += value.byteLength;
+      if (receivedBytes > MAX_CHAT_REQUEST_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  } finally {
+    reader.releaseLock();
+  }
+
+  try {
+    const bytes = new Uint8Array(receivedBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    const parsed = chatRequestSchema.safeParse(json);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function POST(request: Request) {
+  const currentUser = await requireUser(request);
+  const chatRequest = await readChatRequest(request);
+  if (chatRequest === null) return invalidChatRequest();
+
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+
+  if (error) {
+    return Response.json(
+      {
+        error: {
+          code: 'TOOLS_UNAVAILABLE',
+          message: 'The tools for this user are temporarily unavailable.',
+        },
+      },
+      { status: 502 },
+    );
+  }
+
+  const result = streamText({
+    model: 'openai/gpt-5-mini',
+    messages: chatRequest.messages,
+    tools,
+  });
+
+  return createTextStreamResponse({
+    stream: toTextStream({ stream: result.stream }),
+  });
+}
+```
+
+Listing tools is a fast control-plane read and does not issue credentials. Only when the AI SDK
+invokes one generated local callback does Authlane issue one fresh, audited, access-only lease.
+The matching integration consumes that lease immediately and sends the provider request from your
+SaaS process. Provider traffic never passes through Authlane.
+
+> **Warning**
+> Never serialize `tools` into browser data, cache it across users, or derive `currentUser.id` from
+> model or tool input. Build a new user-scoped toolset for the server-authenticated user.
+
+Source: https://authlane.io/docs/guides/oauth-setup
+
+# OAuth Setup
+
+Configure provider applications and hosted connection flows
+
+Each OAuth provider application must redirect to the Authlane origin, not to your SaaS:
+
+```text
+https://app.authlane.io/api/v1/oauth/{serviceId}/callback
+```
+
+For local development use `http://localhost:3000/api/v1/oauth/{serviceId}/callback` and replace `{serviceId}` with a concrete ID such as `github` or `slack`.
+
+## Configure a service
+
+1. Create an OAuth application with the provider.
+2. Register the exact Authlane callback URL.
+3. Open the Authlane dashboard and enable the service for your organization.
+4. Store the provider client ID, client secret, and optional custom scopes in the service settings.
+
+Client secrets are encrypted before storage and never returned by the API.
+
+## Start a connection
+
+Your SaaS backend creates a short-lived connect session:
+
+```typescript
+const { data, error } = await authlane.connectSessions.create({
+  externalUserId: 'user_123',
+  allowedServices: ['github'],
+  allowedOrigin: 'https://app.example.com',
+  expiresInSeconds: 600,
+});
+```
+
+Use `allowedServices: []` to snapshot all services currently enabled globally and for the
+organization. The session stores concrete IDs rather than an implicit wildcard.
+
+Return only `data.url` to the browser. Open it as a hosted page or pass it to `AuthlaneConnect`. The hosted UI starts authorization with PKCE and state validation, handles the callback, and reports the result to the exact parent origin.
+
+For disconnect, first reauthenticate the end-user in your SaaS and create a new connect session with `reauthenticatedAt: new Date().toISOString()`. Authlane rejects destructive actions from ordinary handoff sessions.
+
+## Status and lifecycle
+
+Read connection state from the hot capabilities endpoint. Authlane computes expiry on every read, so a stale stored `connected` value is returned as `expired` once `expiresAt` has passed.
+
+Connection lifecycle events are delivered as:
+
+- `connection.connected`
+- `connection.disconnected`
+- `connection.expired`
+- `connection.refreshed`
+- `connection.error`
+
+See the webhook guide for signature verification and retries.
+
+## Provider checklist
+
+- Use the minimum required provider scopes.
+- Keep development and production OAuth applications separate.
+- Configure the same public HTTPS origin in Authlane and the provider console.
+- Never place the provider client secret in the widget, React app, or SaaS frontend.
+- Test denied consent, invalid state, expired connect sessions, refresh, and disconnect flows.
+
+Source: https://authlane.io/docs/guides/self-hosting
+
+# Self-Hosting Guide
+
+Run the hardened Authlane control plane
+
+Authlane uses an application container, a one-shot migration container, PostgreSQL 16, and Redis 7.
+The application serves the dashboard, connect UI, API, OAuth callbacks, and background workers.
+
+## Docker Compose
+
+```bash
+cp .env.example .env
+openssl rand -hex 32
+```
+
+Fill every required value in `.env` with an independent random value. `APP_URL`,
+`BETTER_AUTH_URL`, and every CORS origin must be exact HTTPS origins in production. Keyrings use
+`key-id:64-hex-key` entries with the current key first. Better Auth uses
+`version:secret` entries with the current version first.
+
+```bash
+docker compose up --build -d
+curl --fail http://127.0.0.1:3000/health
+```
+
+The migration container uses the database owner, then exits. API traffic uses an RLS-enforced role;
+background jobs use a separate narrowly granted role. PostgreSQL and Redis are confined to an
+internal network and Redis requires authentication. Terminate TLS in a maintained reverse proxy.
+
+## Monitoring
+
+```bash
+docker compose --profile monitoring up -d
+```
+
+Prometheus authenticates to `/metrics` using `METRICS_BEARER_TOKEN`. Grafana binds only to
+`127.0.0.1` by default. Do not expose either service without a separate authenticated ingress.
+
+## Managed PostgreSQL and Redis
+
+Use separate migration, runtime, and worker database roles. Configure `DATABASE_URL` for the
+NOBYPASSRLS runtime role and `SYSTEM_DATABASE_URL` for the worker. Use TLS-enabled `postgresql://`
+and `rediss://` connections whenever traffic leaves a private host network.
+
+The final image uses Node.js 22, pnpm 10, a non-root user, a read-only root filesystem, dropped Linux
+capabilities, and no migration privileges.
+
+Follow the [security operations runbook](/guides/security-operations) for launch checks and key rotation.
+
+Source: https://authlane.io/docs/guides/custom-integrations
+
+# Custom Integrations
+
+Add tool definitions and a direct-execution adapter
+
+Authlane integrations have two responsibilities:
+
+1. publish immutable tool definitions to the Authlane catalog;
+2. provide an adapter your SaaS can execute in its own runtime.
+
+Authlane never proxies the provider request.
+
+## Package layout
+
+```text
+integrations/trello/
+├── config.yaml
+├── tools.ts
+├── index.ts
+├── package.json
+└── tsconfig.json
+```
+
+Use a lower-case, hyphenated service ID. `config.yaml` declares the OAuth endpoints and default scopes:
+
+```yaml
+id: trello
+name: Trello
+auth_type: oauth2
+config:
+  authorization_url: https://trello.com/1/authorize
+  token_url: https://trello.com/1/OAuthGetAccessToken
+  scopes:
+    - read
+    - write
+  default_scopes:
+    - read
+```
+
+## Define handlers
+
+Each tool combines a JSON Schema definition with a handler. The handler receives validated input and OAuth access credentials inside your SaaS process:
+
+```typescript
+import type { ToolHandler } from '@authlane/shared';
+
+export const tools: Record<string, ToolHandler> = {
+  trello_list_boards: {
+    definition: {
+      name: 'trello_list_boards',
+      description: 'Lists boards visible to the connected user',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+    handler: async (_input, credentials) => {
+      const response = await fetch('https://api.trello.com/1/members/me/boards', {
+        headers: { Authorization: `Bearer ${credentials.access_token}` },
+      });
+      if (!response.ok) throw new Error(`Trello returned HTTP ${response.status}`);
+      return response.json();
+    },
+  },
+};
+```
+
+Do not log credentials or return them from a handler.
+
+## Export the adapter
+
+```typescript
+import { createIntegrationAdapter } from '@authlane/shared';
+import { tools } from './tools.js';
+
+export { tools } from './tools.js';
+export const adapter = createIntegrationAdapter('trello', tools);
+export default adapter;
+```
+
+Export both `.` and `./tools` from the package. Authlane imports `./tools` when warming the catalog; the SaaS imports the default adapter for execution.
+
+## Execute in the SaaS
+
+```typescript
+import trello from '@authlane/integration-trello';
+
+const credentials = await authlane.credentialLeases.create({
+  externalUserId: 'user_123',
+  serviceId: 'trello',
+});
+
+if (credentials.error) return credentials;
+
+const result = await trello.execute(
+  'trello_list_boards',
+  {},
+  credentials.data,
+);
+```
+
+The SaaS issues an access-only credential lease server-side and calls Trello directly. OAuth refresh credentials remain encrypted inside Authlane. The lease must not be persisted or returned to a browser.
+
+## Checklist
+
+- Tool names are globally unique and prefixed with the service ID.
+- Input schemas reject unknown or malformed arguments.
+- Provider errors contain no tokens or secrets.
+- Unit tests cover definitions, successful calls, and provider failures.
+- The package exports built JavaScript and declaration files.
+
+Source: https://authlane.io/docs/guides/security
+
+# Security
+
+Authlane trust boundaries and deployment requirements
+
+Authlane is a credential and capability control plane. Provider API traffic belongs in your SaaS
+runtime and must never pass through Authlane.
+
+## Identity and execution boundary
+
+- Create `authlane.user(externalUserId)` only after authenticating the tenant user on your server.
+- Derive `externalUserId` from that trusted server session. Never accept it from model output, tool
+  arguments, URL parameters, or an untrusted browser body.
+- Keep the tenant Authlane API key server-only and grant each workload the minimum scopes it needs.
+- Never serialize an executable toolset or MCP server into browser data. Raw catalog and hosted
+  connect-session URLs are the browser-facing contracts.
+- Build a separate toolset or MCP server for each authenticated external user. Never cache or reuse
+  one across identities or tenants.
+- Custom integration adapters execute inside your SaaS trust boundary. Apply the same input
+  validation, outbound-request allowlists, timeout, and audit controls as other privileged backend
+  code.
+
+## Tenant isolation
+
+Every SaaS resource is owned by an `organization_id`. End-user connections are uniquely addressed
+by `(organization_id, external_user_id, service_id)`. Public API requests authenticate with a
+scoped API key whose organization is resolved server-side; callers cannot select another tenant.
+
+PostgreSQL row-level security policies provide a database isolation boundary. Production
+deployments should run migrations with an owner role and the application with a separate non-owner
+role so the application cannot bypass RLS.
+
+## Credentials and leases
+
+- Encrypt every secret record with a random data-encryption key and AES-256-GCM, then wrap that key
+  with a versioned deployment KEK.
+- Never log plaintext credentials, tenant API keys, OAuth codes, connect-session tokens, or
+  credential leases.
+- The SDK requests a fresh, access-only credential lease just in time for each allowed local tool
+  invocation. Retain it only within that invocation; never serialize, persist, cache, inspect in
+  telemetry, or reuse it.
+- Credential leases require `credentials:issue`, are audited, and use `Cache-Control: no-store,
+  private`.
+- OAuth refresh tokens, ID tokens, and provider client secrets never leave Authlane. Only material
+  needed for the current provider request crosses the control-plane boundary.
+- Model-facing failures use fixed safe code and message values. Never return caught provider errors,
+  response bodies, credential material, or stack traces to the model.
+- Rotate tenant API keys and grant the smallest required set of scopes.
+
+Authlane issues a fresh lease only when an allowed local tool callback executes. Listing connection
+status and tool definitions does not issue credentials. The integration then calls the provider
+directly from your SaaS process; Authlane is never a provider gateway or execution proxy.
+
+## Browser boundary
+
+API keys never enter browser code. Your backend creates a short-lived connect session bound to:
+
+- one `externalUserId` derived from the authenticated server session;
+- an exact HTTPS parent origin;
+- an explicit service allowlist;
+- a short expiry.
+
+Authlane stores only a hash of the connect-session token. The hosted UI validates the token and
+origin; the React embed validates both `postMessage` origin and iframe source. Plain HTTP origins
+are accepted only for localhost development.
+
+## OAuth
+
+All OAuth authorization requests use PKCE and a cryptographically random state value. Callback
+state is single-use and expires. Provider client secrets and refresh tokens remain encrypted at
+rest.
+
+Register the exact callback shown in the dashboard. Use TLS at the public ingress and set the same
+public origin in the Authlane environment configuration.
+
+## Operational controls
+
+- Keep PostgreSQL and Redis on private networks.
+- Require TLS at the ingress and use secure cookies in production.
+- Rate-limit all public endpoints; Authlane uses Redis for distributed limits.
+- Monitor authentication failures, credential reads, refresh failures, webhook backlog, and request
+  latency without recording sensitive request or response values.
+- Back up the database and versioned keyrings separately. Losing every retained data KEK makes
+  stored credentials unrecoverable.
+- Rotate webhook secrets and verify `<timestamp>.<raw-body>` signatures before parsing payloads.
+
+Source: https://authlane.io/docs/guides/security-operations
+
+# Security Operations
+
+Production launch, key rotation, and incident response
+
+## Launch gate
+
+- Terminate TLS and use exact HTTPS application, auth, and CORS origins.
+- Store all versioned keyrings outside PostgreSQL and use independent random values.
+- Separate migration, RLS runtime, and worker database roles.
+- Keep PostgreSQL and Redis private; use encrypted transport when traffic leaves the host.
+- Configure trusted proxy CIDRs explicitly, require dashboard MFA, and protect `/metrics`.
+- Restore a backup in isolation and require every security CI job before release.
+
+## Rotate the data KEK
+
+Add a new first entry to `AUTHLANE_DATA_KEK_RING` while retaining the old entry. Restart every replica,
+then run:
+
+```bash
+pnpm --filter @authlane/database secrets:rewrap
+```
+
+The command requires `SYSTEM_DATABASE_URL` and rewraps only per-record DEKs. After confirming no
+`secret_records.key_id` rows use the old version and testing OAuth/refresh/lease flows, remove the old
+key and restart again.
+
+Lookup-key rotation requires replacing and revoking API keys because Authlane cannot rehash raw keys it
+does not retain. Retain old Redis/auth keys longer than the maximum artifact lifetime.
+
+## Incident response
+
+Contain access and preserve evidence. Determine whether PostgreSQL alone, key storage, runtime memory,
+API keys, sessions, or provider grants were exposed. If decryption capability may have leaked, revoke
+provider grants and OAuth client secrets; KEK rotation alone is insufficient. Revoke Authlane keys and
+sessions, rotate every affected keyring, rebuild clean infrastructure, notify affected operators, and
+publish an advisory when appropriate.
+
+Source: https://authlane.io/docs/guides/webhooks
+
+# Webhooks
+
+Receive signed connection lifecycle events
+
+Configure the webhook URL and secret in the Authlane organization settings. Delivery uses a transactional outbox with exponential retry and an idempotency key.
+
+## Events
+
+| Event | Meaning |
+|---|---|
+| `connection.connected` | OAuth completed and credentials were stored |
+| `connection.disconnected` | The end-user disconnected the service |
+| `connection.expired` | The access credential passed its expiry time |
+| `connection.refreshed` | Authlane refreshed the internal OAuth credential |
+| `connection.error` | Refresh failed and the connection needs attention |
+
+Every payload identifies the tenant-owned user as `externalUserId`:
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "connection.connected",
+  "createdAt": "2026-07-16T10:00:00.000Z",
+  "data": {
+    "externalUserId": "user_123",
+    "serviceId": "github",
+    "connectionId": "conn_xyz"
+  }
+}
+```
+
+## Verify the signature
+
+Authlane signs the exact string `<timestamp>.<raw-body>` with HMAC-SHA256. Verify the raw request bytes before parsing JSON:
+
+```typescript
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verifyAuthlaneWebhook(
+  rawBody: string,
+  timestamp: string,
+  signature: string,
+  secret: string,
+): boolean {
+  const expected = createHmac('sha256', secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest('hex');
+  const receivedBuffer = Buffer.from(signature, 'hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  return receivedBuffer.length === expectedBuffer.length
+    && timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+```
+
+Read these headers:
+
+- `X-Authlane-Signature` — lower-case hexadecimal HMAC
+- `X-Authlane-Timestamp` — Unix timestamp used in the signature
+- `X-Authlane-Event` — event type
+- `Idempotency-Key` — stable event ID across retries
+
+Reject timestamps outside a short tolerance such as five minutes, store processed idempotency keys, and return a successful response quickly. Authlane retries non-2xx responses and network failures with exponential backoff.
+
+Source: https://authlane.io/docs/sdk/typescript
+
+# TypeScript SDK
+
+Server-side, user-scoped access to Authlane capabilities and local AI tools
+
+## Install and configure
+
+```bash
+pnpm add @authlane/sdk
+```
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+```
+
+The client sends the tenant API key as a bearer credential and is server-only. API and adapter
+operations return `{ data, error }`; they do not throw for expected failures. Invalid constructor
+configuration still throws.
+
+## User-scoped resources
+
+Derive `externalUserId` from your SaaS's authenticated server session once, then bind it:
+
+```typescript
+const currentUser = await requireUser(request);
+const user = authlane.user(currentUser.id);
+
+const capabilities = await user.capabilities.get({ format: 'mcp' });
+const connections = await user.connections.list();
+const definitions = await user.tools.list({ format: 'openai' });
+```
+
+`user.capabilities.get()` is the hot read for status plus definitions in one versioned snapshot.
+The unscoped methods remain available, but `authlane.user(externalUserId)` makes the identity
+boundary explicit and avoids repeating an ID on every call.
+
+## Vercel AI SDK
+
+Install the adapter's optional peer explicitly:
+
+```bash
+pnpm add @authlane/sdk @authlane/ai ai zod
+```
+
+```typescript
+import { vercelAI } from '@authlane/ai/vercel';
+import { createTextStreamResponse, streamText, toTextStream } from 'ai';
+
+const user = authlane.user(currentUser.id);
+const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+const result = streamText({
+  model: 'openai/gpt-5-mini',
+  messages,
+  tools,
+});
+
+return createTextStreamResponse({
+  stream: toTextStream({ stream: result.stream }),
+});
+```
+
+## OpenAI Agents SDK
+
+Install the OpenAI Agents optional peer explicitly:
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @openai/agents zod
+```
+
+```typescript
+import { openAIAgents } from '@authlane/ai/openai';
+import { Agent, run } from '@openai/agents';
+
+const user = authlane.user(currentUser.id);
+const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+const agent = new Agent({
+  name: 'Workspace assistant',
+  instructions: 'Use only the connected services needed to answer the request.',
+  tools,
+});
+const result = await run(agent, prompt);
+
+return Response.json({ output: result.finalOutput });
+```
+
+## Local MCP server
+
+Install the MCP optional peer explicitly:
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @modelcontextprotocol/sdk zod
+```
+
+`mcpServer()` creates a low-level MCP `Server`; your application owns and connects its transport:
+
+```typescript
+import { mcpServer } from '@authlane/ai/mcp';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+
+export async function connectUserMcpServer(
+  externalUserId: string,
+  transport: Transport,
+) {
+  const user = authlane.user(externalUserId);
+  const result = await user.tools.list({ adapter: mcpServer() });
+
+  if (result.error) return result;
+  await result.data.connect(transport);
+  return result;
+}
+```
+
+The caller must authenticate the user before calling this function and must close the returned
+server and transport together. One server is permanently bound to one `externalUserId`; never
+reuse it for another identity, connection, request context, or tenant.
+
+## Custom integration overrides
+
+Pass an application-owned integration adapter to any framework adapter. An explicit custom
+adapter takes priority over Authlane's built-in adapter with the same `serviceId`:
+
+```typescript
+import type { FrameworkAdapterOptions } from '@authlane/ai';
+import { vercelAI } from '@authlane/ai/vercel';
+
+type IntegrationAdapter = NonNullable<FrameworkAdapterOptions['integrations']>[number];
+
+const customGithub: IntegrationAdapter = {
+  serviceId: 'github',
+  definitions: [],
+  async execute(toolName, input, credential) {
+    return executeGithubInsideOurBackend(toolName, input, credential);
+  },
+};
+
+const result = await authlane.user(currentUser.id).tools.list({
+  adapter: vercelAI({ integrations: [customGithub] }),
+});
+```
+
+Custom adapters run inside your SaaS trust boundary. They receive ephemeral access-only material
+for the current invocation and must not log, persist, cache, or return it.
+
+## Connect sessions and raw definitions
+
+```typescript
+const session = await authlane.connectSessions.create({
+  externalUserId: currentUser.id,
+  allowedServices: ['github'],
+  allowedOrigin: 'https://app.example.com',
+  expiresInSeconds: 600,
+});
+
+await authlane.services.list();
+await authlane.user(currentUser.id).tools.list({ format: 'openai' });
+```
+
+Return only `session.data?.url` to the browser. Raw tool definitions contain no execution
+callbacks; executable toolsets from an adapter are server-only. Provider requests originate in
+your SaaS process and never pass through Authlane.
+
+An empty `allowedServices` array snapshots every service currently enabled globally and for the
+organization. Authlane stores the resolved IDs on the session; later additions are not included,
+and later-disabled services are hidden and cannot start a new authorization.
+
+Source: https://authlane.io/docs/sdk/react
+
+# React Embed
+
+Embed the hosted connect UI with a short-lived URL
+
+```bash
+pnpm add @authlane/react
+```
+
+Create the connect session on your SaaS backend, then pass its URL to React:
+
+```tsx
+import { AuthlaneConnect } from '@authlane/react';
+
+export function IntegrationSettings({ connectUrl }: { connectUrl: string }) {
+  return (
+    <AuthlaneConnect
+      connectUrl={connectUrl}
+      minHeight={480}
+      onEvent={(event) => {
+        if (event.type === 'connected') {
+          console.log(`${event.serviceId} connected`);
+        }
+      }}
+    />
+  );
+}
+```
+
+The component validates `postMessage` origin and iframe source, applies a sandbox, and adjusts its height. It accepts no API key or external user ID; those are already bound into the connect session.
+
+Source: https://authlane.io/docs/sdk/python
+
+# Python SDK
+
+Use Authlane from Python with non-throwing results and user-scoped tools
+
+Install the Python client in the trusted runtime that owns your agent or backend:
+
+```bash
+pip install authlane
+```
+
+## Initialize the client
+
+```python
+import os
+
+from authlane import Authlane
+
+with Authlane(
+    api_key=os.environ["AUTHLANE_API_KEY"],
+    base_url="https://app.authlane.io",
+) as authlane:
+    result = authlane.services.list()
+
+if result.error:
+    print(result.error.message)
+else:
+    print(result.data)
+```
+
+Every public SDK call returns a `Result` with `data` and `error`. Expected API failures do not
+raise exceptions, so your application can handle the same stable error envelope in TypeScript and
+Python.
+
+## Connect an external user
+
+```python
+session = authlane.connect_sessions.create(
+    external_user_id="user_123",
+    allowed_services=[],
+    allowed_origin="https://app.example.com",
+)
+```
+
+`allowed_services=[]` snapshots every service currently enabled for the tenant. Pass explicit
+service IDs to limit the session. Duplicates are accepted and deduplicated by the server.
+
+## Load user-scoped tools
+
+```python
+from authlane.adapters import generic
+
+with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+    result = authlane.user("user_123").tools.list(adapter=generic())
+
+if result.error:
+    raise RuntimeError(result.error.message)
+
+tools = result.data
+```
+
+The adapter executes in your runtime. It requests access-only material when a selected tool runs,
+then calls the provider directly. Tool inputs and provider responses never pass through Authlane.
+
+## Async applications
+
+```python
+from authlane import AsyncAuthlane
+from authlane.adapters import langchain
+
+async with AsyncAuthlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+    result = await authlane.user("user_123").tools.list(adapter=langchain())
+```
+
+See [Framework adapters](/docs/sdk/frameworks) for Agno, LangChain, OpenAI Agents, Vercel AI,
+Mastra, and local MCP examples.
+
+Source: https://authlane.io/docs/sdk/frameworks
+
+# Framework adapters
+
+Give one external user’s connected tools to the AI framework running in your SaaS
+
+Framework adapters are explicit output formats, not separate Authlane gateways. Your backend scopes
+the request with `externalUserId`; the resulting handlers run beside your agent and call providers
+directly.
+
+## TypeScript
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+import { mastraAI } from '@authlane/ai/mastra';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+const { data: tools, error } = await authlane
+  .user('user_123')
+  .tools.list({ adapter: mastraAI() });
+```
+
+Choose the adapter at the integration boundary:
+
+| Framework | Import | Adapter |
+| --- | --- | --- |
+| Vercel AI SDK | `@authlane/ai/vercel` | `vercelAI()` |
+| OpenAI Agents | `@authlane/ai/openai` | `openAIAgents()` |
+| Mastra | `@authlane/ai/mastra` | `mastraAI()` |
+| Local MCP server | `@authlane/ai/mcp` | `mcpServer()` |
+
+## Python
+
+```python
+import os
+
+from authlane import Authlane
+from authlane.adapters import agno, generic, langchain, openai_agents
+
+with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+    user = authlane.user("user_123")
+    agno_tools = user.tools.list(adapter=agno())
+    langchain_tools = user.tools.list(adapter=langchain())
+    openai_tools = user.tools.list(adapter=openai_agents())
+    portable_tools = user.tools.list(adapter=generic())
+```
+
+## Identity and execution boundary
+
+The `user_123` value must come from your authenticated SaaS session. Never accept an arbitrary
+external user ID from an untrusted client. Authlane returns definitions and scoped local handlers;
+it does not receive tool calls and does not expose a hosted MCP server.
+
+Source: https://authlane.io/docs/api-reference/introduction
+
+# API Reference
+
+Authlane control-plane endpoints
+
+All API responses use `{ data, error }`. SaaS endpoints require a scoped key:
+
+```http
+Authorization: Bearer ak_...
+```
+
+The capability, connection, tool, and catalog endpoints are read-only control-plane requests. There is intentionally no tool execution endpoint.
+
+See the bundled [OpenAPI specification](https://github.com/authlane/authlane/blob/main/apps/docs/api-reference/openapi.yaml) for schemas and scopes.
+
+Source: https://authlane.io/docs/api-reference/authentication
+
+# Authentication
+
+Scoped SaaS keys and short-lived browser sessions
+
+Use a server-side API key as a Bearer token. Available scopes are:
+
+- `catalog:read`
+- `connections:read`
+- `credentials:issue`
+- `connect-sessions:create`
+
+```bash
+curl https://app.authlane.io/api/v1/catalog/services \
+  -H 'Authorization: Bearer ak_...'
+```
+
+Never place this key in JavaScript sent to a browser. Create a connect session on your backend and return only its short-lived URL.
+
+Source: https://authlane.io/docs/api-reference/services/list-services
+
+# List services
+
+Return services enabled for the authenticated tenant
+
+Returns services enabled by the authenticated tenant. Requires `catalog:read`.
+
+Source: https://authlane.io/docs/api-reference/connections/list-connections
+
+# List connection statuses
+
+Return an effective connection status for every enabled tenant service
+
+Returns an effective status for every enabled tenant service. Expiration is calculated at request time. Requires `connections:read`.
+
+Source: https://authlane.io/docs/api-reference/connections/capabilities
+
+# Get capabilities
+
+Return statuses and MCP/OpenAI definitions in one hot-read snapshot
+
+Returns statuses and MCP/OpenAI definitions in one hot-read snapshot. Requires `connections:read`.
+
+Source: https://authlane.io/docs/api-reference/connections/create-credential-lease
+
+# Issue a credential lease
+
+Issue audited access-only credential material to a trusted server-side caller
+
+Issues access-only credential material to a trusted server-side caller. Requires
+`credentials:issue`. The audited response uses `Cache-Control: no-store, private`
+and never contains OAuth refresh tokens, ID tokens, or provider client secrets.
+
+Do not call this endpoint from a browser and do not persist the response. Use the
+lease only for the immediate provider request in your SaaS backend.
+
+Source: https://authlane.io/docs/api-reference/connections/create-connect-session
+
+# Create connect session
+
+Create a short-lived browser handoff bound to one user, service allowlist, and exact HTTPS origin
+
+Creates a 60–900 second browser handoff bound to an external user, service allowlist, and exact HTTPS parent origin. Requires `connect-sessions:create`.
+
+The returned URL carries the opaque handoff token in its URL fragment, so it is not sent in HTTP request targets or referrers. Responses are non-cacheable. Disconnect is disabled by default; after reauthenticating the end-user in your own application, set `reauthenticatedAt` to the current UTC timestamp to grant that single connect session a five-minute destructive-action window.
+
+`allowedServices` is required. Pass explicit service IDs to restrict the handoff, or pass `[]` to snapshot every service currently enabled globally and for the organization. Authlane stores the resolved IDs, never a wildcard. If no services are enabled, session creation fails with `400 VALIDATION_ERROR`. Services enabled after creation are not added; services disabled after creation are hidden and cannot begin a new authorization, while disconnect remains available for existing access.
+
+Source: https://authlane.io/docs/api-reference/oauth/authorize
+
+# Authorize a service
+
+Start PKCE OAuth from a valid connect session in the hosted connect UI
+
+Starts PKCE OAuth from a valid connect session. The hosted connect UI calls this endpoint; a SaaS API key is not accepted from the browser.
+
+Source: https://authlane.io/docs/api-reference/oauth/callback
+
+# OAuth callback
+
+Validate OAuth state and PKCE, store encrypted credentials, and return to the hosted connect UI
+
+Validates the one-time state and PKCE verifier, stores encrypted credentials, schedules refresh, writes a connection event, and returns to the hosted connect UI.
+
+Source: https://authlane.io/docs/api-reference/tools/list-tools
+
+# List tools
+
+Return MCP tools or OpenAI functions for currently usable connections
+
+Returns MCP tools or OpenAI functions for currently usable connections. The response includes a stable definition version. Authlane does not execute tools.
+
+Source: https://authlane.io/docs/integrations/github
+
+# GitHub
+
+Use the local GitHub adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call GitHub:
+
+```bash
+pnpm add @authlane/integration-github
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls GitHub directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/linear
+
+# Linear
+
+Use the local Linear adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Linear:
+
+```bash
+pnpm add @authlane/integration-linear
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Linear directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/jira
+
+# Jira
+
+Use the local Jira adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Jira:
+
+```bash
+pnpm add @authlane/integration-jira
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Jira directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/sentry
+
+# Sentry
+
+Use the local Sentry adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Sentry:
+
+```bash
+pnpm add @authlane/integration-sentry
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Sentry directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/slack
+
+# Slack
+
+Use the local Slack adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Slack:
+
+```bash
+pnpm add @authlane/integration-slack
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Slack directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/discord
+
+# Discord
+
+Use the local Discord adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Discord:
+
+```bash
+pnpm add @authlane/integration-discord
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Discord directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/gmail
+
+# Gmail
+
+Use the local Gmail adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Gmail:
+
+```bash
+pnpm add @authlane/integration-gmail
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Gmail directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/notion
+
+# Notion
+
+Use the local Notion adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Notion:
+
+```bash
+pnpm add @authlane/integration-notion
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Notion directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/google-drive
+
+# Google Drive
+
+Use the local Google Drive adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Google Drive:
+
+```bash
+pnpm add @authlane/integration-google-drive
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Google Drive directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/google-calendar
+
+# Google Calendar
+
+Use the local Google Calendar adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Google Calendar:
+
+```bash
+pnpm add @authlane/integration-google-calendar
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Google Calendar directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/hubspot
+
+# HubSpot
+
+Use the local HubSpot adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call HubSpot:
+
+```bash
+pnpm add @authlane/integration-hubspot
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls HubSpot directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/salesforce
+
+# Salesforce
+
+Use the local Salesforce adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Salesforce:
+
+```bash
+pnpm add @authlane/integration-salesforce
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Salesforce directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/pipedrive
+
+# Pipedrive
+
+Use the local Pipedrive adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Pipedrive:
+
+```bash
+pnpm add @authlane/integration-pipedrive
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Pipedrive directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/stripe
+
+# Stripe
+
+Use the local Stripe adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Stripe:
+
+```bash
+pnpm add @authlane/integration-stripe
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Stripe directly; tool inputs and provider responses do not pass through Authlane.
+
+Source: https://authlane.io/docs/integrations/airtable
+
+# Airtable
+
+Use the local Airtable adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call Airtable:
+
+```bash
+pnpm add @authlane/integration-airtable
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Airtable directly; tool inputs and provider responses do not pass through Authlane.

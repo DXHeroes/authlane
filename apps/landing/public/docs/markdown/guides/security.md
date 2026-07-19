@@ -1,0 +1,84 @@
+# Security
+
+Authlane trust boundaries and deployment requirements
+
+Authlane is a credential and capability control plane. Provider API traffic belongs in your SaaS
+runtime and must never pass through Authlane.
+
+## Identity and execution boundary
+
+- Create `authlane.user(externalUserId)` only after authenticating the tenant user on your server.
+- Derive `externalUserId` from that trusted server session. Never accept it from model output, tool
+  arguments, URL parameters, or an untrusted browser body.
+- Keep the tenant Authlane API key server-only and grant each workload the minimum scopes it needs.
+- Never serialize an executable toolset or MCP server into browser data. Raw catalog and hosted
+  connect-session URLs are the browser-facing contracts.
+- Build a separate toolset or MCP server for each authenticated external user. Never cache or reuse
+  one across identities or tenants.
+- Custom integration adapters execute inside your SaaS trust boundary. Apply the same input
+  validation, outbound-request allowlists, timeout, and audit controls as other privileged backend
+  code.
+
+## Tenant isolation
+
+Every SaaS resource is owned by an `organization_id`. End-user connections are uniquely addressed
+by `(organization_id, external_user_id, service_id)`. Public API requests authenticate with a
+scoped API key whose organization is resolved server-side; callers cannot select another tenant.
+
+PostgreSQL row-level security policies provide a database isolation boundary. Production
+deployments should run migrations with an owner role and the application with a separate non-owner
+role so the application cannot bypass RLS.
+
+## Credentials and leases
+
+- Encrypt every secret record with a random data-encryption key and AES-256-GCM, then wrap that key
+  with a versioned deployment KEK.
+- Never log plaintext credentials, tenant API keys, OAuth codes, connect-session tokens, or
+  credential leases.
+- The SDK requests a fresh, access-only credential lease just in time for each allowed local tool
+  invocation. Retain it only within that invocation; never serialize, persist, cache, inspect in
+  telemetry, or reuse it.
+- Credential leases require `credentials:issue`, are audited, and use `Cache-Control: no-store,
+  private`.
+- OAuth refresh tokens, ID tokens, and provider client secrets never leave Authlane. Only material
+  needed for the current provider request crosses the control-plane boundary.
+- Model-facing failures use fixed safe code and message values. Never return caught provider errors,
+  response bodies, credential material, or stack traces to the model.
+- Rotate tenant API keys and grant the smallest required set of scopes.
+
+Authlane issues a fresh lease only when an allowed local tool callback executes. Listing connection
+status and tool definitions does not issue credentials. The integration then calls the provider
+directly from your SaaS process; Authlane is never a provider gateway or execution proxy.
+
+## Browser boundary
+
+API keys never enter browser code. Your backend creates a short-lived connect session bound to:
+
+- one `externalUserId` derived from the authenticated server session;
+- an exact HTTPS parent origin;
+- an explicit service allowlist;
+- a short expiry.
+
+Authlane stores only a hash of the connect-session token. The hosted UI validates the token and
+origin; the React embed validates both `postMessage` origin and iframe source. Plain HTTP origins
+are accepted only for localhost development.
+
+## OAuth
+
+All OAuth authorization requests use PKCE and a cryptographically random state value. Callback
+state is single-use and expires. Provider client secrets and refresh tokens remain encrypted at
+rest.
+
+Register the exact callback shown in the dashboard. Use TLS at the public ingress and set the same
+public origin in the Authlane environment configuration.
+
+## Operational controls
+
+- Keep PostgreSQL and Redis on private networks.
+- Require TLS at the ingress and use secure cookies in production.
+- Rate-limit all public endpoints; Authlane uses Redis for distributed limits.
+- Monitor authentication failures, credential reads, refresh failures, webhook backlog, and request
+  latency without recording sensitive request or response values.
+- Back up the database and versioned keyrings separately. Losing every retained data KEK makes
+  stored credentials unrecoverable.
+- Rotate webhook secrets and verify `<timestamp>.<raw-body>` signatures before parsing payloads.

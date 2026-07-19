@@ -1,7 +1,6 @@
----
-title: Introduction
-description: 'Authlane is the connection and tool control plane for SaaS applications'
----
+# Introduction
+
+Authlane is the connection and tool control plane for SaaS applications
 
 Authlane manages tenant service policy, end-user OAuth connections, encrypted credentials, connection status, and AI tool definitions.
 

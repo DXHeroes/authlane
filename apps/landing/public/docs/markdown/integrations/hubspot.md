@@ -1,0 +1,18 @@
+# HubSpot
+
+Use the local HubSpot adapter with Authlane credentials
+
+Install the published adapter in the SaaS or agent runtime that will call HubSpot:
+
+```bash
+pnpm add @authlane/integration-hubspot
+```
+
+```typescript
+import adapter from @authlane/integration-;
+
+const definitions = adapter.definitions;
+const result = await adapter.execute(toolName, input, credential);
+```
+
+Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls HubSpot directly; tool inputs and provider responses do not pass through Authlane.

@@ -1,0 +1,17 @@
+# Authentication
+
+Scoped SaaS keys and short-lived browser sessions
+
+Use a server-side API key as a Bearer token. Available scopes are:
+
+- `catalog:read`
+- `connections:read`
+- `credentials:issue`
+- `connect-sessions:create`
+
+```bash
+curl https://app.authlane.io/api/v1/catalog/services \
+  -H 'Authorization: Bearer ak_...'
+```
+
+Never place this key in JavaScript sent to a browser. Create a connect session on your backend and return only its short-lived URL.

@@ -1,0 +1,43 @@
+# Authlane documentation
+
+> Authlane is the connection and tool control plane for SaaS applications.
+
+## Documentation
+
+- [Introduction](https://authlane.io/docs): Authlane is the connection and tool control plane for SaaS applications
+- [Quickstart](https://authlane.io/docs/quickstart): Connect a user and give an AI model their tools without proxying provider traffic
+- [OAuth Setup](https://authlane.io/docs/guides/oauth-setup): Configure provider applications and hosted connection flows
+- [Self-Hosting Guide](https://authlane.io/docs/guides/self-hosting): Run the hardened Authlane control plane
+- [Custom Integrations](https://authlane.io/docs/guides/custom-integrations): Add tool definitions and a direct-execution adapter
+- [Security](https://authlane.io/docs/guides/security): Authlane trust boundaries and deployment requirements
+- [Security Operations](https://authlane.io/docs/guides/security-operations): Production launch, key rotation, and incident response
+- [Webhooks](https://authlane.io/docs/guides/webhooks): Receive signed connection lifecycle events
+- [TypeScript SDK](https://authlane.io/docs/sdk/typescript): Server-side, user-scoped access to Authlane capabilities and local AI tools
+- [React Embed](https://authlane.io/docs/sdk/react): Embed the hosted connect UI with a short-lived URL
+- [Python SDK](https://authlane.io/docs/sdk/python): Use Authlane from Python with non-throwing results and user-scoped tools
+- [Framework adapters](https://authlane.io/docs/sdk/frameworks): Give one external user’s connected tools to the AI framework running in your SaaS
+- [API Reference](https://authlane.io/docs/api-reference/introduction): Authlane control-plane endpoints
+- [Authentication](https://authlane.io/docs/api-reference/authentication): Scoped SaaS keys and short-lived browser sessions
+- [List services](https://authlane.io/docs/api-reference/services/list-services): Return services enabled for the authenticated tenant
+- [List connection statuses](https://authlane.io/docs/api-reference/connections/list-connections): Return an effective connection status for every enabled tenant service
+- [Get capabilities](https://authlane.io/docs/api-reference/connections/capabilities): Return statuses and MCP/OpenAI definitions in one hot-read snapshot
+- [Issue a credential lease](https://authlane.io/docs/api-reference/connections/create-credential-lease): Issue audited access-only credential material to a trusted server-side caller
+- [Create connect session](https://authlane.io/docs/api-reference/connections/create-connect-session): Create a short-lived browser handoff bound to one user, service allowlist, and exact HTTPS origin
+- [Authorize a service](https://authlane.io/docs/api-reference/oauth/authorize): Start PKCE OAuth from a valid connect session in the hosted connect UI
+- [OAuth callback](https://authlane.io/docs/api-reference/oauth/callback): Validate OAuth state and PKCE, store encrypted credentials, and return to the hosted connect UI
+- [List tools](https://authlane.io/docs/api-reference/tools/list-tools): Return MCP tools or OpenAI functions for currently usable connections
+- [GitHub](https://authlane.io/docs/integrations/github): Use the local GitHub adapter with Authlane credentials
+- [Linear](https://authlane.io/docs/integrations/linear): Use the local Linear adapter with Authlane credentials
+- [Jira](https://authlane.io/docs/integrations/jira): Use the local Jira adapter with Authlane credentials
+- [Sentry](https://authlane.io/docs/integrations/sentry): Use the local Sentry adapter with Authlane credentials
+- [Slack](https://authlane.io/docs/integrations/slack): Use the local Slack adapter with Authlane credentials
+- [Discord](https://authlane.io/docs/integrations/discord): Use the local Discord adapter with Authlane credentials
+- [Gmail](https://authlane.io/docs/integrations/gmail): Use the local Gmail adapter with Authlane credentials
+- [Notion](https://authlane.io/docs/integrations/notion): Use the local Notion adapter with Authlane credentials
+- [Google Drive](https://authlane.io/docs/integrations/google-drive): Use the local Google Drive adapter with Authlane credentials
+- [Google Calendar](https://authlane.io/docs/integrations/google-calendar): Use the local Google Calendar adapter with Authlane credentials
+- [HubSpot](https://authlane.io/docs/integrations/hubspot): Use the local HubSpot adapter with Authlane credentials
+- [Salesforce](https://authlane.io/docs/integrations/salesforce): Use the local Salesforce adapter with Authlane credentials
+- [Pipedrive](https://authlane.io/docs/integrations/pipedrive): Use the local Pipedrive adapter with Authlane credentials
+- [Stripe](https://authlane.io/docs/integrations/stripe): Use the local Stripe adapter with Authlane credentials
+- [Airtable](https://authlane.io/docs/integrations/airtable): Use the local Airtable adapter with Authlane credentials

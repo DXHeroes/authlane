@@ -14,6 +14,17 @@ function sourceSlugs(): string[] {
 }
 
 describe('build-time documentation source', () => {
+  it('reads documentation records from the generated manifest without runtime filesystem parsing', () => {
+    const moduleSource = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), 'docs.ts'),
+      'utf8'
+    );
+
+    expect(moduleSource).toContain('../generated/docs-manifest.json');
+    expect(moduleSource).not.toContain("from 'node:fs'");
+    expect(moduleSource).not.toContain("from 'yaml'");
+  });
+
   it('resolves previous and next pages from one canonical navigation order', () => {
     const docs = getAllDocs();
     expect(getAdjacentDocs(docs[0].slug)).toEqual({ previous: null, next: docs[1] });

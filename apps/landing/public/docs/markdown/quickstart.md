@@ -1,0 +1,245 @@
+# Quickstart
+
+Connect a user and give an AI model their tools without proxying provider traffic
+
+## 1. Create a server-side client
+
+```bash
+pnpm add @authlane/sdk
+```
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+export const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+```
+
+> **Warning**
+> The tenant API key belongs only on your server. The SDK rejects browser usage.
+
+## 2. Show the services your tenant enabled
+
+Call Authlane from an authenticated route in your SaaS backend. Derive the external user ID from
+your trusted session; never accept it from the browser request body or a model-generated tool call.
+
+```typescript
+const currentUser = await requireUser(request);
+const { data: services, error } = await authlane.services.list();
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+return Response.json({ services });
+```
+
+Use this catalog to offer only the integrations enabled for your organization.
+
+## 3. Create a connect session
+
+In another authenticated backend route:
+
+```typescript
+const currentUser = await requireUser(request);
+const { data, error } = await authlane.connectSessions.create({
+  externalUserId: currentUser.id,
+  allowedServices: ['github', 'slack'],
+  allowedOrigin: 'https://app.example.com',
+  expiresInSeconds: 600,
+});
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
+
+return Response.json({ connectUrl: data.url });
+```
+
+Authlane stores only a hash of the short-lived session token. The session is restricted to one
+tenant, external user, service allowlist, exact parent origin, and expiry.
+
+Set `allowedServices: []` to snapshot every service currently enabled globally and for the
+organization. Authlane stores the concrete service IDs, so services enabled later are not added.
+If a snapshotted service is disabled later, it is hidden and cannot start a new authorization.
+
+## 4. Render the hosted connection UI
+
+```bash
+pnpm add @authlane/react
+```
+
+```tsx
+import { AuthlaneConnect } from '@authlane/react';
+
+export function Integrations({ connectUrl }: { connectUrl: string }) {
+  return <AuthlaneConnect connectUrl={connectUrl} />;
+}
+```
+
+OAuth authorization and callbacks stay on the Authlane origin. Neither the Authlane API key nor
+provider credentials reach the iframe.
+
+## 5. Give the model this user's tools
+
+Install the Vercel AI adapter and its optional `ai` peer:
+
+```bash
+pnpm add @authlane/ai ai zod
+```
+
+The following server route loads one capability snapshot, creates executable callbacks bound to
+the authenticated user, and passes them to the AI SDK:
+
+```typescript
+import { vercelAI } from '@authlane/ai/vercel';
+import { createTextStreamResponse, streamText, toTextStream } from 'ai';
+import { z } from 'zod';
+import { authlane } from './authlane.js';
+
+const MAX_CHAT_REQUEST_BYTES = 64 * 1024;
+const MAX_CHAT_MESSAGES = 50;
+const MAX_CHAT_MESSAGE_CHARACTERS = 8_000;
+
+const chatMessageSchema = z.discriminatedUnion('role', [
+  z
+    .object({
+      role: z.literal('system'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal('user'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal('assistant'),
+      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
+    })
+    .strict(),
+]);
+
+const chatRequestSchema = z
+  .object({
+    messages: z.array(chatMessageSchema).min(1).max(MAX_CHAT_MESSAGES),
+  })
+  .strict();
+
+type ChatRequest = z.infer<typeof chatRequestSchema>;
+
+function invalidChatRequest() {
+  return Response.json(
+    {
+      error: {
+        code: 'INVALID_CHAT_REQUEST',
+        message: 'The chat request is invalid.',
+      },
+    },
+    { status: 400 },
+  );
+}
+
+async function readChatRequest(request: Request): Promise<ChatRequest | null> {
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    const declaredBytes = Number(contentLength);
+    if (
+      !/^\d+$/.test(contentLength) ||
+      !Number.isSafeInteger(declaredBytes) ||
+      declaredBytes > MAX_CHAT_REQUEST_BYTES
+    ) {
+      return null;
+    }
+  }
+
+  if (request.body === null) return null;
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let receivedBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      receivedBytes += value.byteLength;
+      if (receivedBytes > MAX_CHAT_REQUEST_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  } finally {
+    reader.releaseLock();
+  }
+
+  try {
+    const bytes = new Uint8Array(receivedBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    const parsed = chatRequestSchema.safeParse(json);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function POST(request: Request) {
+  const currentUser = await requireUser(request);
+  const chatRequest = await readChatRequest(request);
+  if (chatRequest === null) return invalidChatRequest();
+
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+
+  if (error) {
+    return Response.json(
+      {
+        error: {
+          code: 'TOOLS_UNAVAILABLE',
+          message: 'The tools for this user are temporarily unavailable.',
+        },
+      },
+      { status: 502 },
+    );
+  }
+
+  const result = streamText({
+    model: 'openai/gpt-5-mini',
+    messages: chatRequest.messages,
+    tools,
+  });
+
+  return createTextStreamResponse({
+    stream: toTextStream({ stream: result.stream }),
+  });
+}
+```
+
+Listing tools is a fast control-plane read and does not issue credentials. Only when the AI SDK
+invokes one generated local callback does Authlane issue one fresh, audited, access-only lease.
+The matching integration consumes that lease immediately and sends the provider request from your
+SaaS process. Provider traffic never passes through Authlane.
+
+> **Warning**
+> Never serialize `tools` into browser data, cache it across users, or derive `currentUser.id` from
+> model or tool input. Build a new user-scoped toolset for the server-authenticated user.

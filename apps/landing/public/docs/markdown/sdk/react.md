@@ -1,0 +1,29 @@
+# React Embed
+
+Embed the hosted connect UI with a short-lived URL
+
+```bash
+pnpm add @authlane/react
+```
+
+Create the connect session on your SaaS backend, then pass its URL to React:
+
+```tsx
+import { AuthlaneConnect } from '@authlane/react';
+
+export function IntegrationSettings({ connectUrl }: { connectUrl: string }) {
+  return (
+    <AuthlaneConnect
+      connectUrl={connectUrl}
+      minHeight={480}
+      onEvent={(event) => {
+        if (event.type === 'connected') {
+          console.log(`${event.serviceId} connected`);
+        }
+      }}
+    />
+  );
+}
+```
+
+The component validates `postMessage` origin and iframe source, applies a sandbox, and adjusts its height. It accepts no API key or external user ID; those are already bound into the connect session.

@@ -1,8 +1,6 @@
----
-title: 'Issue a credential lease'
-description: 'Issue audited access-only credential material to a trusted server-side caller'
-api: 'POST /api/v1/users/{externalUserId}/connections/{serviceId}/credential-leases'
----
+# Issue a credential lease
+
+Issue audited access-only credential material to a trusted server-side caller
 
 Issues access-only credential material to a trusted server-side caller. Requires
 `credentials:issue`. The audited response uses `Cache-Control: no-store, private`

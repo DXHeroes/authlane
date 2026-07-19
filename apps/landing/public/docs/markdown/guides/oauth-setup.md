@@ -1,0 +1,62 @@
+# OAuth Setup
+
+Configure provider applications and hosted connection flows
+
+Each OAuth provider application must redirect to the Authlane origin, not to your SaaS:
+
+```text
+https://app.authlane.io/api/v1/oauth/{serviceId}/callback
+```
+
+For local development use `http://localhost:3000/api/v1/oauth/{serviceId}/callback` and replace `{serviceId}` with a concrete ID such as `github` or `slack`.
+
+## Configure a service
+
+1. Create an OAuth application with the provider.
+2. Register the exact Authlane callback URL.
+3. Open the Authlane dashboard and enable the service for your organization.
+4. Store the provider client ID, client secret, and optional custom scopes in the service settings.
+
+Client secrets are encrypted before storage and never returned by the API.
+
+## Start a connection
+
+Your SaaS backend creates a short-lived connect session:
+
+```typescript
+const { data, error } = await authlane.connectSessions.create({
+  externalUserId: 'user_123',
+  allowedServices: ['github'],
+  allowedOrigin: 'https://app.example.com',
+  expiresInSeconds: 600,
+});
+```
+
+Use `allowedServices: []` to snapshot all services currently enabled globally and for the
+organization. The session stores concrete IDs rather than an implicit wildcard.
+
+Return only `data.url` to the browser. Open it as a hosted page or pass it to `AuthlaneConnect`. The hosted UI starts authorization with PKCE and state validation, handles the callback, and reports the result to the exact parent origin.
+
+For disconnect, first reauthenticate the end-user in your SaaS and create a new connect session with `reauthenticatedAt: new Date().toISOString()`. Authlane rejects destructive actions from ordinary handoff sessions.
+
+## Status and lifecycle
+
+Read connection state from the hot capabilities endpoint. Authlane computes expiry on every read, so a stale stored `connected` value is returned as `expired` once `expiresAt` has passed.
+
+Connection lifecycle events are delivered as:
+
+- `connection.connected`
+- `connection.disconnected`
+- `connection.expired`
+- `connection.refreshed`
+- `connection.error`
+
+See the webhook guide for signature verification and retries.
+
+## Provider checklist
+
+- Use the minimum required provider scopes.
+- Keep development and production OAuth applications separate.
+- Configure the same public HTTPS origin in Authlane and the provider console.
+- Never place the provider client secret in the widget, React app, or SaaS frontend.
+- Test denied consent, invalid state, expired connect sessions, refresh, and disconnect flows.

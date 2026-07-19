@@ -1,0 +1,62 @@
+# Webhooks
+
+Receive signed connection lifecycle events
+
+Configure the webhook URL and secret in the Authlane organization settings. Delivery uses a transactional outbox with exponential retry and an idempotency key.
+
+## Events
+
+| Event | Meaning |
+|---|---|
+| `connection.connected` | OAuth completed and credentials were stored |
+| `connection.disconnected` | The end-user disconnected the service |
+| `connection.expired` | The access credential passed its expiry time |
+| `connection.refreshed` | Authlane refreshed the internal OAuth credential |
+| `connection.error` | Refresh failed and the connection needs attention |
+
+Every payload identifies the tenant-owned user as `externalUserId`:
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "connection.connected",
+  "createdAt": "2026-07-16T10:00:00.000Z",
+  "data": {
+    "externalUserId": "user_123",
+    "serviceId": "github",
+    "connectionId": "conn_xyz"
+  }
+}
+```
+
+## Verify the signature
+
+Authlane signs the exact string `<timestamp>.<raw-body>` with HMAC-SHA256. Verify the raw request bytes before parsing JSON:
+
+```typescript
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verifyAuthlaneWebhook(
+  rawBody: string,
+  timestamp: string,
+  signature: string,
+  secret: string,
+): boolean {
+  const expected = createHmac('sha256', secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest('hex');
+  const receivedBuffer = Buffer.from(signature, 'hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  return receivedBuffer.length === expectedBuffer.length
+    && timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+```
+
+Read these headers:
+
+- `X-Authlane-Signature` — lower-case hexadecimal HMAC
+- `X-Authlane-Timestamp` — Unix timestamp used in the signature
+- `X-Authlane-Event` — event type
+- `Idempotency-Key` — stable event ID across retries
+
+Reject timestamps outside a short tolerance such as five minutes, store processed idempotency keys, and return a successful response quickly. Authlane retries non-2xx responses and network failures with exponential backoff.

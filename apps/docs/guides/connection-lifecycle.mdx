@@ -1,0 +1,53 @@
+---
+title: 'Connection lifecycle and status'
+description: 'Interpret connection states and recover through refresh, reconnect, and disconnect flows.'
+---
+
+Read effective state before offering a tool or deciding whether a user must reconnect.
+
+## Prerequisites
+
+Bind the external user from your authenticated server session and install `@authlane/sdk`.
+
+## Implement the workflow
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
+
+export async function connectionStates(currentUser: { id: string }) {
+  const user = authlane.user(currentUser.id);
+  const { data, error } = await user.connections.list();
+  if (error) return { data: null, error };
+  return { data, error: null };
+}
+```
+
+| State | Meaning | Application action |
+| --- | --- | --- |
+| `pending` | Authorization started but has not completed. | Poll briefly or keep the connect UI open. |
+| `connected` | Usable credentials are stored. | Enable tools for this service. |
+| `expired` | The effective access expiry has passed. | Reconnect if automatic refresh cannot recover it. |
+| `error` | OAuth exchange or refresh needs attention. | Show a reconnect action and retain the safe error code. |
+| `disconnected` | Computed when no stored connection exists. | Offer a new connect session. |
+
+Authlane refreshes eligible OAuth credentials in background jobs. Disconnect is a destructive
+hosted-UI action and requires a newly created session with recent `reauthenticatedAt`.
+
+## Expected result
+
+The returned `connected` boolean matches the effective status, including time-based expiry.
+
+## Handle errors
+
+Do not turn an API failure into `disconnected`; preserve the tuple error and retry the read with
+bounded backoff.
+
+## Security boundary
+
+Status reads return no credentials. Do not infer identity from a browser path or model input.
+
+## Next step
+
+[Load user-scoped tools](/docs/guides/user-tools) only for effective connected services.

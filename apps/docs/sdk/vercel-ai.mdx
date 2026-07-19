@@ -1,0 +1,56 @@
+---
+title: 'Vercel AI SDK'
+description: 'Build Vercel AI tools for one authenticated Authlane user and stream a model response.'
+---
+
+Load a user-scoped `ToolSet` and pass it directly to the Vercel AI SDK in your server runtime.
+
+## Prerequisites
+
+```bash
+pnpm add @authlane/sdk @authlane/ai ai zod
+```
+
+Derive `currentUser.id` from your trusted SaaS session before calling this function.
+
+## Implement the workflow
+
+```typescript
+import { vercelAI } from '@authlane/ai/vercel';
+import { Authlane } from '@authlane/sdk';
+import { createTextStreamResponse, streamText, toTextStream, type ModelMessage } from 'ai';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  if (error) {
+    return Response.json({ error }, { status: error.statusCode ?? 400 });
+  }
+
+  const result = streamText({ model: 'openai/gpt-5-mini', messages, tools });
+  return createTextStreamResponse({ stream: toTextStream({ stream: result.stream }) });
+}
+```
+
+## Expected result
+
+`tools` is a Vercel AI `ToolSet` containing only effective connected tools for this user.
+
+## Handle errors
+
+Handle the SDK tuple before calling `streamText`. Generated tools return fixed redacted execution
+errors to the model.
+
+## Security boundary
+
+The capability read issues no credentials. Each invoked callback obtains a fresh access-only lease
+and calls the provider from this process; provider traffic never passes through Authlane.
+
+## Next step
+
+Apply [production hardening](/docs/guides/production-hardening) to the surrounding route.

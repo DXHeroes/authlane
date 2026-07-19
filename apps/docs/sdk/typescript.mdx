@@ -1,13 +1,20 @@
 ---
 title: 'TypeScript SDK'
-description: 'Server-side, user-scoped access to Authlane capabilities and local AI tools'
+description: 'Use the server-only TypeScript SDK for catalog, connection, capability, and tool workflows.'
 ---
 
-## Install and configure
+The TypeScript SDK exposes control-plane resources and explicit user scopes with non-throwing
+results for expected failures.
+
+## Prerequisites
 
 ```bash
 pnpm add @authlane/sdk
 ```
+
+Keep the tenant API key in a trusted Node.js server environment.
+
+## Implement the workflow
 
 ```typescript
 import { Authlane } from '@authlane/sdk';
@@ -16,144 +23,34 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
   baseUrl: 'https://app.authlane.io',
 });
-```
 
-The client sends the tenant API key as a bearer credential and is server-only. API and adapter
-operations return `{ data, error }`; they do not throw for expected failures. Invalid constructor
-configuration still throws.
+export async function loadUser(currentUser: { id: string }) {
+  const user = authlane.user(currentUser.id);
+  const { data: capabilities, error: capabilitiesError } =
+    await user.capabilities.get({ format: 'mcp' });
+  const { data: connections, error: connectionsError } = await user.connections.list();
+  const { data: definitions, error: definitionsError } =
+    await user.tools.list({ format: 'openai' });
 
-## User-scoped resources
-
-Derive `externalUserId` from your SaaS's authenticated server session once, then bind it:
-
-```typescript
-const currentUser = await requireUser(request);
-const user = authlane.user(currentUser.id);
-
-const { data: capabilities, error: capabilitiesError } =
-  await user.capabilities.get({ format: 'mcp' });
-const { data: connections, error: connectionsError } = await user.connections.list();
-const { data: definitions, error: definitionsError } =
-  await user.tools.list({ format: 'openai' });
-
-const error = capabilitiesError ?? connectionsError ?? definitionsError;
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
-}
-```
-
-`user.capabilities.get()` is the hot read for status plus definitions in one versioned snapshot.
-The unscoped methods remain available, but `authlane.user(externalUserId)` makes the identity
-boundary explicit and avoids repeating an ID on every call.
-
-## Vercel AI SDK
-
-Install the adapter's optional peer explicitly:
-
-```bash
-pnpm add @authlane/sdk @authlane/ai ai zod
-```
-
-```typescript
-import { vercelAI } from '@authlane/ai/vercel';
-import { createTextStreamResponse, streamText, toTextStream } from 'ai';
-
-const user = authlane.user(currentUser.id);
-const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
-
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
-}
-
-const result = streamText({
-  model: 'openai/gpt-5-mini',
-  messages,
-  tools,
-});
-
-return createTextStreamResponse({
-  stream: toTextStream({ stream: result.stream }),
-});
-```
-
-## OpenAI Agents SDK
-
-Install the OpenAI Agents optional peer explicitly:
-
-```bash
-pnpm add @authlane/sdk @authlane/ai @openai/agents zod
-```
-
-```typescript
-import { openAIAgents } from '@authlane/ai/openai';
-import { Agent, run } from '@openai/agents';
-
-const user = authlane.user(currentUser.id);
-const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
-
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
-}
-
-const agent = new Agent({
-  name: 'Workspace assistant',
-  instructions: 'Use only the connected services needed to answer the request.',
-  tools,
-});
-const result = await run(agent, prompt);
-
-return Response.json({ output: result.finalOutput });
-```
-
-## Local MCP server
-
-Install the MCP optional peer explicitly:
-
-```bash
-pnpm add @authlane/sdk @authlane/ai @modelcontextprotocol/sdk zod
-```
-
-`mcpServer()` creates a low-level MCP `Server`; your application owns and connects its transport:
-
-```typescript
-import { mcpServer } from '@authlane/ai/mcp';
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-
-export async function connectUserMcpServer(
-  externalUserId: string,
-  transport: Transport,
-) {
-  const user = authlane.user(externalUserId);
-  const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
-
+  const error = capabilitiesError ?? connectionsError ?? definitionsError;
   if (error) return { data: null, error };
-  await server.connect(transport);
-  return { data: server, error: null };
+  return { data: { capabilities, connections, definitions }, error: null };
 }
 ```
 
-The caller must authenticate the user before calling this function and must close the returned
-server and transport together. One server is permanently bound to one `externalUserId`; never
-reuse it for another identity, connection, request context, or tenant.
+`user.capabilities.get()` is the hot read for status plus definitions. Bind the user before choosing
+an executable adapter; see [load user-scoped tools](/docs/guides/user-tools).
 
-## Custom integration overrides
-
-Pass an application-owned integration adapter to any framework adapter. An explicit custom
-adapter takes priority over Authlane's built-in adapter with the same `serviceId`:
+Custom application adapters can override a built-in handler for the same service while the
+capability snapshot remains authoritative:
 
 ```typescript
 import type { FrameworkAdapterOptions } from '@authlane/ai';
 import { vercelAI } from '@authlane/ai/vercel';
+import { Authlane } from '@authlane/sdk';
+import { executeGithubInsideOurBackend } from './github.js';
 
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 type IntegrationAdapter = NonNullable<FrameworkAdapterOptions['integrations']>[number];
 
 const customGithub: IntegrationAdapter = {
@@ -164,61 +61,57 @@ const customGithub: IntegrationAdapter = {
   },
 };
 
-const { data: customTools, error: customToolsError } =
-  await authlane.user(currentUser.id).tools.list({
-    adapter: vercelAI({ integrations: [customGithub] }),
-  });
-
-if (customToolsError) {
-  return Response.json(
-    { error: { code: customToolsError.code, message: customToolsError.message } },
-    { status: customToolsError.statusCode ?? 400 },
-  );
+export async function loadCustomTools(currentUser: { id: string }) {
+  const { data: customTools, error: customToolsError } =
+    await authlane.user(currentUser.id).tools.list({
+      adapter: vercelAI({ integrations: [customGithub] }),
+    });
+  if (customToolsError) return { data: null, error: customToolsError };
+  return { data: customTools, error: null };
 }
 ```
 
-Custom adapters run inside your SaaS trust boundary. They receive ephemeral access-only material
-for the current invocation and must not log, persist, cache, or return it.
-
-## Connect sessions and raw definitions
+Connect sessions, catalog reads, and raw definitions are also typed:
 
 ```typescript
-const { data: session, error: sessionError } = await authlane.connectSessions.create({
-  externalUserId: currentUser.id,
-  allowedServices: ['github'],
-  allowedOrigin: 'https://app.example.com',
-  expiresInSeconds: 600,
-});
+import { Authlane } from '@authlane/sdk';
 
-if (sessionError) {
-  return Response.json(
-    { error: { code: sessionError.code, message: sessionError.message } },
-    { status: sessionError.statusCode ?? 400 },
-  );
-}
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
-const { data: services, error: servicesError } = await authlane.services.list();
-if (servicesError) {
-  return Response.json(
-    { error: { code: servicesError.code, message: servicesError.message } },
-    { status: servicesError.statusCode ?? 400 },
-  );
-}
+export async function loadSetup(currentUser: { id: string }) {
+  const { data: session, error: sessionError } = await authlane.connectSessions.create({
+    externalUserId: currentUser.id,
+    allowedServices: [],
+    allowedOrigin: 'https://app.example.com',
+    expiresInSeconds: 600,
+  });
+  if (sessionError) return { data: null, error: sessionError };
 
-const { data: rawDefinitions, error: definitionsError } =
-  await authlane.user(currentUser.id).tools.list({ format: 'openai' });
-if (definitionsError) {
-  return Response.json(
-    { error: { code: definitionsError.code, message: definitionsError.message } },
-    { status: definitionsError.statusCode ?? 400 },
-  );
+  const { data: services, error: servicesError } = await authlane.services.list();
+  if (servicesError) return { data: null, error: servicesError };
+
+  const { data: rawDefinitions, error: definitionsError } =
+    await authlane.user(currentUser.id).tools.list({ format: 'openai' });
+  if (definitionsError) return { data: null, error: definitionsError };
+  return { data: { session, services, rawDefinitions }, error: null };
 }
 ```
 
-Return only `session.url` to the browser. Raw tool definitions contain no execution
-callbacks; executable toolsets from an adapter are server-only. Provider requests originate in
-your SaaS process and never pass through Authlane.
+## Expected result
 
-An empty `allowedServices` array snapshots every service currently enabled globally and for the
-organization. Authlane stores the resolved IDs on the session; later additions are not included,
-and later-disabled services are hidden and cannot start a new authorization.
+Every public operation resolves to `{ data, error }`. Invalid constructor configuration still
+throws because no client can be created.
+
+## Handle errors
+
+Branch on `error.code` and preserve `statusCode`, `hint`, and `docUrl` where useful. See
+[errors and rate limits](/docs/api-reference/errors-and-rate-limits).
+
+## Security boundary
+
+Return only `session.url` to a browser. Raw definitions contain no callbacks; executable toolsets,
+API keys, and credential leases remain server-only. Provider execution stays in the SaaS runtime.
+
+## Next step
+
+Choose a complete [framework adapter](/docs/sdk/frameworks) flow.

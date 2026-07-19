@@ -1,0 +1,49 @@
+# How Authlane works
+
+Trace connection setup and local tool execution across the Authlane control-plane boundary.
+
+Authlane owns connection policy, hosted OAuth, encrypted credentials, status, and tool definitions.
+Your SaaS owns user authentication, the AI runtime, and every provider request.
+
+## Prerequisites
+
+You need a tenant, a server-side API key, an enabled service, and a stable `externalUserId` from
+your authenticated SaaS session.
+
+## Implement the workflow
+
+1. Your backend lists the tenant-enabled catalog from Authlane.
+2. It creates a short-lived connect session bound to one external user, exact origin, service
+   snapshot, and expiry.
+3. The browser opens Authlane's hosted UI. OAuth authorization and callback traffic stays on the
+   Authlane origin, where credentials are encrypted.
+4. Your backend binds `authlane.user(externalUserId)` and reads effective status and definitions.
+5. When a local tool callback runs, it requests one fresh audited access-only credential lease.
+6. The integration in your SaaS process calls the provider directly.
+
+```text
+Browser -> Authlane: hosted connect and OAuth
+SaaS -> Authlane: catalog, status, definitions, short-lived lease
+SaaS -> Provider: tool request
+Provider -> SaaS: provider response
+```
+
+## Expected result
+
+Authlane can revoke access, refresh stored OAuth credentials, and report lifecycle state without
+receiving model tool input or provider response data.
+
+## Handle errors
+
+Retry safe control-plane reads with bounded backoff. Send expired or failed connections back
+through a new connect session. Never retry an ambiguous provider mutation without provider-level
+idempotency.
+
+## Security boundary
+
+Authlane has no tool-execution endpoint, provider proxy, hosted MCP server, or shared user master
+token. Provider traffic always bypasses Authlane.
+
+## Next step
+
+Follow the [Quickstart](/docs/quickstart), then review [core concepts](/docs/concepts/core-concepts).

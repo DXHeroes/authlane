@@ -26,7 +26,7 @@
   },
   "tabs": [
     {
-      "name": "API Reference",
+      "name": "Full OpenAPI reference",
       "url": "/docs/api-reference"
     },
     {
@@ -38,49 +38,59 @@
     {
       "name": "GitHub",
       "icon": "github",
-      "url": "https://github.com/authlane/authlane"
-    },
-    {
-      "name": "Community",
-      "icon": "discord",
-      "url": "https://discord.gg/authlane"
+      "url": "https://github.com/dxheroes/authlane"
     }
   ],
   "navigation": [
     {
-      "group": "Get Started",
-      "pages": ["introduction", "quickstart"]
-    },
-    {
-      "group": "Guides",
+      "group": "Start here",
       "pages": [
-        "guides/oauth-setup",
-        "guides/self-hosting",
-        "guides/custom-integrations",
-        "guides/security",
-        "guides/security-operations",
-        "guides/webhooks"
+        "introduction",
+        "quickstart",
+        "concepts/how-authlane-works",
+        "concepts/core-concepts"
       ]
     },
     {
-      "group": "SDK",
-      "pages": ["sdk/typescript", "sdk/react", "sdk/python", "sdk/frameworks"]
-    },
-    {
-      "group": "API Documentation",
-      "pages": ["api-reference/introduction", "api-reference/authentication"]
-    },
-    {
-      "group": "Endpoints",
+      "group": "Build",
       "pages": [
+        "guides/list-services",
+        "guides/connect-user",
+        "guides/connection-lifecycle",
+        "guides/user-tools",
+        "guides/webhooks",
+        "guides/production-hardening"
+      ]
+    },
+    {
+      "group": "SDKs and frameworks",
+      "pages": [
+        "sdk/typescript",
+        "sdk/react",
+        "sdk/python",
+        "sdk/vercel-ai",
+        "sdk/openai-agents",
+        "sdk/mastra",
+        "sdk/agno",
+        "sdk/langchain",
+        "sdk/local-mcp",
+        "sdk/frameworks"
+      ]
+    },
+    {
+      "group": "API reference",
+      "pages": [
+        "api-reference/authentication",
+        "api-reference/errors-and-rate-limits",
         "api-reference/services/list-services",
         "api-reference/connections/list-connections",
         "api-reference/connections/capabilities",
-        "api-reference/connections/create-credential-lease",
         "api-reference/connections/create-connect-session",
+        "api-reference/connections/create-credential-lease",
         "api-reference/oauth/authorize",
         "api-reference/oauth/callback",
-        "api-reference/tools/list-tools"
+        "api-reference/tools/list-tools",
+        "api-reference/introduction"
       ]
     },
     {
@@ -102,11 +112,37 @@
         "integrations/stripe",
         "integrations/airtable"
       ]
+    },
+    {
+      "group": "Extend Authlane",
+      "pages": [
+        "guides/custom-integrations",
+        "guides/integration-contract",
+        "guides/integration-testing"
+      ]
+    },
+    {
+      "group": "Operate",
+      "pages": [
+        "guides/self-hosting",
+        "guides/oauth-setup",
+        "guides/security",
+        "guides/security-operations",
+        "guides/performance",
+        "guides/troubleshooting"
+      ]
+    },
+    {
+      "group": "AI coding tools",
+      "pages": [
+        "ai-tools/marketplace",
+        "ai-tools/claude",
+        "ai-tools/codex",
+        "ai-tools/cursor"
+      ]
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/authlane/authlane",
-    "discord": "https://discord.gg/authlane",
-    "twitter": "https://twitter.com/authlane"
+    "github": "https://github.com/dxheroes/authlane"
   }
 }

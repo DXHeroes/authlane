@@ -1,38 +1,43 @@
 ---
-title: Introduction
-description: 'Authlane is the connection and tool control plane for SaaS applications'
+title: 'Introduction'
+description: 'Use Authlane as the connection and tool control plane for your SaaS application.'
 ---
 
-Authlane manages tenant service policy, end-user OAuth connections, encrypted credentials, connection status, and AI tool definitions.
+Authlane gives a SaaS organization one place to configure services, connect its external users,
+encrypt credentials, read effective status, and load AI tool definitions.
 
-## Control plane, not middleware
+## Choose the control-plane boundary
+
+Browsers use a short-lived hosted connect session. SaaS backends use scoped tenant API keys for
+catalog, status, definitions, connect sessions, and audited access-only credential leases. AI
+framework adapters and provider handlers execute inside the SaaS runtime.
 
 ```text
-flowchart LR
-  Browser -->|short-lived connect session| Authlane
-  SaaS -->|catalog, status, credentials| Authlane
-  Agent -->|local integration adapter| Provider
+Browser -> Authlane: hosted connection and OAuth
+SaaS -> Authlane: catalog, status, definitions, lease
+SaaS -> Provider: tool input and provider request
+Provider -> SaaS: provider response
 ```
 
-Provider requests go directly from your SaaS or agent runtime to GitHub, Slack, Google, and other providers. Authlane never receives tool inputs or provider response payloads.
+Provider traffic never passes through Authlane. Authlane has no tool-execution endpoint, hosted MCP
+server, or reusable cross-user credential.
 
-## One deployment unit
+## Build the first working path
 
-One Node.js/Hono runtime serves:
+1. Follow the [Quickstart](/docs/quickstart).
+2. Understand [how Authlane works](/docs/concepts/how-authlane-works) and the
+   [core concepts](/docs/concepts/core-concepts).
+3. Implement [service discovery](/docs/guides/list-services),
+   [hosted connect](/docs/guides/connect-user), and
+   [user-scoped tools](/docs/guides/user-tools).
+4. Choose an [SDK or framework](/docs/sdk/frameworks).
+5. Apply [production hardening](/docs/guides/production-hardening).
 
-- Dashboard login and tenant configuration
-- Hosted and embedded connection UI
-- OAuth authorization and callbacks
-- Versioned `/api/v1` control-plane endpoints
-- Token-refresh and webhook outbox workers
+## Operate one runtime
 
-PostgreSQL stores policy and encrypted credentials. Redis provides hot-read caches, atomic rate limiting, and BullMQ queues.
+The production Hono application serves the dashboard, hosted connect UI, OAuth callbacks,
+versioned control-plane API, refresh jobs, and webhook outbox. PostgreSQL stores tenant policy and
+encrypted records; Redis supports hot reads, distributed rate limiting, and queues.
 
-## Security boundaries
-
-- SaaS API keys are server-only and scope-limited.
-- Browsers receive short-lived connect sessions bound to tenant, external user, service allowlist, parent origin, and expiry.
-- Credential reads never expose OAuth refresh tokens, are audited, and cannot be cached.
-- PostgreSQL RLS policies protect every tenant-owned table.
-
-Follow the [Quickstart](/quickstart) or [Self-hosting guide](/guides/self-hosting).
+Self-hosters should continue with [self-hosting](/docs/guides/self-hosting), then complete the
+[security operations](/docs/guides/security-operations) launch gate.

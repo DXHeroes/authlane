@@ -1,0 +1,47 @@
+---
+title: 'Performance'
+description: 'Benchmark and operate the cached capabilities hot-read path against the 100 ms P95 target.'
+---
+
+Measure the control-plane read your AI runtime uses before it constructs local tools.
+
+## Prerequisites
+
+Run Authlane with PostgreSQL and Redis, create a benchmark user and scoped API key, and warm the
+tenant catalog plus connection status caches.
+
+## Implement the workflow
+
+```bash
+PERF_API_KEY='server-key' \
+PERF_BASE_URL='https://app.authlane.io' \
+PERF_EXTERNAL_USER_ID='performance-user' \
+pnpm test:performance
+```
+
+The benchmark targets
+`GET /api/v1/users/{external_user_id}/capabilities?format=mcp` at 500 requests per second for 20
+seconds by default. It requires zero failures, at least 95% of target throughput, and P95 at or
+below the hard 100 ms ceiling. It excludes credential leases and provider execution.
+
+Tenant service policy is cached for 300 seconds; raw connection rows are cached for 30 seconds.
+Service enable/config changes invalidate tenant policy immediately. Connection changes converge
+within the short connection TTL, while effective expiry is computed on reads.
+
+## Expected result
+
+The command prints a JSON report with P50, P95, P99, achieved RPS, failures, and gate results.
+
+## Handle errors
+
+Investigate cache misses, Redis latency, database saturation, rate limiting, and network placement.
+Do not raise `PERF_P95_TARGET_MS` above 100; the runner only permits a tighter value.
+
+## Security boundary
+
+Keep `PERF_API_KEY` out of output and shell history. The benchmark reads metadata only.
+
+## Next step
+
+Monitor the same route in the [self-hosting guide](/docs/guides/self-hosting). Clients may poll
+pending status every 5–10 seconds, stop on a terminal state, and apply a bounded timeout.

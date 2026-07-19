@@ -1,0 +1,62 @@
+# Connect a user
+
+Create, render, expire, and safely retry an origin-bound hosted connect session.
+
+Give one authenticated SaaS user a short-lived path to connect approved services.
+
+## Prerequisites
+
+Derive the external user ID from a trusted server session, choose the exact browser origin, and
+install `@authlane/sdk` plus `@authlane/react`.
+
+## Implement the workflow
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function createConnectUrl(currentUser: { id: string }) {
+  const { data, error } = await authlane.connectSessions.create({
+    externalUserId: currentUser.id,
+    allowedServices: [],
+    allowedOrigin: 'https://app.example.com',
+    expiresInSeconds: 600,
+  });
+  if (error) return { data: null, error };
+  return { data: data.url, error: null };
+}
+```
+
+```tsx
+import { AuthlaneConnect } from '@authlane/react';
+
+export function ConnectPanel({ connectUrl }: { connectUrl: string }) {
+  return <AuthlaneConnect connectUrl={connectUrl} />;
+}
+```
+
+`allowedServices: []` resolves once to the tenant's currently enabled services. If the URL expires,
+discard it and ask your authenticated backend for a new session; never extend or replay the token.
+
+## Expected result
+
+The hosted UI can authorize only the snapshotted services for that external user and exact parent
+origin. A later tenant service addition does not enter the existing session.
+
+## Handle errors
+
+On an origin mismatch, confirm scheme, host, and port exactly. On expiry, create a new session. A
+retry is safe because each successful response contains a new one-time token.
+
+## Security boundary
+
+Return only `data.url` to the browser. Keep the API key server-only. For disconnect, reauthenticate
+the user and create a new session with `reauthenticatedAt` set to the fresh authentication time.
+
+## Next step
+
+Track [connection lifecycle and status](/docs/guides/connection-lifecycle).

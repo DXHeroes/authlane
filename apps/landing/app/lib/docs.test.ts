@@ -44,6 +44,35 @@ describe('build-time documentation source', () => {
     expect(getDoc(firstGroup.docs[0].slug).navigationGroup).toBe(firstGroup.group);
   });
 
+  it('publishes the approved task-oriented navigation groups in order', () => {
+    expect(getDocsNavigation().map((group) => group.group)).toEqual([
+      'Start here',
+      'Build',
+      'SDKs and frameworks',
+      'API reference',
+      'Integrations',
+      'Extend Authlane',
+      'Operate',
+      'AI coding tools',
+    ]);
+  });
+
+  it('publishes complete framework and AI coding tool pages', () => {
+    for (const slug of [
+      'sdk/vercel-ai',
+      'sdk/openai-agents',
+      'sdk/mastra',
+      'sdk/agno',
+      'sdk/langchain',
+      'sdk/local-mcp',
+      'ai-tools/claude',
+      'ai-tools/codex',
+      'ai-tools/cursor',
+    ]) {
+      expect(getDoc(slug).source.length).toBeGreaterThan(400);
+    }
+  });
+
   it('keeps Mint navigation in exact equality with every MDX source', () => {
     const sources = sourceSlugs();
     const loaded = getAllDocs()
@@ -53,7 +82,7 @@ describe('build-time documentation source', () => {
       .flatMap((group) => group.pages)
       .sort();
 
-    expect(sources).toHaveLength(37);
+    expect(sources).toHaveLength(59);
     expect(loaded).toEqual(sources);
     expect(navigation).toEqual(sources);
   });

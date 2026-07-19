@@ -1,63 +1,60 @@
 ---
-title: 'Webhooks'
-description: 'Receive signed connection lifecycle events'
+title: 'Receive lifecycle webhooks'
+description: 'Verify signed connection lifecycle events and process retries idempotently.'
 ---
 
-Configure the webhook URL and secret in the Authlane organization settings. Delivery uses a transactional outbox with exponential retry and an idempotency key.
+Authlane delivers connection changes through a transactional outbox with exponential retry.
 
-## Events
+## Prerequisites
 
-| Event | Meaning |
-|---|---|
-| `connection.connected` | OAuth completed and credentials were stored |
-| `connection.disconnected` | The end-user disconnected the service |
-| `connection.expired` | The access credential passed its expiry time |
-| `connection.refreshed` | Authlane refreshed the internal OAuth credential |
-| `connection.error` | Refresh failed and the connection needs attention |
+Configure a tenant webhook URL and signing secret, preserve the raw request bytes, and keep a store
+of processed event IDs.
 
-Every payload identifies the tenant-owned user as `externalUserId`:
+## Implement the workflow
 
-```json
-{
-  "id": "evt_abc123",
-  "type": "connection.connected",
-  "createdAt": "2026-07-16T10:00:00.000Z",
-  "data": {
-    "externalUserId": "user_123",
-    "serviceId": "github",
-    "connectionId": "conn_xyz"
-  }
-}
-```
-
-## Verify the signature
-
-Authlane signs the exact string `<timestamp>.<raw-body>` with HMAC-SHA256. Verify the raw request bytes before parsing JSON:
+Verify the exact string `<timestamp>.<raw-body>` before parsing JSON:
 
 ```typescript
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-function verifyAuthlaneWebhook(
+export function verifyAuthlaneWebhook(
   rawBody: string,
   timestamp: string,
   signature: string,
   secret: string,
 ): boolean {
-  const expected = createHmac('sha256', secret)
-    .update(`${timestamp}.${rawBody}`)
-    .digest('hex');
-  const receivedBuffer = Buffer.from(signature, 'hex');
-  const expectedBuffer = Buffer.from(expected, 'hex');
-  return receivedBuffer.length === expectedBuffer.length
-    && timingSafeEqual(receivedBuffer, expectedBuffer);
+  const expected = Buffer.from(
+    createHmac('sha256', secret).update(timestamp + '.' + rawBody).digest('hex'),
+    'hex',
+  );
+  const received = Buffer.from(signature, 'hex');
+  return received.length === expected.length && timingSafeEqual(received, expected);
 }
 ```
 
-Read these headers:
+Read `X-Authlane-Signature`, `X-Authlane-Timestamp`, `X-Authlane-Event`, and `Idempotency-Key`.
+Reject timestamps outside a short tolerance such as five minutes, reserve the idempotency key
+before side effects, and return `2xx` quickly.
 
-- `X-Authlane-Signature` — lower-case hexadecimal HMAC
-- `X-Authlane-Timestamp` — Unix timestamp used in the signature
-- `X-Authlane-Event` — event type
-- `Idempotency-Key` — stable event ID across retries
+Events are `connection.connected`, `connection.disconnected`, `connection.expired`,
+`connection.refreshed`, and `connection.error`. Each payload includes `externalUserId`, `serviceId`,
+and `connectionId` inside `data`.
 
-Reject timestamps outside a short tolerance such as five minutes, store processed idempotency keys, and return a successful response quickly. Authlane retries non-2xx responses and network failures with exponential backoff.
+## Expected result
+
+Retries with the same event ID do not repeat side effects, and only a valid current signature
+reaches business logic.
+
+## Handle errors
+
+Return non-`2xx` only when a retry can help. Monitor delivery backlog and clock drift; never log the
+signing secret or raw sensitive payload extensions.
+
+## Security boundary
+
+Verify raw bytes and timestamp before parsing. Rotate the webhook secret through tenant settings and
+retain the previous value only for the intended overlap.
+
+## Next step
+
+Use [connection lifecycle](/docs/guides/connection-lifecycle) to map events to UI state.

@@ -54,6 +54,13 @@ describe('documentation page components', () => {
     expect(html).not.toContain('hidden=""');
   });
 
+  it('preserves repository-owned CodeGroup expression props through MDX compilation', () => {
+    const pageSource = readFileSync(resolve(process.cwd(), 'app/components/docs-page.tsx'), 'utf8');
+
+    expect(pageSource).toContain('blockJS: false');
+    expect(pageSource).toContain('blockDangerousJS: true');
+  });
+
   it('rejects mismatched code group arrays', () => {
     expect(() =>
       renderToStaticMarkup(
@@ -97,7 +104,7 @@ describe('documentation page components', () => {
 
     expect(html).toContain('aria-label="Documentation pagination"');
     expect(html).toContain('href="/docs/introduction"');
-    expect(html).toContain('href="/docs/guides/oauth-setup"');
+    expect(html).toContain('href="/docs/concepts/how-authlane-works"');
     expect(html).toContain('Previous');
     expect(html).toContain('Next');
   });

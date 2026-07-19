@@ -1,16 +1,20 @@
 ---
-title: 'Custom Integrations'
-description: 'Add tool definitions and a direct-execution adapter'
+title: 'Build a connection'
+description: 'Add canonical definitions and a direct-execution adapter for an Authlane service.'
 ---
 
-Authlane integrations have two responsibilities:
+A shipped connection includes a language-neutral contract, provider configuration, matching
+TypeScript and Python executors, catalog wiring, and tests.
 
-1. publish immutable tool definitions to the Authlane catalog;
-2. provide an adapter your SaaS can execute in its own runtime.
+## Prerequisites
 
-Authlane never proxies the provider request.
+Verify provider authentication, endpoints, scopes, refresh behavior, credential placement, and API
+semantics from official provider documentation.
 
-## Package layout
+## Implement the workflow
+
+Add `packages/integration-contracts/manifests/v1/<service-id>.json`, then keep the package layout
+aligned:
 
 ```text
 integrations/trello/
@@ -18,57 +22,12 @@ integrations/trello/
 ├── tools.ts
 ├── index.ts
 ├── package.json
-└── tsconfig.json
+└── tests/
 ```
 
-Use a lower-case, hyphenated service ID. `config.yaml` declares the OAuth endpoints and default scopes:
-
-```yaml
-id: trello
-name: Trello
-auth_type: oauth2
-config:
-  authorization_url: https://trello.com/1/authorize
-  token_url: https://trello.com/1/OAuthGetAccessToken
-  scopes:
-    - read
-    - write
-  default_scopes:
-    - read
-```
-
-## Define handlers
-
-Each tool combines a JSON Schema definition with a handler. The handler receives validated input and OAuth access credentials inside your SaaS process:
-
-```typescript
-import type { ToolHandler } from '@authlane/shared';
-
-export const tools: Record<string, ToolHandler> = {
-  trello_list_boards: {
-    definition: {
-      name: 'trello_list_boards',
-      description: 'Lists boards visible to the connected user',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    handler: async (_input, credentials) => {
-      const response = await fetch('https://api.trello.com/1/members/me/boards', {
-        headers: { Authorization: `Bearer ${credentials.access_token}` },
-      });
-      if (!response.ok) throw new Error(`Trello returned HTTP ${response.status}`);
-      return response.json();
-    },
-  },
-};
-```
-
-Do not log credentials or return them from a handler.
-
-## Export the adapter
+`config.yaml` contains provider authentication metadata. The canonical manifest owns public tool
+names, descriptions, and JSON Schemas. `tools.ts` implements bounded provider handlers, and
+`index.ts` exports a direct adapter with `createIntegrationAdapter`.
 
 ```typescript
 import { createIntegrationAdapter } from '@authlane/shared';
@@ -79,44 +38,49 @@ export const adapter = createIntegrationAdapter('trello', tools);
 export default adapter;
 ```
 
-Export both `.` and `./tools` from the package. Authlane imports `./tools` when warming the catalog; the SaaS imports the default adapter for execution.
-
 ## Execute in the SaaS
+
+Custom callers may execute an adapter explicitly with a fresh lease:
 
 ```typescript
 import { Authlane } from '@authlane/sdk';
-import trello from '@authlane/integration-trello';
+import trello from './trello.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
   baseUrl: 'https://app.authlane.io',
 });
 
-const { data: credentials, error } = await authlane.credentialLeases.create({
-  externalUserId: 'user_123',
-  serviceId: 'trello',
-});
-
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
+export async function listBoards(currentUser: { id: string }) {
+  const { data: credentials, error } = await authlane.credentialLeases.create({
+    externalUserId: currentUser.id,
+    serviceId: 'trello',
+  });
+  if (error) {
+    return { data: null, error };
+  }
+  return trello.execute('trello_list_boards', {}, credentials);
 }
-
-const result = await trello.execute(
-  'trello_list_boards',
-  {},
-  credentials,
-);
 ```
 
-The SaaS issues an access-only credential lease server-side and calls Trello directly. OAuth refresh credentials remain encrypted inside Authlane. The lease must not be persisted or returned to a browser.
+For framework use, prefer an adapter override so `authlane.user(currentUser.id)` remains the
+identity boundary and the SDK obtains a fresh lease per invocation.
 
-## Checklist
+## Expected result
 
-- Tool names are globally unique and prefixed with the service ID.
-- Input schemas reject unknown or malformed arguments.
-- Provider errors contain no tokens or secrets.
-- Unit tests cover definitions, successful calls, and provider failures.
-- The package exports built JavaScript and declaration files.
+Both runtimes expose the same definitions and send equivalent bounded requests to the provider.
+
+## Handle errors
+
+Map provider failures to stable redacted errors. A built-in is incomplete until contract, catalog,
+OAuth allowlist, TypeScript, Python, AI resolver, package, lockfile, docs, and tests agree.
+
+## Security boundary
+
+Never log, persist, cache, or return lease material. The adapter calls a fixed provider origin from
+the SaaS runtime; Authlane never proxies the request.
+
+## Next step
+
+Follow the [integration contract](/docs/guides/integration-contract) and
+[local testing](/docs/guides/integration-testing) checklists.

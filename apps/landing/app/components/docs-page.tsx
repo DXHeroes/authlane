@@ -162,6 +162,9 @@ export async function DocsMdx({ doc }: { doc: DocRecord }): Promise<ReactElement
       source={doc.source}
       components={mdxComponents}
       options={{
+        // Public docs are repository-owned; expressions power typed CodeGroup array props.
+        blockJS: false,
+        blockDangerousJS: true,
         mdxOptions: {
           remarkPlugins: [remarkGfm],
           rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: 'wrap' }]],

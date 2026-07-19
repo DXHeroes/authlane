@@ -1,0 +1,56 @@
+# Errors and rate limits
+
+Handle Authlane error envelopes, retry headers, idempotency, and safe backoff.
+
+Every API response uses the same data/error shape, and SDKs preserve it as a non-throwing result for
+expected failures.
+
+## Prerequisites
+
+Keep the HTTP status, response headers, and stable `error.code` available at your server boundary.
+
+## Implement the workflow
+
+```json
+{
+  "data": null,
+  "error": {
+    "message": "Rate limit exceeded",
+    "code": "RATE_LIMIT_EXCEEDED",
+    "hint": "Maximum 100 requests per 60 seconds",
+    "docUrl": "https://authlane.io/docs/api-reference/errors-and-rate-limits",
+    "statusCode": 429
+  }
+}
+```
+
+`message` and `code` are required. `hint`, `docUrl`, and `statusCode` may be absent. Common stable
+codes include `UNAUTHORIZED`, `INSUFFICIENT_SCOPE`, `VALIDATION_ERROR`, `NOT_FOUND`, OAuth and
+connection lifecycle codes, `RATE_LIMIT_EXCEEDED`, and `INTERNAL_ERROR`. SDK-local failures also
+include `NETWORK_ERROR`, `TIMEOUT_ERROR`, `INVALID_RESPONSE`, `ADAPTER_ERROR`,
+`TOOL_NOT_AVAILABLE`, and `CREDENTIAL_LEASE_ERROR`.
+
+Every rate-limited API response reports `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and the Unix
+timestamp `X-RateLimit-Reset`. A `429` also includes integer seconds in `Retry-After`.
+
+## Expected result
+
+Clients branch on `error.code`, honor response headers, and expose a safe application message.
+
+## Handle errors
+
+Retry safe reads after `Retry-After` with bounded exponential backoff and jitter. Retry `5xx`,
+timeouts, or network failures only when the operation is safe or your application can prove
+idempotency. Authlane does not advertise an idempotency key for ordinary API mutations.
+
+Lifecycle webhooks are the exception: `Idempotency-Key` is the stable event ID across delivery
+retries. Store it before side effects and return a fast `2xx` for duplicates.
+
+## Security boundary
+
+Do not log authorization headers, raw connect URLs, OAuth codes, credential leases, or provider
+bodies while diagnosing an error.
+
+## Next step
+
+Open the **Full OpenAPI reference** navigation tab for exact operations and schemas.

@@ -1,28 +1,24 @@
 ---
-title: 'OAuth Setup'
-description: 'Configure provider applications and hosted connection flows'
+title: 'Provider OAuth configuration'
+description: 'Configure provider applications for Authlane hosted authorization and callbacks.'
 ---
 
-Each OAuth provider application must redirect to the Authlane origin, not to your SaaS:
+OAuth providers redirect to Authlane, where state, PKCE, token exchange, encrypted storage, and
+refresh stay inside the control plane.
 
-```text
-https://app.authlane.io/api/v1/oauth/{serviceId}/callback
-```
+## Prerequisites
 
-For local development use `http://localhost:3000/api/v1/oauth/{serviceId}/callback` and replace `{serviceId}` with a concrete ID such as `github` or `slack`.
+Create separate development and production provider applications and choose the minimum required
+provider scopes.
 
-## Configure a service
+## Implement the workflow
 
-1. Create an OAuth application with the provider.
-2. Register the exact Authlane callback URL.
-3. Open the Authlane dashboard and enable the service for your organization.
-4. Store the provider client ID, client secret, and optional custom scopes in the service settings.
-
-Client secrets are encrypted before storage and never returned by the API.
-
-## Start a connection
-
-Your SaaS backend creates a short-lived connect session:
+1. Register the exact callback `https://app.authlane.io/api/v1/oauth/{serviceId}/callback`, replacing
+   `{serviceId}` with a shipped ID such as `github`.
+2. For local development, use `http://localhost:3000/api/v1/oauth/{serviceId}/callback`.
+3. Enable the service in the Authlane dashboard and store its client ID, encrypted client secret,
+   and approved custom scopes.
+4. Create a short-lived session from your authenticated SaaS backend:
 
 ```typescript
 import { Authlane } from '@authlane/sdk';
@@ -32,46 +28,40 @@ const authlane = new Authlane({
   baseUrl: 'https://app.authlane.io',
 });
 
-const { data, error } = await authlane.connectSessions.create({
-  externalUserId: 'user_123',
-  allowedServices: ['github'],
-  allowedOrigin: 'https://app.example.com',
-  expiresInSeconds: 600,
-});
-
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
+export async function connectGithub(currentUser: { id: string }) {
+  const { data, error } = await authlane.connectSessions.create({
+    externalUserId: currentUser.id,
+    allowedServices: ['github'],
+    allowedOrigin: 'https://app.example.com',
+    expiresInSeconds: 600,
+  });
+  if (error) {
+    return { data: null, error };
+  }
+  return { data: data.url, error: null };
 }
 ```
 
-Use `allowedServices: []` to snapshot all services currently enabled globally and for the
-organization. The session stores concrete IDs rather than an implicit wildcard.
+Use `allowedServices: []` only when you intend to snapshot every currently enabled tenant service.
 
-Return only `data.url` to the browser. Open it as a hosted page or pass it to `AuthlaneConnect`. The hosted UI starts authorization with PKCE and state validation, handles the callback, and reports the result to the exact parent origin.
+## Expected result
 
-For disconnect, first reauthenticate the end-user in your SaaS and create a new connect session with `reauthenticatedAt: new Date().toISOString()`. Authlane rejects destructive actions from ordinary handoff sessions.
+The hosted UI starts authorization with single-use state and PKCE, receives the callback on the
+Authlane origin, stores credentials encrypted, and reports the result to the exact parent origin.
 
-## Status and lifecycle
+## Handle errors
 
-Read connection state from the hot capabilities endpoint. Authlane computes expiry on every read, so a stale stored `connected` value is returned as `expired` once `expiresAt` has passed.
+For denied consent, show a retry action. For state mismatch or token exchange failure, discard the
+flow and start with a new connect session. Confirm the exact callback, client credentials, provider
+scope approval, and public HTTPS origin.
 
-Connection lifecycle events are delivered as:
+## Security boundary
 
-- `connection.connected`
-- `connection.disconnected`
-- `connection.expired`
-- `connection.refreshed`
-- `connection.error`
+Provider client secrets, refresh tokens, and ID tokens never reach your widget or SaaS frontend.
+Disconnect requires a newly minted connect session after fresh user authentication, with
+`reauthenticatedAt` set to that trusted time.
 
-See the webhook guide for signature verification and retries.
+## Next step
 
-## Provider checklist
-
-- Use the minimum required provider scopes.
-- Keep development and production OAuth applications separate.
-- Configure the same public HTTPS origin in Authlane and the provider console.
-- Never place the provider client secret in the widget, React app, or SaaS frontend.
-- Test denied consent, invalid state, expired connect sessions, refresh, and disconnect flows.
+Implement [connection lifecycle](/docs/guides/connection-lifecycle) and
+[lifecycle webhooks](/docs/guides/webhooks).

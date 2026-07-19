@@ -1,13 +1,38 @@
 ---
-title: 'React Embed'
-description: 'Embed the hosted connect UI with a short-lived URL'
+title: 'React connect UI'
+description: 'Embed the hosted Authlane connect UI with a short-lived origin-bound URL.'
 ---
 
+React receives only a connect URL created by your authenticated backend.
+
+## Prerequisites
+
 ```bash
-pnpm add @authlane/react
+pnpm add @authlane/sdk @authlane/react
 ```
 
-Create the connect session on your SaaS backend, then pass its URL to React:
+## Implement the workflow
+
+Create the URL on your server:
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
+
+export async function connectUrl(currentUser: { id: string }) {
+  const { data, error } = await authlane.connectSessions.create({
+    externalUserId: currentUser.id,
+    allowedServices: [],
+    allowedOrigin: 'https://app.example.com',
+    expiresInSeconds: 600,
+  });
+  if (error) return { data: null, error };
+  return { data: data.url, error: null };
+}
+```
+
+Render it in React:
 
 ```tsx
 import { AuthlaneConnect } from '@authlane/react';
@@ -18,13 +43,28 @@ export function IntegrationSettings({ connectUrl }: { connectUrl: string }) {
       connectUrl={connectUrl}
       minHeight={480}
       onEvent={(event) => {
-        if (event.type === 'connected') {
-          console.log(`${event.serviceId} connected`);
-        }
+        if (event.type === 'connected') console.log(event.serviceId);
       }}
     />
   );
 }
 ```
 
-The component validates `postMessage` origin and iframe source, applies a sandbox, and adjusts its height. It accepts no API key or external user ID; those are already bound into the connect session.
+## Expected result
+
+The component validates `postMessage` origin and iframe source, applies a sandbox, and adjusts its
+height. Connected, disconnected, and error events are safe UI signals; refresh status from your
+backend before enabling tools.
+
+## Handle errors
+
+On expiry or origin mismatch, discard the URL and request a new connect session from the backend.
+
+## Security boundary
+
+The component accepts no API key or external user ID. Those boundaries are already sealed into the
+short-lived session. Provider credentials never reach the iframe parent.
+
+## Next step
+
+Read [connect a user](/docs/guides/connect-user) for retry and disconnect behavior.

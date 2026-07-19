@@ -1,0 +1,60 @@
+# Troubleshooting
+
+Diagnose Authlane SDK tuple errors across identity, OAuth, leases, cache, and webhooks.
+
+Start with the stable error code, not a string match on the message.
+
+## Prerequisites
+
+Capture request ID, route, status, error code, service ID, and safe timing data without recording
+credentials, connect tokens, OAuth codes, prompts, or provider bodies.
+
+## Implement the workflow
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
+const { data, error } = await authlane.user('user_123').capabilities.get({ format: 'mcp' });
+
+if (error) {
+  switch (error.code) {
+    case 'INSUFFICIENT_SCOPE':
+      throw new Error('Use a key with the required route scope.');
+    case 'RATE_LIMIT_EXCEEDED':
+      throw new Error('Retry the safe read after the response delay.');
+    default:
+      throw new Error('Capability read failed; inspect the safe request log.');
+  }
+}
+console.log(data.version);
+```
+
+| Symptom | Check |
+| --- | --- |
+| Origin rejected | Match scheme, host, and port to `allowedOrigin`; create a new session. |
+| `INSUFFICIENT_SCOPE` | Use a server key authorized for the exact route. |
+| Session or connection expired | Mint a new session or reconnect; never replay a token. |
+| OAuth callback failure | Match the registered callback, client credentials, PKCE/state lifetime, and provider scopes. |
+| Lease failure | Confirm effective `connected` state and credential-issuance authorization. |
+| Stale status | Allow the 30-second connection cache window, then inspect Redis/database health. |
+| Webhook failure | Verify signature over `<timestamp>.<raw-body>`, clock tolerance, idempotency, and a fast 2xx response. |
+
+## Expected result
+
+You either recover with a new bounded operation or identify the tenant/service configuration that
+requires operator action.
+
+## Handle errors
+
+Network and `5xx` failures on safe reads may be retried with bounded jitter. Do not blindly retry
+provider mutations or OAuth callbacks.
+
+## Security boundary
+
+Keep raw provider failures and credential material out of logs and model-visible errors.
+
+## Next step
+
+Use the **Full OpenAPI reference** navigation tab for route schemas and the
+[security operations runbook](/docs/guides/security-operations) for incidents.

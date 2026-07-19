@@ -1,0 +1,58 @@
+---
+title: 'OpenAI Agents SDK'
+description: 'Run an OpenAI agent with tools bound to one authenticated Authlane user.'
+---
+
+Convert effective Authlane definitions into OpenAI Agents `FunctionTool` objects locally.
+
+## Prerequisites
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @openai/agents zod
+```
+
+## Implement the workflow
+
+```typescript
+import { openAIAgents } from '@authlane/ai/openai';
+import { Authlane } from '@authlane/sdk';
+import { Agent, run } from '@openai/agents';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function answer(currentUser: { id: string }, prompt: string) {
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
+  if (error) return { data: null, error };
+
+  const agent = new Agent({
+    name: 'Workspace assistant',
+    instructions: 'Use connected services only when needed.',
+    tools,
+  });
+  const result = await run(agent, prompt);
+  return { data: result.finalOutput, error: null };
+}
+```
+
+## Expected result
+
+The agent receives non-strict OpenAI `FunctionTool` objects whose callbacks remain bound to the
+authenticated external user.
+
+## Handle errors
+
+Return the Authlane tuple error before constructing the agent. Handle framework/model exceptions
+separately at your application boundary.
+
+## Security boundary
+
+Never derive the user from prompt or tool arguments. Each tool call requests a fresh audited lease,
+then the local integration calls the provider directly.
+
+## Next step
+
+Review [load user-scoped tools](/docs/guides/user-tools) for the shared adapter lifecycle.

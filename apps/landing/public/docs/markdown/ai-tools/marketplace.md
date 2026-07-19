@@ -1,0 +1,43 @@
+# Authlane agent marketplace
+
+Install the repository-owned Authlane plugin and choose one of its two shipped skills.
+
+The repository ships one skills-only plugin for Claude Code, Codex, and Cursor. It grants no
+provider access, tenant API key, credentials, hosted MCP server, or external marketplace account.
+
+## Prerequisites
+
+Use the public repository `dxheroes/authlane` or a trusted local checkout.
+
+## Implement the workflow
+
+| Skill | Use it for |
+| --- | --- |
+| `integrate-authlane` | Add hosted connect, status, credential-lease, or local AI-tool workflows to a TypeScript or Python application. |
+| `develop-authlane-connection` | Add or change a complete provider connection, canonical tools, and matching TypeScript/Python execution. |
+
+Install with the command documented for [Claude](/docs/ai-tools/claude),
+[Codex](/docs/ai-tools/codex), or [Cursor](/docs/ai-tools/cursor), then ask explicitly:
+
+```text
+Use $integrate-authlane to add Authlane to this application safely.
+Use $develop-authlane-connection to add a complete Trello connection.
+```
+
+## Expected result
+
+Your agent discovers exactly those two skills from `plugins/authlane/skills/`.
+
+## Handle errors
+
+If discovery is stale, refresh the repository marketplace, restart the agent session, and reinstall
+from the same repository source where the tool supports it.
+
+## Security boundary
+
+Review changes before execution. Installing the plugin adds instructions only and does not
+authorize a deployment or provider.
+
+## Next step
+
+Open the page for your coding tool and follow its verified install, update, and removal path.

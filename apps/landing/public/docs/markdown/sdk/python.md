@@ -1,12 +1,17 @@
 # Python SDK
 
-Use Authlane from Python with non-throwing results and user-scoped tools
+Use Authlane from Python with typed Result handling and user-scoped local tools.
 
-Install the Python client in the trusted runtime that owns your agent or backend:
+The Python SDK mirrors the control-plane resources and keeps provider execution in your trusted
+Python process.
+
+## Prerequisites
 
 ```bash
 pip install authlane
 ```
+
+Python 3.11 or newer is required.
 
 ## Initialize the client
 
@@ -20,16 +25,11 @@ with Authlane(
     base_url="https://app.authlane.io",
 ) as authlane:
     result = authlane.services.list()
-
-if result.error:
-    print(result.error.message)
-else:
-    print(result.data)
+    if result.error is not None:
+        raise RuntimeError(result.error.code)
+    assert result.data is not None
+    services = result.data
 ```
-
-Every public SDK call returns a `Result` with `data` and `error`. Expected API failures do not
-raise exceptions, so your application can handle the same stable error envelope in TypeScript and
-Python.
 
 ## Connect an external user
 
@@ -38,47 +38,74 @@ import os
 
 from authlane import Authlane
 
+external_user_id = "user_123"  # Derive this from the authenticated server session.
+
 with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
     session_result = authlane.connect_sessions.create(
-        external_user_id="user_123",
+        external_user_id=external_user_id,
         allowed_services=[],
         allowed_origin="https://app.example.com",
+        expires_in_seconds=600,
     )
     if session_result.error is not None:
-        raise RuntimeError(f"{session_result.error.code}: {session_result.error.message}")
+        raise RuntimeError(session_result.error.code)
     assert session_result.data is not None
     session = session_result.data
 ```
 
-`allowed_services=[]` snapshots every service currently enabled for the tenant. Pass explicit
-service IDs to limit the session. Duplicates are accepted and deduplicated by the server.
+`allowed_services=[]` is a one-time snapshot of every service currently enabled for the tenant.
 
 ## Load user-scoped tools
 
 ```python
+import os
+
+from authlane import Authlane
 from authlane.adapters import generic
 
-with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
-    result = authlane.user("user_123").tools.list(adapter=generic())
-
-if result.error:
-    raise RuntimeError(result.error.message)
-
-tools = result.data
+def load_tools(external_user_id: str):
+    with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+        user = authlane.user(external_user_id)
+        result = user.tools.list(adapter=generic())
+        if result.error is not None:
+            return result
+        assert result.data is not None
+        return result.data
 ```
-
-The adapter executes in your runtime. It requests access-only material when a selected tool runs,
-then calls the provider directly. Tool inputs and provider responses never pass through Authlane.
 
 ## Async applications
 
 ```python
+import os
+
 from authlane import AsyncAuthlane
 from authlane.adapters import langchain
 
-async with AsyncAuthlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
-    result = await authlane.user("user_123").tools.list(adapter=langchain())
+async def load_tools(external_user_id: str):
+    async with AsyncAuthlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+        user = authlane.user(external_user_id)
+        result = await user.tools.list(adapter=langchain())
+        if result.error is not None:
+            return result
+        assert result.data is not None
+        return result.data
 ```
 
-See [Framework adapters](/docs/sdk/frameworks) for Agno, LangChain, OpenAI Agents, Vercel AI,
-Mastra, and local MCP examples.
+## Expected result
+
+Every expected SDK failure is represented by a `Result` with either `data` or `error`.
+
+## Handle errors
+
+Inspect `error.code`, `message`, `hint`, and `doc_url`. Network, validation, provider, and adapter
+failures do not raise through the SDK Result contract.
+
+## Security boundary
+
+Bind `authlane.user(external_user_id)` from a trusted session before choosing an adapter. Each tool
+invocation requests a fresh lease and calls the provider directly from Python.
+
+## Next step
+
+Use [Agno](/docs/sdk/agno), [LangChain](/docs/sdk/langchain), or the generic adapter described in
+[framework adapters](/docs/sdk/frameworks).

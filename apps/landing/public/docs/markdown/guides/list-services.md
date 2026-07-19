@@ -1,0 +1,52 @@
+# List available services
+
+Load the tenant-enabled service catalog and render a useful empty state.
+
+Use the catalog to show only services an organization has enabled.
+
+## Prerequisites
+
+Create a server-only API key with catalog read access and install `@authlane/sdk`.
+
+## Implement the workflow
+
+```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function GET() {
+  const { data: services, error } = await authlane.services.list();
+  if (error) {
+    return Response.json({ error }, { status: error.statusCode ?? 400 });
+  }
+  return Response.json({
+    services,
+    emptyMessage: services.length === 0 ? 'No integrations are enabled yet.' : null,
+  });
+}
+```
+
+The equivalent API request is `GET /api/v1/catalog/services` with the tenant key in
+`Authorization: Bearer <key>`.
+
+## Expected result
+
+`data` is an array of `{ id, name, authType, enabled, config }` service records. An empty array is
+not an error; direct an administrator to enable a service in the Authlane dashboard.
+
+## Handle errors
+
+Handle `UNAUTHORIZED`, `INSUFFICIENT_SCOPE`, and `RATE_LIMIT_EXCEEDED` by code. Honor
+`Retry-After` on a `429` response.
+
+## Security boundary
+
+Call this route from your backend. Do not expose the tenant API key in browser code.
+
+## Next step
+
+[Create a connect session](/docs/guides/connect-user) for a signed-in user.

@@ -1,9 +1,13 @@
 ---
 title: 'Quickstart'
-description: 'Connect a user and give an AI model their tools without proxying provider traffic'
+description: 'Connect a signed-in user and give their connected tools to an AI runtime.'
 ---
 
-## 1. Create a server-side client
+This server-first path lists your tenant catalog, creates an origin-bound connect session, and
+loads one authenticated user's executable tools. Provider calls leave from your SaaS runtime;
+Authlane remains the control plane.
+
+## 1. Initialize Authlane on your server
 
 ```bash
 pnpm add @authlane/sdk
@@ -12,25 +16,25 @@ pnpm add @authlane/sdk
 ```typescript
 import { Authlane } from '@authlane/sdk';
 
-export const authlane = new Authlane({
+const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
   baseUrl: 'https://app.authlane.io',
 });
 ```
 
-<Warning>
-  The tenant API key belongs only on your server. The SDK rejects browser usage.
-</Warning>
+Keep `AUTHLANE_API_KEY` in a trusted server environment. The API-key SDK rejects browser usage.
 
-## 2. Show the services your tenant enabled
-
-Call Authlane from an authenticated route in your SaaS backend. Derive the external user ID from
-your trusted session; never accept it from the browser request body or a model-generated tool call.
+## 2. List the services your tenant enabled
 
 ```typescript
-const currentUser = await requireUser(request);
-const { data: services, error } = await authlane.services.list();
+import { Authlane } from '@authlane/sdk';
 
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+const { data: services, error } = await authlane.services.list();
 if (error) {
   return Response.json(
     { error: { code: error.code, message: error.message } },
@@ -41,39 +45,36 @@ if (error) {
 return Response.json({ services });
 ```
 
-Use this catalog to offer only the integrations enabled for your organization.
+An empty array is a valid result: enable a service in the tenant dashboard before offering a
+connect action.
 
-## 3. Create a connect session
-
-In another authenticated backend route:
+## 3. Create a connect session for the signed-in user
 
 ```typescript
-const currentUser = await requireUser(request);
-const { data, error } = await authlane.connectSessions.create({
-  externalUserId: currentUser.id,
-  allowedServices: ['github', 'slack'],
-  allowedOrigin: 'https://app.example.com',
-  expiresInSeconds: 600,
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
 });
 
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
-}
+export async function createConnectSession(currentUser: { id: string }) {
+  const { data, error } = await authlane.connectSessions.create({
+    externalUserId: currentUser.id,
+    allowedServices: [],
+    allowedOrigin: 'https://app.example.com',
+    expiresInSeconds: 600,
+  });
 
-return Response.json({ connectUrl: data.url });
+  if (error) return { data: null, error };
+  return { data: { connectUrl: data.url }, error: null };
+}
 ```
 
-Authlane stores only a hash of the short-lived session token. The session is restricted to one
-tenant, external user, service allowlist, exact parent origin, and expiry.
+`allowedServices: []` takes a one-time snapshot of every service currently enabled for this
+tenant. Later additions are not included. Return only `data.url` to the browser.
 
-Set `allowedServices: []` to snapshot every service currently enabled globally and for the
-organization. Authlane stores the concrete service IDs, so services enabled later are not added.
-If a snapshotted service is disabled later, it is hidden and cannot start a new authorization.
-
-## 4. Render the hosted connection UI
+## 4. Render the hosted connect UI
 
 ```bash
 pnpm add @authlane/react
@@ -87,162 +88,147 @@ export function Integrations({ connectUrl }: { connectUrl: string }) {
 }
 ```
 
-OAuth authorization and callbacks stay on the Authlane origin. Neither the Authlane API key nor
-provider credentials reach the iframe.
+The short-lived URL already binds the tenant, signed-in external user, service snapshot, exact
+parent origin, and expiry. Neither the Authlane API key nor provider credentials enter React.
 
-## 5. Give the model this user's tools
+## 5. Give this user's tools to your AI runtime
 
-Install the Vercel AI adapter and its optional `ai` peer:
+Install the packages for the runtime you use:
 
-```bash
-pnpm add @authlane/ai ai zod
-```
+<CodeGroup
+  labels={['Vercel AI', 'OpenAI Agents', 'Mastra', 'Agno', 'LangChain', 'Local MCP']}
+  languages={['bash', 'bash', 'bash', 'bash', 'bash', 'bash']}
+  sources={[
+    `pnpm add @authlane/sdk @authlane/ai ai zod`,
+    `pnpm add @authlane/sdk @authlane/ai @openai/agents zod`,
+    `pnpm add @authlane/sdk @authlane/ai @mastra/core zod`,
+    `pip install 'authlane[agno]'`,
+    `pip install 'authlane[langchain]' langchain`,
+    `pnpm add @authlane/sdk @authlane/ai @modelcontextprotocol/sdk zod`,
+  ]}
+/>
 
-The following server route loads one capability snapshot, creates executable callbacks bound to
-the authenticated user, and passes them to the AI SDK:
+Each panel is a complete server-side flow. Bind the authenticated external user before selecting
+the adapter.
 
-```typescript
-import { vercelAI } from '@authlane/ai/vercel';
-import { createTextStreamResponse, streamText, toTextStream } from 'ai';
-import { z } from 'zod';
-import { authlane } from './authlane.js';
+<CodeGroup
+  labels={['Vercel AI', 'OpenAI Agents', 'Mastra', 'Agno', 'LangChain', 'Local MCP']}
+  languages={['typescript', 'typescript', 'typescript', 'python', 'python', 'typescript']}
+  sources={[
+    `import { vercelAI } from '@authlane/ai/vercel';
+import { Authlane } from '@authlane/sdk';
+import { createTextStreamResponse, streamText, toTextStream, type ModelMessage } from 'ai';
 
-const MAX_CHAT_REQUEST_BYTES = 64 * 1024;
-const MAX_CHAT_MESSAGES = 50;
-const MAX_CHAT_MESSAGE_CHARACTERS = 8_000;
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
 
-const chatMessageSchema = z.discriminatedUnion('role', [
-  z
-    .object({
-      role: z.literal('system'),
-      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
-    })
-    .strict(),
-  z
-    .object({
-      role: z.literal('user'),
-      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
-    })
-    .strict(),
-  z
-    .object({
-      role: z.literal('assistant'),
-      content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_CHARACTERS),
-    })
-    .strict(),
-]);
-
-const chatRequestSchema = z
-  .object({
-    messages: z.array(chatMessageSchema).min(1).max(MAX_CHAT_MESSAGES),
-  })
-  .strict();
-
-type ChatRequest = z.infer<typeof chatRequestSchema>;
-
-function invalidChatRequest() {
-  return Response.json(
-    {
-      error: {
-        code: 'INVALID_CHAT_REQUEST',
-        message: 'The chat request is invalid.',
-      },
-    },
-    { status: 400 },
-  );
-}
-
-async function readChatRequest(request: Request): Promise<ChatRequest | null> {
-  const contentLength = request.headers.get('content-length');
-  if (contentLength !== null) {
-    const declaredBytes = Number(contentLength);
-    if (
-      !/^\d+$/.test(contentLength) ||
-      !Number.isSafeInteger(declaredBytes) ||
-      declaredBytes > MAX_CHAT_REQUEST_BYTES
-    ) {
-      return null;
-    }
-  }
-
-  if (request.body === null) return null;
-
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let receivedBytes = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      receivedBytes += value.byteLength;
-      if (receivedBytes > MAX_CHAT_REQUEST_BYTES) {
-        await reader.cancel();
-        return null;
-      }
-      chunks.push(value);
-    }
-  } catch {
-    return null;
-  } finally {
-    reader.releaseLock();
-  }
-
-  try {
-    const bytes = new Uint8Array(receivedBytes);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-
-    const json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-    const parsed = chatRequestSchema.safeParse(json);
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function POST(request: Request) {
-  const currentUser = await requireUser(request);
-  const chatRequest = await readChatRequest(request);
-  if (chatRequest === null) return invalidChatRequest();
-
+export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
   const user = authlane.user(currentUser.id);
   const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  if (error) return Response.json({ error }, { status: error.statusCode ?? 400 });
 
-  if (error) {
-    return Response.json(
-      {
-        error: {
-          code: 'TOOLS_UNAVAILABLE',
-          message: 'The tools for this user are temporarily unavailable.',
-        },
-      },
-      { status: 502 },
-    );
-  }
+  const result = streamText({ model: 'openai/gpt-5-mini', messages, tools });
+  return createTextStreamResponse({ stream: toTextStream({ stream: result.stream }) });
+}`,
+    `import { openAIAgents } from '@authlane/ai/openai';
+import { Authlane } from '@authlane/sdk';
+import { Agent, run } from '@openai/agents';
 
-  const result = streamText({
-    model: 'openai/gpt-5-mini',
-    messages: chatRequest.messages,
-    tools,
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function answer(currentUser: { id: string }, prompt: string) {
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
+  if (error) return { data: null, error };
+
+  const agent = new Agent({ name: 'Assistant', instructions: 'Use connected tools.', tools });
+  const result = await run(agent, prompt);
+  return { data: result.finalOutput, error: null };
+}`,
+    `import { mastraAI } from '@authlane/ai/mastra';
+import { Authlane } from '@authlane/sdk';
+import { Agent } from '@mastra/core/agent';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function answer(currentUser: { id: string }, prompt: string) {
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: mastraAI() });
+  if (error) return { data: null, error };
+
+  const agent = new Agent({
+    id: 'assistant', name: 'Assistant', model: 'openai/gpt-5-mini', tools,
   });
+  return { data: await agent.generate(prompt), error: null };
+}`,
+    `import os
+from dataclasses import dataclass
 
-  return createTextStreamResponse({
-    stream: toTextStream({ stream: result.stream }),
-  });
-}
-```
+from agno.agent import Agent
+from authlane import Authlane
+from authlane.adapters import agno
 
-Listing tools is a fast control-plane read and does not issue credentials. Only when the AI SDK
-invokes one generated local callback does Authlane issue one fresh, audited, access-only lease.
-The matching integration consumes that lease immediately and sends the provider request from your
-SaaS process. Provider traffic never passes through Authlane.
+@dataclass(frozen=True)
+class CurrentUser:
+    id: str
 
-<Warning>
-  Never serialize `tools` into browser data, cache it across users, or derive `currentUser.id` from
-  model or tool input. Build a new user-scoped toolset for the server-authenticated user.
-</Warning>
+def answer(current_user: CurrentUser, prompt: str):
+    with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+        user = authlane.user(current_user.id)
+        result = user.tools.list(adapter=agno())
+        if result.error is not None:
+            return result
+        assert result.data is not None
+        return Agent(tools=result.data).run(prompt)`,
+    `import os
+from dataclasses import dataclass
+
+from authlane import Authlane
+from authlane.adapters import langchain
+from langchain.agents import create_agent
+from langchain_core.language_models import BaseChatModel
+
+@dataclass(frozen=True)
+class CurrentUser:
+    id: str
+
+def answer(current_user: CurrentUser, prompt: str, model: BaseChatModel):
+    with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+        user = authlane.user(current_user.id)
+        result = user.tools.list(adapter=langchain())
+        if result.error is not None:
+            return result
+        assert result.data is not None
+        agent = create_agent(model=model, tools=result.data)
+        return agent.invoke({"messages": [{"role": "user", "content": prompt}]})`,
+    `import { mcpServer } from '@authlane/ai/mcp';
+import { Authlane } from '@authlane/sdk';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function connectMcp(currentUser: { id: string }, transport: Transport) {
+  const user = authlane.user(currentUser.id);
+  const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
+  if (error) return { data: null, error };
+  await server.connect(transport);
+  return { data: server, error: null };
+}`,
+  ]}
+/>
+
+Listing tools reads definitions and status; it does not issue credentials. A generated callback
+requests one fresh, audited, access-only lease only when invoked, then the local integration calls
+the provider directly. Move body limits, route authentication, rate limiting, and redacted logging
+into the [production hardening guide](/docs/guides/production-hardening).

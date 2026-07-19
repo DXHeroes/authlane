@@ -1,0 +1,40 @@
+# Core concepts
+
+Understand Authlane resources and the tenant boundaries that relate them.
+
+These resources form the control plane used by a SaaS organization and its end users.
+
+## Prerequisites
+
+Read [How Authlane works](/docs/concepts/how-authlane-works) for the request flow.
+
+## Implement the workflow
+
+| Concept | Meaning and boundary |
+| --- | --- |
+| Organization | The SaaS tenant and top-level isolation boundary. API keys, policy, services, users, connections, and secrets resolve to exactly one organization. |
+| External user | Your stable user ID. It is meaningful only with the authenticated organization and must come from your server session. |
+| Service | A canonical integration such as `github`, enabled or configured per organization. |
+| Connection | One organization's external user linked to one service. Its identity is `(organizationId, externalUserId, serviceId)`. |
+| Capability | A versioned snapshot of effective connection state plus tool definitions. It contains no credential material. |
+| Credential lease | Fresh, audited, access-only material issued to an authorized server principal for one connected user and service. |
+| Connect session | A short-lived browser handoff bound to one tenant, external user, exact origin, concrete service snapshot, and expiry. |
+
+## Expected result
+
+Every read and mutation has an explicit tenant and user boundary; callers never choose an
+`organizationId` directly.
+
+## Handle errors
+
+Treat an unknown external user as having no connected services. Reject invalid IDs and service IDs
+instead of normalizing them into another identity.
+
+## Security boundary
+
+Capabilities and definitions are safe control-plane metadata. Credential leases and executable
+toolsets are server-only and must never be cached across identities or returned to a browser.
+
+## Next step
+
+[List available services](/docs/guides/list-services) for the current tenant.

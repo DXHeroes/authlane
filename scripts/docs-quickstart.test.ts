@@ -12,29 +12,28 @@ const frameworksUrl = new URL('../apps/docs/sdk/frameworks.mdx', import.meta.url
 const pythonSdkUrl = new URL('../apps/docs/sdk/python.mdx', import.meta.url);
 const typescriptSdkUrl = new URL('../apps/docs/sdk/typescript.mdx', import.meta.url);
 
-describe('AI quickstart request boundary', () => {
-  it('documents bounded UTF-8 parsing and strict message validation before streamText', async () => {
+describe('task-oriented documentation content', () => {
+  it('keeps the quickstart on the five complete first-success steps', async () => {
     const quickstart = await readFile(quickstartUrl, 'utf8');
-    const aiRoute = quickstart.slice(quickstart.indexOf('## 5. Give the model'));
 
-    expect(aiRoute).toContain("import { z } from 'zod';");
-    expect(aiRoute).toContain("request.headers.get('content-length')");
-    expect(aiRoute).toContain('receivedBytes += value.byteLength');
-    expect(aiRoute).toContain('receivedBytes > MAX_CHAT_REQUEST_BYTES');
-    expect(aiRoute).toContain("new TextDecoder('utf-8', { fatal: true })");
-    expect(aiRoute).toContain('.max(MAX_CHAT_MESSAGES)');
-    expect(aiRoute).toContain('.max(MAX_CHAT_MESSAGE_CHARACTERS)');
-    expect(aiRoute).toContain('.strict()');
-    expect(aiRoute).toContain("code: 'INVALID_CHAT_REQUEST'");
+    expect(quickstart).toContain("import { Authlane } from '@authlane/sdk'");
+    expect(quickstart).toContain('const authlane = new Authlane({');
+    expect(quickstart).toContain('allowedServices: []');
+    expect(quickstart).toContain('authlane.user(currentUser.id)');
+    expect(quickstart).not.toContain('const MAX_CHAT_REQUEST_BYTES');
 
-    const postRoute = aiRoute.slice(aiRoute.indexOf('export async function POST'));
-    expect(postRoute.indexOf('requireUser(request)')).toBeLessThan(
-      postRoute.indexOf('readChatRequest(request)')
+    const headings = [
+      '## 1. Initialize Authlane on your server',
+      '## 2. List the services your tenant enabled',
+      '## 3. Create a connect session for the signed-in user',
+      '## 4. Render the hosted connect UI',
+      "## 5. Give this user's tools to your AI runtime",
+    ];
+    expect(headings.map((heading) => quickstart.indexOf(heading))).toEqual(
+      [...headings]
+        .map((heading) => quickstart.indexOf(heading))
+        .sort((left, right) => left - right)
     );
-    expect(postRoute.indexOf('readChatRequest(request)')).toBeLessThan(
-      postRoute.indexOf('streamText({')
-    );
-    expect(postRoute).not.toContain('error.message');
   });
 
   it('keeps TypeScript SDK examples on explicit data and error bindings', async () => {

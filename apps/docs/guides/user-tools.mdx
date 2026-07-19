@@ -1,0 +1,49 @@
+---
+title: 'Load user-scoped tools'
+description: 'Bind an authenticated external user, select an adapter, and run provider tools locally.'
+---
+
+Turn one user's effective capability snapshot into framework-native callbacks inside your SaaS.
+
+## Prerequisites
+
+Install `@authlane/sdk`, `@authlane/ai`, and the optional peer for your framework. Authenticate the
+user before this server code runs.
+
+## Implement the workflow
+
+```typescript
+import { vercelAI } from '@authlane/ai/vercel';
+import { Authlane } from '@authlane/sdk';
+import { streamText, type ModelMessage } from 'ai';
+
+const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
+
+export async function runForUser(currentUser: { id: string }, messages: ModelMessage[]) {
+  const user = authlane.user(currentUser.id);
+  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  if (error) return { data: null, error };
+  return { data: streamText({ model: 'openai/gpt-5-mini', messages, tools }), error: null };
+}
+```
+
+Binding `authlane.user(currentUser.id)` comes before adapter selection. The capability read builds
+only definitions and callbacks. Each callback requests a fresh lease when it is invoked.
+
+## Expected result
+
+`tools` is native to the selected framework and permanently scoped to this user snapshot.
+
+## Handle errors
+
+Return the SDK tuple error from the control-plane read. Adapter callbacks expose fixed redacted
+errors to the model instead of provider response bodies or credentials.
+
+## Security boundary
+
+Never serialize or share the executable toolset, cache it across users, or accept the external user
+ID from model arguments. Provider execution stays in the SaaS runtime and bypasses Authlane.
+
+## Next step
+
+Choose a complete flow under [SDKs and frameworks](/docs/sdk/frameworks).

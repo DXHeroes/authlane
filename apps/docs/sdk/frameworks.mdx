@@ -1,45 +1,32 @@
 ---
-title: Framework adapters
-description: 'Give one external user’s connected tools to the AI framework running in your SaaS'
+title: 'Framework adapters'
+description: 'Choose a shipped adapter after binding one authenticated external user.'
 ---
 
-Framework adapters are explicit output formats, not separate Authlane gateways. Your backend scopes
-the request with `externalUserId`; the resulting handlers run beside your agent and call providers
-directly.
+Adapters translate canonical definitions into local framework tools. They do not create an
+Authlane gateway.
 
-## TypeScript
+## Prerequisites
 
-```typescript
-import { Authlane } from '@authlane/sdk';
-import { mastraAI } from '@authlane/ai/mastra';
+Authenticate the SaaS user on the server, initialize the TypeScript or Python SDK, and install the
+framework's optional peer.
 
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
-});
+## Implement the workflow
 
-const { data: tools, error } = await authlane
-  .user('user_123')
-  .tools.list({ adapter: mastraAI() });
-
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
-}
-```
-
-Choose the adapter at the integration boundary:
-
-| Framework | Import | Adapter |
-| --- | --- | --- |
-| Vercel AI SDK | `@authlane/ai/vercel` | `vercelAI()` |
-| OpenAI Agents | `@authlane/ai/openai` | `openAIAgents()` |
-| Mastra | `@authlane/ai/mastra` | `mastraAI()` |
-| Local MCP server | `@authlane/ai/mcp` | `mcpServer()` |
+| Runtime | Framework | Adapter | Complete guide |
+| --- | --- | --- | --- |
+| TypeScript | Vercel AI SDK | `vercelAI()` | [Vercel AI](/docs/sdk/vercel-ai) |
+| TypeScript | OpenAI Agents | `openAIAgents()` | [OpenAI Agents](/docs/sdk/openai-agents) |
+| TypeScript | Mastra | `mastraAI()` | [Mastra](/docs/sdk/mastra) |
+| TypeScript | caller-owned MCP | `mcpServer()` | [Local MCP](/docs/sdk/local-mcp) |
+| Python | Agno | `agno()` | [Agno](/docs/sdk/agno) |
+| Python | LangChain | `langchain()` | [LangChain](/docs/sdk/langchain) |
+| Python | OpenAI Agents | `openai_agents()` | [OpenAI Agents](/docs/sdk/openai-agents) |
+| Python | portable local tools | `generic()` | [Python SDK](/docs/sdk/python) |
 
 ## Python
+
+The Python factories share one Result-handling pattern:
 
 ```python
 import os
@@ -52,31 +39,43 @@ with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
 
     agno_result = user.tools.list(adapter=agno())
     if agno_result.error is not None:
-        raise RuntimeError(f"{agno_result.error.code}: {agno_result.error.message}")
+        raise RuntimeError(agno_result.error.code)
     assert agno_result.data is not None
     agno_tools = agno_result.data
 
     langchain_result = user.tools.list(adapter=langchain())
     if langchain_result.error is not None:
-        raise RuntimeError(f"{langchain_result.error.code}: {langchain_result.error.message}")
+        raise RuntimeError(langchain_result.error.code)
     assert langchain_result.data is not None
     langchain_tools = langchain_result.data
 
     openai_result = user.tools.list(adapter=openai_agents())
     if openai_result.error is not None:
-        raise RuntimeError(f"{openai_result.error.code}: {openai_result.error.message}")
+        raise RuntimeError(openai_result.error.code)
     assert openai_result.data is not None
     openai_tools = openai_result.data
 
     portable_result = user.tools.list(adapter=generic())
     if portable_result.error is not None:
-        raise RuntimeError(f"{portable_result.error.code}: {portable_result.error.message}")
+        raise RuntimeError(portable_result.error.code)
     assert portable_result.data is not None
     portable_tools = portable_result.data
 ```
 
-## Identity and execution boundary
+## Expected result
 
-The `user_123` value must come from your authenticated SaaS session. Never accept an arbitrary
-external user ID from an untrusted client. Authlane returns definitions and scoped local handlers;
-it does not receive tool calls and does not expose a hosted MCP server.
+The returned object is native to the selected framework and bound to one external user.
+
+## Handle errors
+
+Handle the Authlane tuple or Python Result before calling the framework. Framework lifecycle and
+model calls may still throw according to their own contracts.
+
+## Security boundary
+
+Never cache or serialize executable toolsets. Each invocation gets a fresh access-only lease and
+calls the provider from the SaaS runtime; Authlane receives neither tool input nor provider output.
+
+## Next step
+
+Open the complete guide for your selected ecosystem.

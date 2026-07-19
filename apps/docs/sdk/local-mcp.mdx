@@ -1,0 +1,56 @@
+---
+title: 'Local MCP server'
+description: 'Connect a caller-owned MCP transport to one authenticated user’s Authlane tools.'
+---
+
+Build a low-level MCP `Server` in your application; Authlane does not host an MCP server.
+
+## Prerequisites
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @modelcontextprotocol/sdk zod
+```
+
+## Implement the workflow
+
+```typescript
+import { mcpServer } from '@authlane/ai/mcp';
+import { Authlane } from '@authlane/sdk';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
+export async function connectUserServer(
+  currentUser: { id: string },
+  transport: Transport,
+) {
+  const user = authlane.user(currentUser.id);
+  const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
+  if (error) return { data: null, error };
+  await server.connect(transport);
+  return { data: server, error: null };
+}
+```
+
+## Expected result
+
+The returned MCP server lists only this user's effective tools and delegates calls to local
+integration adapters.
+
+## Handle errors
+
+Handle the tuple before connecting. Close the server and caller-owned transport together when the
+user-bound lifecycle ends.
+
+## Security boundary
+
+One server and transport belong to exactly one authenticated external user. Never reuse either
+across identities, tenants, browser sessions, or concurrent shared contexts. Provider calls leave
+from your process and bypass Authlane.
+
+## Next step
+
+Review [core concepts](/docs/concepts/core-concepts) for capability and lease boundaries.

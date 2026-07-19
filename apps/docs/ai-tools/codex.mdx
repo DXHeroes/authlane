@@ -1,0 +1,53 @@
+---
+title: 'Codex plugin'
+description: 'Install, verify, refresh, and remove the repository-owned Authlane plugin in Codex.'
+---
+
+Add the Authlane repository marketplace, then install the shared skills plugin.
+
+## Prerequisites
+
+Use a Codex release with repository plugin marketplaces.
+
+## Implement the workflow
+
+```bash
+codex plugin marketplace add dxheroes/authlane
+codex plugin add authlane@authlane
+```
+
+Start a new thread and verify that `$integrate-authlane` and `$develop-authlane-connection` are
+available. For deterministic local development, use a trusted absolute checkout path:
+
+```bash
+codex plugin marketplace add /absolute/path/to/authlane
+codex plugin add authlane@authlane
+```
+
+Refresh marketplace metadata, then start another new thread:
+
+```bash
+codex plugin marketplace upgrade authlane
+```
+
+If the installed plugin does not refresh, remove Authlane with the current Codex plugin manager and
+add `authlane@authlane` again from the same repository source. Use the plugin marketplace UI to
+remove Authlane when it is no longer needed.
+
+## Expected result
+
+Codex discovers exactly the two skill directories shipped under `plugins/authlane/skills/`.
+
+## Handle errors
+
+For a local source, run `git pull`, upgrade the marketplace, reinstall if needed, and open a new
+thread so discovery does not use stale metadata.
+
+## Security boundary
+
+`.agents/plugins/marketplace.json` is a repository manifest, not a personal marketplace. The plugin
+does not install an MCP server or grant access to a tenant.
+
+## Next step
+
+Invoke `$integrate-authlane` or `$develop-authlane-connection` explicitly.

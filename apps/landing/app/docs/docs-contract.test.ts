@@ -50,6 +50,7 @@ describe('documentation publication contract', () => {
     expect(viewer).toContain('ApiReferenceClient');
     expect(client).toContain("'use client'");
     expect(client).toContain('@scalar/api-reference-react/style.css');
+    expect(client).toContain('observeReadOnlyApiReference(document.body)');
     expect(styles).toMatch(
       /\.authlane-api-reference\s+\.security-requirement-badge\s*\{[^}]*display:\s*none\s*!important;/
     );

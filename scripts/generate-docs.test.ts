@@ -143,12 +143,12 @@ describe('documentation asset generation', () => {
       slug: 'sdk/typescript',
       title: 'TypeScript SDK',
       description: 'Use the server SDK.',
-      headingId: null,
-      heading: null,
+      headingId: '',
+      heading: '',
     });
 
     const configureEntry = entries.find(
-      (entry: { headingId: string | null }) => entry.headingId === 'configure-a-user'
+      (entry: { headingId: string }) => entry.headingId === 'configure-a-user'
     );
     expect(configureEntry).toMatchObject({
       slug: 'sdk/typescript',

@@ -3,11 +3,68 @@
  * @property {string} slug
  * @property {string} title
  * @property {string} description
- * @property {string | null} headingId
- * @property {string | null} heading
+ * @property {string} headingId
+ * @property {string} heading
  * @property {string} text
  * @property {string[]} keywords
  */
+
+const docsSearchSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/u;
+const docsSearchHeadingPattern = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)?$/u;
+const initializedDocsSearchDialogs = new WeakSet();
+
+/**
+ * @param {unknown} value
+ * @returns {DocsSearchEntry[]}
+ */
+function validateDocsSearchEntries(value) {
+  if (!Array.isArray(value)) {
+    throw new Error('Documentation search index response is invalid.');
+  }
+
+  return value.map((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      throw new Error('Documentation search index entry is invalid.');
+    }
+
+    const entry = /** @type {Record<string, unknown>} */ (candidate);
+    if (
+      typeof entry.slug !== 'string' ||
+      typeof entry.title !== 'string' ||
+      typeof entry.description !== 'string' ||
+      typeof entry.headingId !== 'string' ||
+      typeof entry.heading !== 'string' ||
+      typeof entry.text !== 'string' ||
+      !Array.isArray(entry.keywords) ||
+      !entry.keywords.every((keyword) => typeof keyword === 'string')
+    ) {
+      throw new Error('Documentation search index entry is invalid.');
+    }
+    if (
+      !docsSearchSlugPattern.test(entry.slug) ||
+      !docsSearchHeadingPattern.test(entry.headingId)
+    ) {
+      throw new Error('Documentation search index target is invalid.');
+    }
+
+    return {
+      slug: entry.slug,
+      title: entry.title,
+      description: entry.description,
+      headingId: entry.headingId,
+      heading: entry.heading,
+      text: entry.text,
+      keywords: [...entry.keywords],
+    };
+  });
+}
+
+/** @param {DocsSearchEntry} entry */
+function docsSearchHref(entry) {
+  const slug = entry.slug.split('/').map(encodeURIComponent).join('/');
+  const heading = entry.headingId ? `#${encodeURIComponent(entry.headingId)}` : '';
+  return `/docs/${slug}${heading}`;
+}
 
 /** @param {unknown} value */
 function normalizeSearchValue(value) {
@@ -31,10 +88,10 @@ export function rankDocsSearch(entries, query, limit = 8) {
   if (!normalizedQuery || normalizedLimit === 0) return [];
 
   const queryTokens = normalizedQuery.split(/\s+/u);
-  const seenTargets = new Set();
   /**
    * @type {{
    *   entry: DocsSearchEntry;
+   *   target: string;
    *   navigationIndex: number;
    *   normalizedTitle: string;
    *   score: number;
@@ -44,9 +101,6 @@ export function rankDocsSearch(entries, query, limit = 8) {
 
   entries.forEach((entry, navigationIndex) => {
     const target = `${entry.slug}\0${entry.headingId ?? ''}`;
-    if (seenTargets.has(target)) return;
-    seenTargets.add(target);
-
     const title = normalizeSearchValue(entry.title);
     const heading = normalizeSearchValue(entry.heading);
     const body = normalizeSearchValue(`${entry.description} ${entry.text}`);
@@ -67,22 +121,30 @@ export function rankDocsSearch(entries, query, limit = 8) {
     });
 
     if (score > 0) {
-      scoredEntries.push({ entry, navigationIndex, normalizedTitle: title, score });
+      scoredEntries.push({ entry, target, navigationIndex, normalizedTitle: title, score });
     }
   });
 
-  return scoredEntries
-    .sort((left, right) => {
-      if (left.score !== right.score) return right.score - left.score;
-      if (left.navigationIndex !== right.navigationIndex) {
-        return left.navigationIndex - right.navigationIndex;
-      }
-      if (left.normalizedTitle < right.normalizedTitle) return -1;
-      if (left.normalizedTitle > right.normalizedTitle) return 1;
-      return 0;
-    })
-    .slice(0, normalizedLimit)
-    .map(({ entry }) => entry);
+  scoredEntries.sort((left, right) => {
+    if (left.score !== right.score) return right.score - left.score;
+    if (left.navigationIndex !== right.navigationIndex) {
+      return left.navigationIndex - right.navigationIndex;
+    }
+    if (left.normalizedTitle < right.normalizedTitle) return -1;
+    if (left.normalizedTitle > right.normalizedTitle) return 1;
+    return 0;
+  });
+
+  /** @type {DocsSearchEntry[]} */
+  const rankedEntries = [];
+  const rankedTargets = new Set();
+  for (const scoredEntry of scoredEntries) {
+    if (rankedTargets.has(scoredEntry.target)) continue;
+    rankedTargets.add(scoredEntry.target);
+    rankedEntries.push(scoredEntry.entry);
+    if (rankedEntries.length === normalizedLimit) break;
+  }
+  return rankedEntries;
 }
 
 /** @param {Document | HTMLElement} root */
@@ -118,8 +180,10 @@ export function initializeLandingInteractions(root = document) {
   if (
     searchDialog instanceof HTMLDialogElement &&
     searchInput instanceof HTMLInputElement &&
-    searchResults instanceof HTMLOListElement
+    searchResults instanceof HTMLOListElement &&
+    !initializedDocsSearchDialogs.has(searchDialog)
   ) {
+    initializedDocsSearchDialogs.add(searchDialog);
     const ownerDocument = searchDialog.ownerDocument;
     /** @type {DocsSearchEntry[] | undefined} */
     let loadedSearchEntries;
@@ -174,11 +238,10 @@ export function initializeLandingInteractions(root = document) {
         const link = ownerDocument.createElement('a');
         const title = ownerDocument.createElement('div');
         const context = ownerDocument.createElement('div');
-        const target = `/docs/${entry.slug}${entry.headingId ? `#${entry.headingId}` : ''}`;
 
         link.className = 'docs-search__result';
         link.setAttribute('data-docs-search-result', '');
-        link.setAttribute('href', target);
+        link.setAttribute('href', docsSearchHref(entry));
         title.className = 'docs-search__result-title';
         title.textContent = entry.title;
         context.className = 'docs-search__result-context';
@@ -203,10 +266,7 @@ export function initializeLandingInteractions(root = document) {
         }).then(async (response) => {
           if (!response.ok) throw new Error('Documentation search index request failed.');
           const entries = await response.json();
-          if (!Array.isArray(entries)) {
-            throw new Error('Documentation search index response is invalid.');
-          }
-          return /** @type {DocsSearchEntry[]} */ (entries);
+          return validateDocsSearchEntries(entries);
         });
       }
       return searchEntriesPromise;
@@ -287,7 +347,12 @@ export function initializeLandingInteractions(root = document) {
       setActiveResult(nextIndex, true);
     });
     ownerDocument.addEventListener('keydown', (event) => {
-      if (event.key.toLowerCase() !== 'k' || (!event.metaKey && !event.ctrlKey) || event.altKey) {
+      if (
+        !searchDialog.isConnected ||
+        event.key.toLowerCase() !== 'k' ||
+        (!event.metaKey && !event.ctrlKey) ||
+        event.altKey
+      ) {
         return;
       }
       event.preventDefault();

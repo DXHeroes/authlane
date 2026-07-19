@@ -258,8 +258,8 @@ export function buildDocumentationModel({ navigation, documents }) {
       slug: document.slug,
       title: document.title,
       description: document.description,
-      headingId: null,
-      heading: null,
+      headingId: '',
+      heading: '',
       text: pageText,
       keywords: searchKeywords(document.title, document.description, pageText),
     };

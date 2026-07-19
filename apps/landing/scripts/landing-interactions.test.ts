@@ -46,9 +46,7 @@ function renderDocsSearchMarkup() {
 }
 
 async function settleSearchRequest() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 describe('documentation search ranking', () => {
@@ -75,6 +73,37 @@ describe('documentation search ranking', () => {
       'sdk/typescript',
       'guides/connect-user',
     ]);
+  });
+
+  it('does not let a zero-score duplicate suppress a later positive representation', () => {
+    const unmatched = {
+      ...searchEntries[0],
+      title: 'Unrelated page',
+      text: 'Nothing relevant.',
+      keywords: [],
+    };
+    const matching = {
+      ...unmatched,
+      title: 'Needle guide',
+    };
+
+    expect(rankDocsSearch([unmatched, matching], 'needle guide')).toEqual([matching]);
+  });
+
+  it('retains the highest-scoring representation of a duplicate target', () => {
+    const bodyMatch = {
+      ...searchEntries[0],
+      title: 'Reference',
+      text: 'needle',
+      keywords: [],
+    };
+    const exactTitleMatch = {
+      ...bodyMatch,
+      title: 'Needle',
+      text: '',
+    };
+
+    expect(rankDocsSearch([bodyMatch, exactTitleMatch], 'needle')).toEqual([exactTitleMatch]);
   });
 
   it('honors the result limit', () => {
@@ -182,6 +211,108 @@ describe('dependency-free landing interactions', () => {
     expect(document.querySelector('[data-docs-search-results]')?.textContent).toBe(
       'Search is temporarily unavailable. Browse the documentation navigation instead.'
     );
+  });
+
+  it('rejects malformed entry shapes and preserves the fallback on reopen', async () => {
+    const fetchSearchIndex = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue([
+        searchEntries[0],
+        {
+          ...searchEntries[1],
+          keywords: ['typescript', 42],
+        },
+      ]),
+    });
+    vi.stubGlobal('fetch', fetchSearchIndex);
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+
+    const trigger = document.querySelector<HTMLButtonElement>('[data-docs-search-open]');
+    const close = document.querySelector<HTMLButtonElement>('[data-docs-search-close]');
+    trigger?.focus();
+    expect(() => trigger?.click()).not.toThrow();
+    await settleSearchRequest();
+
+    const fallback =
+      'Search is temporarily unavailable. Browse the documentation navigation instead.';
+    expect(document.querySelector('[data-docs-search-results]')?.textContent).toBe(fallback);
+    expect(document.querySelector('[data-docs-search-result]')).toBeNull();
+
+    close?.click();
+    expect(document.activeElement).toBe(trigger);
+    expect(() => trigger?.click()).not.toThrow();
+    await settleSearchRequest();
+    expect(fetchSearchIndex).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-docs-search-results]')?.textContent).toBe(fallback);
+  });
+
+  it('rejects traversal slugs without throwing or rendering an escaping link', async () => {
+    const initialLocation = window.location.href;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue([
+          {
+            ...searchEntries[0],
+            slug: '../../account',
+            title: 'Account',
+            keywords: ['account'],
+          },
+        ]),
+      })
+    );
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+
+    expect(() =>
+      document.querySelector<HTMLButtonElement>('[data-docs-search-open]')?.click()
+    ).not.toThrow();
+    await settleSearchRequest();
+
+    expect(document.querySelector('[data-docs-search-result]')).toBeNull();
+    expect(document.querySelector('[data-docs-search-results]')?.textContent).toBe(
+      'Search is temporarily unavailable. Browse the documentation navigation instead.'
+    );
+    expect(window.location.href).toBe(initialLocation);
+  });
+
+  it('initializes each search dialog instance only once', async () => {
+    const fetchSearchIndex = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(searchEntries),
+    });
+    vi.stubGlobal('fetch', fetchSearchIndex);
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+    initializeLandingInteractions();
+
+    const firstTrigger = document.querySelector<HTMLButtonElement>('[data-docs-search-open]');
+    const firstDialog = document.querySelector<HTMLDialogElement>('#docs-search');
+    firstTrigger?.focus();
+    firstTrigger?.click();
+    await settleSearchRequest();
+    expect(fetchSearchIndex).toHaveBeenCalledTimes(1);
+    expect(firstDialog?.open).toBe(true);
+
+    document.querySelector<HTMLButtonElement>('[data-docs-search-close]')?.click();
+    expect(firstDialog?.open).toBe(false);
+    expect(document.activeElement).toBe(firstTrigger);
+
+    document.body.replaceChildren();
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+    const replacementTrigger = document.querySelector<HTMLButtonElement>('[data-docs-search-open]');
+    const replacementDialog = document.querySelector<HTMLDialogElement>('#docs-search');
+    replacementTrigger?.focus();
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })
+    );
+    await settleSearchRequest();
+    expect(fetchSearchIndex).toHaveBeenCalledTimes(2);
+    expect(firstDialog?.open).toBe(false);
+    expect(replacementDialog?.open).toBe(true);
   });
 
   it('operates the mobile menu and every accessible code-tab interaction', () => {

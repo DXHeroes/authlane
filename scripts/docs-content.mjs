@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join, posix, relative, resolve, sep } from 'node:path';
 import YAML from 'yaml';
+import { getPublicDocPath, getPublicDocUrl } from '../apps/landing/app/lib/docs-public-route.mjs';
 
 const docsBaseUrl = 'https://authlane.io/docs';
 
@@ -96,7 +97,7 @@ function canonicalDocumentationHref(href, documentSlugs) {
   const slug = path.replace(/^\//, '').replace(/\/$/, '');
   if (!documentSlugs.has(slug)) return href;
 
-  const canonicalPath = slug === 'introduction' ? '/docs' : `/docs/${slug}`;
+  const canonicalPath = getPublicDocPath(slug);
   return `${canonicalPath}${suffix}`;
 }
 
@@ -155,10 +156,6 @@ function toPublicMarkdownBody(source, documentSlugs) {
   }
 
   return output.join('\n').trim();
-}
-
-function documentUrl(slug) {
-  return slug === 'introduction' ? docsBaseUrl : `${docsBaseUrl}/${slug}`;
 }
 
 function renderPublicMarkdown(document, documentSlugs) {
@@ -239,7 +236,7 @@ function documentFromSource(document, navigationGroup, order, documentSlugs) {
     headings: extractHeadings(body),
     navigationGroup,
     order,
-    url: documentUrl(document.slug),
+    url: getPublicDocUrl(document.slug),
   };
 
   return { ...parsed, publicMarkdown: renderPublicMarkdown(parsed, documentSlugs) };
@@ -272,6 +269,7 @@ export function buildDocumentationModel({ navigation, documents }) {
       description: document.description,
       headingId: '',
       heading: '',
+      href: getPublicDocPath(document.slug),
       text: pageText,
       keywords: searchKeywords(document.title, document.description, pageText),
     };
@@ -281,6 +279,7 @@ export function buildDocumentationModel({ navigation, documents }) {
       description: document.description,
       headingId: section.headingId,
       heading: section.heading,
+      href: `${getPublicDocPath(document.slug)}#${section.headingId}`,
       text: section.text,
       keywords: searchKeywords(document.title, document.description, section.heading, section.text),
     }));

@@ -5,12 +5,15 @@
  * @property {string} description
  * @property {string} headingId
  * @property {string} heading
+ * @property {string} href
  * @property {string} text
  * @property {string[]} keywords
  */
 
 const docsSearchSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/u;
 const docsSearchHeadingPattern = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)?$/u;
+const docsSearchHrefPattern =
+  /^\/docs(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*(?:#[a-z0-9]+(?:-[a-z0-9]+)*)?$/u;
 const initializedDocsSearchDialogs = new WeakSet();
 
 /**
@@ -34,6 +37,7 @@ function validateDocsSearchEntries(value) {
       typeof entry.description !== 'string' ||
       typeof entry.headingId !== 'string' ||
       typeof entry.heading !== 'string' ||
+      typeof entry.href !== 'string' ||
       typeof entry.text !== 'string' ||
       !Array.isArray(entry.keywords) ||
       !entry.keywords.every((keyword) => typeof keyword === 'string')
@@ -42,7 +46,8 @@ function validateDocsSearchEntries(value) {
     }
     if (
       !docsSearchSlugPattern.test(entry.slug) ||
-      !docsSearchHeadingPattern.test(entry.headingId)
+      !docsSearchHeadingPattern.test(entry.headingId) ||
+      !docsSearchHrefPattern.test(entry.href)
     ) {
       throw new Error('Documentation search index target is invalid.');
     }
@@ -53,6 +58,7 @@ function validateDocsSearchEntries(value) {
       description: entry.description,
       headingId: entry.headingId,
       heading: entry.heading,
+      href: entry.href,
       text: entry.text,
       keywords: [...entry.keywords],
     };
@@ -61,9 +67,7 @@ function validateDocsSearchEntries(value) {
 
 /** @param {DocsSearchEntry} entry */
 function docsSearchHref(entry) {
-  const slug = entry.slug.split('/').map(encodeURIComponent).join('/');
-  const heading = entry.headingId ? `#${encodeURIComponent(entry.headingId)}` : '';
-  return `/docs/${slug}${heading}`;
+  return entry.href;
 }
 
 /** @param {unknown} value */

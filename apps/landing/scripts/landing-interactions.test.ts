@@ -18,6 +18,7 @@ const searchEntries = [
     description: '',
     headingId: '',
     heading: '',
+    href: '/docs/guides/connect-user',
     text: 'Create a connect session.',
     keywords: ['externalUserId'],
   },
@@ -27,10 +28,20 @@ const searchEntries = [
     description: '',
     headingId: 'user-scoped-resources',
     heading: 'User-scoped resources',
+    href: '/docs/sdk/typescript#user-scoped-resources',
     text: 'Bind an external user.',
     keywords: ['typescript'],
   },
 ];
+
+const introductionSearchEntry = {
+  ...searchEntries[0],
+  slug: 'introduction',
+  title: 'Introduction',
+  href: '/docs',
+  text: 'Authlane control plane introduction.',
+  keywords: ['introduction'],
+};
 
 function renderDocsSearchMarkup() {
   document.body.innerHTML = `
@@ -108,6 +119,29 @@ describe('documentation search ranking', () => {
 
   it('honors the result limit', () => {
     expect(rankDocsSearch(searchEntries, 'user', 1)).toHaveLength(1);
+  });
+
+  it('links the introduction search result to the canonical docs home', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue([introductionSearchEntry]),
+      })
+    );
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+
+    document.querySelector<HTMLButtonElement>('[data-docs-search-open]')?.click();
+    await settleSearchRequest();
+    const input = document.querySelector<HTMLInputElement>('[data-docs-search-input]');
+    if (!input) return;
+    input.value = 'introduction';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(
+      document.querySelector<HTMLAnchorElement>('[data-docs-search-result]')?.getAttribute('href')
+    ).toBe('/docs');
   });
 });
 

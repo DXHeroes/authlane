@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import { DocsMdx, DocsPage } from '../../components/docs-page';
 import { getAllDocs, getDoc } from '../../lib/docs';
+import { getPublicDocUrl } from '../../lib/docs-public-route.mjs';
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
   return getAllDocs()
-    .filter((doc) => doc.slug !== 'api-reference')
+    .filter((doc) => doc.slug !== 'introduction' && doc.slug !== 'api-reference')
     .map((doc) => ({ slug: doc.slug.split('/') }));
 }
 
@@ -17,7 +18,7 @@ export function generateMetadata({
 }): Promise<Metadata> {
   return params.then(({ slug }) => {
     const doc = getDoc(slug.join('/'));
-    const url = `https://authlane.io/docs/${doc.slug}`;
+    const url = getPublicDocUrl(doc.slug);
     return {
       title: `${doc.title} — Authlane`,
       description: doc.description,

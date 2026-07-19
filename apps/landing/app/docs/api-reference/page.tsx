@@ -3,18 +3,20 @@ import Link from 'next/link';
 import { SiteFooter } from '../../components/site-footer';
 import { SiteHeader } from '../../components/site-header';
 import { getDoc } from '../../lib/docs';
+import { getPublicDocUrl } from '../../lib/docs-public-route.mjs';
 import { ApiReferenceClient } from './api-reference-client';
 
 const doc = getDoc('api-reference');
+const url = getPublicDocUrl(doc.slug);
 
 export const metadata: Metadata = {
   title: 'API reference — Authlane',
   description: doc.description,
-  alternates: { canonical: 'https://authlane.io/docs/api-reference' },
+  alternates: { canonical: url },
   openGraph: {
     title: 'Authlane API reference',
     description: doc.description,
-    url: 'https://authlane.io/docs/api-reference',
+    url,
     type: 'website',
   },
 };

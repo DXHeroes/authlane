@@ -55,8 +55,29 @@ describe('documentation publication contract', () => {
 
   it('keeps the explicit API viewer out of catch-all static generation', () => {
     const params = generateStaticParams();
-    expect(params).toHaveLength(getAllDocs().length - 1);
+    expect(params).toHaveLength(getAllDocs().length - 2);
+    expect(params).not.toContainEqual({ slug: ['introduction'] });
     expect(params).not.toContainEqual({ slug: ['api-reference'] });
+  });
+
+  it('uses one canonical public-route helper for every manifest-backed surface', () => {
+    const routeConsumers = [
+      'app/components/docs-navigation.tsx',
+      'app/docs/[...slug]/page.tsx',
+      'app/docs/api-reference/page.tsx',
+      'app/docs/page.tsx',
+      'app/sitemap.ts',
+    ];
+
+    for (const relativePath of routeConsumers) {
+      const source = readFileSync(resolve(landingRoot, relativePath), 'utf8');
+      expect(source, relativePath).toMatch(/getPublicDoc(?:Path|Url)/);
+      expect(source, relativePath).not.toContain("slug === 'introduction'");
+    }
+
+    const generator = readFileSync(resolve(repositoryRoot, 'scripts/docs-content.mjs'), 'utf8');
+    expect(generator).toContain('getPublicDocPath');
+    expect(generator).toContain('getPublicDocUrl');
   });
 
   it('renders a server fallback and read-only warning into static HTML', () => {

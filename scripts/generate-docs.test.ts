@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import sitemap from '../apps/landing/app/sitemap';
 import docsManifest from '../apps/landing/app/generated/docs-manifest.json';
+import sitemap from '../apps/landing/app/sitemap';
 import {
   buildDocumentationModel,
   loadDocumentation,
@@ -41,7 +41,7 @@ describe('documentation asset generation', () => {
     expect(scripts['docs:links']).toBe('node scripts/check-doc-links.mjs');
     expect(scripts.build).not.toContain('docs:links');
     expect(landingScripts.prebuild).toContain('openapi:check');
-    expect(landingScripts.prebuild).not.toContain('docs:check');
+    expect(landingScripts.prebuild).toContain('docs:check');
     expect(landingScripts.prebuild).not.toContain('docs:links');
   });
 
@@ -80,6 +80,7 @@ describe('documentation asset generation', () => {
     });
     expect(first.manifest).toContain('"pages": ["introduction"]');
     expect(JSON.parse(first.searchIndex)[0].text).toContain('Provider traffic stays direct');
+    expect(JSON.parse(first.searchIndex)[0].href).toBe('/docs');
     expect(first.markdown.get('introduction')).toContain('## Boundary');
     expect(first.llms).toContain('https://authlane.io/docs');
     expect(first.llmsFull).toContain('Provider traffic stays direct');
@@ -338,6 +339,7 @@ describe('documentation asset generation', () => {
       'description',
       'headingId',
       'heading',
+      'href',
       'text',
       'keywords',
     ]);

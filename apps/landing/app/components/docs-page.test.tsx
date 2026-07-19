@@ -176,7 +176,8 @@ describe('documentation page components', () => {
     const html = renderToStaticMarkup(<PreviousNext currentSlug="quickstart" />);
 
     expect(html).toContain('aria-label="Documentation pagination"');
-    expect(html).toContain('href="/docs/introduction"');
+    expect(html).toContain('href="/docs"');
+    expect(html).not.toContain('href="/docs/introduction"');
     expect(html).toContain('href="/docs/concepts/how-authlane-works"');
     expect(html).toContain('Previous');
     expect(html).toContain('Next');

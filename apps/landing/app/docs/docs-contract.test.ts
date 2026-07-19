@@ -27,17 +27,28 @@ describe('documentation publication contract', () => {
     expect(jsonAsset.endsWith('\n')).toBe(true);
   });
 
-  it('keeps the API viewer read-only and build-highlighted', () => {
+  it('keeps the API viewer route-local, read-only, and backed by the canonical manifest', () => {
     const viewer = readFileSync(resolve(landingRoot, 'app/docs/api-reference/page.tsx'), 'utf8');
+    const client = readFileSync(
+      resolve(landingRoot, 'app/docs/api-reference/api-reference-client.tsx'),
+      'utf8'
+    );
+    const styles = readFileSync(resolve(landingRoot, 'app/globals.css'), 'utf8');
 
     expect(viewer).not.toMatch(/<(?:form|input|textarea)\b/i);
     expect(viewer).not.toMatch(/\b(?:fetch|XMLHttpRequest)\s*\(/);
-    expect(viewer).not.toMatch(/try it/i);
-    expect(viewer).toContain("highlightCode(code, 'json')");
-    expect(viewer).toContain('<details');
-    expect(viewer).toContain('Request example');
-    expect(viewer).toContain('Response example');
-    expect(viewer).toContain('Webhook example');
+    expect(viewer).toContain("getDoc('api-reference')");
+    expect(viewer).not.toContain('const doc: DocRecord');
+    expect(viewer).toContain('Read-only API reference. Never paste an Authlane API key into browser tools.');
+    expect(viewer).toContain('OpenAPI YAML');
+    expect(viewer).toContain('OpenAPI JSON');
+    expect(viewer).toContain('<a href="/docs/openapi.yaml">');
+    expect(viewer).toContain('<a href="/docs/openapi.json">');
+    expect(viewer).not.toContain('<Link href="/docs/openapi.');
+    expect(viewer).toContain('ApiReferenceClient');
+    expect(client).toContain("'use client'");
+    expect(client).toContain("@scalar/api-reference-react/style.css");
+    expect(styles).toContain('.authlane-api-reference .scalar-app .scalar-mcp-layer');
   });
 
   it('keeps the explicit API viewer out of catch-all static generation', () => {
@@ -46,17 +57,15 @@ describe('documentation publication contract', () => {
     expect(params).not.toContainEqual({ slug: ['api-reference'] });
   });
 
-  it('renders resolved operation and webhook examples into static HTML', () => {
+  it('renders a server fallback and read-only warning into static HTML', () => {
     vi.stubGlobal('React', React);
     const html = renderToStaticMarkup(ApiReferencePage());
     vi.unstubAllGlobals();
 
-    expect(html).toContain('Request example');
-    expect(html).toContain('Response example');
-    expect(html).toContain('Webhook example');
-    expect(html).toContain('user_123');
-    expect(html).toContain('github_create_issue');
-    expect(html).toContain('connection.connected');
+    expect(html).toContain('Read-only API reference. Never paste an Authlane API key into browser tools.');
+    expect(html).toContain('OpenAPI YAML');
+    expect(html).toContain('OpenAPI JSON');
+    expect(html).toContain('Loading the interactive API reference');
   });
 
   it('allows docs crawling and lists all MDX routes in the sitemap', () => {

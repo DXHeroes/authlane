@@ -2139,23 +2139,96 @@ li {
   font-weight: 600;
 }
 
-.api-operation-list,
-.api-schema-list {
+.api-reference-page {
   display: grid;
-  gap: 0.65rem;
-  margin-top: 1.5rem;
+  min-width: 0;
+  gap: 1.5rem;
+  padding-block: clamp(2rem, 5vw, 4rem);
 }
 
-.api-operation,
-.api-schema-list details {
-  overflow: clip;
-  border: 1px solid var(--line);
+.api-reference-header {
+  display: grid;
+  max-width: 54rem;
+  gap: 1rem;
+}
+
+.api-reference-header h1 {
+  font-size: clamp(2.75rem, 7vw, 5rem);
+}
+
+.api-reference-header > p:last-child {
+  max-width: 58ch;
+  color: var(--muted);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+
+.api-reference-warning,
+.api-reference-fallback {
+  padding: 1rem;
+  border: 1px solid rgba(255, 143, 131, 0.35);
   border-radius: var(--radius-sm);
+  background: rgba(255, 143, 131, 0.06);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.api-reference-fallback {
+  display: grid;
+  gap: 0.5rem;
+  border-color: var(--line);
   background: var(--surface);
 }
 
-.api-operation summary,
-.api-schema-list summary,
+.api-reference-fallback p {
+  color: var(--muted);
+}
+
+.authlane-api-reference {
+  min-width: 0;
+  overflow: clip;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--canvas);
+  --scalar-background-1: var(--canvas);
+  --scalar-background-2: var(--surface);
+  --scalar-background-3: var(--surface-raised);
+  --scalar-background-4: var(--surface-code);
+  --scalar-background-accent: var(--accent);
+  --scalar-border-color: var(--line);
+  --scalar-color-1: var(--text);
+  --scalar-color-2: var(--muted);
+  --scalar-color-3: var(--subtle);
+  --scalar-color-accent: var(--accent);
+  --scalar-font: var(--font-inter), sans-serif;
+  --scalar-font-code: var(--font-mono), monospace;
+  --scalar-sidebar-background-1: var(--surface);
+  --scalar-sidebar-border-color: var(--line);
+  --scalar-sidebar-color-1: var(--text);
+  --scalar-sidebar-color-2: var(--muted);
+  --scalar-sidebar-color-active: var(--accent);
+  --scalar-sidebar-item-active-background: var(--surface-raised);
+  --scalar-sidebar-item-hover-background: var(--surface-raised);
+  --scalar-sidebar-search-background: var(--canvas);
+  --scalar-sidebar-search-border-color: var(--line-strong);
+}
+
+.authlane-api-reference > * {
+  min-width: 0;
+}
+
+.authlane-api-reference:has(.scalar-app) .api-reference-fallback {
+  display: none;
+}
+
+.authlane-api-reference .scalar-app {
+  max-width: 100%;
+}
+
+.authlane-api-reference .scalar-app .scalar-mcp-layer {
+  display: none;
+}
+
 .docs-nav-mobile summary {
   display: flex;
   min-height: 3rem;
@@ -2165,55 +2238,6 @@ li {
   color: var(--text);
   cursor: pointer;
   list-style-position: inside;
-}
-
-.api-operation summary > span:last-child {
-  min-width: 0;
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  overflow-wrap: anywhere;
-}
-
-.api-method {
-  width: 3.6rem;
-  flex: 0 0 auto;
-  color: #9ed8ff;
-  font-family: var(--font-mono), monospace;
-  font-size: 0.6875rem;
-  font-weight: 600;
-}
-
-.api-method--post {
-  color: var(--accent);
-}
-
-.api-method--delete {
-  color: var(--danger);
-}
-
-.api-operation dl {
-  display: grid;
-  padding: 0 1rem 1rem;
-  border-top: 1px solid var(--line);
-}
-
-.api-operation dl > div {
-  display: grid;
-  grid-template-columns: minmax(7rem, 1fr) minmax(0, 2fr);
-  gap: 1rem;
-  padding-block: 0.7rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.api-operation dt {
-  color: var(--subtle);
-  font-size: 0.75rem;
-}
-
-.api-operation dd {
-  color: var(--text);
-  overflow-wrap: anywhere;
 }
 
 @media (max-width: 68rem) {
@@ -2318,18 +2342,4 @@ li {
     font-size: 0.75rem;
   }
 
-  .api-operation summary {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .api-operation summary > span:last-child {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .api-operation dl > div {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
-  }
 }

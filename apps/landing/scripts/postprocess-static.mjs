@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const nextScriptPreloadPattern =
@@ -13,50 +13,68 @@ const interactionScriptPattern = /^\/_next\/static\/authlane-interactions-[a-f0-
 /**
  * @param {string} html
  * @param {string} interactionScriptPath
+ * @param {'static' | 'scalar'} mode
  */
-export function makeStaticDocument(html, interactionScriptPath) {
-  const withoutNextRuntime = html
-    .replace(nextScriptPreloadPattern, '')
-    .replace(scriptPattern, (script, attributes, content) => {
-      const source = attributes.match(scriptSourcePattern)?.[2];
-      if (source?.startsWith('/_next/static/')) return '';
-      if (!source && /(?:self\.)?__next_f/.test(content)) return '';
-      return script;
-    });
+export function makeStaticDocument(html, interactionScriptPath, mode) {
+  const preparedDocument =
+    mode === 'scalar'
+      ? html
+      : html
+          .replace(nextScriptPreloadPattern, '')
+          .replace(scriptPattern, (script, attributes, content) => {
+            const source = attributes.match(scriptSourcePattern)?.[2];
+            if (source?.startsWith('/_next/static/')) return '';
+            if (!source && /(?:self\.)?__next_f/.test(content)) return '';
+            return script;
+          });
 
   const interactionScript = `<script type="module" src="${interactionScriptPath}" defer></script>`;
-  return withoutNextRuntime.replace('</body>', `${interactionScript}</body>`);
+  return preparedDocument.replace('</body>', `${interactionScript}</body>`);
 }
 
-/** @param {string} html */
-export function staticDocumentViolations(html) {
+/**
+ * @param {string} html
+ * @param {'static' | 'scalar'} mode
+ */
+export function staticDocumentViolations(html, mode) {
   /** @type {string[]} */
   const violations = [];
-  if (html.includes('__next_f')) violations.push('contains a Next flight payload');
-  if (html.match(nextScriptPreloadPattern)?.length) {
+  if (mode === 'static' && html.includes('__next_f')) {
+    violations.push('contains a Next flight payload');
+  }
+  if (mode === 'static' && html.match(nextScriptPreloadPattern)?.length) {
     violations.push('contains a Next script preload');
   }
 
-  const externalScripts = [];
+  const interactionScripts = [];
   for (const match of html.matchAll(scriptPattern)) {
     const attributes = match[1] ?? '';
+    const content = match[2] ?? '';
     const source = attributes.match(scriptSourcePattern)?.[2];
     if (source) {
-      externalScripts.push({ attributes, source });
-      if (source.startsWith('/_next/static/chunks/')) {
+      if (source.startsWith('/_next/static/authlane-interactions')) {
+        interactionScripts.push({ attributes, source });
+      } else if (mode === 'static' && source.startsWith('/_next/static/')) {
         violations.push(`contains a Next runtime script: ${source}`);
+      } else if (mode === 'scalar' && source.startsWith('/_next/static/')) {
+        continue;
+      } else {
+        violations.push(`contains an unexpected external script: ${source}`);
       }
       continue;
     }
 
     const type = attributes.match(scriptTypePattern)?.[2]?.toLowerCase();
-    if (type !== 'application/ld+json') violations.push('contains executable inline script');
+    const isNextHydrationPayload = mode === 'scalar' && /(?:self\.)?__next_f/.test(content);
+    if (type !== 'application/ld+json' && !isNextHydrationPayload) {
+      violations.push('contains executable inline script');
+    }
   }
 
-  if (externalScripts.length !== 1) {
-    violations.push(`expected one external interaction script, found ${externalScripts.length}`);
+  if (interactionScripts.length !== 1) {
+    violations.push(`expected one external interaction script, found ${interactionScripts.length}`);
   } else {
-    const [interaction] = externalScripts;
+    const [interaction] = interactionScripts;
     const type = interaction.attributes.match(scriptTypePattern)?.[2]?.toLowerCase();
     const deferred = /(?:^|\s)defer(?:\s|=|$)/i.test(interaction.attributes);
     if (!interactionScriptPattern.test(interaction.source) || type !== 'module' || !deferred) {
@@ -96,8 +114,10 @@ async function postprocessStaticExport() {
 
   for (const path of await htmlFiles(outputDirectory)) {
     const html = await readFile(path, 'utf8');
-    const document = makeStaticDocument(html, interactionPublicPath);
-    const violations = staticDocumentViolations(document);
+    const relativeOutputPath = relative(outputDirectory, path).split(sep).join('/');
+    const mode = relativeOutputPath === 'docs/api-reference/index.html' ? 'scalar' : 'static';
+    const document = makeStaticDocument(html, interactionPublicPath, mode);
+    const violations = staticDocumentViolations(document, mode);
     if (violations.length > 0) {
       throw new Error(`${path} failed the static export contract: ${violations.join('; ')}`);
     }

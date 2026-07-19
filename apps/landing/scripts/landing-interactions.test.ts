@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { initializeLandingInteractions } from './landing-interactions.js';
+import { initializeLandingInteractions, rankDocsSearch } from './landing-interactions.js';
 
 function deferredClipboardWrite() {
   let resolve = () => {};
@@ -11,9 +11,177 @@ function deferredClipboardWrite() {
   return { promise, reject, resolve };
 }
 
+const searchEntries = [
+  {
+    slug: 'guides/connect-user',
+    title: 'Connect a user',
+    description: '',
+    headingId: '',
+    heading: '',
+    text: 'Create a connect session.',
+    keywords: ['externalUserId'],
+  },
+  {
+    slug: 'sdk/typescript',
+    title: 'TypeScript SDK',
+    description: '',
+    headingId: 'user-scoped-resources',
+    heading: 'User-scoped resources',
+    text: 'Bind an external user.',
+    keywords: ['typescript'],
+  },
+];
+
+function renderDocsSearchMarkup() {
+  document.body.innerHTML = `
+    <button type="button" data-docs-search-open aria-keyshortcuts="Meta+K Control+K">
+      Search documentation <kbd>⌘K</kbd>
+    </button>
+    <dialog id="docs-search" aria-labelledby="docs-search-title">
+      <h2 id="docs-search-title">Search documentation</h2>
+      <input type="search" name="docs-search" data-docs-search-input autocomplete="off" />
+      <ol data-docs-search-results aria-live="polite"></ol>
+      <button type="button" data-docs-search-close>Close</button>
+    </dialog>`;
+}
+
+async function settleSearchRequest() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+describe('documentation search ranking', () => {
+  it('ranks exact title and heading matches above body matches', () => {
+    expect(rankDocsSearch(searchEntries, 'connect a user')[0].slug).toBe('guides/connect-user');
+    expect(rankDocsSearch(searchEntries, 'user-scoped resources')[0].headingId).toBe(
+      'user-scoped-resources'
+    );
+  });
+
+  it('matches SDK names, service IDs, and error codes case-insensitively', () => {
+    expect(rankDocsSearch(searchEntries, 'EXTERNALUSERID')[0].slug).toBe('guides/connect-user');
+    expect(rankDocsSearch(searchEntries, '   ')).toEqual([]);
+  });
+
+  it('deduplicates identical targets and resolves score ties by navigation order', () => {
+    const entries = [
+      { ...searchEntries[1], text: 'Shared phrase.' },
+      { ...searchEntries[0], text: 'Shared phrase.' },
+      { ...searchEntries[1], text: 'Shared phrase repeated.' },
+    ];
+
+    expect(rankDocsSearch(entries, 'shared phrase').map(({ slug }) => slug)).toEqual([
+      'sdk/typescript',
+      'guides/connect-user',
+    ]);
+  });
+
+  it('honors the result limit', () => {
+    expect(rankDocsSearch(searchEntries, 'user', 1)).toHaveLength(1);
+  });
+});
+
 describe('dependency-free landing interactions', () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    document.body.replaceChildren();
+  });
+
+  it.each([
+    { modifier: 'Command', metaKey: true },
+    { modifier: 'Control', ctrlKey: true },
+  ])('opens search with $modifier+K and lazily fetches the local index', async (keys) => {
+    const fetchSearchIndex = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(searchEntries),
+    });
+    vi.stubGlobal('fetch', fetchSearchIndex);
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+
+    const trigger = document.querySelector<HTMLButtonElement>('[data-docs-search-open]');
+    const dialog = document.querySelector<HTMLDialogElement>('#docs-search');
+    const input = document.querySelector<HTMLInputElement>('[data-docs-search-input]');
+    expect(trigger).not.toBeNull();
+    expect(dialog).not.toBeNull();
+    expect(input).not.toBeNull();
+    if (!trigger || !dialog || !input) return;
+
+    trigger.focus();
+    expect(fetchSearchIndex).not.toHaveBeenCalled();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', bubbles: true, ...keys }));
+    await settleSearchRequest();
+
+    expect(dialog.open).toBe(true);
+    expect(document.activeElement).toBe(input);
+    expect(fetchSearchIndex).toHaveBeenCalledTimes(1);
+    expect(fetchSearchIndex).toHaveBeenCalledWith('/docs/search-index.json', {
+      credentials: 'same-origin',
+    });
+
+    document.querySelector<HTMLButtonElement>('[data-docs-search-close]')?.click();
+    expect(dialog.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+    trigger.click();
+    await settleSearchRequest();
+    expect(fetchSearchIndex).toHaveBeenCalledTimes(1);
+  });
+
+  it('traverses result links, closes on Escape, and restores focus', async () => {
+    const traversalEntries = searchEntries.map((entry) => ({
+      ...entry,
+      keywords: [...entry.keywords, 'shared'],
+    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue(traversalEntries),
+      })
+    );
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+
+    const trigger = document.querySelector<HTMLButtonElement>('[data-docs-search-open]');
+    const dialog = document.querySelector<HTMLDialogElement>('#docs-search');
+    const input = document.querySelector<HTMLInputElement>('[data-docs-search-input]');
+    trigger?.focus();
+    trigger?.click();
+    await settleSearchRequest();
+    if (!trigger || !dialog || !input) return;
+
+    input.value = 'shared';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-docs-search-result]')];
+    expect(links).toHaveLength(2);
+    expect(links[1].getAttribute('href')).toBe('/docs/sdk/typescript#user-scoped-resources');
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(document.activeElement).toBe(links[0]);
+    expect(links[0].getAttribute('data-active')).toBe('true');
+    links[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(document.activeElement).toBe(links[1]);
+    links[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    expect(document.activeElement).toBe(links[0]);
+
+    links[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(dialog.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('renders the exact navigation fallback when the local index cannot load', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Unavailable')));
+    renderDocsSearchMarkup();
+    initializeLandingInteractions();
+
+    document.querySelector<HTMLButtonElement>('[data-docs-search-open]')?.click();
+    await settleSearchRequest();
+
+    expect(document.querySelector('[data-docs-search-results]')?.textContent).toBe(
+      'Search is temporarily unavailable. Browse the documentation navigation instead.'
+    );
   });
 
   it('operates the mobile menu and every accessible code-tab interaction', () => {

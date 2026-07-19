@@ -11,6 +11,7 @@ import type { DocRecord } from '../lib/docs';
 import { normalizeLanguage } from '../lib/highlight-code';
 import { CodeGroup, DocsCodeBlock } from './docs-code';
 import { DocsNavigation, PreviousNext } from './docs-navigation';
+import { DocsSearch } from './docs-search';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 
@@ -116,12 +117,13 @@ function Breadcrumbs({ doc }: { doc: DocRecord }) {
 
 export function DocsPage({ doc, children }: { doc: DocRecord; children?: ReactNode }) {
   return (
-    <div className="site-shell docs-site-shell antialiased">
+    <div className="site-shell docs-site-shell antialiased isolate">
       <a className="skip-link" href="#docs-content">
         Skip to documentation
       </a>
       <SiteHeader navigationVariant="absolute" />
       <main className="docs-layout container">
+        <DocsSearch />
         <DocsNavigation currentSlug={doc.slug} />
         <article id="docs-content" className="docs-article">
           <Breadcrumbs doc={doc} />

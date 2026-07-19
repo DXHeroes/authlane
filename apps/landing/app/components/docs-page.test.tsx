@@ -117,6 +117,26 @@ describe('documentation page components', () => {
     );
   });
 
+  it('renders global search as static accessible dialog markup', () => {
+    const page = renderToStaticMarkup(
+      <DocsPage doc={getDoc('introduction')}>
+        <p>Article body.</p>
+      </DocsPage>
+    );
+
+    expect(page).toContain('data-docs-search-open="true"');
+    expect(page).toContain('aria-keyshortcuts="Meta+K Control+K"');
+    expect(page).toContain('<kbd>⌘K</kbd>');
+    expect(page).toContain(
+      '<dialog id="docs-search" class="docs-search__dialog" aria-labelledby="docs-search-title">'
+    );
+    expect(page).toContain('type="search"');
+    expect(page).toContain('name="docs-search"');
+    expect(page).toContain('data-docs-search-input="true"');
+    expect(page).toContain('data-docs-search-results="true" aria-live="polite"');
+    expect(page).toContain('data-docs-search-close="true"');
+  });
+
   it('places page actions and adjacency after the article body', () => {
     const html = renderToStaticMarkup(
       <DocsPage doc={getDoc('introduction')}>

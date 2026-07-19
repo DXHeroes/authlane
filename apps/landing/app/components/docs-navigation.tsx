@@ -1,6 +1,5 @@
 /* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
 /* biome-ignore-all lint/a11y/useSemanticElements: Explicit list roles preserve semantics after the visual reset. */
-import Link from 'next/link';
 import { getAdjacentDocs, getDocsNavigation } from '../lib/docs';
 import { getPublicDocPath } from '../lib/docs-public-route.mjs';
 
@@ -12,12 +11,12 @@ export function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
       <ul role="list">
         {group.docs.map((doc) => (
           <li key={doc.slug}>
-            <Link
+            <a
               href={getPublicDocPath(doc.slug)}
               aria-current={doc.slug === currentSlug ? 'page' : undefined}
             >
               {doc.title}
-            </Link>
+            </a>
           </li>
         ))}
       </ul>
@@ -57,24 +56,24 @@ export function PreviousNext({ currentSlug }: { currentSlug: string }) {
   return (
     <nav className="docs-pagination" aria-label="Documentation pagination">
       {previous ? (
-        <Link
+        <a
           className="docs-pagination__link docs-pagination__link--previous"
           href={getPublicDocPath(previous.slug)}
         >
           <span className="mono docs-pagination__direction">Previous</span>
           <span>{previous.title}</span>
-        </Link>
+        </a>
       ) : (
         <span aria-hidden="true" />
       )}
       {next ? (
-        <Link
+        <a
           className="docs-pagination__link docs-pagination__link--next"
           href={getPublicDocPath(next.slug)}
         >
           <span className="mono docs-pagination__direction">Next</span>
           <span>{next.title}</span>
-        </Link>
+        </a>
       ) : (
         <span aria-hidden="true" />
       )}

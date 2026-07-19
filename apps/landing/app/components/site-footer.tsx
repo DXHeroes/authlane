@@ -1,6 +1,5 @@
 /* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
 /* biome-ignore-all lint/a11y/useSemanticElements: These roles are applied to their native list elements. */
-import Link from 'next/link';
 import { landingLinks } from '../content';
 import {
   getMarketingHomepage,
@@ -27,16 +26,16 @@ export function SiteFooter({ navigationVariant = 'landing' }: SiteFooterProps) {
     <footer className="site-footer">
       <div className="container site-footer__inner">
         <div className="site-footer__identity">
-          <Link className="wordmark" href={homepageHref} aria-label="Authlane homepage">
+          <a className="wordmark" href={homepageHref} aria-label="Authlane homepage">
             Authlane
-          </Link>
+          </a>
           <p>The control plane for connected tools.</p>
         </div>
         <nav aria-label="Footer navigation">
           <ul className="site-footer__links" role="list">
             {footerLinks.map((link) => (
               <li key={link.label}>
-                <Link
+                <a
                   href={
                     'sectionId' in link
                       ? getMarketingSectionHref(link.sectionId, navigationVariant)
@@ -44,7 +43,7 @@ export function SiteFooter({ navigationVariant = 'landing' }: SiteFooterProps) {
                   }
                 >
                   {link.label}
-                </Link>
+                </a>
               </li>
             ))}
           </ul>

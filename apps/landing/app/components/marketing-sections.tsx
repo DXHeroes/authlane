@@ -1,6 +1,5 @@
 /* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
 /* biome-ignore-all lint/a11y/useSemanticElements: These roles are applied to their native list elements. */
-import Link from 'next/link';
 import { landingLinks, serviceGroups } from '../content';
 
 const securityBoundaries = [
@@ -198,9 +197,9 @@ export function MarketingSections() {
               connect and into locally executing tools.
             </p>
           </div>
-          <Link className="secondary-action secondary-action--outlined" href={landingLinks.app}>
+          <a className="secondary-action secondary-action--outlined" href={landingLinks.app}>
             Start building
-          </Link>
+          </a>
         </div>
       </section>
     </>

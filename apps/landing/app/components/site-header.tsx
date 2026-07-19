@@ -2,7 +2,6 @@
 /* biome-ignore-all lint/a11y/useSemanticElements: These roles are applied to their native list elements. */
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import { landingLinks } from '../content';
 import {
@@ -23,25 +22,25 @@ export function SiteHeader({ navigationVariant = 'landing' }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <div className="container site-header__inner">
-        <Link className="wordmark" href={homepageHref} aria-label="Authlane homepage">
+        <a className="wordmark" href={homepageHref} aria-label="Authlane homepage">
           Authlane
-        </Link>
+        </a>
 
         <nav className="desktop-navigation" aria-label="Primary navigation">
           <ul className="desktop-navigation__links" role="list">
             {marketingNavigationItems.map((item) => (
               <li key={item.sectionId}>
-                <Link href={getMarketingSectionHref(item.sectionId, navigationVariant)}>
+                <a href={getMarketingSectionHref(item.sectionId, navigationVariant)}>
                   {item.label}
-                </Link>
+                </a>
               </li>
             ))}
           </ul>
         </nav>
 
         <div className="site-header__actions">
-          <Link href={landingLinks.github}>GitHub</Link>
-          <Link href={landingLinks.signIn}>Sign in</Link>
+          <a href={landingLinks.github}>GitHub</a>
+          <a href={landingLinks.signIn}>Sign in</a>
         </div>
 
         <button
@@ -66,19 +65,19 @@ export function SiteHeader({ navigationVariant = 'landing' }: SiteHeaderProps) {
         <ul className="container mobile-navigation__links" role="list">
           {marketingNavigationItems.map((item) => (
             <li key={item.sectionId}>
-              <Link
+              <a
                 href={getMarketingSectionHref(item.sectionId, navigationVariant)}
                 onClick={() => setIsNavigationOpen(false)}
               >
                 {item.label}
-              </Link>
+              </a>
             </li>
           ))}
           <li>
-            <Link href={landingLinks.github}>GitHub</Link>
+            <a href={landingLinks.github}>GitHub</a>
           </li>
           <li>
-            <Link href={landingLinks.signIn}>Sign in</Link>
+            <a href={landingLinks.signIn}>Sign in</a>
           </li>
         </ul>
       </nav>

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as React from 'react';
@@ -12,6 +12,14 @@ import ApiReferencePage from './api-reference/page';
 
 const landingRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const repositoryRoot = resolve(landingRoot, '../..');
+
+function sourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return entry.isFile() && /\.[cm]?[jt]sx?$/.test(entry.name) ? [path] : [];
+  });
+}
 
 describe('documentation publication contract', () => {
   it('publishes current byte-identical YAML and stable JSON assets', () => {
@@ -62,6 +70,15 @@ describe('documentation publication contract', () => {
     expect(params).toHaveLength(getAllDocs().length - 2);
     expect(params).not.toContainEqual({ slug: ['introduction'] });
     expect(params).not.toContainEqual({ slug: ['api-reference'] });
+  });
+
+  it('uses document navigation instead of Next RSC links in the static export', () => {
+    const nextLinkImporters = sourceFiles(resolve(landingRoot, 'app'))
+      .filter((path) => !path.includes('.test.'))
+      .filter((path) => /from\s+['"]next\/link['"]/.test(readFileSync(path, 'utf8')))
+      .map((path) => path.slice(landingRoot.length + 1));
+
+    expect(nextLinkImporters).toEqual([]);
   });
 
   it('uses one canonical public-route helper for every manifest-backed surface', () => {

@@ -1,6 +1,5 @@
 /* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
 /* biome-ignore-all lint/a11y/useSemanticElements: Explicit list roles preserve semantics after the visual reset. */
-import Link from 'next/link';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
@@ -35,7 +34,7 @@ function DocsLink({ href = '', children }: { href?: string; children?: ReactNode
   if (normalized.startsWith('http') || normalized.startsWith('mailto:')) {
     return <a href={normalized}>{children}</a>;
   }
-  return <Link href={normalized}>{children}</Link>;
+  return <a href={normalized}>{children}</a>;
 }
 
 type CalloutTone = 'note' | 'warning' | 'security' | 'performance';
@@ -77,7 +76,7 @@ export function PageActions({ doc }: { doc: DocRecord }) {
       : `apps/docs/${doc.slug}.mdx`;
   return (
     <nav className="docs-page-actions" aria-label="Page actions">
-      <Link href={`/docs/markdown/${doc.slug}.md`}>Open Markdown</Link>
+      <a href={`/docs/markdown/${doc.slug}.md`}>Open Markdown</a>
       <a href={`${landingLinks.github}/blob/main/${sourcePath}`}>View source</a>
     </nav>
   );
@@ -100,7 +99,7 @@ function Breadcrumbs({ doc }: { doc: DocRecord }) {
     <nav className="docs-breadcrumbs" aria-label="Breadcrumb">
       <ol role="list">
         <li>
-          <Link href="/docs">Docs</Link>
+          <a href="/docs">Docs</a>
         </li>
         {segments.map((segment, index) => {
           const current = index === segments.length - 1;

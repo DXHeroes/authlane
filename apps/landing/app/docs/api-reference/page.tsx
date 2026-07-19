@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { SiteFooter } from '../../components/site-footer';
 import { SiteHeader } from '../../components/site-header';
 import { getDoc } from '../../lib/docs';
@@ -32,7 +31,7 @@ export default function ApiReferencePage() {
         <nav className="docs-breadcrumbs" aria-label="Breadcrumb">
           <ol>
             <li>
-              <Link href="/docs">Docs</Link>
+              <a href="/docs">Docs</a>
             </li>
             <li aria-current="page">{doc.title}</li>
           </ol>

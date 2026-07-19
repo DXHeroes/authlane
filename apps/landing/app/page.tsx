@@ -1,6 +1,5 @@
 /* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
 /* biome-ignore-all lint/a11y/useSemanticElements: These roles are applied to their native list elements. */
-import Link from 'next/link';
 import { DeveloperJourney } from './components/developer-journey';
 import { MarketingSections } from './components/marketing-sections';
 import { RequestFlow } from './components/request-flow';
@@ -24,15 +23,12 @@ export default function Home() {
                 flow, then execute directly from your trusted SaaS runtime.
               </p>
               <div className="hero__actions">
-                <Link className="primary-action" href={landingLinks.app} data-primary-cta>
+                <a className="primary-action" href={landingLinks.app} data-primary-cta>
                   Start building
-                </Link>
-                <Link
-                  className="secondary-action secondary-action--outlined"
-                  href={landingLinks.docs}
-                >
+                </a>
+                <a className="secondary-action secondary-action--outlined" href={landingLinks.docs}>
                   Read the docs
-                </Link>
+                </a>
               </div>
               <ul className="hero-facts" role="list" aria-label="Authlane product facts">
                 <li className="mono">One API</li>

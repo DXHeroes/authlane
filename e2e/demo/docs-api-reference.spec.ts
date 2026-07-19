@@ -5,6 +5,13 @@ const apiClientSelector = '.scalar-app-layout.scalar-client[aria-label="API Clie
 test('the rendered API reference keeps Scalar authentication and request UI inert', async ({
   page,
 }) => {
+  const staticExportRouteErrors: string[] = [];
+  page.on('response', (response) => {
+    if (response.status() === 404 && /\.txt(?:\?|$)/.test(response.url())) {
+      staticExportRouteErrors.push(response.url());
+    }
+  });
+
   await page.goto('http://authlane.localhost:3000/docs/api-reference');
   await expect(page.locator('.authlane-api-reference .scalar-api-reference')).toBeAttached();
 
@@ -28,4 +35,11 @@ test('the rendered API reference keeps Scalar authentication and request UI iner
   await expect(authenticationBadge).toBeDisabled();
   await expect(authenticationBadge).toHaveAttribute('inert', '');
   await expect(authenticationBadge).toHaveAttribute('tabindex', '-1');
+
+  await page.waitForTimeout(250);
+  expect(staticExportRouteErrors).toEqual([]);
+
+  await page.getByRole('link', { name: 'Docs', exact: true }).first().click();
+  await expect(page).toHaveURL('http://authlane.localhost:3000/docs');
+  expect(staticExportRouteErrors).toEqual([]);
 });

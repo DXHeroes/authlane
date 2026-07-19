@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { SiteFooter } from './components/site-footer';
 import { SiteHeader } from './components/site-header';
 
@@ -14,9 +13,9 @@ export default function NotFound() {
             This route does not exist. Documentation lives under authlane.io/docs; the dashboard,
             hosted connect flow, and API live at app.authlane.io.
           </p>
-          <Link className="secondary-action secondary-action--outlined" href="https://authlane.io/">
+          <a className="secondary-action secondary-action--outlined" href="https://authlane.io/">
             Return to Authlane
-          </Link>
+          </a>
         </section>
       </main>
       <SiteFooter navigationVariant="absolute" />

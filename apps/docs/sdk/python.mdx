@@ -35,11 +35,20 @@ Python.
 ## Connect an external user
 
 ```python
-session = authlane.connect_sessions.create(
-    external_user_id="user_123",
-    allowed_services=[],
-    allowed_origin="https://app.example.com",
-)
+import os
+
+from authlane import Authlane
+
+with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+    session_result = authlane.connect_sessions.create(
+        external_user_id="user_123",
+        allowed_services=[],
+        allowed_origin="https://app.example.com",
+    )
+    if session_result.error is not None:
+        raise RuntimeError(f"{session_result.error.code}: {session_result.error.message}")
+    assert session_result.data is not None
+    session = session_result.data
 ```
 
 `allowed_services=[]` snapshots every service currently enabled for the tenant. Pass explicit

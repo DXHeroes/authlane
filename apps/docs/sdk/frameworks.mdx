@@ -49,10 +49,30 @@ from authlane.adapters import agno, generic, langchain, openai_agents
 
 with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
     user = authlane.user("user_123")
-    agno_tools = user.tools.list(adapter=agno())
-    langchain_tools = user.tools.list(adapter=langchain())
-    openai_tools = user.tools.list(adapter=openai_agents())
-    portable_tools = user.tools.list(adapter=generic())
+
+    agno_result = user.tools.list(adapter=agno())
+    if agno_result.error is not None:
+        raise RuntimeError(f"{agno_result.error.code}: {agno_result.error.message}")
+    assert agno_result.data is not None
+    agno_tools = agno_result.data
+
+    langchain_result = user.tools.list(adapter=langchain())
+    if langchain_result.error is not None:
+        raise RuntimeError(f"{langchain_result.error.code}: {langchain_result.error.message}")
+    assert langchain_result.data is not None
+    langchain_tools = langchain_result.data
+
+    openai_result = user.tools.list(adapter=openai_agents())
+    if openai_result.error is not None:
+        raise RuntimeError(f"{openai_result.error.code}: {openai_result.error.message}")
+    assert openai_result.data is not None
+    openai_tools = openai_result.data
+
+    portable_result = user.tools.list(adapter=generic())
+    if portable_result.error is not None:
+        raise RuntimeError(f"{portable_result.error.code}: {portable_result.error.message}")
+    assert portable_result.data is not None
+    portable_tools = portable_result.data
 ```
 
 ## Identity and execution boundary

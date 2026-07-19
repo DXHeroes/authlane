@@ -84,7 +84,13 @@ Export both `.` and `./tools` from the package. Authlane imports `./tools` when 
 ## Execute in the SaaS
 
 ```typescript
+import { Authlane } from '@authlane/sdk';
 import trello from '@authlane/integration-trello';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
 
 const { data: credentials, error } = await authlane.credentialLeases.create({
   externalUserId: 'user_123',

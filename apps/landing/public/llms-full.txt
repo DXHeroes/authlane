@@ -504,7 +504,13 @@ Export both `.` and `./tools` from the package. Authlane imports `./tools` when 
 ## Execute in the SaaS
 
 ```typescript
+import { Authlane } from '@authlane/sdk';
 import trello from '@authlane/integration-trello';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
 
 const { data: credentials, error } = await authlane.credentialLeases.create({
   externalUserId: 'user_123',
@@ -1022,11 +1028,20 @@ Python.
 ## Connect an external user
 
 ```python
-session = authlane.connect_sessions.create(
-    external_user_id="user_123",
-    allowed_services=[],
-    allowed_origin="https://app.example.com",
-)
+import os
+
+from authlane import Authlane
+
+with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
+    session_result = authlane.connect_sessions.create(
+        external_user_id="user_123",
+        allowed_services=[],
+        allowed_origin="https://app.example.com",
+    )
+    if session_result.error is not None:
+        raise RuntimeError(f"{session_result.error.code}: {session_result.error.message}")
+    assert session_result.data is not None
+    session = session_result.data
 ```
 
 `allowed_services=[]` snapshots every service currently enabled for the tenant. Pass explicit
@@ -1114,10 +1129,30 @@ from authlane.adapters import agno, generic, langchain, openai_agents
 
 with Authlane(api_key=os.environ["AUTHLANE_API_KEY"]) as authlane:
     user = authlane.user("user_123")
-    agno_tools = user.tools.list(adapter=agno())
-    langchain_tools = user.tools.list(adapter=langchain())
-    openai_tools = user.tools.list(adapter=openai_agents())
-    portable_tools = user.tools.list(adapter=generic())
+
+    agno_result = user.tools.list(adapter=agno())
+    if agno_result.error is not None:
+        raise RuntimeError(f"{agno_result.error.code}: {agno_result.error.message}")
+    assert agno_result.data is not None
+    agno_tools = agno_result.data
+
+    langchain_result = user.tools.list(adapter=langchain())
+    if langchain_result.error is not None:
+        raise RuntimeError(f"{langchain_result.error.code}: {langchain_result.error.message}")
+    assert langchain_result.data is not None
+    langchain_tools = langchain_result.data
+
+    openai_result = user.tools.list(adapter=openai_agents())
+    if openai_result.error is not None:
+        raise RuntimeError(f"{openai_result.error.code}: {openai_result.error.message}")
+    assert openai_result.data is not None
+    openai_tools = openai_result.data
+
+    portable_result = user.tools.list(adapter=generic())
+    if portable_result.error is not None:
+        raise RuntimeError(f"{portable_result.error.code}: {portable_result.error.message}")
+    assert portable_result.data is not None
+    portable_tools = portable_result.data
 ```
 
 ## Identity and execution boundary

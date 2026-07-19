@@ -12,10 +12,7 @@ const publicOriginVariables = [
 
 describe('Coolify runtime configuration', () => {
   it('copies every documentation contract input before landing checks run', async () => {
-    const dockerfile = await readFile(
-      new URL('../apps/api/Dockerfile', import.meta.url),
-      'utf8'
-    );
+    const dockerfile = await readFile(new URL('../apps/api/Dockerfile', import.meta.url), 'utf8');
     const landingBuildIndex = dockerfile.indexOf('pnpm --filter @authlane/landing build');
 
     for (const copyInstruction of [

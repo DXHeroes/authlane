@@ -229,6 +229,8 @@ function documentFromSource(document, navigationGroup, order, documentSlugs) {
     title: String(attributes.title ?? 'Authlane documentation'),
     description: String(attributes.description ?? ''),
     ...(typeof attributes.api === 'string' ? { api: attributes.api } : {}),
+    ...(typeof attributes.serviceId === 'string' ? { serviceId: attributes.serviceId } : {}),
+    ...(typeof attributes.authType === 'string' ? { authType: attributes.authType } : {}),
     source: body,
     headings: extractHeadings(body),
     navigationGroup,
@@ -485,6 +487,111 @@ export function validateDocumentation({ navigation, documents }) {
   return violations.sort((left, right) => left.localeCompare(right));
 }
 
+const requiredIntegrationHeadings = [
+  'Prerequisites',
+  'Configure authentication',
+  'Scopes',
+  'Available tools',
+  'Connection lifecycle',
+  'Troubleshooting',
+];
+
+function quotedInlineValue(source, value) {
+  return source.includes(`\`${value}\``);
+}
+
+function documentedToolNames(source, toolNames) {
+  const prefixes = new Set(toolNames.map((name) => name.slice(0, name.indexOf('_') + 1)));
+  if (prefixes.size === 0) return [];
+  const escapedPrefixes = [...prefixes]
+    .filter(Boolean)
+    .map((prefix) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (escapedPrefixes.length === 0) return [];
+  const pattern = new RegExp(`\\\`((?:${escapedPrefixes.join('|')})[a-z0-9_]+)\\\``, 'g');
+  return [...new Set([...source.matchAll(pattern)].map((match) => match[1]))];
+}
+
+export function validateIntegrationPages(model, integrationConfigs) {
+  const violations = [];
+  const pages = new Map(
+    model.documents
+      .filter((document) => document.slug.startsWith('integrations/'))
+      .map((document) => [document.slug.slice('integrations/'.length), document])
+  );
+  const configs = new Map(integrationConfigs.map((config) => [config.serviceId, config]));
+
+  for (const [serviceId] of pages) {
+    if (!configs.has(serviceId)) {
+      violations.push(`integrations/${serviceId}: integration page has no matching config`);
+    }
+  }
+
+  for (const config of integrationConfigs) {
+    const slug = `integrations/${config.serviceId}`;
+    const page = pages.get(config.serviceId);
+    if (!page) {
+      violations.push(`${slug}: integration page missing for configured integration`);
+      continue;
+    }
+
+    if (page.title !== config.name) {
+      violations.push(
+        `${slug}: integration page title "${page.title}" does not match config "${config.name}"`
+      );
+    }
+    const requiredDescription = `Connect ${config.name} and use its tools through the Authlane control plane.`;
+    if (page.description !== requiredDescription) {
+      violations.push(`${slug}: integration page description does not match required value`);
+    }
+    if (page.serviceId !== config.serviceId) {
+      const actual = page.serviceId ?? 'missing';
+      violations.push(
+        `${slug}: integration page serviceId "${actual}" does not match config "${config.serviceId}"`
+      );
+    }
+    if (page.authType !== config.authType) {
+      const actual = page.authType ?? 'missing';
+      violations.push(
+        `${slug}: integration page authType "${actual}" does not match config "${config.authType}"`
+      );
+    }
+
+    const headings = new Set(page.headings.map((heading) => heading.text));
+    for (const heading of requiredIntegrationHeadings) {
+      if (!headings.has(heading)) {
+        violations.push(`${slug}: integration page missing section "${heading}"`);
+      }
+    }
+
+    for (const scope of config.defaultScopes) {
+      if (!quotedInlineValue(page.source, scope)) {
+        violations.push(`${slug}: integration page missing default scope "${scope}"`);
+      }
+    }
+    if (
+      config.defaultScopes.length === 0 &&
+      !/\bno default (?:OAuth )?scopes\b/i.test(page.source)
+    ) {
+      violations.push(`${slug}: integration page missing empty default-scope explanation`);
+    }
+
+    const exportedTools = new Set(config.toolNames);
+    const documentedTools = new Set(documentedToolNames(page.source, config.toolNames));
+    for (const toolName of exportedTools) {
+      if (!documentedTools.has(toolName)) {
+        violations.push(`${slug}: integration page missing exported tool "${toolName}"`);
+      }
+    }
+    for (const toolName of documentedTools) {
+      if (!exportedTools.has(toolName)) {
+        violations.push(`${slug}: integration page documents unknown tool "${toolName}"`);
+      }
+    }
+  }
+
+  return violations.sort((left, right) => left.localeCompare(right));
+}
+
 function docsRootFrom(root) {
   const candidate = resolve(root);
   try {
@@ -506,6 +613,37 @@ function collectMdxFiles(directory) {
   return files.sort((left, right) => left.localeCompare(right));
 }
 
+function extractExportedToolNames(source) {
+  return [
+    ...new Set(
+      [...source.matchAll(/\bdefinition\s*:\s*\{\s*name\s*:\s*(['"])([a-z][a-z0-9_]*)\1/g)].map(
+        (match) => match[2]
+      )
+    ),
+  ].sort((left, right) => left.localeCompare(right));
+}
+
+export function loadIntegrationConfigs(root) {
+  const integrationsRoot = join(resolve(root), 'integrations');
+  return readdirSync(integrationsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const directory = join(integrationsRoot, entry.name);
+      const parsed = YAML.parse(readFileSync(join(directory, 'config.yaml'), 'utf8'));
+      const defaultScopes = parsed?.config?.default_scopes;
+      return {
+        name: String(parsed?.name ?? ''),
+        serviceId: String(parsed?.id ?? ''),
+        authType: String(parsed?.auth_type ?? ''),
+        defaultScopes: Array.isArray(defaultScopes)
+          ? defaultScopes.map((scope) => String(scope))
+          : [],
+        toolNames: extractExportedToolNames(readFileSync(join(directory, 'tools.ts'), 'utf8')),
+      };
+    })
+    .sort((left, right) => left.serviceId.localeCompare(right.serviceId));
+}
+
 export function loadDocumentation(root) {
   const docsRoot = docsRootFrom(root);
   const mint = JSON.parse(readFileSync(join(docsRoot, 'mint.json'), 'utf8'));
@@ -518,6 +656,15 @@ export function loadDocumentation(root) {
   }));
 
   return { navigation: mint.navigation, documents };
+}
+
+export function validateRepositoryDocumentation(root) {
+  const documentation = loadDocumentation(root);
+  const model = buildDocumentationModel(documentation);
+  return [
+    ...validateDocumentation(documentation),
+    ...validateIntegrationPages(model, loadIntegrationConfigs(root)),
+  ].sort((left, right) => left.localeCompare(right));
 }
 
 export function renderGeneratedAssets(model) {

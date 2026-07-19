@@ -1,18 +1,63 @@
 # Notion
 
-Use the local Notion adapter with Authlane credentials
+Connect Notion and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Notion:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-notion
-```
+Create a public Notion integration and make the pages or databases needed by your SaaS available to
+that integration. The tools can only see content the connected integration can access.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/notion/callback` in the Notion integration.
+Enable Notion for the tenant in Authlane and store the OAuth client ID and encrypted client secret.
+Authlane uses the endpoints declared in `integrations/notion/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Notion directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+The repository config declares no default OAuth scopes for Notion. Do not invent a scope list:
+content access comes from the pages and databases made available to the connected integration.
+
+## Available tools
+
+### Pages and databases
+
+- `notion_create_page`
+- `notion_update_page`
+- `notion_get_page`
+- `notion_query_database`
+- `notion_get_database`
+- `notion_list_databases`
+- `notion_search`
+
+### Blocks
+
+- `notion_append_block_children`
+- `notion_get_block`
+- `notion_get_block_children`
+- `notion_update_block`
+- `notion_delete_block`
+
+### Users
+
+- `notion_get_user`
+- `notion_list_users`
+- `notion_get_bot_user`
+
+Install `@authlane/integration-notion` in the SaaS runtime. Each tool callback receives a fresh
+credential lease and calls Notion directly; page content and provider responses do not pass
+through Authlane.
+
+## Connection lifecycle
+
+Successful Notion consent creates an encrypted `connected` credential. Authlane only schedules
+refresh when a provider token response contains expiry and refresh material; otherwise provider
+revocation or rejection requires reconnect. Disconnect through a new hosted connect session after
+recent reauthentication and stop exposing Notion tools for that user.
+
+## Troubleshooting
+
+- A missing page or database usually has not been made available to the connected integration.
+- Use page, database, block, and user IDs returned by Notion; copied browser URLs may need their ID
+  extracted first.
+- Property and block payloads must match the target database schema and Notion object structure.

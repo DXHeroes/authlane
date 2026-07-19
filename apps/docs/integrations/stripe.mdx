@@ -1,19 +1,51 @@
 ---
 title: Stripe
-description: Use the local Stripe adapter with Authlane credentials
+description: 'Connect Stripe and use its tools through the Authlane control plane.'
+serviceId: stripe
+authType: oauth2
 ---
 
-Install the published adapter in the SaaS or agent runtime that will call Stripe:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-stripe
-```
+Create a Stripe Connect platform and choose the connected accounts whose customers and charges the
+SaaS will read. The exported adapter is read-only.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/stripe/callback` as the Stripe Connect redirect
+URI. Enable Stripe for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the default from `integrations/stripe/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Stripe directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `read_only` permits the customer and charge reads exposed by this integration.
+
+## Available tools
+
+### Customers
+
+- `stripe_list_customers`
+- `stripe_get_customer`
+
+### Charges
+
+- `stripe_list_charges`
+- `stripe_get_charge`
+
+Install `@authlane/integration-stripe` in the SaaS runtime. Each tool invocation requests a fresh
+lease and calls Stripe directly; Authlane does not proxy customer data, payment data, or Stripe
+responses.
+
+## Connection lifecycle
+
+Successful Stripe consent stores the OAuth credential encrypted and reports `connected`. Authlane
+refreshes before expiry only when Stripe returns expiry and refresh material. Reconnect after
+provider revocation or an `expired` or `error` state. Hosted disconnect requires a fresh connect
+session with recent reauthentication.
+
+## Troubleshooting
+
+- Customer and charge IDs must belong to the connected Stripe account.
+- An empty list can mean the wrong account was connected or no matching data exists.
+- This adapter exports no create, update, refund, or delete tools; `read_only` is the only configured
+  default scope.

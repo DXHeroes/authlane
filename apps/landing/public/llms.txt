@@ -36,21 +36,21 @@
 - [List tools](https://authlane.io/docs/api-reference/tools/list-tools): Return MCP tools or OpenAI functions for currently usable connections
 - [API overview](https://authlane.io/docs/api-reference/introduction): Use the scoped Authlane control-plane API and open the complete read-only OpenAPI reference.
 - [API reference](https://authlane.io/docs/api-reference): Inspect the complete read-only Authlane OpenAPI control-plane contract.
-- [GitHub](https://authlane.io/docs/integrations/github): Use the local GitHub adapter with Authlane credentials
-- [Linear](https://authlane.io/docs/integrations/linear): Use the local Linear adapter with Authlane credentials
-- [Jira](https://authlane.io/docs/integrations/jira): Use the local Jira adapter with Authlane credentials
-- [Sentry](https://authlane.io/docs/integrations/sentry): Use the local Sentry adapter with Authlane credentials
-- [Slack](https://authlane.io/docs/integrations/slack): Use the local Slack adapter with Authlane credentials
-- [Discord](https://authlane.io/docs/integrations/discord): Use the local Discord adapter with Authlane credentials
-- [Gmail](https://authlane.io/docs/integrations/gmail): Use the local Gmail adapter with Authlane credentials
-- [Notion](https://authlane.io/docs/integrations/notion): Use the local Notion adapter with Authlane credentials
-- [Google Drive](https://authlane.io/docs/integrations/google-drive): Use the local Google Drive adapter with Authlane credentials
-- [Google Calendar](https://authlane.io/docs/integrations/google-calendar): Use the local Google Calendar adapter with Authlane credentials
-- [HubSpot](https://authlane.io/docs/integrations/hubspot): Use the local HubSpot adapter with Authlane credentials
-- [Salesforce](https://authlane.io/docs/integrations/salesforce): Use the local Salesforce adapter with Authlane credentials
-- [Pipedrive](https://authlane.io/docs/integrations/pipedrive): Use the local Pipedrive adapter with Authlane credentials
-- [Stripe](https://authlane.io/docs/integrations/stripe): Use the local Stripe adapter with Authlane credentials
-- [Airtable](https://authlane.io/docs/integrations/airtable): Use the local Airtable adapter with Authlane credentials
+- [GitHub](https://authlane.io/docs/integrations/github): Connect GitHub and use its tools through the Authlane control plane.
+- [Linear](https://authlane.io/docs/integrations/linear): Connect Linear and use its tools through the Authlane control plane.
+- [Jira](https://authlane.io/docs/integrations/jira): Connect Jira and use its tools through the Authlane control plane.
+- [Sentry](https://authlane.io/docs/integrations/sentry): Connect Sentry and use its tools through the Authlane control plane.
+- [Slack](https://authlane.io/docs/integrations/slack): Connect Slack and use its tools through the Authlane control plane.
+- [Discord](https://authlane.io/docs/integrations/discord): Connect Discord and use its tools through the Authlane control plane.
+- [Gmail](https://authlane.io/docs/integrations/gmail): Connect Gmail and use its tools through the Authlane control plane.
+- [Notion](https://authlane.io/docs/integrations/notion): Connect Notion and use its tools through the Authlane control plane.
+- [Google Drive](https://authlane.io/docs/integrations/google-drive): Connect Google Drive and use its tools through the Authlane control plane.
+- [Google Calendar](https://authlane.io/docs/integrations/google-calendar): Connect Google Calendar and use its tools through the Authlane control plane.
+- [HubSpot](https://authlane.io/docs/integrations/hubspot): Connect HubSpot and use its tools through the Authlane control plane.
+- [Salesforce](https://authlane.io/docs/integrations/salesforce): Connect Salesforce and use its tools through the Authlane control plane.
+- [Pipedrive](https://authlane.io/docs/integrations/pipedrive): Connect Pipedrive and use its tools through the Authlane control plane.
+- [Stripe](https://authlane.io/docs/integrations/stripe): Connect Stripe and use its tools through the Authlane control plane.
+- [Airtable](https://authlane.io/docs/integrations/airtable): Connect Airtable and use its tools through the Authlane control plane.
 - [Build a connection](https://authlane.io/docs/guides/custom-integrations): Add canonical definitions and a direct-execution adapter for an Authlane service.
 - [Integration contract](https://authlane.io/docs/guides/integration-contract): Define a canonical service contract and matching direct-execution adapters without gateway behavior.
 - [Local integration testing](https://authlane.io/docs/guides/integration-testing): Verify integration contracts, OAuth boundaries, redaction, tenant isolation, and direct provider execution.

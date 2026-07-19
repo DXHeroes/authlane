@@ -5,7 +5,7 @@ import {
   buildDocumentationModel,
   loadDocumentation,
   renderGeneratedAssets,
-  validateDocumentation,
+  validateRepositoryDocumentation,
 } from './docs-content.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -13,7 +13,7 @@ const check = process.argv.includes('--check');
 const markdownRoot = resolve(root, 'apps/landing/public/docs/markdown');
 
 const documentation = loadDocumentation(root);
-const violations = validateDocumentation(documentation);
+const violations = validateRepositoryDocumentation(root);
 if (violations.length > 0) {
   throw new Error(
     `Documentation validation failed:\n${violations.map((value) => `- ${value}`).join('\n')}`

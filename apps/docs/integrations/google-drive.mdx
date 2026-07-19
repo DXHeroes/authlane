@@ -1,19 +1,70 @@
 ---
 title: Google Drive
-description: Use the local Google Drive adapter with Authlane credentials
+description: 'Connect Google Drive and use its tools through the Authlane control plane.'
+serviceId: google-drive
+authType: oauth2
 ---
 
-Install the published adapter in the SaaS or agent runtime that will call Google Drive:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-google-drive
-```
+Create a Google OAuth client for a project with Drive access. The connected account must have
+access to the files, folders, and shared drives that the SaaS will use.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/google-drive/callback` in the Google OAuth
+client. Enable Google Drive for the tenant in Authlane, store the client ID and encrypted client
+secret, and approve the defaults declared in `integrations/google-drive/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Google Drive directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `https://www.googleapis.com/auth/drive.file` permits access to files the app creates or opens.
+- `https://www.googleapis.com/auth/drive.readonly` permits reading files visible to the connected
+  account.
+
+The exported adapter includes broader update, delete, and permission tools. Only expose them when
+the tenant has approved a configured scope that grants the corresponding Drive operation.
+
+## Available tools
+
+### Find and read files
+
+- `gdrive_list_files`
+- `gdrive_search_files`
+- `gdrive_get_file`
+- `gdrive_download_file`
+- `gdrive_export_file`
+
+### Create and change content
+
+- `gdrive_upload_file`
+- `gdrive_create_folder`
+- `gdrive_update_file`
+- `gdrive_copy_file`
+- `gdrive_trash_file`
+- `gdrive_delete_file`
+
+### Permissions
+
+- `gdrive_list_permissions`
+- `gdrive_share_file`
+- `gdrive_remove_permission`
+
+Install `@authlane/integration-google-drive` in the SaaS runtime. Tool callbacks obtain a fresh
+lease and call Drive directly from that runtime; file content and provider responses do not pass
+through Authlane.
+
+## Connection lifecycle
+
+Google consent creates an encrypted `connected` connection. When the token response includes
+expiry and refresh material, Authlane schedules refresh before expiry. Reconnect a connection that
+cannot refresh and becomes `expired` or `error`. Disconnect through a new hosted session after
+recent user reauthentication.
+
+## Troubleshooting
+
+- Use file and permission IDs returned by Drive tools, not display names.
+- A Workspace document must be exported with `gdrive_export_file`; it is not downloaded like a
+  binary file.
+- Permission changes and permanent delete can require access beyond the two default scopes; verify
+  the tenant's approved custom scopes before exposing those tools.

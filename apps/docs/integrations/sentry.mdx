@@ -1,19 +1,54 @@
 ---
 title: Sentry
-description: Use the local Sentry adapter with Authlane credentials
+description: 'Connect Sentry and use its tools through the Authlane control plane.'
+serviceId: sentry
+authType: oauth2
 ---
 
-Install the published adapter in the SaaS or agent runtime that will call Sentry:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-sentry
-```
+Create a Sentry OAuth application and identify the organization and project slugs your SaaS will
+use. The connected Sentry user must be able to access those projects and issues.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/sentry/callback` in the Sentry application.
+Enable Sentry for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the defaults from `integrations/sentry/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Sentry directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `project:read` reads project issue data.
+- `event:read` reads issues and their events.
+- `event:write` permits issue status changes and comments exposed by the adapter.
+
+## Available tools
+
+### Inspect issues and events
+
+- `sentry_list_issues`
+- `sentry_get_issue`
+- `sentry_list_events`
+
+### Act on issues
+
+- `sentry_resolve_issue`
+- `sentry_add_comment`
+
+Install `@authlane/integration-sentry` in the SaaS runtime. Each callback obtains a fresh
+credential lease and calls Sentry directly; Authlane handles control-plane state and definitions,
+not event data or responses.
+
+## Connection lifecycle
+
+After consent, Authlane stores the Sentry credential encrypted and returns `connected`. Authlane
+refreshes expiring credentials when Sentry returned refresh material; a permanent failure becomes
+`expired` or `error` and needs reconnect. Disconnect through a fresh hosted session after recent
+reauthentication.
+
+## Troubleshooting
+
+- Organization and project inputs are slugs, while issue operations use Sentry issue IDs.
+- Confirm the connected user can see the project when an issue list is empty.
+- Resolving and commenting require the configured write permission in addition to readable issue
+  access.

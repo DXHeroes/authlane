@@ -1,19 +1,56 @@
 ---
 title: Google Calendar
-description: Use the local Google Calendar adapter with Authlane credentials
+description: 'Connect Google Calendar and use its tools through the Authlane control plane.'
+serviceId: google-calendar
+authType: oauth2
 ---
 
-Install the published adapter in the SaaS or agent runtime that will call Google Calendar:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-google-calendar
-```
+Create a Google OAuth client for a project with Calendar access. The connected Google account must
+be able to see each calendar that your SaaS will read or change.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/google-calendar/callback` in the Google OAuth
+client. Enable Google Calendar for the tenant in Authlane, store the client ID and encrypted client
+secret, and approve the defaults from `integrations/google-calendar/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Google Calendar directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `https://www.googleapis.com/auth/calendar.events` permits event creation, updates, and deletion.
+- `https://www.googleapis.com/auth/calendar.readonly` permits calendar and event reads.
+
+## Available tools
+
+### Calendars and events
+
+- `gcal_list_calendars`
+- `gcal_list_events`
+- `gcal_get_event`
+
+### Create and change events
+
+- `gcal_create_event`
+- `gcal_quick_add`
+- `gcal_update_event`
+- `gcal_delete_event`
+
+Install `@authlane/integration-google-calendar` in the SaaS runtime. A local callback requests a
+fresh credential lease and calls Google Calendar directly; Authlane does not proxy event inputs or
+provider responses.
+
+## Connection lifecycle
+
+After consent, Authlane stores the Google OAuth credential encrypted and reports `connected`.
+Authlane refreshes it before expiry when Google returned refresh material. If refresh fails
+permanently, show reconnect for the resulting `expired` or `error` state. Hosted disconnect uses a
+fresh session with recent reauthentication and removes the connection.
+
+## Troubleshooting
+
+- Use `primary` or a calendar ID returned by `gcal_list_calendars`; a display name is not a stable
+  calendar ID.
+- Event start and end values must use the date or RFC 3339 formats described by the tool schema.
+- A calendar can be visible but not writable; event mutations still require calendar permission
+  plus `https://www.googleapis.com/auth/calendar.events`.

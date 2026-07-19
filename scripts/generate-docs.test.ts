@@ -8,6 +8,8 @@ import {
   loadDocumentation,
   renderGeneratedAssets,
   validateDocumentation,
+  validateIntegrationPages,
+  validateRepositoryDocumentation,
 } from './docs-content.mjs';
 
 describe('documentation asset generation', () => {
@@ -367,5 +369,168 @@ describe('documentation asset generation', () => {
 
   it('validates the repository documentation source tree', () => {
     expect(validateDocumentation(loadDocumentation(repositoryRoot))).toEqual([]);
+  });
+
+  it('requires a one-to-one mapping between integration configs and pages', () => {
+    const model = buildDocumentationModel({
+      navigation: [{ group: 'Integrations', pages: ['integrations/ghost'] }],
+      documents: [
+        {
+          slug: 'integrations/ghost',
+          source:
+            '---\ntitle: Ghost\ndescription: Ghost.\nserviceId: ghost\nauthType: oauth2\n---\n',
+        },
+      ],
+    });
+
+    expect(
+      validateIntegrationPages(model, [
+        {
+          name: 'GitHub',
+          serviceId: 'github',
+          authType: 'oauth2',
+          defaultScopes: [],
+          toolNames: [],
+        },
+      ])
+    ).toEqual([
+      'integrations/ghost: integration page has no matching config',
+      'integrations/github: integration page missing for configured integration',
+    ]);
+  });
+
+  it('requires config metadata and the six integration sections', () => {
+    const model = buildDocumentationModel({
+      navigation: [{ group: 'Integrations', pages: ['integrations/github'] }],
+      documents: [
+        {
+          slug: 'integrations/github',
+          source: [
+            '---',
+            'title: Github',
+            'description: GitHub.',
+            'serviceId: git-hub',
+            'authType: api-key',
+            '---',
+            '',
+            '## Prerequisites',
+            '',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    const violations = validateIntegrationPages(model, [
+      {
+        name: 'GitHub',
+        serviceId: 'github',
+        authType: 'oauth2',
+        defaultScopes: [],
+        toolNames: [],
+      },
+    ]);
+    expect(violations).toEqual(
+      expect.arrayContaining([
+        'integrations/github: integration page title "Github" does not match config "GitHub"',
+        'integrations/github: integration page description does not match required value',
+        'integrations/github: integration page serviceId "git-hub" does not match config "github"',
+        'integrations/github: integration page authType "api-key" does not match config "oauth2"',
+        'integrations/github: integration page missing section "Available tools"',
+        'integrations/github: integration page missing section "Connection lifecycle"',
+      ])
+    );
+  });
+
+  it('requires every default scope and exact exported tool inventory', () => {
+    const model = buildDocumentationModel({
+      navigation: [{ group: 'Integrations', pages: ['integrations/github'] }],
+      documents: [
+        {
+          slug: 'integrations/github',
+          source: [
+            '---',
+            'title: GitHub',
+            'description: GitHub.',
+            'serviceId: github',
+            'authType: oauth2',
+            '---',
+            '',
+            '## Prerequisites',
+            '## Configure authentication',
+            '## Scopes',
+            '`user`',
+            '## Available tools',
+            '`github_create_issue`',
+            '`github_unknown_tool`',
+            '## Connection lifecycle',
+            '## Troubleshooting',
+            '',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    expect(
+      validateIntegrationPages(model, [
+        {
+          name: 'GitHub',
+          serviceId: 'github',
+          authType: 'oauth2',
+          defaultScopes: ['repo', 'user'],
+          toolNames: ['github_create_issue', 'github_list_issues'],
+        },
+      ])
+    ).toEqual(
+      expect.arrayContaining([
+        'integrations/github: integration page missing default scope "repo"',
+        'integrations/github: integration page missing exported tool "github_list_issues"',
+        'integrations/github: integration page documents unknown tool "github_unknown_tool"',
+      ])
+    );
+  });
+
+  it('requires an explicit explanation when config declares no default scopes', () => {
+    const model = buildDocumentationModel({
+      navigation: [{ group: 'Integrations', pages: ['integrations/notion'] }],
+      documents: [
+        {
+          slug: 'integrations/notion',
+          source: [
+            '---',
+            'title: Notion',
+            'description: Notion.',
+            'serviceId: notion',
+            'authType: oauth2',
+            '---',
+            '',
+            '## Prerequisites',
+            '## Configure authentication',
+            '## Scopes',
+            'Configure access.',
+            '## Available tools',
+            '## Connection lifecycle',
+            '## Troubleshooting',
+            '',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    expect(
+      validateIntegrationPages(model, [
+        {
+          name: 'Notion',
+          serviceId: 'notion',
+          authType: 'oauth2',
+          defaultScopes: [],
+          toolNames: [],
+        },
+      ])
+    ).toContain('integrations/notion: integration page missing empty default-scope explanation');
+  });
+
+  it('requires every shipped integration page to match config and required sections', async () => {
+    const violations = await validateRepositoryDocumentation(repositoryRoot);
+    expect(violations.filter((value) => value.includes('integration page'))).toEqual([]);
   });
 });

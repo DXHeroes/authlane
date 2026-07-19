@@ -1,19 +1,57 @@
 ---
 title: HubSpot
-description: Use the local HubSpot adapter with Authlane credentials
+description: 'Connect HubSpot and use its tools through the Authlane control plane.'
+serviceId: hubspot
+authType: oauth2
 ---
 
-Install the published adapter in the SaaS or agent runtime that will call HubSpot:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-hubspot
-```
+Create a HubSpot OAuth app and choose a HubSpot account containing the contacts and deals your SaaS
+will use. The installing user must be able to grant the requested CRM object permissions.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/hubspot/callback` in the HubSpot app. Enable
+HubSpot for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
+defaults from `integrations/hubspot/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls HubSpot directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `crm.objects.contacts.read` reads contacts.
+- `crm.objects.contacts.write` creates and updates contacts.
+- `crm.objects.deals.read` reads deals.
+- `crm.objects.deals.write` creates and updates deals.
+
+## Available tools
+
+### Contacts
+
+- `hubspot_list_contacts`
+- `hubspot_get_contact`
+- `hubspot_create_contact`
+- `hubspot_update_contact`
+
+### Deals
+
+- `hubspot_list_deals`
+- `hubspot_get_deal`
+- `hubspot_create_deal`
+- `hubspot_update_deal`
+
+Install `@authlane/integration-hubspot` in the SaaS runtime. A tool invocation receives a fresh
+lease and calls HubSpot directly; Authlane handles connection state and definitions, not CRM inputs
+or responses.
+
+## Connection lifecycle
+
+After HubSpot consent, Authlane encrypts the credential and marks the connection `connected`. If
+the provider returns expiry and refresh material, Authlane refreshes it before expiry. Reconnect
+when a permanent refresh failure produces `expired` or `error`. Hosted disconnect requires a fresh
+session after recent reauthentication.
+
+## Troubleshooting
+
+- Check whether the connected HubSpot account exposes the target contact or deal ID.
+- A read scope does not authorize create or update; verify the matching `.write` scope.
+- Validate property names against the connected account before passing custom contact or deal data.

@@ -1758,316 +1758,882 @@ Source: https://authlane.io/docs/integrations/github
 
 # GitHub
 
-Use the local GitHub adapter with Authlane credentials
+Connect GitHub and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call GitHub:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-github
-```
+Create a GitHub OAuth app and choose an account that can access the repositories your tools will
+read or change. Repository and organization policy can still restrict that account after consent.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/github/callback` as the GitHub OAuth callback.
+Enable GitHub for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the defaults declared in `integrations/github/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls GitHub directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `repo` permits repository, issue, pull-request, code, and file operations.
+- `user` reads the authorizing user's account context used by repository discovery.
+
+## Available tools
+
+### Discover and read repositories
+
+- `github_list_repos`
+- `github_get_file`
+- `github_search_code`
+
+### Issues
+
+- `github_list_issues`
+- `github_create_issue`
+
+### Pull requests
+
+- `github_list_pull_requests`
+- `github_create_pull_request`
+
+### Files
+
+- `github_create_file`
+
+Install `@authlane/integration-github` in the SaaS runtime. Tool callbacks obtain a fresh lease and
+the adapter calls GitHub directly; Authlane supplies status and definitions without handling the
+provider request or response.
+
+## Connection lifecycle
+
+After GitHub consent, Authlane encrypts the credential and returns `connected`. If GitHub supplies
+expiry and refresh material, the background refresh path uses it; otherwise the credential remains
+usable until GitHub rejects or revokes it. Reconnect an `expired` or `error` connection. Disconnect
+through a fresh hosted session after recent user reauthentication.
+
+## Troubleshooting
+
+- Confirm the exact owner and repository name and that the connected account can see the repo.
+- Organization policy or repository permissions can block writes even with the configured `repo`
+  scope.
+- Updating an existing file with `github_create_file` requires the current file SHA.
 
 Source: https://authlane.io/docs/integrations/linear
 
 # Linear
 
-Use the local Linear adapter with Authlane credentials
+Connect Linear and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Linear:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-linear
-```
+Create a Linear OAuth application and choose a workspace containing the teams, issues, and projects
+your SaaS will use. The authorizing user must be allowed to perform the requested changes.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/linear/callback` in the Linear application.
+Enable Linear for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the defaults from `integrations/linear/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Linear directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `read` permits issue and project reads.
+- `write` permits the exported issue and project mutations.
+
+## Available tools
+
+### Issues
+
+- `linear_list_issues`
+- `linear_create_issue`
+- `linear_update_issue`
+
+### Projects
+
+- `linear_list_projects`
+- `linear_create_project`
+
+Install `@authlane/integration-linear` in the SaaS runtime. Each invocation gets a fresh lease and
+the adapter calls Linear directly; Authlane serves connection state and definitions without
+proxying tool inputs or results.
+
+## Connection lifecycle
+
+Successful Linear consent stores an encrypted credential and reports `connected`. If Linear
+returns an expiring credential and refresh material, Authlane schedules background refresh.
+Reconnect after a permanent refresh failure or an `expired` or `error` state. Disconnect through a
+fresh hosted session after recent reauthentication.
+
+## Troubleshooting
+
+- Use team, issue, and project IDs returned for the connected workspace.
+- A user can read an issue yet lack permission to update it; check workspace permissions and
+  `write` consent together.
+- Confirm required team and project references exist before creating issues or projects.
 
 Source: https://authlane.io/docs/integrations/jira
 
 # Jira
 
-Use the local Jira adapter with Authlane credentials
+Connect Jira and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Jira:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-jira
-```
+Create an Atlassian OAuth app and identify the Jira site and projects your users will access. The
+connected user must have Jira permission for each requested issue operation.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/jira/callback` in the Atlassian app. Enable Jira
+for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
+defaults from `integrations/jira/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Jira directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `read:jira-work` reads issues, comments, and available transitions.
+- `write:jira-work` creates, updates, transitions, and comments on issues.
+
+## Available tools
+
+### Read issues and workflow
+
+- `jira_list_issues`
+- `jira_get_transitions`
+
+### Create and change issues
+
+- `jira_create_issue`
+- `jira_update_issue`
+- `jira_transition_issue`
+- `jira_add_comment`
+
+Install `@authlane/integration-jira` in the SaaS runtime. Each callback obtains a fresh credential
+lease and calls Jira directly; Authlane never proxies JQL, issue data, or Jira responses.
+
+## Connection lifecycle
+
+Atlassian consent creates an encrypted `connected` connection. Authlane refreshes the credential
+before expiry only when the provider supplied refresh material. Reconnect after an unrecoverable
+refresh or `expired` or `error` state. A destructive hosted disconnect requires a new connect
+session with recent reauthentication.
+
+## Troubleshooting
+
+- Confirm the connected user can browse the target project before diagnosing an issue-key error.
+- `jira_transition_issue` requires a transition ID currently returned by
+  `jira_get_transitions`; status names are not transition IDs.
+- Invalid JQL fails in Jira itself; test the same query for the connected site and user.
 
 Source: https://authlane.io/docs/integrations/sentry
 
 # Sentry
 
-Use the local Sentry adapter with Authlane credentials
+Connect Sentry and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Sentry:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-sentry
-```
+Create a Sentry OAuth application and identify the organization and project slugs your SaaS will
+use. The connected Sentry user must be able to access those projects and issues.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/sentry/callback` in the Sentry application.
+Enable Sentry for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the defaults from `integrations/sentry/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Sentry directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `project:read` reads project issue data.
+- `event:read` reads issues and their events.
+- `event:write` permits issue status changes and comments exposed by the adapter.
+
+## Available tools
+
+### Inspect issues and events
+
+- `sentry_list_issues`
+- `sentry_get_issue`
+- `sentry_list_events`
+
+### Act on issues
+
+- `sentry_resolve_issue`
+- `sentry_add_comment`
+
+Install `@authlane/integration-sentry` in the SaaS runtime. Each callback obtains a fresh
+credential lease and calls Sentry directly; Authlane handles control-plane state and definitions,
+not event data or responses.
+
+## Connection lifecycle
+
+After consent, Authlane stores the Sentry credential encrypted and returns `connected`. Authlane
+refreshes expiring credentials when Sentry returned refresh material; a permanent failure becomes
+`expired` or `error` and needs reconnect. Disconnect through a fresh hosted session after recent
+reauthentication.
+
+## Troubleshooting
+
+- Organization and project inputs are slugs, while issue operations use Sentry issue IDs.
+- Confirm the connected user can see the project when an issue list is empty.
+- Resolving and commenting require the configured write permission in addition to readable issue
+  access.
 
 Source: https://authlane.io/docs/integrations/slack
 
 # Slack
 
-Use the local Slack adapter with Authlane credentials
+Connect Slack and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Slack:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-slack
-```
+Create a Slack app and choose a workspace where it can access the channels and users needed by your
+SaaS. Add only the bot or user permissions required for the tools you expose.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/slack/callback` as a Slack redirect URL. Enable
+Slack for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
+defaults from `integrations/slack/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Slack directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `chat:write` sends channel or direct messages.
+- `channels:read` lists public channels visible to the connected app.
+
+The adapter also exports channel creation, file, user, and status tools. The repository's Slack
+scope list does not currently declare file-upload or profile-status permissions. Expose each tool
+only after the tenant OAuth configuration has been reviewed against that provider operation.
+
+## Available tools
+
+### Messages and files
+
+- `slack_send_message`
+- `slack_post_file`
+
+### Channels and users
+
+- `slack_list_channels`
+- `slack_create_channel`
+- `slack_list_users`
+
+### User status
+
+- `slack_set_status`
+
+Install `@authlane/integration-slack` in the SaaS runtime. A callback gets a fresh credential lease
+and calls Slack directly; messages, file content, and Slack responses do not pass through Authlane.
+
+## Connection lifecycle
+
+Slack consent creates an encrypted `connected` connection. Authlane schedules background refresh
+only when Slack returns expiry and refresh material. Reconnect a connection that becomes `expired`
+or `error` after provider rejection. Disconnect through a new hosted session after recent user
+reauthentication.
+
+## Troubleshooting
+
+- Channel listing and posting are limited to channels visible to the connected Slack app.
+- Private channels, channel creation, file upload, user listing, and status changes can need scopes
+  beyond the two defaults; do not assume the exported tool implies OAuth permission.
+- Use channel and user IDs returned by Slack tools when names are ambiguous.
 
 Source: https://authlane.io/docs/integrations/discord
 
 # Discord
 
-Use the local Discord adapter with Authlane credentials
+Connect Discord and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Discord:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-discord
-```
+Create a Discord OAuth2 application with a bot and choose a guild where that bot can access the
+channels used by your SaaS. Keep the guild, channel, and user IDs required by the tools available.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/discord/callback` in the Discord application.
+Enable Discord for the tenant in Authlane, store the OAuth client ID and encrypted client secret,
+and approve the default scopes from `integrations/discord/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Discord directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `bot` installs and authorizes the Discord bot.
+- `messages.write` permits the configured message operations.
+
+## Available tools
+
+### Channels
+
+- `discord_list_channels`
+- `discord_create_channel`
+
+### Messages
+
+- `discord_send_message`
+- `discord_send_dm`
+
+Install `@authlane/integration-discord` in the SaaS runtime. The local adapter uses a fresh
+credential lease to call Discord directly; Authlane remains the connection and definition control
+plane and never proxies messages or responses.
+
+## Connection lifecycle
+
+Successful consent stores an encrypted OAuth credential and marks the connection `connected`.
+Authlane refreshes expiring credentials only when Discord returned usable refresh material. If the
+credential expires or Discord rejects it, reconnect the user. A hosted disconnect requires a new
+connect session with recent reauthentication and removes the stored connection.
+
+## Troubleshooting
+
+- Verify the bot is present in the target guild before using a guild or channel ID.
+- A send failure can mean the bot lacks permission in that channel even when OAuth succeeded.
+- `discord_send_dm` needs a Discord user ID; a username is not a substitute.
 
 Source: https://authlane.io/docs/integrations/gmail
 
 # Gmail
 
-Use the local Gmail adapter with Authlane credentials
+Connect Gmail and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Gmail:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-gmail
-```
+Create a Google OAuth client for a project with Gmail access and choose the Google accounts that
+may authorize it. The connected account supplies the mailbox used by every Gmail tool.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/gmail/callback` in the Google OAuth client.
+Enable Gmail for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the defaults from `integrations/gmail/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Gmail directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `https://www.googleapis.com/auth/gmail.send` permits sending mail.
+- `https://www.googleapis.com/auth/gmail.readonly` permits reading messages, threads, labels, and
+  drafts exposed by the adapter.
+
+The exported adapter also contains mutation tools. If you enable those tools, approve a configured
+write-capable Gmail scope such as `https://www.googleapis.com/auth/gmail.modify`; the default
+read-only scope alone does not grant mailbox mutations.
+
+## Available tools
+
+### Read and search mail
+
+- `gmail_read_emails`
+- `gmail_search_emails`
+- `gmail_get_email`
+- `gmail_get_thread`
+
+### Send and draft
+
+- `gmail_send_email`
+- `gmail_list_drafts`
+- `gmail_create_draft`
+
+### Organize and remove
+
+- `gmail_list_labels`
+- `gmail_create_label`
+- `gmail_modify_email`
+- `gmail_trash_email`
+- `gmail_delete_email`
+
+Install `@authlane/integration-gmail` in the SaaS runtime. Each callback gets a fresh Authlane
+credential lease and calls Gmail directly from that runtime; message content and Google responses
+do not pass through Authlane.
+
+## Connection lifecycle
+
+Successful Google consent produces an encrypted `connected` connection. When Google returns an
+expiry and refresh token, Authlane schedules refresh before expiry. Reconnect when refresh is
+rejected or the connection becomes `expired` or `error`. Disconnect through a newly minted hosted
+session after recent user reauthentication.
+
+## Troubleshooting
+
+- A read or send failure often means the connected Google account is outside the OAuth client's
+  allowed users or the requested Gmail scope was not approved.
+- Label, trash, delete, and other mutation tools need a configured write-capable Gmail scope.
+- Use Gmail message and thread IDs returned by the read tools; email subjects are not IDs.
 
 Source: https://authlane.io/docs/integrations/notion
 
 # Notion
 
-Use the local Notion adapter with Authlane credentials
+Connect Notion and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Notion:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-notion
-```
+Create a public Notion integration and make the pages or databases needed by your SaaS available to
+that integration. The tools can only see content the connected integration can access.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/notion/callback` in the Notion integration.
+Enable Notion for the tenant in Authlane and store the OAuth client ID and encrypted client secret.
+Authlane uses the endpoints declared in `integrations/notion/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Notion directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+The repository config declares no default OAuth scopes for Notion. Do not invent a scope list:
+content access comes from the pages and databases made available to the connected integration.
+
+## Available tools
+
+### Pages and databases
+
+- `notion_create_page`
+- `notion_update_page`
+- `notion_get_page`
+- `notion_query_database`
+- `notion_get_database`
+- `notion_list_databases`
+- `notion_search`
+
+### Blocks
+
+- `notion_append_block_children`
+- `notion_get_block`
+- `notion_get_block_children`
+- `notion_update_block`
+- `notion_delete_block`
+
+### Users
+
+- `notion_get_user`
+- `notion_list_users`
+- `notion_get_bot_user`
+
+Install `@authlane/integration-notion` in the SaaS runtime. Each tool callback receives a fresh
+credential lease and calls Notion directly; page content and provider responses do not pass
+through Authlane.
+
+## Connection lifecycle
+
+Successful Notion consent creates an encrypted `connected` credential. Authlane only schedules
+refresh when a provider token response contains expiry and refresh material; otherwise provider
+revocation or rejection requires reconnect. Disconnect through a new hosted connect session after
+recent reauthentication and stop exposing Notion tools for that user.
+
+## Troubleshooting
+
+- A missing page or database usually has not been made available to the connected integration.
+- Use page, database, block, and user IDs returned by Notion; copied browser URLs may need their ID
+  extracted first.
+- Property and block payloads must match the target database schema and Notion object structure.
 
 Source: https://authlane.io/docs/integrations/google-drive
 
 # Google Drive
 
-Use the local Google Drive adapter with Authlane credentials
+Connect Google Drive and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Google Drive:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-google-drive
-```
+Create a Google OAuth client for a project with Drive access. The connected account must have
+access to the files, folders, and shared drives that the SaaS will use.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/google-drive/callback` in the Google OAuth
+client. Enable Google Drive for the tenant in Authlane, store the client ID and encrypted client
+secret, and approve the defaults declared in `integrations/google-drive/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Google Drive directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `https://www.googleapis.com/auth/drive.file` permits access to files the app creates or opens.
+- `https://www.googleapis.com/auth/drive.readonly` permits reading files visible to the connected
+  account.
+
+The exported adapter includes broader update, delete, and permission tools. Only expose them when
+the tenant has approved a configured scope that grants the corresponding Drive operation.
+
+## Available tools
+
+### Find and read files
+
+- `gdrive_list_files`
+- `gdrive_search_files`
+- `gdrive_get_file`
+- `gdrive_download_file`
+- `gdrive_export_file`
+
+### Create and change content
+
+- `gdrive_upload_file`
+- `gdrive_create_folder`
+- `gdrive_update_file`
+- `gdrive_copy_file`
+- `gdrive_trash_file`
+- `gdrive_delete_file`
+
+### Permissions
+
+- `gdrive_list_permissions`
+- `gdrive_share_file`
+- `gdrive_remove_permission`
+
+Install `@authlane/integration-google-drive` in the SaaS runtime. Tool callbacks obtain a fresh
+lease and call Drive directly from that runtime; file content and provider responses do not pass
+through Authlane.
+
+## Connection lifecycle
+
+Google consent creates an encrypted `connected` connection. When the token response includes
+expiry and refresh material, Authlane schedules refresh before expiry. Reconnect a connection that
+cannot refresh and becomes `expired` or `error`. Disconnect through a new hosted session after
+recent user reauthentication.
+
+## Troubleshooting
+
+- Use file and permission IDs returned by Drive tools, not display names.
+- A Workspace document must be exported with `gdrive_export_file`; it is not downloaded like a
+  binary file.
+- Permission changes and permanent delete can require access beyond the two default scopes; verify
+  the tenant's approved custom scopes before exposing those tools.
 
 Source: https://authlane.io/docs/integrations/google-calendar
 
 # Google Calendar
 
-Use the local Google Calendar adapter with Authlane credentials
+Connect Google Calendar and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Google Calendar:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-google-calendar
-```
+Create a Google OAuth client for a project with Calendar access. The connected Google account must
+be able to see each calendar that your SaaS will read or change.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/google-calendar/callback` in the Google OAuth
+client. Enable Google Calendar for the tenant in Authlane, store the client ID and encrypted client
+secret, and approve the defaults from `integrations/google-calendar/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Google Calendar directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `https://www.googleapis.com/auth/calendar.events` permits event creation, updates, and deletion.
+- `https://www.googleapis.com/auth/calendar.readonly` permits calendar and event reads.
+
+## Available tools
+
+### Calendars and events
+
+- `gcal_list_calendars`
+- `gcal_list_events`
+- `gcal_get_event`
+
+### Create and change events
+
+- `gcal_create_event`
+- `gcal_quick_add`
+- `gcal_update_event`
+- `gcal_delete_event`
+
+Install `@authlane/integration-google-calendar` in the SaaS runtime. A local callback requests a
+fresh credential lease and calls Google Calendar directly; Authlane does not proxy event inputs or
+provider responses.
+
+## Connection lifecycle
+
+After consent, Authlane stores the Google OAuth credential encrypted and reports `connected`.
+Authlane refreshes it before expiry when Google returned refresh material. If refresh fails
+permanently, show reconnect for the resulting `expired` or `error` state. Hosted disconnect uses a
+fresh session with recent reauthentication and removes the connection.
+
+## Troubleshooting
+
+- Use `primary` or a calendar ID returned by `gcal_list_calendars`; a display name is not a stable
+  calendar ID.
+- Event start and end values must use the date or RFC 3339 formats described by the tool schema.
+- A calendar can be visible but not writable; event mutations still require calendar permission
+  plus `https://www.googleapis.com/auth/calendar.events`.
 
 Source: https://authlane.io/docs/integrations/hubspot
 
 # HubSpot
 
-Use the local HubSpot adapter with Authlane credentials
+Connect HubSpot and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call HubSpot:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-hubspot
-```
+Create a HubSpot OAuth app and choose a HubSpot account containing the contacts and deals your SaaS
+will use. The installing user must be able to grant the requested CRM object permissions.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/hubspot/callback` in the HubSpot app. Enable
+HubSpot for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
+defaults from `integrations/hubspot/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls HubSpot directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `crm.objects.contacts.read` reads contacts.
+- `crm.objects.contacts.write` creates and updates contacts.
+- `crm.objects.deals.read` reads deals.
+- `crm.objects.deals.write` creates and updates deals.
+
+## Available tools
+
+### Contacts
+
+- `hubspot_list_contacts`
+- `hubspot_get_contact`
+- `hubspot_create_contact`
+- `hubspot_update_contact`
+
+### Deals
+
+- `hubspot_list_deals`
+- `hubspot_get_deal`
+- `hubspot_create_deal`
+- `hubspot_update_deal`
+
+Install `@authlane/integration-hubspot` in the SaaS runtime. A tool invocation receives a fresh
+lease and calls HubSpot directly; Authlane handles connection state and definitions, not CRM inputs
+or responses.
+
+## Connection lifecycle
+
+After HubSpot consent, Authlane encrypts the credential and marks the connection `connected`. If
+the provider returns expiry and refresh material, Authlane refreshes it before expiry. Reconnect
+when a permanent refresh failure produces `expired` or `error`. Hosted disconnect requires a fresh
+session after recent reauthentication.
+
+## Troubleshooting
+
+- Check whether the connected HubSpot account exposes the target contact or deal ID.
+- A read scope does not authorize create or update; verify the matching `.write` scope.
+- Validate property names against the connected account before passing custom contact or deal data.
 
 Source: https://authlane.io/docs/integrations/salesforce
 
 # Salesforce
 
-Use the local Salesforce adapter with Authlane credentials
+Connect Salesforce and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Salesforce:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-salesforce
-```
+Create a Salesforce connected app and choose an org containing the objects your SaaS will access.
+The authorizing user needs object and field permissions for each query or mutation.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/salesforce/callback` in the connected app.
+Enable Salesforce for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the defaults from `integrations/salesforce/config.yaml`. The token response supplies the
+Salesforce instance URL used for provider calls.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Salesforce directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `api` authorizes Salesforce API access.
+- `refresh_token` authorizes refresh-token use.
+- `id` provides the connected user's identity context.
+
+## Available tools
+
+### Query and retrieve
+
+- `salesforce_query`
+- `salesforce_get_object`
+
+### Contacts and opportunities
+
+- `salesforce_create_contact`
+- `salesforce_create_opportunity`
+- `salesforce_update_opportunity`
+
+Install `@authlane/integration-salesforce` in the SaaS runtime. Tool callbacks obtain a fresh lease
+and call the connection's Salesforce instance directly; Authlane never proxies SOQL, object data,
+or responses.
+
+## Connection lifecycle
+
+Successful consent creates an encrypted `connected` credential. With the configured
+`refresh_token` scope and provider refresh material, Authlane refreshes before expiry. Reconnect
+after provider rejection or an `expired` or `error` state. Hosted disconnect requires a fresh
+connect session with recent user reauthentication.
+
+## Troubleshooting
+
+- Send provider requests to the instance URL returned for the connection, not a fixed login host.
+- Validate SOQL and object or field names against the connected org and its API version.
+- OAuth `api` access does not override Salesforce object, field, or record-level permissions.
 
 Source: https://authlane.io/docs/integrations/pipedrive
 
 # Pipedrive
 
-Use the local Pipedrive adapter with Authlane credentials
+Connect Pipedrive and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Pipedrive:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-pipedrive
-```
+Create a Pipedrive OAuth app and choose a company account containing the deals and people your SaaS
+will use. The connected user must have access to those CRM records.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/pipedrive/callback` in the Pipedrive app. Enable
+Pipedrive for the tenant in Authlane, store the client ID and encrypted client secret, and approve
+the defaults from `integrations/pipedrive/config.yaml`. The connection's provider response supplies
+the company-specific API domain used by the adapter.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Pipedrive directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `deals:read` and `deals:write` read and change deals.
+- `contacts:read` and `contacts:write` permit contact access configured for the app.
+- `persons:read` and `persons:write` read and change Pipedrive people records.
+
+## Available tools
+
+### Deals
+
+- `pipedrive_list_deals`
+- `pipedrive_get_deal`
+- `pipedrive_create_deal`
+- `pipedrive_update_deal`
+
+### Contacts
+
+- `pipedrive_list_contacts`
+- `pipedrive_get_contact`
+- `pipedrive_add_contact`
+- `pipedrive_update_contact`
+
+### Search
+
+- `pipedrive_search`
+
+Install `@authlane/integration-pipedrive` in the SaaS runtime. Each invocation requests a fresh
+lease and calls the connection's Pipedrive API domain directly; Authlane does not proxy CRM inputs
+or results.
+
+## Connection lifecycle
+
+After consent, Authlane encrypts the Pipedrive credential and reports `connected`. When the token
+response includes expiry and refresh material, Authlane schedules refresh before expiry. Reconnect
+an `expired` or `error` connection that cannot refresh. Disconnect through a new hosted session
+after recent reauthentication.
+
+## Troubleshooting
+
+- Do not hard-code one Pipedrive company host; use the API domain bound to the connection.
+- Deal and person tools require record IDs from the connected company account.
+- Verify both the relevant read or write scope and the connected user's visibility when a record is
+  missing.
 
 Source: https://authlane.io/docs/integrations/stripe
 
 # Stripe
 
-Use the local Stripe adapter with Authlane credentials
+Connect Stripe and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Stripe:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-stripe
-```
+Create a Stripe Connect platform and choose the connected accounts whose customers and charges the
+SaaS will read. The exported adapter is read-only.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/stripe/callback` as the Stripe Connect redirect
+URI. Enable Stripe for the tenant in Authlane, store the client ID and encrypted client secret, and
+approve the default from `integrations/stripe/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Stripe directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `read_only` permits the customer and charge reads exposed by this integration.
+
+## Available tools
+
+### Customers
+
+- `stripe_list_customers`
+- `stripe_get_customer`
+
+### Charges
+
+- `stripe_list_charges`
+- `stripe_get_charge`
+
+Install `@authlane/integration-stripe` in the SaaS runtime. Each tool invocation requests a fresh
+lease and calls Stripe directly; Authlane does not proxy customer data, payment data, or Stripe
+responses.
+
+## Connection lifecycle
+
+Successful Stripe consent stores the OAuth credential encrypted and reports `connected`. Authlane
+refreshes before expiry only when Stripe returns expiry and refresh material. Reconnect after
+provider revocation or an `expired` or `error` state. Hosted disconnect requires a fresh connect
+session with recent reauthentication.
+
+## Troubleshooting
+
+- Customer and charge IDs must belong to the connected Stripe account.
+- An empty list can mean the wrong account was connected or no matching data exists.
+- This adapter exports no create, update, refund, or delete tools; `read_only` is the only configured
+  default scope.
 
 Source: https://authlane.io/docs/integrations/airtable
 
 # Airtable
 
-Use the local Airtable adapter with Authlane credentials
+Connect Airtable and use its tools through the Authlane control plane.
 
-Install the published adapter in the SaaS or agent runtime that will call Airtable:
+## Prerequisites
 
-```bash
-pnpm add @authlane/integration-airtable
-```
+Create an Airtable OAuth integration and identify the bases and tables your users will access. The
+authorizing Airtable user must already have access to those resources.
 
-```typescript
-import adapter from @authlane/integration-;
+## Configure authentication
 
-const definitions = adapter.definitions;
-const result = await adapter.execute(toolName, input, credential);
-```
+Register `https://<your-authlane-host>/api/v1/oauth/airtable/callback` in the Airtable integration.
+Enable Airtable for the tenant in Authlane, store the OAuth client ID and encrypted client secret,
+and approve the default scopes below. Authlane uses the authorization and token endpoints declared
+in `integrations/airtable/config.yaml`.
 
-Issue `credential` from the server-side Authlane credential-leases endpoint and use it immediately. The adapter calls Airtable directly; tool inputs and provider responses do not pass through Authlane.
+## Scopes
+
+- `data.records:read` reads table records.
+- `data.records:write` creates, updates, and deletes records.
+- `schema.bases:read` reads the bases, tables, and fields needed by the schema tools.
+
+## Available tools
+
+### Discover bases and schemas
+
+- `airtable_list_bases`
+- `airtable_get_base_schema`
+- `airtable_get_table_schema`
+
+### Read and change records
+
+- `airtable_list_records`
+- `airtable_get_record`
+- `airtable_create_record`
+- `airtable_update_record`
+- `airtable_delete_record`
+
+### Change records in batches
+
+- `airtable_create_records_batch`
+- `airtable_update_records_batch`
+- `airtable_delete_records_batch`
+
+Install `@authlane/integration-airtable` in the SaaS runtime. Each invocation requests a fresh
+credential lease and the adapter calls Airtable directly; Authlane does not proxy tool inputs or
+provider responses.
+
+## Connection lifecycle
+
+After consent, Authlane stores the OAuth credential encrypted and reports `connected`. When the
+provider returns expiry and refresh material, Authlane refreshes it before expiry; an unrecoverable
+refresh becomes `expired` or `error` and requires reconnect. Disconnect through a new hosted
+session after recent reauthentication, then stop offering Airtable tools.
+
+## Troubleshooting
+
+- A base or table not found usually means the authorizing user cannot access it or the supplied
+  `app...` base ID or table name is wrong.
+- Record writes require `data.records:write`; schema discovery requires `schema.bases:read`.
+- Batch create, update, and delete calls accept at most ten records per adapter invocation.
 
 Source: https://authlane.io/docs/guides/custom-integrations
 

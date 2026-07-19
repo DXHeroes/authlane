@@ -44,4 +44,4 @@ and `rediss://` connections whenever traffic leaves a private host network.
 The final image uses Node.js 22, pnpm 10, a non-root user, a read-only root filesystem, dropped Linux
 capabilities, and no migration privileges.
 
-Follow the [security operations runbook](/guides/security-operations) for launch checks and key rotation.
+Follow the [security operations runbook](/docs/guides/security-operations) for launch checks and key rotation.

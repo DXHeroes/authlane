@@ -21,6 +21,13 @@ const authlane = new Authlane({
 const { data: tools, error } = await authlane
   .user('user_123')
   .tools.list({ adapter: mastraAI() });
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 ```
 
 Choose the adapter at the integration boundary:

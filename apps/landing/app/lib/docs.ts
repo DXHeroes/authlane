@@ -20,6 +20,7 @@ export type DocRecord = {
   slug: string;
   title: string;
   description: string;
+  api?: string;
   source: string;
   headings: DocHeading[];
   navigationGroup: string;
@@ -53,6 +54,7 @@ function parseDocument(value: unknown): DocRecord {
     typeof value.slug !== 'string' ||
     typeof value.title !== 'string' ||
     typeof value.description !== 'string' ||
+    (value.api !== undefined && typeof value.api !== 'string') ||
     typeof value.source !== 'string' ||
     !Array.isArray(value.headings) ||
     typeof value.navigationGroup !== 'string'
@@ -67,6 +69,7 @@ function parseDocument(value: unknown): DocRecord {
     slug,
     title: value.title,
     description: value.description,
+    ...(value.api !== undefined ? { api: value.api } : {}),
     source: value.source,
     headings: value.headings.map((heading) => parseHeading(heading, slug)),
     navigationGroup: value.navigationGroup,

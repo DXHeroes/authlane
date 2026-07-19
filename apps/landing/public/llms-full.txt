@@ -38,7 +38,7 @@ PostgreSQL stores policy and encrypted credentials. Redis provides hot-read cach
 - Credential reads never expose OAuth refresh tokens, are audited, and cannot be cached.
 - PostgreSQL RLS policies protect every tenant-owned table.
 
-Follow the [Quickstart](/quickstart) or [Self-hosting guide](/guides/self-hosting).
+Follow the [Quickstart](/docs/quickstart) or [Self-hosting guide](/docs/guides/self-hosting).
 
 Source: https://authlane.io/docs/quickstart
 
@@ -316,12 +316,26 @@ Client secrets are encrypted before storage and never returned by the API.
 Your SaaS backend creates a short-lived connect session:
 
 ```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
 const { data, error } = await authlane.connectSessions.create({
   externalUserId: 'user_123',
   allowedServices: ['github'],
   allowedOrigin: 'https://app.example.com',
   expiresInSeconds: 600,
 });
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 ```
 
 Use `allowedServices: []` to snapshot all services currently enabled globally and for the
@@ -401,7 +415,7 @@ and `rediss://` connections whenever traffic leaves a private host network.
 The final image uses Node.js 22, pnpm 10, a non-root user, a read-only root filesystem, dropped Linux
 capabilities, and no migration privileges.
 
-Follow the [security operations runbook](/guides/security-operations) for launch checks and key rotation.
+Follow the [security operations runbook](/docs/guides/security-operations) for launch checks and key rotation.
 
 Source: https://authlane.io/docs/guides/custom-integrations
 
@@ -492,17 +506,22 @@ Export both `.` and `./tools` from the package. Authlane imports `./tools` when 
 ```typescript
 import trello from '@authlane/integration-trello';
 
-const credentials = await authlane.credentialLeases.create({
+const { data: credentials, error } = await authlane.credentialLeases.create({
   externalUserId: 'user_123',
   serviceId: 'trello',
 });
 
-if (credentials.error) return credentials;
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 
 const result = await trello.execute(
   'trello_list_boards',
   {},
-  credentials.data,
+  credentials,
 );
 ```
 
@@ -740,9 +759,19 @@ Derive `externalUserId` from your SaaS's authenticated server session once, then
 const currentUser = await requireUser(request);
 const user = authlane.user(currentUser.id);
 
-const capabilities = await user.capabilities.get({ format: 'mcp' });
-const connections = await user.connections.list();
-const definitions = await user.tools.list({ format: 'openai' });
+const { data: capabilities, error: capabilitiesError } =
+  await user.capabilities.get({ format: 'mcp' });
+const { data: connections, error: connectionsError } = await user.connections.list();
+const { data: definitions, error: definitionsError } =
+  await user.tools.list({ format: 'openai' });
+
+const error = capabilitiesError ?? connectionsError ?? definitionsError;
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 ```
 
 `user.capabilities.get()` is the hot read for status plus definitions in one versioned snapshot.
@@ -833,11 +862,11 @@ export async function connectUserMcpServer(
   transport: Transport,
 ) {
   const user = authlane.user(externalUserId);
-  const result = await user.tools.list({ adapter: mcpServer() });
+  const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
 
-  if (result.error) return result;
-  await result.data.connect(transport);
-  return result;
+  if (error) return { data: null, error };
+  await server.connect(transport);
+  return { data: server, error: null };
 }
 ```
 
@@ -864,9 +893,17 @@ const customGithub: IntegrationAdapter = {
   },
 };
 
-const result = await authlane.user(currentUser.id).tools.list({
-  adapter: vercelAI({ integrations: [customGithub] }),
-});
+const { data: customTools, error: customToolsError } =
+  await authlane.user(currentUser.id).tools.list({
+    adapter: vercelAI({ integrations: [customGithub] }),
+  });
+
+if (customToolsError) {
+  return Response.json(
+    { error: { code: customToolsError.code, message: customToolsError.message } },
+    { status: customToolsError.statusCode ?? 400 },
+  );
+}
 ```
 
 Custom adapters run inside your SaaS trust boundary. They receive ephemeral access-only material
@@ -875,18 +912,39 @@ for the current invocation and must not log, persist, cache, or return it.
 ## Connect sessions and raw definitions
 
 ```typescript
-const session = await authlane.connectSessions.create({
+const { data: session, error: sessionError } = await authlane.connectSessions.create({
   externalUserId: currentUser.id,
   allowedServices: ['github'],
   allowedOrigin: 'https://app.example.com',
   expiresInSeconds: 600,
 });
 
-await authlane.services.list();
-await authlane.user(currentUser.id).tools.list({ format: 'openai' });
+if (sessionError) {
+  return Response.json(
+    { error: { code: sessionError.code, message: sessionError.message } },
+    { status: sessionError.statusCode ?? 400 },
+  );
+}
+
+const { data: services, error: servicesError } = await authlane.services.list();
+if (servicesError) {
+  return Response.json(
+    { error: { code: servicesError.code, message: servicesError.message } },
+    { status: servicesError.statusCode ?? 400 },
+  );
+}
+
+const { data: rawDefinitions, error: definitionsError } =
+  await authlane.user(currentUser.id).tools.list({ format: 'openai' });
+if (definitionsError) {
+  return Response.json(
+    { error: { code: definitionsError.code, message: definitionsError.message } },
+    { status: definitionsError.statusCode ?? 400 },
+  );
+}
 ```
 
-Return only `session.data?.url` to the browser. Raw tool definitions contain no execution
+Return only `session.url` to the browser. Raw tool definitions contain no execution
 callbacks; executable toolsets from an adapter are server-only. Provider requests originate in
 your SaaS process and never pass through Authlane.
 
@@ -1028,6 +1086,13 @@ const authlane = new Authlane({
 const { data: tools, error } = await authlane
   .user('user_123')
   .tools.list({ adapter: mastraAI() });
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 ```
 
 Choose the adapter at the integration boundary:
@@ -1103,6 +1168,8 @@ Source: https://authlane.io/docs/api-reference/services/list-services
 
 Return services enabled for the authenticated tenant
 
+**Endpoint:** `GET /api/v1/catalog/services`
+
 Returns services enabled by the authenticated tenant. Requires `catalog:read`.
 
 Source: https://authlane.io/docs/api-reference/connections/list-connections
@@ -1110,6 +1177,8 @@ Source: https://authlane.io/docs/api-reference/connections/list-connections
 # List connection statuses
 
 Return an effective connection status for every enabled tenant service
+
+**Endpoint:** `GET /api/v1/users/{externalUserId}/connections`
 
 Returns an effective status for every enabled tenant service. Expiration is calculated at request time. Requires `connections:read`.
 
@@ -1119,6 +1188,8 @@ Source: https://authlane.io/docs/api-reference/connections/capabilities
 
 Return statuses and MCP/OpenAI definitions in one hot-read snapshot
 
+**Endpoint:** `GET /api/v1/users/{externalUserId}/capabilities`
+
 Returns statuses and MCP/OpenAI definitions in one hot-read snapshot. Requires `connections:read`.
 
 Source: https://authlane.io/docs/api-reference/connections/create-credential-lease
@@ -1126,6 +1197,8 @@ Source: https://authlane.io/docs/api-reference/connections/create-credential-lea
 # Issue a credential lease
 
 Issue audited access-only credential material to a trusted server-side caller
+
+**Endpoint:** `POST /api/v1/users/{externalUserId}/connections/{serviceId}/credential-leases`
 
 Issues access-only credential material to a trusted server-side caller. Requires
 `credentials:issue`. The audited response uses `Cache-Control: no-store, private`
@@ -1140,6 +1213,8 @@ Source: https://authlane.io/docs/api-reference/connections/create-connect-sessio
 
 Create a short-lived browser handoff bound to one user, service allowlist, and exact HTTPS origin
 
+**Endpoint:** `POST /api/v1/connect-sessions`
+
 Creates a 60–900 second browser handoff bound to an external user, service allowlist, and exact HTTPS parent origin. Requires `connect-sessions:create`.
 
 The returned URL carries the opaque handoff token in its URL fragment, so it is not sent in HTTP request targets or referrers. Responses are non-cacheable. Disconnect is disabled by default; after reauthenticating the end-user in your own application, set `reauthenticatedAt` to the current UTC timestamp to grant that single connect session a five-minute destructive-action window.
@@ -1152,6 +1227,8 @@ Source: https://authlane.io/docs/api-reference/oauth/authorize
 
 Start PKCE OAuth from a valid connect session in the hosted connect UI
 
+**Endpoint:** `POST /api/v1/connect/{serviceId}/authorize`
+
 Starts PKCE OAuth from a valid connect session. The hosted connect UI calls this endpoint; a SaaS API key is not accepted from the browser.
 
 Source: https://authlane.io/docs/api-reference/oauth/callback
@@ -1160,6 +1237,8 @@ Source: https://authlane.io/docs/api-reference/oauth/callback
 
 Validate OAuth state and PKCE, store encrypted credentials, and return to the hosted connect UI
 
+**Endpoint:** `GET /api/v1/oauth/{serviceId}/callback`
+
 Validates the one-time state and PKCE verifier, stores encrypted credentials, schedules refresh, writes a connection event, and returns to the hosted connect UI.
 
 Source: https://authlane.io/docs/api-reference/tools/list-tools
@@ -1167,6 +1246,8 @@ Source: https://authlane.io/docs/api-reference/tools/list-tools
 # List tools
 
 Return MCP tools or OpenAI functions for currently usable connections
+
+**Endpoint:** `GET /api/v1/users/{externalUserId}/tools`
 
 Returns MCP tools or OpenAI functions for currently usable connections. The response includes a stable definition version. Authlane does not execute tools.
 

@@ -30,9 +30,19 @@ Derive `externalUserId` from your SaaS's authenticated server session once, then
 const currentUser = await requireUser(request);
 const user = authlane.user(currentUser.id);
 
-const capabilities = await user.capabilities.get({ format: 'mcp' });
-const connections = await user.connections.list();
-const definitions = await user.tools.list({ format: 'openai' });
+const { data: capabilities, error: capabilitiesError } =
+  await user.capabilities.get({ format: 'mcp' });
+const { data: connections, error: connectionsError } = await user.connections.list();
+const { data: definitions, error: definitionsError } =
+  await user.tools.list({ format: 'openai' });
+
+const error = capabilitiesError ?? connectionsError ?? definitionsError;
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 ```
 
 `user.capabilities.get()` is the hot read for status plus definitions in one versioned snapshot.
@@ -123,11 +133,11 @@ export async function connectUserMcpServer(
   transport: Transport,
 ) {
   const user = authlane.user(externalUserId);
-  const result = await user.tools.list({ adapter: mcpServer() });
+  const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
 
-  if (result.error) return result;
-  await result.data.connect(transport);
-  return result;
+  if (error) return { data: null, error };
+  await server.connect(transport);
+  return { data: server, error: null };
 }
 ```
 
@@ -154,9 +164,17 @@ const customGithub: IntegrationAdapter = {
   },
 };
 
-const result = await authlane.user(currentUser.id).tools.list({
-  adapter: vercelAI({ integrations: [customGithub] }),
-});
+const { data: customTools, error: customToolsError } =
+  await authlane.user(currentUser.id).tools.list({
+    adapter: vercelAI({ integrations: [customGithub] }),
+  });
+
+if (customToolsError) {
+  return Response.json(
+    { error: { code: customToolsError.code, message: customToolsError.message } },
+    { status: customToolsError.statusCode ?? 400 },
+  );
+}
 ```
 
 Custom adapters run inside your SaaS trust boundary. They receive ephemeral access-only material
@@ -165,18 +183,39 @@ for the current invocation and must not log, persist, cache, or return it.
 ## Connect sessions and raw definitions
 
 ```typescript
-const session = await authlane.connectSessions.create({
+const { data: session, error: sessionError } = await authlane.connectSessions.create({
   externalUserId: currentUser.id,
   allowedServices: ['github'],
   allowedOrigin: 'https://app.example.com',
   expiresInSeconds: 600,
 });
 
-await authlane.services.list();
-await authlane.user(currentUser.id).tools.list({ format: 'openai' });
+if (sessionError) {
+  return Response.json(
+    { error: { code: sessionError.code, message: sessionError.message } },
+    { status: sessionError.statusCode ?? 400 },
+  );
+}
+
+const { data: services, error: servicesError } = await authlane.services.list();
+if (servicesError) {
+  return Response.json(
+    { error: { code: servicesError.code, message: servicesError.message } },
+    { status: servicesError.statusCode ?? 400 },
+  );
+}
+
+const { data: rawDefinitions, error: definitionsError } =
+  await authlane.user(currentUser.id).tools.list({ format: 'openai' });
+if (definitionsError) {
+  return Response.json(
+    { error: { code: definitionsError.code, message: definitionsError.message } },
+    { status: definitionsError.statusCode ?? 400 },
+  );
+}
 ```
 
-Return only `session.data?.url` to the browser. Raw tool definitions contain no execution
+Return only `session.url` to the browser. Raw tool definitions contain no execution
 callbacks; executable toolsets from an adapter are server-only. Provider requests originate in
 your SaaS process and never pass through Authlane.
 

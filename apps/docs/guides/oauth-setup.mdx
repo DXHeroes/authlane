@@ -25,12 +25,26 @@ Client secrets are encrypted before storage and never returned by the API.
 Your SaaS backend creates a short-lived connect session:
 
 ```typescript
+import { Authlane } from '@authlane/sdk';
+
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: 'https://app.authlane.io',
+});
+
 const { data, error } = await authlane.connectSessions.create({
   externalUserId: 'user_123',
   allowedServices: ['github'],
   allowedOrigin: 'https://app.example.com',
   expiresInSeconds: 600,
 });
+
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 ```
 
 Use `allowedServices: []` to snapshot all services currently enabled globally and for the

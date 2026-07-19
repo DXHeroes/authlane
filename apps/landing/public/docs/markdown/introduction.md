@@ -34,4 +34,4 @@ PostgreSQL stores policy and encrypted credentials. Redis provides hot-read cach
 - Credential reads never expose OAuth refresh tokens, are audited, and cannot be cached.
 - PostgreSQL RLS policies protect every tenant-owned table.
 
-Follow the [Quickstart](/quickstart) or [Self-hosting guide](/guides/self-hosting).
+Follow the [Quickstart](/docs/quickstart) or [Self-hosting guide](/docs/guides/self-hosting).

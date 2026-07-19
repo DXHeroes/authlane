@@ -76,7 +76,37 @@ function isFence(line) {
 
 const calloutNames = new Set(['Check', 'Caution', 'Danger', 'Info', 'Note', 'Tip', 'Warning']);
 
-function toPublicMarkdownBody(source) {
+function canonicalDocumentationHref(href, documentSlugs) {
+  if (
+    !href.startsWith('/') ||
+    href === '/docs' ||
+    href.startsWith('/docs/') ||
+    href.startsWith('/docs#')
+  ) {
+    return href;
+  }
+
+  const suffixIndex = href.search(/[?#]/);
+  const path = suffixIndex >= 0 ? href.slice(0, suffixIndex) : href;
+  const suffix = suffixIndex >= 0 ? href.slice(suffixIndex) : '';
+  const slug = path.replace(/^\//, '').replace(/\/$/, '');
+  if (!documentSlugs.has(slug)) return href;
+
+  const canonicalPath = slug === 'introduction' ? '/docs' : `/docs/${slug}`;
+  return `${canonicalPath}${suffix}`;
+}
+
+function rewriteDocumentationLinks(line, documentSlugs) {
+  return line
+    .replace(/(\[[^\]]*]\()([^)\s]+)(\))/g, (_match, opening, href, closing) => {
+      return `${opening}${canonicalDocumentationHref(href, documentSlugs)}${closing}`;
+    })
+    .replace(/(\bhref=["'])([^"']+)(["'])/g, (_match, opening, href, closing) => {
+      return `${opening}${canonicalDocumentationHref(href, documentSlugs)}${closing}`;
+    });
+}
+
+function toPublicMarkdownBody(source, documentSlugs) {
   const output = [];
   let fenced = false;
   let callout = null;
@@ -104,12 +134,14 @@ function toPublicMarkdownBody(source) {
       continue;
     }
     if (callout) {
-      output.push(line.trim() ? `> ${line.trim()}` : '>');
+      output.push(line.trim() ? `> ${rewriteDocumentationLinks(line.trim(), documentSlugs)}` : '>');
       continue;
     }
 
     const withoutComponents = line.replace(/<\/?[A-Z][A-Za-z0-9]*(?:\s[^>]*)?\/?>/g, '');
-    if (withoutComponents.trim() || !line.trim()) output.push(withoutComponents);
+    if (withoutComponents.trim() || !line.trim()) {
+      output.push(rewriteDocumentationLinks(withoutComponents, documentSlugs));
+    }
   }
 
   return output.join('\n').trim();
@@ -119,11 +151,16 @@ function documentUrl(slug) {
   return slug === 'introduction' ? docsBaseUrl : `${docsBaseUrl}/${slug}`;
 }
 
-function renderPublicMarkdown(document) {
-  const body = toPublicMarkdownBody(document.source);
-  return [`# ${document.title}`, '', document.description, ...(body ? ['', body] : []), ''].join(
-    '\n'
-  );
+function renderPublicMarkdown(document, documentSlugs) {
+  const body = toPublicMarkdownBody(document.source, documentSlugs);
+  return [
+    `# ${document.title}`,
+    '',
+    document.description,
+    ...(document.api ? ['', `**Endpoint:** \`${document.api}\``] : []),
+    ...(body ? ['', body] : []),
+    '',
+  ].join('\n');
 }
 
 function markdownToText(markdown) {
@@ -132,19 +169,60 @@ function markdownToText(markdown) {
     .replace(/^```$/gm, '')
     .replace(/!\[([^\]]*)]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
-    .replace(/<[^>]+>/g, ' ')
     .replace(/^\s*(?:#{1,6}|>|[-*+] |\d+\. )\s*/gm, '')
-    .replace(/[`*_~]/g, '')
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/~~([^~\n]+)~~/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function documentFromSource(document, navigationGroup, order) {
+function searchKeywords(...values) {
+  const matches = values
+    .filter((value) => value !== null)
+    .join(' ')
+    .match(/<[^>\s]+>|[A-Za-z0-9]+(?:[_-][A-Za-z0-9]+)+|[A-Za-z][A-Za-z0-9]*/g);
+  return [...new Set(matches ?? [])].sort((left, right) => left.localeCompare(right));
+}
+
+function searchSections(markdown) {
+  const sections = [];
+  let current = null;
+  let fenced = false;
+
+  for (const line of markdown.split('\n')) {
+    if (isFence(line)) {
+      fenced = !fenced;
+      if (current) current.lines.push(line);
+      continue;
+    }
+
+    const match = fenced ? null : /^(##|###)\s+(.+?)\s*$/.exec(line);
+    if (match) {
+      if (current) sections.push(current);
+      const heading = match[2].replace(/\[([^\]]+)]\([^)]*\)/g, '$1').replace(/[`*_]/g, '');
+      current = { headingId: headingId(heading), heading, lines: [] };
+      continue;
+    }
+
+    if (current) current.lines.push(line);
+  }
+
+  if (current) sections.push(current);
+  return sections.map((section) => ({
+    headingId: section.headingId,
+    heading: section.heading,
+    text: markdownToText(section.lines.join('\n')),
+  }));
+}
+
+function documentFromSource(document, navigationGroup, order, documentSlugs) {
   const { attributes, body } = parseFrontmatter(document.source);
   const parsed = {
     slug: document.slug,
     title: String(attributes.title ?? 'Authlane documentation'),
     description: String(attributes.description ?? ''),
+    ...(typeof attributes.api === 'string' ? { api: attributes.api } : {}),
     source: body,
     headings: extractHeadings(body),
     navigationGroup,
@@ -152,11 +230,12 @@ function documentFromSource(document, navigationGroup, order) {
     url: documentUrl(document.slug),
   };
 
-  return { ...parsed, publicMarkdown: renderPublicMarkdown(parsed) };
+  return { ...parsed, publicMarkdown: renderPublicMarkdown(parsed, documentSlugs) };
 }
 
 export function buildDocumentationModel({ navigation, documents }) {
   const documentsBySlug = new Map(documents.map((document) => [document.slug, document]));
+  const documentSlugs = new Set(documentsBySlug.keys());
   const orderedDocuments = [];
   let order = 0;
 
@@ -164,7 +243,7 @@ export function buildDocumentationModel({ navigation, documents }) {
     for (const slug of group.pages) {
       const document = documentsBySlug.get(slug);
       if (!document || orderedDocuments.some((candidate) => candidate.slug === slug)) continue;
-      orderedDocuments.push(documentFromSource(document, group.group, order));
+      orderedDocuments.push(documentFromSource(document, group.group, order, documentSlugs));
       order += 1;
     }
   }
@@ -173,16 +252,28 @@ export function buildDocumentationModel({ navigation, documents }) {
     group: group.group,
     pages: [...group.pages],
   }));
-  const searchEntries = orderedDocuments.map((document) => ({
-    id: document.slug,
-    slug: document.slug,
-    url: document.url,
-    title: document.title,
-    description: document.description,
-    navigationGroup: document.navigationGroup,
-    headings: document.headings,
-    text: markdownToText(document.publicMarkdown),
-  }));
+  const searchEntries = orderedDocuments.flatMap((document) => {
+    const pageText = markdownToText(document.publicMarkdown);
+    const pageEntry = {
+      slug: document.slug,
+      title: document.title,
+      description: document.description,
+      headingId: null,
+      heading: null,
+      text: pageText,
+      keywords: searchKeywords(document.title, document.description, pageText),
+    };
+    const headingEntries = searchSections(document.publicMarkdown).map((section) => ({
+      slug: document.slug,
+      title: document.title,
+      description: document.description,
+      headingId: section.headingId,
+      heading: section.heading,
+      text: section.text,
+      keywords: searchKeywords(document.title, document.description, section.heading, section.text),
+    }));
+    return [pageEntry, ...headingEntries];
+  });
   const llms = [
     '# Authlane documentation',
     '',
@@ -258,7 +349,14 @@ function resolveInternalLink(sourceSlug, href) {
 
   const hashIndex = value.indexOf('#');
   const path = hashIndex >= 0 ? value.slice(0, hashIndex) : value;
-  const fragment = hashIndex >= 0 ? decodeURIComponent(value.slice(hashIndex + 1)) : '';
+  let fragment = '';
+  if (hashIndex >= 0) {
+    try {
+      fragment = decodeURIComponent(value.slice(hashIndex + 1));
+    } catch {
+      return { error: 'malformed internal fragment encoding' };
+    }
+  }
   let slug;
 
   if (!path) slug = sourceSlug;
@@ -364,6 +462,10 @@ export function validateDocumentation({ navigation, documents }) {
     for (const href of extractInternalLinks(document.source)) {
       const target = resolveInternalLink(document.slug, href);
       if (!target) continue;
+      if (target.error) {
+        violations.push(validationMessage(document.slug, target.error, href));
+        continue;
+      }
       if (!documentsBySlug.has(target.slug)) {
         violations.push(validationMessage(document.slug, 'broken internal page link', href));
         continue;

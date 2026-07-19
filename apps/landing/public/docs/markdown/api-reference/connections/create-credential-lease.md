@@ -2,6 +2,8 @@
 
 Issue audited access-only credential material to a trusted server-side caller
 
+**Endpoint:** `POST /api/v1/users/{externalUserId}/connections/{serviceId}/credential-leases`
+
 Issues access-only credential material to a trusted server-side caller. Requires
 `credentials:issue`. The audited response uses `Cache-Control: no-store, private`
 and never contains OAuth refresh tokens, ID tokens, or provider client secrets.

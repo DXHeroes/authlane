@@ -101,6 +101,121 @@ describe('documentation asset generation', () => {
     );
   });
 
+  it('emits page and heading search entries with stable shape and searchable identifiers', () => {
+    const model = buildDocumentationModel({
+      navigation: [{ group: 'SDK', pages: ['sdk/typescript'] }],
+      documents: [
+        {
+          slug: 'sdk/typescript',
+          source: [
+            '---',
+            'title: TypeScript SDK',
+            'description: Use the server SDK.',
+            '---',
+            '',
+            'Set `AUTHLANE_API_KEY` before continuing.',
+            '',
+            '## Configure a user',
+            '',
+            'Bind `externalUserId` and handle `INVALID_CHAT_REQUEST` for `google-calendar` at `<timestamp>`.',
+            '',
+            '## Run the agent',
+            '',
+            'This belongs only to the later section.',
+            '',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    const entries = JSON.parse(renderGeneratedAssets(model).searchIndex);
+    expect(entries).toHaveLength(3);
+    expect(Object.keys(entries[0])).toEqual([
+      'slug',
+      'title',
+      'description',
+      'headingId',
+      'heading',
+      'text',
+      'keywords',
+    ]);
+    expect(entries[0]).toMatchObject({
+      slug: 'sdk/typescript',
+      title: 'TypeScript SDK',
+      description: 'Use the server SDK.',
+      headingId: null,
+      heading: null,
+    });
+
+    const configureEntry = entries.find(
+      (entry: { headingId: string | null }) => entry.headingId === 'configure-a-user'
+    );
+    expect(configureEntry).toMatchObject({
+      slug: 'sdk/typescript',
+      heading: 'Configure a user',
+    });
+    expect(configureEntry.text).toContain('externalUserId');
+    expect(configureEntry.text).not.toContain('later section');
+    expect(configureEntry.keywords).toEqual(
+      expect.arrayContaining([
+        'externalUserId',
+        'INVALID_CHAT_REQUEST',
+        'google-calendar',
+        '<timestamp>',
+      ])
+    );
+    expect(entries[0].text).toContain('AUTHLANE_API_KEY');
+  });
+
+  it('preserves API metadata and canonicalizes documentation links in public assets', () => {
+    const model = buildDocumentationModel({
+      navigation: [
+        { group: 'API', pages: ['api-reference/capabilities'] },
+        { group: 'Start', pages: ['quickstart'] },
+      ],
+      documents: [
+        {
+          slug: 'api-reference/capabilities',
+          source: [
+            '---',
+            'title: Get capabilities',
+            'description: Read a snapshot.',
+            "api: 'GET /api/v1/users/{externalUserId}/capabilities'",
+            '---',
+            '',
+            '[Quickstart](/quickstart#install)',
+            '[Already canonical](/docs/quickstart#install)',
+            '[Absolute](https://authlane.io/docs/quickstart#install)',
+            '[Non-doc route](/pricing)',
+            '',
+            '## Details',
+            '',
+            '[Same-page fragment](#details)',
+            '',
+          ].join('\n'),
+        },
+        {
+          slug: 'quickstart',
+          source:
+            '---\ntitle: Quickstart\ndescription: Install Authlane.\n---\n\n## Install\n\nInstall it.\n',
+        },
+      ],
+    });
+
+    const assets = renderGeneratedAssets(model);
+    const endpoint = JSON.parse(assets.manifest).documents[0];
+    const markdown = assets.markdown.get('api-reference/capabilities');
+    expect(endpoint.api).toBe('GET /api/v1/users/{externalUserId}/capabilities');
+    expect(markdown).toContain('`GET /api/v1/users/{externalUserId}/capabilities`');
+    expect(markdown).toContain('[Quickstart](/docs/quickstart#install)');
+    expect(markdown).toContain('[Already canonical](/docs/quickstart#install)');
+    expect(markdown).toContain('[Absolute](https://authlane.io/docs/quickstart#install)');
+    expect(markdown).toContain('[Non-doc route](/pricing)');
+    expect(markdown).toContain('[Same-page fragment](#details)');
+    expect(assets.llmsFull).toContain('[Quickstart](/docs/quickstart#install)');
+    expect(assets.llmsFull).not.toContain('[Quickstart](/quickstart#install)');
+  });
+
   it('returns sorted violations for malformed navigation, metadata, markers, and links', () => {
     const violations = validateDocumentation({
       navigation: [{ group: 'Start', pages: ['start', 'missing'] }],
@@ -143,6 +258,28 @@ describe('documentation asset generation', () => {
         expect.stringContaining('orphan: orphan MDX: not listed in navigation'),
       ])
     );
+  });
+
+  it('reports malformed internal fragment encoding without throwing', () => {
+    const violations = validateDocumentation({
+      navigation: [{ group: 'Start', pages: ['start'] }],
+      documents: [
+        {
+          slug: 'start',
+          source: [
+            '---',
+            'title: Start',
+            'description: Start here.',
+            '---',
+            '',
+            '[Malformed](#bad%E0%A4%A)',
+            '',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    expect(violations).toEqual(['start: malformed internal fragment encoding: #bad%E0%A4%A']);
   });
 
   it('loads every MDX document from a repository root in stable path order', () => {

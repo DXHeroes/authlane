@@ -2,4 +2,6 @@
 
 Return statuses and MCP/OpenAI definitions in one hot-read snapshot
 
+**Endpoint:** `GET /api/v1/users/{externalUserId}/capabilities`
+
 Returns statuses and MCP/OpenAI definitions in one hot-read snapshot. Requires `connections:read`.

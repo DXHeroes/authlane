@@ -85,17 +85,22 @@ Export both `.` and `./tools` from the package. Authlane imports `./tools` when 
 ```typescript
 import trello from '@authlane/integration-trello';
 
-const credentials = await authlane.credentialLeases.create({
+const { data: credentials, error } = await authlane.credentialLeases.create({
   externalUserId: 'user_123',
   serviceId: 'trello',
 });
 
-if (credentials.error) return credentials;
+if (error) {
+  return Response.json(
+    { error: { code: error.code, message: error.message } },
+    { status: error.statusCode ?? 400 },
+  );
+}
 
 const result = await trello.execute(
   'trello_list_boards',
   {},
-  credentials.data,
+  credentials,
 );
 ```
 

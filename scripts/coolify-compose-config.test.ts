@@ -11,16 +11,25 @@ const publicOriginVariables = [
 ] as const;
 
 describe('Coolify runtime configuration', () => {
-  it('copies the README into the builder before landing documentation checks run', async () => {
+  it('copies every documentation contract input before landing checks run', async () => {
     const dockerfile = await readFile(
       new URL('../apps/api/Dockerfile', import.meta.url),
       'utf8'
     );
-    const readmeCopyIndex = dockerfile.indexOf('COPY README.md ./');
     const landingBuildIndex = dockerfile.indexOf('pnpm --filter @authlane/landing build');
 
-    expect(readmeCopyIndex).toBeGreaterThanOrEqual(0);
-    expect(landingBuildIndex).toBeGreaterThan(readmeCopyIndex);
+    for (const copyInstruction of [
+      'COPY README.md ./',
+      'COPY .claude-plugin ./.claude-plugin',
+      'COPY .agents/plugins ./.agents/plugins',
+      'COPY .cursor-plugin ./.cursor-plugin',
+      'COPY plugins/authlane ./plugins/authlane',
+    ]) {
+      const copyIndex = dockerfile.indexOf(copyInstruction);
+
+      expect(copyIndex, copyInstruction).toBeGreaterThanOrEqual(0);
+      expect(landingBuildIndex, copyInstruction).toBeGreaterThan(copyIndex);
+    }
   });
 
   it('passes every public origin and host policy variable directly to the app', async () => {

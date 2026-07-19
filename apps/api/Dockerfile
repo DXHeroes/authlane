@@ -9,6 +9,10 @@ COPY README.md ./
 COPY apps ./apps
 COPY packages ./packages
 COPY integrations ./integrations
+COPY .claude-plugin ./.claude-plugin
+COPY .agents/plugins ./.agents/plugins
+COPY .cursor-plugin ./.cursor-plugin
+COPY plugins/authlane ./plugins/authlane
 COPY scripts ./scripts
 RUN --mount=type=cache,id=authlane-pnpm-store,target=/pnpm/store \
   pnpm config set store-dir /pnpm/store \

@@ -500,6 +500,36 @@ function quotedInlineValue(source, value) {
   return source.includes(`\`${value}\``);
 }
 
+function h2Sections(source) {
+  const sections = new Map();
+  let current = null;
+  let fenced = false;
+  for (const line of normalizeLineEndings(source).split('\n')) {
+    if (isFence(line)) {
+      fenced = !fenced;
+      if (current) current.lines.push(line);
+      continue;
+    }
+    const match = fenced ? null : /^##\s+(.+?)\s*$/.exec(line);
+    if (match) {
+      current = { heading: match[1], lines: [] };
+      sections.set(current.heading, current);
+      continue;
+    }
+    if (current) current.lines.push(line);
+  }
+  return new Map(
+    [...sections].map(([heading, section]) => [heading, section.lines.join('\n').trim()])
+  );
+}
+
+function bulletInlineValues(source) {
+  return source
+    .split('\n')
+    .filter((line) => /^\s*-\s+/.test(line))
+    .flatMap((line) => [...line.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]));
+}
+
 function documentedToolNames(source, toolNames) {
   const prefixes = new Set(toolNames.map((name) => name.slice(0, name.indexOf('_') + 1)));
   if (prefixes.size === 0) return [];
@@ -508,7 +538,7 @@ function documentedToolNames(source, toolNames) {
     .map((prefix) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   if (escapedPrefixes.length === 0) return [];
   const pattern = new RegExp(`\\\`((?:${escapedPrefixes.join('|')})[a-z0-9_]+)\\\``, 'g');
-  return [...new Set([...source.matchAll(pattern)].map((match) => match[1]))];
+  return [...source.matchAll(pattern)].map((match) => match[1]);
 }
 
 export function validateIntegrationPages(model, integrationConfigs) {
@@ -519,6 +549,15 @@ export function validateIntegrationPages(model, integrationConfigs) {
       .map((document) => [document.slug.slice('integrations/'.length), document])
   );
   const configs = new Map(integrationConfigs.map((config) => [config.serviceId, config]));
+
+  if (integrationConfigs.length !== 15) {
+    violations.push(
+      `integrations: integration page config/manifest count must be 15, found ${integrationConfigs.length}`
+    );
+  }
+  if (pages.size !== 15) {
+    violations.push(`integrations: integration page count must be 15, found ${pages.size}`);
+  }
 
   for (const [serviceId] of pages) {
     if (!configs.has(serviceId)) {
@@ -556,35 +595,78 @@ export function validateIntegrationPages(model, integrationConfigs) {
       );
     }
 
-    const headings = new Set(page.headings.map((heading) => heading.text));
+    const h2Headings = page.headings
+      .filter((heading) => heading.depth === 2)
+      .map((heading) => heading.text);
+    const headings = new Set(h2Headings);
     for (const heading of requiredIntegrationHeadings) {
       if (!headings.has(heading)) {
         violations.push(`${slug}: integration page missing section "${heading}"`);
       }
     }
+    for (const heading of h2Headings) {
+      if (!requiredIntegrationHeadings.includes(heading)) {
+        violations.push(`${slug}: integration page unexpected section "${heading}"`);
+      }
+    }
+    if (
+      requiredIntegrationHeadings.every((heading) => headings.has(heading)) &&
+      h2Headings
+        .filter((heading) => requiredIntegrationHeadings.includes(heading))
+        .some((heading, index) => heading !== requiredIntegrationHeadings[index])
+    ) {
+      violations.push(`${slug}: integration page sections are out of order`);
+    }
+
+    const sections = h2Sections(page.source);
+    const scopesSection = sections.get('Scopes') ?? '';
 
     for (const scope of config.defaultScopes) {
-      if (!quotedInlineValue(page.source, scope)) {
-        violations.push(`${slug}: integration page missing default scope "${scope}"`);
+      if (!quotedInlineValue(scopesSection, scope)) {
+        violations.push(
+          `${slug}: integration page missing default scope "${scope}" in section "Scopes"`
+        );
       }
     }
     if (
       config.defaultScopes.length === 0 &&
-      !/\bno default (?:OAuth )?scopes\b/i.test(page.source)
+      !/\bno default (?:OAuth )?scopes\b/i.test(scopesSection)
     ) {
       violations.push(`${slug}: integration page missing empty default-scope explanation`);
     }
-
-    const exportedTools = new Set(config.toolNames);
-    const documentedTools = new Set(documentedToolNames(page.source, config.toolNames));
-    for (const toolName of exportedTools) {
-      if (!documentedTools.has(toolName)) {
-        violations.push(`${slug}: integration page missing exported tool "${toolName}"`);
+    const availableScopes = new Set(config.availableScopes ?? []);
+    const toolNames = new Set(config.toolNames);
+    for (const scope of new Set(bulletInlineValues(scopesSection))) {
+      if (toolNames.has(scope)) continue;
+      if (!availableScopes.has(scope)) {
+        violations.push(`${slug}: integration page documents scope "${scope}" absent from config`);
       }
     }
+
+    const exportedTools = new Set(config.toolNames);
+    const availableToolsSection = sections.get('Available tools') ?? '';
+    const documentedTools = documentedToolNames(availableToolsSection, config.toolNames);
+    const documentedToolCounts = new Map();
     for (const toolName of documentedTools) {
+      documentedToolCounts.set(toolName, (documentedToolCounts.get(toolName) ?? 0) + 1);
+    }
+    for (const toolName of exportedTools) {
+      const count = documentedToolCounts.get(toolName) ?? 0;
+      if (count === 0) {
+        violations.push(
+          `${slug}: integration page missing exported tool "${toolName}" in section "Available tools"`
+        );
+      } else if (count > 1) {
+        violations.push(
+          `${slug}: integration page duplicate exported tool "${toolName}" in section "Available tools"`
+        );
+      }
+    }
+    for (const toolName of new Set(documentedTools)) {
       if (!exportedTools.has(toolName)) {
-        violations.push(`${slug}: integration page documents unknown tool "${toolName}"`);
+        violations.push(
+          `${slug}: integration page documents unknown tool "${toolName}" in section "Available tools"`
+        );
       }
     }
   }
@@ -613,35 +695,137 @@ function collectMdxFiles(directory) {
   return files.sort((left, right) => left.localeCompare(right));
 }
 
-function extractExportedToolNames(source) {
-  return [
-    ...new Set(
-      [...source.matchAll(/\bdefinition\s*:\s*\{\s*name\s*:\s*(['"])([a-z][a-z0-9_]*)\1/g)].map(
-        (match) => match[2]
-      )
-    ),
-  ].sort((left, right) => left.localeCompare(right));
+function repositoryRelativePath(root, path) {
+  return relative(resolve(root), path).split(sep).join('/');
+}
+
+function readCanonicalManifest(root, path) {
+  const label = repositoryRelativePath(root, path);
+  const source = readFileSync(path, 'utf8');
+  let manifest;
+  try {
+    manifest = JSON.parse(source);
+  } catch {
+    throw new Error(`${label}: invalid canonical manifest JSON`);
+  }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error(`${label}: manifest must be an object`);
+  }
+  if (typeof manifest.serviceId !== 'string' || !manifest.serviceId) {
+    throw new Error(`${label}: manifest serviceId must be a non-empty string`);
+  }
+  if (!Array.isArray(manifest.tools)) {
+    throw new Error(`${label}: manifest tools must be an array`);
+  }
+  if (manifest.tools.length === 0) {
+    throw new Error(`${label}: tools must contain at least one definition`);
+  }
+
+  const toolNames = [];
+  const seenToolNames = new Set();
+  for (const tool of manifest.tools) {
+    if (!tool || typeof tool !== 'object' || Array.isArray(tool)) {
+      throw new Error(`${label}: every tool definition must be an object`);
+    }
+    if (typeof tool.name !== 'string' || !/^[a-z][a-z0-9_]*$/.test(tool.name)) {
+      const name = typeof tool.name === 'string' ? tool.name : String(tool.name);
+      throw new Error(`${label}: invalid tool name "${name}"`);
+    }
+    if (seenToolNames.has(tool.name)) {
+      throw new Error(`${label}: duplicate tool name "${tool.name}"`);
+    }
+    seenToolNames.add(tool.name);
+    toolNames.push(tool.name);
+  }
+
+  return {
+    label,
+    serviceId: manifest.serviceId,
+    toolNames: toolNames.sort((left, right) => left.localeCompare(right)),
+  };
 }
 
 export function loadIntegrationConfigs(root) {
   const integrationsRoot = join(resolve(root), 'integrations');
-  return readdirSync(integrationsRoot, { withFileTypes: true })
+  const configs = readdirSync(integrationsRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
       const directory = join(integrationsRoot, entry.name);
       const parsed = YAML.parse(readFileSync(join(directory, 'config.yaml'), 'utf8'));
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error(`integrations/${entry.name}: config.yaml must contain an object`);
+      }
+      if (parsed.id !== entry.name) {
+        throw new Error(
+          `integrations/${entry.name}: config id "${String(parsed.id)}" must match directory name`
+        );
+      }
+      if (!Array.isArray(parsed.config?.scopes) || !Array.isArray(parsed.config?.default_scopes)) {
+        throw new Error(`integrations/${entry.name}: config scopes must be arrays`);
+      }
+      const availableScopes = parsed.config.scopes.map((scope) => String(scope));
       const defaultScopes = parsed?.config?.default_scopes;
       return {
         name: String(parsed?.name ?? ''),
         serviceId: String(parsed?.id ?? ''),
         authType: String(parsed?.auth_type ?? ''),
-        defaultScopes: Array.isArray(defaultScopes)
-          ? defaultScopes.map((scope) => String(scope))
-          : [],
-        toolNames: extractExportedToolNames(readFileSync(join(directory, 'tools.ts'), 'utf8')),
+        availableScopes,
+        defaultScopes: defaultScopes.map((scope) => String(scope)),
       };
-    })
-    .sort((left, right) => left.serviceId.localeCompare(right.serviceId));
+    });
+
+  const configsByServiceId = new Map();
+  for (const config of configs) {
+    if (configsByServiceId.has(config.serviceId)) {
+      throw new Error(`integrations: duplicate config serviceId "${config.serviceId}"`);
+    }
+    configsByServiceId.set(config.serviceId, config);
+  }
+
+  const manifestsRoot = join(resolve(root), 'packages', 'integration-contracts', 'manifests', 'v1');
+  const manifests = readdirSync(manifestsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && extname(entry.name) === '.json')
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((entry) => readCanonicalManifest(root, join(manifestsRoot, entry.name)));
+  const manifestsByServiceId = new Map();
+  for (const manifest of manifests) {
+    if (manifestsByServiceId.has(manifest.serviceId)) {
+      throw new Error(
+        `${manifest.label}: duplicate canonical manifest serviceId "${manifest.serviceId}"`
+      );
+    }
+    manifestsByServiceId.set(manifest.serviceId, manifest);
+  }
+
+  const joinedConfigs = configs.map((config) => {
+    const manifestPath = join(manifestsRoot, `${config.serviceId}.json`);
+    const expectedLabel = repositoryRelativePath(root, manifestPath);
+    let manifest;
+    try {
+      manifest = readCanonicalManifest(root, manifestPath);
+    } catch (error) {
+      if (error && typeof error === 'object' && error.code === 'ENOENT') {
+        throw new Error(
+          `integrations/${config.serviceId}: missing canonical manifest "${expectedLabel}"`
+        );
+      }
+      throw error;
+    }
+    if (manifest.serviceId !== config.serviceId) {
+      throw new Error(
+        `${manifest.label}: serviceId "${manifest.serviceId}" does not match config "${config.serviceId}"`
+      );
+    }
+    return { ...config, toolNames: manifest.toolNames };
+  });
+
+  for (const manifest of manifests) {
+    if (!configsByServiceId.has(manifest.serviceId)) {
+      throw new Error(`${manifest.label}: manifest has no matching integration config`);
+    }
+  }
+
+  return joinedConfigs.sort((left, right) => left.serviceId.localeCompare(right.serviceId));
 }
 
 export function loadDocumentation(root) {
@@ -667,12 +851,42 @@ export function validateRepositoryDocumentation(root) {
   ].sort((left, right) => left.localeCompare(right));
 }
 
+function compactShortNavigationArrays(source) {
+  const lines = source.split('\n');
+  const output = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const opening = /^(\s*)"pages": \[$/.exec(lines[index]);
+    if (!opening) {
+      output.push(lines[index]);
+      continue;
+    }
+
+    const values = [];
+    let closingIndex = index + 1;
+    while (closingIndex < lines.length && /^\s+"(?:[^"\\]|\\.)*",?$/.test(lines[closingIndex])) {
+      values.push(lines[closingIndex].trim().replace(/,$/, ''));
+      closingIndex += 1;
+    }
+    if (lines[closingIndex] !== `${opening[1]}]`) {
+      output.push(lines[index]);
+      continue;
+    }
+
+    const compact = `${opening[1]}"pages": [${values.join(', ')}]`;
+    if (compact.length <= 100) {
+      output.push(compact);
+      index = closingIndex;
+    } else {
+      output.push(lines[index]);
+    }
+  }
+  return output.join('\n');
+}
+
 export function renderGeneratedAssets(model) {
   return {
-    manifest: `${JSON.stringify(
-      { documents: model.documents, navigation: model.navigation },
-      null,
-      2
+    manifest: `${compactShortNavigationArrays(
+      JSON.stringify({ documents: model.documents, navigation: model.navigation }, null, 2)
     )}\n`,
     searchIndex: `${JSON.stringify(model.searchEntries, null, 2)}\n`,
     markdown: new Map(model.documents.map((document) => [document.slug, document.publicMarkdown])),

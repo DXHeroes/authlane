@@ -135,12 +135,7 @@
     },
     {
       "group": "AI coding tools",
-      "pages": [
-        "ai-tools/marketplace",
-        "ai-tools/claude",
-        "ai-tools/codex",
-        "ai-tools/cursor"
-      ]
+      "pages": ["ai-tools/marketplace", "ai-tools/claude", "ai-tools/codex", "ai-tools/cursor"]
     }
   ],
   "footerSocials": {

@@ -18,16 +18,19 @@ defaults from `integrations/slack/config.yaml`.
 - `chat:write` sends channel or direct messages.
 - `channels:read` lists public channels visible to the connected app.
 
-The adapter also exports channel creation, file, user, and status tools. The repository's Slack
-scope list does not currently declare file-upload or profile-status permissions. Expose each tool
-only after the tenant OAuth configuration has been reviewed against that provider operation.
+`slack_post_file` is currently unavailable because its handler uses the retired `files.upload`
+method. Do not expose it until the adapter is migrated to Slack's current external upload flow.
+
+`slack_set_status` is currently unavailable because it requires a user token plus
+`users.profile:write`; neither is represented by the current repository config. Adding a bot scope
+alone is not sufficient.
 
 ## Available tools
 
 ### Messages and files
 
 - `slack_send_message`
-- `slack_post_file`
+- `slack_post_file` — currently unavailable; see the scope note above.
 
 ### Channels and users
 
@@ -37,7 +40,7 @@ only after the tenant OAuth configuration has been reviewed against that provide
 
 ### User status
 
-- `slack_set_status`
+- `slack_set_status` — currently unavailable; see the scope note above.
 
 Install `@authlane/integration-slack` in the SaaS runtime. A callback gets a fresh credential lease
 and calls Slack directly; messages, file content, and Slack responses do not pass through Authlane.
@@ -52,6 +55,6 @@ reauthentication.
 ## Troubleshooting
 
 - Channel listing and posting are limited to channels visible to the connected Slack app.
-- Private channels, channel creation, file upload, user listing, and status changes can need scopes
-  beyond the two defaults; do not assume the exported tool implies OAuth permission.
+- Do not offer file upload until the retired handler is migrated, and do not offer status changes
+  with the current bot-oriented configuration.
 - Use channel and user IDs returned by Slack tools when names are ambiguous.

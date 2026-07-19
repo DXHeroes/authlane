@@ -22,9 +22,18 @@ approve the defaults from `integrations/gmail/config.yaml`.
 - `https://www.googleapis.com/auth/gmail.readonly` permits reading messages, threads, labels, and
   drafts exposed by the adapter.
 
-The exported adapter also contains mutation tools. If you enable those tools, approve a configured
-write-capable Gmail scope such as `https://www.googleapis.com/auth/gmail.modify`; the default
-read-only scope alone does not grant mailbox mutations.
+Configured optional capabilities are separate:
+
+- `https://www.googleapis.com/auth/gmail.compose` enables `gmail_create_draft`.
+- `https://www.googleapis.com/auth/gmail.labels` enables `gmail_create_label`.
+- `https://www.googleapis.com/auth/gmail.modify` enables label changes through
+  `gmail_modify_email` and moving messages to trash through `gmail_trash_email`; it is insufficient
+  for immediate permanent deletion.
+
+`gmail_delete_email` performs an immediate permanent deletion. It requires
+`https://mail.google.com/` and is unavailable with the current repository config because that scope
+is not declared. Do not expose this tool unless the provider configuration and consent model are
+deliberately expanded.
 
 ## Available tools
 
@@ -64,5 +73,7 @@ session after recent user reauthentication.
 
 - A read or send failure often means the connected Google account is outside the OAuth client's
   allowed users or the requested Gmail scope was not approved.
-- Label, trash, delete, and other mutation tools need a configured write-capable Gmail scope.
+- Draft, label, and trash failures must be checked against their distinct compose, labels, and
+  modify scopes. `https://www.googleapis.com/auth/gmail.modify` is insufficient for
+  `gmail_delete_email`.
 - Use Gmail message and thread IDs returned by the read tools; email subjects are not IDs.

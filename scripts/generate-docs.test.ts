@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildDocumentationModel,
   loadDocumentation,
+  loadIntegrationConfigs,
   renderGeneratedAssets,
   validateDocumentation,
   validateIntegrationPages,
@@ -40,6 +41,7 @@ describe('documentation asset generation', () => {
       slug: 'introduction',
       navigationGroup: 'Start here',
     });
+    expect(first.manifest).toContain('"pages": ["introduction"]');
     expect(JSON.parse(first.searchIndex)[0].text).toContain('Provider traffic stays direct');
     expect(first.markdown.get('introduction')).toContain('## Boundary');
     expect(first.llms).toContain('https://authlane.io/docs');
@@ -367,6 +369,150 @@ describe('documentation asset generation', () => {
     expect(loaded.documents.map((document) => document.slug)).toEqual(['guides/a-first', 'z-last']);
   });
 
+  function createIntegrationFixture(manifestContents?: string | null) {
+    const root = mkdtempSync(join(tmpdir(), 'authlane-integration-docs-'));
+    temporaryDirectories.push(root);
+    const integrationRoot = join(root, 'integrations', 'github');
+    const manifestRoot = join(root, 'packages', 'integration-contracts', 'manifests', 'v1');
+    mkdirSync(integrationRoot, { recursive: true });
+    mkdirSync(manifestRoot, { recursive: true });
+    writeFileSync(
+      join(integrationRoot, 'config.yaml'),
+      [
+        'id: github',
+        'name: GitHub',
+        'auth_type: oauth2',
+        'config:',
+        '  scopes:',
+        '    - repo',
+        '    - user',
+        '  default_scopes:',
+        '    - repo',
+        '',
+      ].join('\n')
+    );
+    writeFileSync(
+      join(integrationRoot, 'tools.ts'),
+      "export const tools = { wrong: { definition: { name: 'github_not_canonical' } } };\n"
+    );
+    if (manifestContents !== null) {
+      writeFileSync(
+        join(manifestRoot, 'github.json'),
+        manifestContents ??
+          `${JSON.stringify(
+            {
+              schemaVersion: '1.0',
+              serviceId: 'github',
+              tools: [{ name: 'github_create_issue' }],
+            },
+            null,
+            2
+          )}\n`
+      );
+    }
+    return { root, manifestRoot };
+  }
+
+  it('loads tool names from canonical manifests instead of TypeScript source text', () => {
+    const { root } = createIntegrationFixture();
+
+    expect(loadIntegrationConfigs(root)[0]).toMatchObject({
+      availableScopes: ['repo', 'user'],
+      defaultScopes: ['repo'],
+      toolNames: ['github_create_issue'],
+    });
+  });
+
+  it('rejects a missing canonical integration manifest', () => {
+    const { root } = createIntegrationFixture(null);
+
+    expect(() => loadIntegrationConfigs(root)).toThrow(
+      'integrations/github: missing canonical manifest "packages/integration-contracts/manifests/v1/github.json"'
+    );
+  });
+
+  it('rejects invalid canonical manifest JSON', () => {
+    const { root } = createIntegrationFixture('{');
+
+    expect(() => loadIntegrationConfigs(root)).toThrow(
+      'packages/integration-contracts/manifests/v1/github.json: invalid canonical manifest JSON'
+    );
+  });
+
+  it('rejects malformed canonical manifest object shapes', () => {
+    const { root } = createIntegrationFixture('[]\n');
+
+    expect(() => loadIntegrationConfigs(root)).toThrow(
+      'packages/integration-contracts/manifests/v1/github.json: manifest must be an object'
+    );
+  });
+
+  it('rejects a manifest service ID that does not match its config', () => {
+    const { root } = createIntegrationFixture(
+      `${JSON.stringify({ serviceId: 'git-hub', tools: [{ name: 'github_create_issue' }] })}\n`
+    );
+
+    expect(() => loadIntegrationConfigs(root)).toThrow(
+      'packages/integration-contracts/manifests/v1/github.json: serviceId "git-hub" does not match config "github"'
+    );
+  });
+
+  it('rejects duplicate tool names in a canonical manifest', () => {
+    const { root } = createIntegrationFixture(
+      `${JSON.stringify({
+        serviceId: 'github',
+        tools: [{ name: 'github_create_issue' }, { name: 'github_create_issue' }],
+      })}\n`
+    );
+
+    expect(() => loadIntegrationConfigs(root)).toThrow(
+      'packages/integration-contracts/manifests/v1/github.json: duplicate tool name "github_create_issue"'
+    );
+  });
+
+  it('rejects empty and invalid canonical manifest tool names', () => {
+    const empty = createIntegrationFixture(
+      `${JSON.stringify({ serviceId: 'github', tools: [] })}\n`
+    );
+    expect(() => loadIntegrationConfigs(empty.root)).toThrow(
+      'packages/integration-contracts/manifests/v1/github.json: tools must contain at least one definition'
+    );
+
+    const invalid = createIntegrationFixture(
+      `${JSON.stringify({ serviceId: 'github', tools: [{ name: 'GitHub Tool' }] })}\n`
+    );
+    expect(() => loadIntegrationConfigs(invalid.root)).toThrow(
+      'packages/integration-contracts/manifests/v1/github.json: invalid tool name "GitHub Tool"'
+    );
+  });
+
+  it('rejects duplicate and unmatched canonical manifests', () => {
+    const duplicate = createIntegrationFixture();
+    writeFileSync(
+      join(duplicate.manifestRoot, 'zz-github.json'),
+      `${JSON.stringify({ serviceId: 'github', tools: [{ name: 'github_list_issues' }] })}\n`
+    );
+    expect(() => loadIntegrationConfigs(duplicate.root)).toThrow(
+      'packages/integration-contracts/manifests/v1/zz-github.json: duplicate canonical manifest serviceId "github"'
+    );
+
+    const unmatched = createIntegrationFixture();
+    writeFileSync(
+      join(unmatched.manifestRoot, 'slack.json'),
+      `${JSON.stringify({ serviceId: 'slack', tools: [{ name: 'slack_send_message' }] })}\n`
+    );
+    expect(() => loadIntegrationConfigs(unmatched.root)).toThrow(
+      'packages/integration-contracts/manifests/v1/slack.json: manifest has no matching integration config'
+    );
+  });
+
+  it('loads the exact shipped 15-service and 119-tool manifest inventory', () => {
+    const integrations = loadIntegrationConfigs(repositoryRoot);
+
+    expect(integrations).toHaveLength(15);
+    expect(integrations.flatMap(({ toolNames }) => toolNames)).toHaveLength(119);
+  });
+
   it('validates the repository documentation source tree', () => {
     expect(validateDocumentation(loadDocumentation(repositoryRoot))).toEqual([]);
   });
@@ -389,14 +535,17 @@ describe('documentation asset generation', () => {
           name: 'GitHub',
           serviceId: 'github',
           authType: 'oauth2',
+          availableScopes: [],
           defaultScopes: [],
           toolNames: [],
         },
       ])
-    ).toEqual([
-      'integrations/ghost: integration page has no matching config',
-      'integrations/github: integration page missing for configured integration',
-    ]);
+    ).toEqual(
+      expect.arrayContaining([
+        'integrations/ghost: integration page has no matching config',
+        'integrations/github: integration page missing for configured integration',
+      ])
+    );
   });
 
   it('requires config metadata and the six integration sections', () => {
@@ -425,6 +574,7 @@ describe('documentation asset generation', () => {
         name: 'GitHub',
         serviceId: 'github',
         authType: 'oauth2',
+        availableScopes: [],
         defaultScopes: [],
         toolNames: [],
       },
@@ -476,15 +626,16 @@ describe('documentation asset generation', () => {
           name: 'GitHub',
           serviceId: 'github',
           authType: 'oauth2',
+          availableScopes: ['repo', 'user'],
           defaultScopes: ['repo', 'user'],
           toolNames: ['github_create_issue', 'github_list_issues'],
         },
       ])
     ).toEqual(
       expect.arrayContaining([
-        'integrations/github: integration page missing default scope "repo"',
-        'integrations/github: integration page missing exported tool "github_list_issues"',
-        'integrations/github: integration page documents unknown tool "github_unknown_tool"',
+        'integrations/github: integration page missing default scope "repo" in section "Scopes"',
+        'integrations/github: integration page missing exported tool "github_list_issues" in section "Available tools"',
+        'integrations/github: integration page documents unknown tool "github_unknown_tool" in section "Available tools"',
       ])
     );
   });
@@ -522,11 +673,174 @@ describe('documentation asset generation', () => {
           name: 'Notion',
           serviceId: 'notion',
           authType: 'oauth2',
+          availableScopes: [],
           defaultScopes: [],
           toolNames: [],
         },
       ])
     ).toContain('integrations/notion: integration page missing empty default-scope explanation');
+  });
+
+  function githubIntegrationModel(sectionLines: string[]) {
+    return buildDocumentationModel({
+      navigation: [{ group: 'Integrations', pages: ['integrations/github'] }],
+      documents: [
+        {
+          slug: 'integrations/github',
+          source: [
+            '---',
+            'title: GitHub',
+            "description: 'Connect GitHub and use its tools through the Authlane control plane.'",
+            'serviceId: github',
+            'authType: oauth2',
+            '---',
+            '',
+            ...sectionLines,
+            '',
+          ].join('\n'),
+        },
+      ],
+    });
+  }
+
+  const githubIntegrationConfig = {
+    name: 'GitHub',
+    serviceId: 'github',
+    authType: 'oauth2',
+    availableScopes: ['repo', 'user'],
+    defaultScopes: ['repo'],
+    toolNames: ['github_create_issue'],
+  };
+
+  const completeGithubSections = [
+    '## Prerequisites',
+    'Prepare GitHub.',
+    '## Configure authentication',
+    'Configure GitHub.',
+    '## Scopes',
+    '- `repo` permits repositories.',
+    '## Available tools',
+    '- `github_create_issue`',
+    '## Connection lifecycle',
+    'Reconnect when required.',
+    '## Troubleshooting',
+    'Check repository access.',
+  ];
+
+  it('requires exactly fifteen config-manifest contracts and pages', () => {
+    const violations = validateIntegrationPages(
+      buildDocumentationModel({ navigation: [], documents: [] }),
+      []
+    );
+
+    expect(violations).toEqual([
+      'integrations: integration page config/manifest count must be 15, found 0',
+      'integrations: integration page count must be 15, found 0',
+    ]);
+  });
+
+  it('requires every section heading at H2 depth', () => {
+    const sections = completeGithubSections.map((line) =>
+      line === '## Scopes' ? '### Scopes' : line
+    );
+
+    expect(
+      validateIntegrationPages(githubIntegrationModel(sections), [githubIntegrationConfig])
+    ).toContain('integrations/github: integration page missing section "Scopes"');
+  });
+
+  it('rejects extra H2 sections', () => {
+    const sections = [...completeGithubSections, '## Unsupported', 'Do not add this.'];
+
+    expect(
+      validateIntegrationPages(githubIntegrationModel(sections), [githubIntegrationConfig])
+    ).toContain('integrations/github: integration page unexpected section "Unsupported"');
+  });
+
+  it('requires the six H2 sections in the approved order', () => {
+    const sections = [...completeGithubSections];
+    const scopesIndex = sections.indexOf('## Scopes');
+    const toolsIndex = sections.indexOf('## Available tools');
+    [sections[scopesIndex], sections[toolsIndex]] = [sections[toolsIndex], sections[scopesIndex]];
+
+    expect(
+      validateIntegrationPages(githubIntegrationModel(sections), [githubIntegrationConfig])
+    ).toContain('integrations/github: integration page sections are out of order');
+  });
+
+  it('rejects a bullet-listed scope absent from provider config', () => {
+    const sections = completeGithubSections.flatMap((line) =>
+      line === '- `repo` permits repositories.' ? [line, '- `admin` is invented.'] : [line]
+    );
+
+    expect(
+      validateIntegrationPages(githubIntegrationModel(sections), [githubIntegrationConfig])
+    ).toContain('integrations/github: integration page documents scope "admin" absent from config');
+  });
+
+  it('does not accept a default scope outside the Scopes section', () => {
+    const sections = completeGithubSections.map((line) =>
+      line === '- `repo` permits repositories.' ? '- `user` reads users.' : line
+    );
+    sections.splice(1, 0, 'The `repo` scope is mentioned here.');
+
+    expect(
+      validateIntegrationPages(githubIntegrationModel(sections), [githubIntegrationConfig])
+    ).toContain(
+      'integrations/github: integration page missing default scope "repo" in section "Scopes"'
+    );
+  });
+
+  it('does not accept an exported tool outside Available tools', () => {
+    const sections = completeGithubSections.filter((line) => line !== '- `github_create_issue`');
+    sections.push('The `github_create_issue` tool is mentioned after troubleshooting.');
+
+    expect(
+      validateIntegrationPages(githubIntegrationModel(sections), [githubIntegrationConfig])
+    ).toContain(
+      'integrations/github: integration page missing exported tool "github_create_issue" in section "Available tools"'
+    );
+  });
+
+  it('rejects duplicate and unknown tools in Available tools', () => {
+    const sections = completeGithubSections.flatMap((line) =>
+      line === '- `github_create_issue`' ? [line, line, '- `github_unknown_tool`'] : [line]
+    );
+    const violations = validateIntegrationPages(githubIntegrationModel(sections), [
+      githubIntegrationConfig,
+    ]);
+
+    expect(violations).toEqual(
+      expect.arrayContaining([
+        'integrations/github: integration page duplicate exported tool "github_create_issue" in section "Available tools"',
+        'integrations/github: integration page documents unknown tool "github_unknown_tool" in section "Available tools"',
+      ])
+    );
+  });
+
+  it('documents Gmail capability boundaries from configured scopes', () => {
+    const gmail = loadDocumentation(repositoryRoot).documents.find(
+      ({ slug }) => slug === 'integrations/gmail'
+    )?.source;
+
+    expect(gmail).toContain('`gmail_delete_email` performs an immediate permanent deletion');
+    expect(gmail).toMatch(/requires\s+`https:\/\/mail\.google\.com\/`/);
+    expect(gmail).toContain('is unavailable with the current repository config');
+    expect(gmail).toContain('`https://www.googleapis.com/auth/gmail.modify` is insufficient');
+    expect(gmail).toContain('`gmail_create_label`');
+  });
+
+  it('documents unavailable Slack file upload and status capabilities', () => {
+    const slack = loadDocumentation(repositoryRoot).documents.find(
+      ({ slug }) => slug === 'integrations/slack'
+    )?.source;
+
+    expect(slack).toContain('`slack_post_file` is currently unavailable');
+    expect(slack).toContain('retired `files.upload`');
+    expect(slack).toContain("Slack's current external upload flow");
+    expect(slack).toContain('`slack_set_status` is currently unavailable');
+    expect(slack).toMatch(/user token plus\s+`users\.profile:write`/);
+    expect(slack).toContain('neither is represented by the current repository config');
   });
 
   it('requires every shipped integration page to match config and required sections', async () => {

@@ -74,6 +74,10 @@ function isFence(line) {
   return /^\s*```/.test(line);
 }
 
+const codeGroupItemOpenPattern = /^\s*<CodeGroupItem\s+label=(['"])([^'"]+)\1>\s*$/;
+const codeGroupItemClosePattern = /^\s*<\/CodeGroupItem>\s*$/;
+const codeGroupItemTagPattern = /<\/?CodeGroupItem(?:\b|$)/;
+
 const calloutNames = new Set(['Check', 'Caution', 'Danger', 'Info', 'Note', 'Tip', 'Warning']);
 
 function canonicalDocumentationHref(href, documentSlugs) {
@@ -138,7 +142,7 @@ function toPublicMarkdownBody(source, documentSlugs) {
       continue;
     }
 
-    const codeGroupItemOpen = /^\s*<CodeGroupItem\s+label=(['"])([^'"]+)\1>\s*$/.exec(line);
+    const codeGroupItemOpen = codeGroupItemOpenPattern.exec(line);
     if (codeGroupItemOpen) {
       output.push(`### ${codeGroupItemOpen[2]}`);
       continue;
@@ -384,11 +388,10 @@ function validationMessage(slug, rule, detail) {
   return `${slug}: ${rule}: ${detail}`;
 }
 
-function codeGroupItemChildren(source) {
-  const children = [];
+function codeGroupItemViolations(source) {
+  const violations = [];
   let outsideFence = false;
   let item = null;
-  let itemFence = false;
 
   for (const line of normalizeLineEndings(source).split('\n')) {
     if (!item) {
@@ -396,25 +399,43 @@ function codeGroupItemChildren(source) {
         outsideFence = !outsideFence;
         continue;
       }
-      if (!outsideFence && /^\s*<CodeGroupItem\s+label=(['"])[^'"]+\1>\s*$/.test(line)) {
-        item = [];
-        itemFence = false;
+      if (outsideFence) continue;
+      if (codeGroupItemOpenPattern.test(line)) {
+        item = { lines: [], fenced: false, invalidSyntax: false };
+      } else if (codeGroupItemClosePattern.test(line)) {
+        violations.push('stray closing tag');
+      } else if (codeGroupItemTagPattern.test(line)) {
+        violations.push('unsupported opening tag syntax');
       }
       continue;
     }
 
-    if (!itemFence && /^\s*<\/CodeGroupItem>\s*$/.test(line)) {
-      children.push(item);
+    if (isFence(line)) {
+      item.lines.push(line);
+      item.fenced = !item.fenced;
+      continue;
+    }
+    if (item.fenced) {
+      item.lines.push(line);
+      continue;
+    }
+    if (codeGroupItemClosePattern.test(line)) {
+      if (item.invalidSyntax || !isSingleNonEmptyFencedCodeBlock(item.lines)) {
+        violations.push('expected one non-empty fenced code block and no extra content');
+      }
       item = null;
       continue;
     }
-
-    item.push(line);
-    if (isFence(line)) itemFence = !itemFence;
+    if (codeGroupItemTagPattern.test(line)) {
+      item.invalidSyntax = true;
+      violations.push('nested or malformed tag');
+      continue;
+    }
+    item.lines.push(line);
   }
 
-  if (item) children.push(item);
-  return children;
+  if (item) violations.push('missing closing tag');
+  return violations;
 }
 
 function isSingleNonEmptyFencedCodeBlock(lines) {
@@ -496,12 +517,8 @@ export function validateDocumentation({ navigation, documents }) {
       }
     }
 
-    for (const child of codeGroupItemChildren(parsed.body)) {
-      if (!isSingleNonEmptyFencedCodeBlock(child)) {
-        violations.push(
-          validationMessage(slug, 'invalid CodeGroupItem child', 'expected one fenced code block')
-        );
-      }
+    for (const detail of codeGroupItemViolations(parsed.body)) {
+      violations.push(validationMessage(slug, 'invalid CodeGroupItem', detail));
     }
 
     const authoringSource = unfencedSource(parsed.body);

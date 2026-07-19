@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import * as awaitableExports from './check-doc-links.mjs';
 import {
   checkPublicUrl,
   checkPublicUrls,
@@ -12,16 +13,97 @@ function response(status: number, url: string) {
 
 describe('public documentation link smoke', () => {
   it('extracts sorted unique public HTTP links and skips placeholders and non-public schemes', () => {
-    const urls = extractPublicHttpUrls([
-      '[Docs](https://authlane.io/docs) and https://authlane.io/docs.',
-      'https://app.authlane.io/path?q=one mailto:team@authlane.io /docs/quickstart',
-      'http://localhost:3000 https://api.example.com https://example.org/example',
-      'https://app.authlane.io/api/v1/catalog/services',
-      'https://app.authlane.io/api/v1/oauth/{serviceId}/callback',
-      'https://authlane.io/docs/** https://app.authlane.io/connect#session=acs_redacted',
-    ]);
+    const urls = (
+      extractPublicHttpUrls as (sources: string[], configuration?: unknown) => string[]
+    )(
+      [
+        [
+          '[Docs](https://authlane.io/docs) and [duplicate](https://authlane.io/docs).',
+          '<https://authlane.io/docs/quickstart>',
+          '<a href="https://authlane.io/docs/api-reference">Reference</a>',
+          'Bare literals are examples, not links: https://not-a-link.authlane.io.',
+          '`[Inline code](https://inline-code.authlane.io)`',
+          '```bash',
+          'curl https://code-example.authlane.io',
+          '```',
+          '[Token](https://authlane.io/connect?token=secret)',
+          '[Code](https://authlane.io/connect?code=value)',
+          '[State](https://authlane.io/connect?state=value)',
+          '[Secret](https://authlane.io/connect?client_secret=value)',
+          '[Key](https://authlane.io/connect?api_key=value)',
+          '<https://authlane.io/oauth/github/callback?status=connected>',
+          '<https://authlane.io/verify-email>',
+          '<https://authlane.io/reset-password>',
+          '<https://authlane.io/invite>',
+          '<https://authlane.io/userinfo>',
+          '[URL userinfo](https://user:password@authlane.io/docs)',
+          '<https://authlane.io/path#session=secret>',
+          'http://localhost:3000 and https://api.example.com',
+        ].join('\n'),
+      ],
+      {
+        topbarCtaButton: { url: 'https://app.authlane.io' },
+        topbarLinks: [{ url: 'mailto:support@authlane.io' }],
+        anchors: [{ url: 'https://github.com/dxheroes/authlane' }],
+        footerSocials: { github: 'https://github.com/dxheroes/authlane' },
+        ignored: { value: 'https://ignored.authlane.io' },
+      }
+    );
 
-    expect(urls).toEqual(['https://app.authlane.io/path?q=one', 'https://authlane.io/docs']);
+    expect(urls).toEqual([
+      'https://app.authlane.io/',
+      'https://authlane.io/docs',
+      'https://authlane.io/docs/api-reference',
+      'https://authlane.io/docs/quickstart',
+      'https://github.com/dxheroes/authlane',
+    ]);
+  });
+
+  it('fails the CLI decision when extraction yields no public targets', () => {
+    const helper = (
+      awaitableExports as unknown as {
+        linkCheckExitCode?: (urls: string[], results: unknown[]) => number;
+      }
+    ).linkCheckExitCode;
+    expect(helper).toBeTypeOf('function');
+    if (!helper) return;
+    expect(helper([], [])).toBe(1);
+    expect(helper(['https://authlane.io/docs'], [])).toBe(1);
+    expect(
+      helper(
+        ['https://authlane.io/docs'],
+        [
+          {
+            originalUrl: 'https://authlane.io/docs',
+            finalUrl: 'https://authlane.io/docs',
+            status: 200,
+            error: null,
+          },
+        ]
+      )
+    ).toBe(0);
+  });
+
+  it('explicitly excludes generated, dependency, cache, fixture, and test-result directories', () => {
+    const helper = (
+      awaitableExports as unknown as { isExcludedSourceDirectory?: (name: string) => boolean }
+    ).isExcludedSourceDirectory;
+    expect(helper).toBeTypeOf('function');
+    if (!helper) return;
+    for (const directory of [
+      'node_modules',
+      'dist',
+      'build',
+      'out',
+      '.next',
+      '.mintlify',
+      'cache',
+      'fixtures',
+      'test-results',
+    ]) {
+      expect(helper(directory)).toBe(true);
+    }
+    expect(helper('guides')).toBe(false);
   });
 
   it('falls back from an unsuitable HEAD response to GET without credentials', async () => {

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node ../../scripts/run-next-dev.mjs --defaultPort 3002 --fallbackStartPort 3102",
-    "prebuild": "pnpm --dir ../.. openapi:check && pnpm --dir ../.. docs:check",
+    "prebuild": "pnpm --dir ../.. openapi:check",
     "build": "next build && node scripts/postprocess-static.mjs",
     "lint": "next lint",
     "pretest": "pnpm --filter @authlane/shared build",

@@ -29,6 +29,9 @@ describe('documentation asset generation', () => {
     const scripts = JSON.parse(
       readFileSync(resolve(repositoryRoot, 'package.json'), 'utf8')
     ).scripts;
+    const landingScripts = JSON.parse(
+      readFileSync(resolve(repositoryRoot, 'apps/landing/package.json'), 'utf8')
+    ).scripts;
 
     expect(scripts['docs:check']).toContain('generate-docs.mjs --check');
     expect(scripts['docs:check']).toContain('docs-domain-contract.test.ts');
@@ -37,6 +40,9 @@ describe('documentation asset generation', () => {
     expect(scripts['docs:check']).not.toContain('check-doc-links');
     expect(scripts['docs:links']).toBe('node scripts/check-doc-links.mjs');
     expect(scripts.build).not.toContain('docs:links');
+    expect(landingScripts.prebuild).toContain('openapi:check');
+    expect(landingScripts.prebuild).not.toContain('docs:check');
+    expect(landingScripts.prebuild).not.toContain('docs:links');
   });
 
   it('publishes every manifest route exactly once with introduction canonicalized to docs home', () => {
@@ -176,60 +182,99 @@ describe('documentation asset generation', () => {
     expect(markdown).not.toContain('<CodeGroupItem');
   });
 
-  it('requires a fenced code block inside every CodeGroupItem', () => {
-    const invalid = validateDocumentation({
-      navigation: [{ group: 'Start', pages: ['quickstart'] }],
-      documents: [
-        {
-          slug: 'quickstart',
-          source: [
-            '---',
-            'title: Quickstart',
-            'description: Choose a runtime.',
-            '---',
-            '',
-            '<CodeGroup>',
-            '<CodeGroupItem label="TypeScript">',
-            '<strong>This is markup, not code.</strong>',
-            '</CodeGroupItem>',
-            '</CodeGroup>',
-          ].join('\n'),
-        },
-      ],
-    });
-    const valid = validateDocumentation({
-      navigation: [{ group: 'Start', pages: ['quickstart'] }],
-      documents: [
-        {
-          slug: 'quickstart',
-          source: [
-            '---',
-            'title: Quickstart',
-            'description: Choose a runtime.',
-            '---',
-            '',
-            '<CodeGroup>',
-            '<CodeGroupItem label="TypeScript">',
-            '',
-            '```typescript',
-            'const ok = true;',
-            '```',
-            '',
-            '</CodeGroupItem>',
-            '</CodeGroup>',
-          ].join('\n'),
-        },
-      ],
-    });
+  it('fails closed for every CodeGroupItem shape the renderer cannot safely convert', () => {
+    const violationsFor = (lines: string[]) =>
+      validateDocumentation({
+        navigation: [{ group: 'Start', pages: ['quickstart'] }],
+        documents: [
+          {
+            slug: 'quickstart',
+            source: [
+              '---',
+              'title: Quickstart',
+              'description: Choose a runtime.',
+              '---',
+              '',
+              '<CodeGroup>',
+              ...lines,
+              '</CodeGroup>',
+            ].join('\n'),
+          },
+        ],
+      }).filter((violation) => violation.includes('CodeGroupItem'));
 
-    expect(invalid).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining(
-          'quickstart: invalid CodeGroupItem child: expected one fenced code block'
-        ),
+    expect(
+      violationsFor([
+        '<CodeGroupItem label="TypeScript">',
+        '',
+        '```typescript',
+        'const ok = true;',
+        '```',
+        '',
+        '</CodeGroupItem>',
       ])
-    );
-    expect(valid.filter((violation) => violation.includes('CodeGroupItem'))).toEqual([]);
+    ).toEqual([]);
+
+    for (const invalid of [
+      [
+        '<CodeGroupItem label="TypeScript">',
+        '<strong>This is markup, not code.</strong>',
+        '</CodeGroupItem>',
+      ],
+      ['<CodeGroupItem label="TypeScript">', '```typescript', 'const ok = true;', '```'],
+      [
+        '<CodeGroupItem label="TypeScript">',
+        '```typescript',
+        'const one = true;',
+        '```',
+        '```typescript',
+        'const two = true;',
+        '```',
+        '</CodeGroupItem>',
+      ],
+      [
+        '<CodeGroupItem label="TypeScript">',
+        'extra content',
+        '```typescript',
+        'const ok = true;',
+        '```',
+        '</CodeGroupItem>',
+      ],
+      [
+        '<CodeGroupItem label="TypeScript" id="typescript">',
+        '```typescript',
+        'const ok = true;',
+        '```',
+        '</CodeGroupItem>',
+      ],
+      [
+        '<CodeGroupItem',
+        '  label="TypeScript">',
+        '```typescript',
+        'const ok = true;',
+        '```',
+        '</CodeGroupItem>',
+      ],
+      [
+        '<CodeGroupItem label="Outer">',
+        '<CodeGroupItem label="Nested">',
+        '```typescript',
+        'const ok = true;',
+        '```',
+        '</CodeGroupItem>',
+        '</CodeGroupItem>',
+      ],
+      ['</CodeGroupItem>'],
+      [
+        '<CodeGroupItem label={runtime}>',
+        '```typescript',
+        'const ok = true;',
+        '```',
+        '</CodeGroupItem>',
+      ],
+    ]) {
+      expect(violationsFor(invalid)).not.toEqual([]);
+    }
   });
 
   it('publishes every Quickstart runtime as labelled plain Markdown without expression props', () => {

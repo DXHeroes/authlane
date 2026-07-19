@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { isExcludedSourceDirectory } from './check-doc-links.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const publicSourceExtensions = new Set(['.json', '.md', '.mdx', '.ts', '.tsx', '.yaml', '.yml']);
@@ -20,7 +21,9 @@ function collectPublicSourceFiles(directory: string): string[] {
   return readdirSync(resolve(repositoryRoot, directory), { withFileTypes: true })
     .flatMap((entry) => {
       const path = join(directory, entry.name);
-      if (entry.isDirectory()) return collectPublicSourceFiles(path);
+      if (entry.isDirectory()) {
+        return isExcludedSourceDirectory(entry.name) ? [] : collectPublicSourceFiles(path);
+      }
       if (!entry.isFile() || !publicSourceExtensions.has(extname(entry.name))) return [];
       if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(entry.name)) return [];
       return [path];

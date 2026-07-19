@@ -74,13 +74,18 @@ describe('documentation publication contract', () => {
 
   it('allows docs crawling and lists all MDX routes in the sitemap', () => {
     const robotsRoute = JSON.stringify(robots());
-    const sitemapUrls = new Set(sitemap().map((entry) => entry.url.replace(/\/$/, '')));
+    const sitemapUrls = sitemap().map((entry) => entry.url.replace(/\/$/, ''));
+    const expectedDocsUrls = getAllDocs().map((doc) =>
+      doc.slug === 'introduction'
+        ? 'https://authlane.io/docs'
+        : `https://authlane.io/docs/${doc.slug}`
+    );
 
     expect(robotsRoute).not.toContain('/docs/');
-    expect(sitemapUrls).toContain('https://authlane.io/docs');
-    expect(sitemapUrls).toContain('https://authlane.io/docs/api-reference');
-    for (const doc of getAllDocs()) {
-      expect(sitemapUrls).toContain(`https://authlane.io/docs/${doc.slug}`);
+    expect(new Set(sitemapUrls).size).toBe(sitemapUrls.length);
+    expect(sitemapUrls).not.toContain('https://authlane.io/docs/introduction');
+    for (const url of expectedDocsUrls) {
+      expect(sitemapUrls.filter((candidate) => candidate === url)).toHaveLength(1);
     }
   });
 });

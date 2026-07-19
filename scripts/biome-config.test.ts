@@ -13,6 +13,9 @@ const repositoryArtifactDirectories = [
 ] as const;
 
 const generatedDirectories = ['dist-server', 'out'] as const;
+const generatedByteFixtures = [
+  'apps/api/tests/fixtures/landing/_next/static/authlane-next-flight-0123456789ab.js',
+] as const;
 
 describe('Biome repository scope', () => {
   it('excludes local artifact directories without narrowing tracked source checks', async () => {
@@ -29,6 +32,9 @@ describe('Biome repository scope', () => {
     }
     for (const directory of generatedDirectories) {
       expect(biomeConfig.files?.includes).toContain(`!!**/${directory}`);
+    }
+    for (const fixture of generatedByteFixtures) {
+      expect(biomeConfig.files?.includes).toContain(`!!${fixture}`);
     }
     expect(packageJson.scripts?.['format:check']).toBe('node scripts/run-biome-tracked.mjs format');
     expect(packageJson.scripts?.lint).toBe('node scripts/run-biome-tracked.mjs lint');

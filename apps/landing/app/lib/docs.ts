@@ -24,6 +24,13 @@ export type DocRecord = {
   description: string;
   source: string;
   headings: DocHeading[];
+  navigationGroup: string;
+};
+
+export type DocsNavigationGroup = {
+  group: string;
+  pages: string[];
+  docs: DocRecord[];
 };
 
 const docsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs');
@@ -67,21 +74,35 @@ function parseSource(
   };
 }
 
-export function getDocsNavigation(): Array<MintNavigationGroup & { docs: DocRecord[] }> {
+function materializeDoc(slug: string, navigationGroup: string): DocRecord {
+  const source = readFileSync(resolve(docsRoot, `${slug}.mdx`), 'utf8');
+  return { slug, ...parseSource(source), navigationGroup };
+}
+
+export function getDocsNavigation(): DocsNavigationGroup[] {
   return mint.navigation.map((group) => ({
     ...group,
-    docs: group.pages.map(getDoc),
+    docs: group.pages.map((slug) => materializeDoc(slug, group.group)),
   }));
 }
 
 export function getAllDocs(): DocRecord[] {
-  return mint.navigation.flatMap((group) => group.pages.map(getDoc));
+  return getDocsNavigation().flatMap((group) => group.docs);
 }
 
 export function getDoc(slug: string): DocRecord {
   const normalized = slug.replace(/^\/+|\/+$/g, '');
-  const known = mint.navigation.some((group) => group.pages.includes(normalized));
-  if (!known) throw new Error(`Unknown documentation slug: ${normalized}`);
-  const source = readFileSync(resolve(docsRoot, `${normalized}.mdx`), 'utf8');
-  return { slug: normalized, ...parseSource(source) };
+  const group = mint.navigation.find((candidate) => candidate.pages.includes(normalized));
+  if (!group) throw new Error(`Unknown documentation slug: ${normalized}`);
+  return materializeDoc(normalized, group.group);
+}
+
+export function getAdjacentDocs(slug: string): {
+  previous: DocRecord | null;
+  next: DocRecord | null;
+} {
+  const docs = getAllDocs();
+  const index = docs.findIndex((doc) => doc.slug === slug);
+  if (index < 0) throw new Error(`Unknown documentation slug: ${slug}`);
+  return { previous: docs[index - 1] ?? null, next: docs[index + 1] ?? null };
 }

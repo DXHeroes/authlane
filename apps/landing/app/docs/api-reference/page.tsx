@@ -107,6 +107,7 @@ const doc: DocRecord = {
     { depth: 2, id: 'webhooks', text: 'Webhooks' },
     { depth: 2, id: 'schemas', text: 'Schemas' },
   ],
+  navigationGroup: 'API Documentation',
 };
 
 function HighlightedJson({ value }: { value: unknown }) {

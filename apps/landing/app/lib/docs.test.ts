@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { getAllDocs, getDocsNavigation } from './docs';
+import { getAdjacentDocs, getAllDocs, getDoc, getDocsNavigation } from './docs';
 
 const docsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs');
 
@@ -14,6 +14,25 @@ function sourceSlugs(): string[] {
 }
 
 describe('build-time documentation source', () => {
+  it('resolves previous and next pages from one canonical navigation order', () => {
+    const docs = getAllDocs();
+    expect(getAdjacentDocs(docs[0].slug)).toEqual({ previous: null, next: docs[1] });
+    expect(getAdjacentDocs(docs[docs.length - 1].slug)).toEqual({
+      previous: docs.at(-2),
+      next: null,
+    });
+  });
+
+  it('returns group metadata with every documentation record', () => {
+    const firstGroup = getDocsNavigation()[0];
+    expect(firstGroup).toMatchObject({ group: expect.any(String) });
+    expect(firstGroup.docs[0]).toMatchObject({
+      slug: expect.any(String),
+      navigationGroup: firstGroup.group,
+    });
+    expect(getDoc(firstGroup.docs[0].slug).navigationGroup).toBe(firstGroup.group);
+  });
+
   it('keeps Mint navigation in exact equality with every MDX source', () => {
     const sources = sourceSlugs();
     const loaded = getAllDocs()

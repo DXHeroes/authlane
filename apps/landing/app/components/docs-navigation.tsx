@@ -1,12 +1,14 @@
+/* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
+/* biome-ignore-all lint/a11y/useSemanticElements: Explicit list roles preserve semantics after the visual reset. */
 import Link from 'next/link';
-import { getDocsNavigation } from '../lib/docs';
+import { getAdjacentDocs, getDocsNavigation } from '../lib/docs';
 
 export function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
   const navigation = getDocsNavigation();
   const groups = navigation.map((group) => (
     <section key={group.group} className="docs-nav__group">
       <h2>{group.group}</h2>
-      <ul>
+      <ul role="list">
         {group.docs.map((doc) => (
           <li key={doc.slug}>
             <Link
@@ -33,5 +35,48 @@ export function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
         </nav>
       </details>
     </>
+  );
+}
+
+function getOptionalAdjacentDocs(currentSlug: string) {
+  try {
+    return getAdjacentDocs(currentSlug);
+  } catch (error) {
+    if (error instanceof Error && error.message === `Unknown documentation slug: ${currentSlug}`) {
+      return { previous: null, next: null };
+    }
+    throw error;
+  }
+}
+
+export function PreviousNext({ currentSlug }: { currentSlug: string }) {
+  const { previous, next } = getOptionalAdjacentDocs(currentSlug);
+  if (!previous && !next) return null;
+
+  return (
+    <nav className="docs-pagination" aria-label="Documentation pagination">
+      {previous ? (
+        <Link
+          className="docs-pagination__link docs-pagination__link--previous"
+          href={`/docs/${previous.slug}`}
+        >
+          <span className="mono docs-pagination__direction">Previous</span>
+          <span>{previous.title}</span>
+        </Link>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+      {next ? (
+        <Link
+          className="docs-pagination__link docs-pagination__link--next"
+          href={`/docs/${next.slug}`}
+        >
+          <span className="mono docs-pagination__direction">Next</span>
+          <span>{next.title}</span>
+        </Link>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+    </nav>
   );
 }

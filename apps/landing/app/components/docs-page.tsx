@@ -1,12 +1,16 @@
+/* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
+/* biome-ignore-all lint/a11y/useSemanticElements: Explicit list roles preserve semantics after the visual reset. */
 import Link from 'next/link';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
+import { landingLinks } from '../content';
 import type { DocRecord } from '../lib/docs';
-import { highlightCode, normalizeLanguage } from '../lib/highlight-code';
-import { DocsNavigation } from './docs-navigation';
+import { normalizeLanguage } from '../lib/highlight-code';
+import { CodeGroup, DocsCodeBlock } from './docs-code';
+import { DocsNavigation, PreviousNext } from './docs-navigation';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 
@@ -15,22 +19,14 @@ type CodeElementProps = {
   children?: ReactNode;
 };
 
-function CodeBlock({ children }: { children?: ReactNode }) {
+function CodeBlockFromMdx({ children }: { children?: ReactNode }) {
   if (!isValidElement<CodeElementProps>(children)) {
-    return <pre className="docs-code">{children}</pre>;
+    return <DocsCodeBlock language="text" source={String(children ?? '')} />;
   }
 
-  const code = String(children.props.children ?? '').replace(/\n$/, '');
+  const source = String(children.props.children ?? '').replace(/\n$/, '');
   const language = normalizeLanguage(children.props.className);
-  return (
-    <pre className={`docs-code language-${language}`}>
-      <code
-        className={`language-${language}`}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: Prism escapes repository-owned MDX during static generation.
-        dangerouslySetInnerHTML={{ __html: highlightCode(code, language) }}
-      />
-    </pre>
-  );
+  return <DocsCodeBlock language={language} source={source} />;
 }
 
 function DocsLink({ href = '', children }: { href?: string; children?: ReactNode }) {
@@ -41,26 +37,66 @@ function DocsLink({ href = '', children }: { href?: string; children?: ReactNode
   return <Link href={normalized}>{children}</Link>;
 }
 
-function Warning({ children }: { children?: ReactNode }) {
+type CalloutTone = 'note' | 'warning' | 'security' | 'performance';
+
+export type CalloutProps = {
+  children?: ReactNode;
+  tone?: CalloutTone;
+};
+
+const calloutLabels: Record<CalloutTone, string> = {
+  note: 'Note',
+  warning: 'Warning',
+  security: 'Security',
+  performance: 'Performance',
+};
+
+export function Callout({ children, tone = 'note' }: CalloutProps) {
+  const label = calloutLabels[tone];
   return (
-    <aside className="docs-callout docs-callout--warning" aria-label="Warning">
-      <strong>Warning</strong>
+    <aside className={`docs-callout docs-callout--${tone}`} aria-label={label}>
+      <strong>{label}</strong>
       <div>{children}</div>
     </aside>
   );
 }
 
+export function Steps({ children }: { children?: ReactNode }) {
+  return (
+    <ol className="docs-prose-steps" role="list">
+      {children}
+    </ol>
+  );
+}
+
+export function PageActions({ doc }: { doc: DocRecord }) {
+  const sourcePath =
+    doc.slug === 'api-reference'
+      ? 'apps/docs/api-reference/openapi.yaml'
+      : `apps/docs/${doc.slug}.mdx`;
+  return (
+    <nav className="docs-page-actions" aria-label="Page actions">
+      <Link href={`/docs/markdown/${doc.slug}.md`}>Open Markdown</Link>
+      <a href={`${landingLinks.github}/blob/main/${sourcePath}`}>View source</a>
+    </nav>
+  );
+}
+
 const mdxComponents = {
   a: DocsLink,
-  pre: CodeBlock,
-  Warning,
+  pre: CodeBlockFromMdx,
+  Warning: (props: CalloutProps) => <Callout tone="warning" {...props} />,
+  Security: (props: CalloutProps) => <Callout tone="security" {...props} />,
+  Performance: (props: CalloutProps) => <Callout tone="performance" {...props} />,
+  Steps,
+  CodeGroup,
 };
 
 function Breadcrumbs({ doc }: { doc: DocRecord }) {
   const segments = doc.slug.split('/');
   return (
     <nav className="docs-breadcrumbs" aria-label="Breadcrumb">
-      <ol>
+      <ol role="list">
         <li>
           <Link href="/docs">Docs</Link>
         </li>
@@ -95,11 +131,13 @@ export function DocsPage({ doc, children }: { doc: DocRecord; children?: ReactNo
             {doc.description ? <p>{doc.description}</p> : null}
           </header>
           <div className="docs-prose">{children}</div>
+          {doc.source ? <PageActions doc={doc} /> : null}
+          <PreviousNext currentSlug={doc.slug} />
         </article>
         <aside className="docs-toc" aria-label="On this page">
           <h2>On this page</h2>
           {doc.headings.length ? (
-            <ol>
+            <ol role="list">
               {doc.headings.map((heading) => (
                 <li key={`${heading.depth}-${heading.id}`} data-depth={heading.depth}>
                   <a href={`#${heading.id}`}>{heading.text}</a>

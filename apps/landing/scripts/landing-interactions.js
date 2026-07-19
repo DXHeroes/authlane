@@ -23,7 +23,7 @@ export function initializeLandingInteractions(root = document) {
     link.addEventListener('click', () => setNavigationOpen(false));
   });
 
-  root.querySelectorAll('.code-tabs').forEach((tabGroup) => {
+  root.querySelectorAll('.code-tabs, [data-tab-group]').forEach((tabGroup) => {
     const tabs = /** @type {HTMLButtonElement[]} */ ([
       ...tabGroup.querySelectorAll('[role="tab"]'),
     ]);
@@ -63,6 +63,33 @@ export function initializeLandingInteractions(root = document) {
         event.preventDefault();
         selectTab(nextIndex, true);
       });
+    });
+
+    const selectedIndex = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true');
+    selectTab(selectedIndex >= 0 ? selectedIndex : 0);
+  });
+
+  root.querySelectorAll('[data-copy-code]').forEach((control) => {
+    if (!(control instanceof HTMLButtonElement)) return;
+    const originalLabel = control.textContent ?? 'Copy';
+
+    control.addEventListener('click', async () => {
+      const sourceContainer = control.closest('[data-code-source]');
+      const source = sourceContainer?.getAttribute('data-code-source');
+
+      try {
+        if (source === undefined || source === null || !navigator.clipboard?.writeText) {
+          throw new Error('Clipboard access is unavailable.');
+        }
+        await navigator.clipboard.writeText(source);
+        control.textContent = 'Copied';
+      } catch {
+        control.textContent = 'Copy failed';
+      }
+
+      setTimeout(() => {
+        control.textContent = originalLabel;
+      }, 1_500);
     });
   });
 }

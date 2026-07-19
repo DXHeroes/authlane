@@ -7,6 +7,14 @@ import {
 
 const interactionScript = '/_next/static/authlane-interactions-0123456789ab.js';
 
+function scalarDocumentWithRuntime(runtimeSource: string) {
+  return `<body>
+    <script src="${runtimeSource}"></script>
+    <script src="/_next/static/authlane-next-flight-0123456789ab.js"></script>
+    <script type="module" src="${interactionScript}" defer></script>
+  </body>`;
+}
+
 describe('landing static export post-processing', () => {
   it('removes Next hydration resources and preserves non-executable structured data', () => {
     const html = `<!doctype html><html><head>
@@ -81,6 +89,44 @@ describe('landing static export post-processing', () => {
       expect(attributes).toMatch(/[a-f0-9]{12,16}\.js"/);
     }
     expect(staticDocumentViolations(document, 'scalar')).toEqual([]);
+  });
+
+  it.each([
+    '/_next/static/chunks/../outside-0123456789abcdef.js',
+    '/_next/static/chunks/./runtime-0123456789abcdef.js',
+    '/_next/static/chunks/%2e%2e/outside-0123456789abcdef.js',
+    '/_next/static/chunks/%2E%2e/outside-0123456789abcdef.js',
+    '/_next/static/chunks/.%2E/outside-0123456789abcdef.js',
+    '/_next/static/chunks/nested%2f..%2foutside-0123456789abcdef.js',
+    '/_next/static/chunks/nested%2F..%2Foutside-0123456789abcdef.js',
+    '/_next/static/chunks/nested%5c..%5coutside-0123456789abcdef.js',
+    '/_next/static/chunks/nested\\..\\outside-0123456789abcdef.js',
+    '/_next/static/chunks/%252e%252e/outside-0123456789abcdef.js',
+    '/_next/static/chunks/runtime-0123456789abcdef.js?cache=1',
+    '/_next/static/chunks/runtime-0123456789abcdef.js#fragment',
+  ])('rejects traversal-shaped or ambiguous Next runtime source %s', (runtimeSource) => {
+    expect(staticDocumentViolations(scalarDocumentWithRuntime(runtimeSource), 'scalar')).toContain(
+      `contains an unexpected or non-fingerprinted Next script: ${runtimeSource}`
+    );
+  });
+
+  it.each([
+    'https://authlane.io/_next/static/chunks/runtime-0123456789abcdef.js',
+    '//authlane.io/_next/static/chunks/runtime-0123456789abcdef.js',
+  ])('rejects non-absolute-path Next runtime source %s', (runtimeSource) => {
+    expect(staticDocumentViolations(scalarDocumentWithRuntime(runtimeSource), 'scalar')).toContain(
+      `contains an unexpected external script: ${runtimeSource}`
+    );
+  });
+
+  it.each([
+    '/_next/static/chunks/app/docs/api-reference/page-0123456789abcdef.js',
+    '/_next/static/chunks/app/docs/[...slug]/page-fedcba9876543210.js',
+    '/_next/static/chunks/8fa6df74.82fd7b6f910e4836.js',
+  ])('accepts valid nested fingerprinted Next runtime source %s', (runtimeSource) => {
+    expect(staticDocumentViolations(scalarDocumentWithRuntime(runtimeSource), 'scalar')).toEqual(
+      []
+    );
   });
 
   it('rejects malicious inline code even when it contains a Next flight push', () => {

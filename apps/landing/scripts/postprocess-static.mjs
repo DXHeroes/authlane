@@ -10,8 +10,61 @@ const scriptSourcePattern = /(?:^|\s)src\s*=\s*(['"])(.*?)\1/i;
 const scriptTypePattern = /(?:^|\s)type\s*=\s*(['"])(.*?)\1/i;
 const interactionScriptPattern = /^\/_next\/static\/authlane-interactions-[a-f0-9]{12}\.js$/;
 const nextFlightScriptPattern = /^\/_next\/static\/authlane-next-flight-[a-f0-9]{12}\.js$/;
+const nextRuntimeOrigin = 'https://authlane.invalid';
+const nextRuntimePrefix = '/_next/static/chunks/';
 const nextRuntimeScriptPattern =
   /^\/_next\/static\/chunks\/(?:[^/?#]+\/)*[^/?#]*[-.][a-f0-9]{16}\.js$/;
+
+/** @param {string} source */
+function isNextRuntimeScriptSource(source) {
+  if (
+    !source.startsWith('/') ||
+    source.startsWith('//') ||
+    source.includes('?') ||
+    source.includes('#') ||
+    source.includes('\\')
+  ) {
+    return false;
+  }
+
+  const decodedSegments = [];
+  for (const rawSegment of source.split('/')) {
+    let decodedSegment;
+    try {
+      decodedSegment = decodeURIComponent(rawSegment);
+    } catch {
+      return false;
+    }
+    if (
+      decodedSegment !== rawSegment ||
+      decodedSegment === '.' ||
+      decodedSegment === '..' ||
+      decodedSegment.includes('/') ||
+      decodedSegment.includes('\\')
+    ) {
+      return false;
+    }
+    decodedSegments.push(decodedSegment);
+  }
+
+  const decodedPathname = decodedSegments.join('/');
+  let parsedSource;
+  let normalizedDecodedPath;
+  try {
+    parsedSource = new URL(source, nextRuntimeOrigin);
+    normalizedDecodedPath = new URL(decodedPathname, nextRuntimeOrigin).pathname;
+  } catch {
+    return false;
+  }
+
+  return (
+    parsedSource.origin === nextRuntimeOrigin &&
+    parsedSource.pathname === source &&
+    parsedSource.pathname === normalizedDecodedPath &&
+    parsedSource.pathname.startsWith(nextRuntimePrefix) &&
+    nextRuntimeScriptPattern.test(parsedSource.pathname)
+  );
+}
 
 /** @param {string} content */
 function isNextFlightPayload(content) {
@@ -114,7 +167,7 @@ export function staticDocumentViolations(html, mode) {
         }
       } else if (mode === 'static' && source.startsWith('/_next/static/')) {
         violations.push(`contains a Next runtime script: ${source}`);
-      } else if (mode === 'scalar' && nextRuntimeScriptPattern.test(source)) {
+      } else if (mode === 'scalar' && isNextRuntimeScriptSource(source)) {
         continue;
       } else if (mode === 'scalar' && source.startsWith('/_next/static/')) {
         violations.push(`contains an unexpected or non-fingerprinted Next script: ${source}`);

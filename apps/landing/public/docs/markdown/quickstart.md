@@ -33,15 +33,17 @@ const authlane = new Authlane({
   baseUrl: 'https://app.authlane.io',
 });
 
-const { data: services, error } = await authlane.services.list();
-if (error) {
-  return Response.json(
-    { error: { code: error.code, message: error.message } },
-    { status: error.statusCode ?? 400 },
-  );
-}
+export async function listServices() {
+  const { data: services, error } = await authlane.services.list();
+  if (error) {
+    return Response.json(
+      { error: { code: error.code, message: error.message } },
+      { status: error.statusCode ?? 400 },
+    );
+  }
 
-return Response.json({ services });
+  return Response.json({ services });
+}
 ```
 
 An empty array is a valid result: enable a service in the tenant dashboard before offering a
@@ -94,27 +96,50 @@ parent origin, and expiry. Neither the Authlane API key nor provider credentials
 
 Install the packages for the runtime you use:
 
-<CodeGroup
-  labels={['Vercel AI', 'OpenAI Agents', 'Mastra', 'Agno', 'LangChain', 'Local MCP']}
-  languages={['bash', 'bash', 'bash', 'bash', 'bash', 'bash']}
-  sources={[
-    `pnpm add @authlane/sdk @authlane/ai ai zod`,
-    `pnpm add @authlane/sdk @authlane/ai @openai/agents zod`,
-    `pnpm add @authlane/sdk @authlane/ai @mastra/core zod`,
-    `pip install 'authlane[agno]'`,
-    `pip install 'authlane[langchain]' langchain`,
-    `pnpm add @authlane/sdk @authlane/ai @modelcontextprotocol/sdk zod`,
-  ]}
-/>
+### Vercel AI
+
+```bash
+pnpm add @authlane/sdk @authlane/ai ai zod
+```
+
+### OpenAI Agents
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @openai/agents zod
+```
+
+### Mastra
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @mastra/core zod
+```
+
+### Agno
+
+```bash
+pip install 'authlane[agno]'
+```
+
+### LangChain
+
+```bash
+pip install 'authlane[langchain]' langchain
+```
+
+### Local MCP
+
+```bash
+pnpm add @authlane/sdk @authlane/ai @modelcontextprotocol/sdk zod
+```
+
 
 Each panel is a complete server-side flow. Bind the authenticated external user before selecting
 the adapter.
 
-<CodeGroup
-  labels={['Vercel AI', 'OpenAI Agents', 'Mastra', 'Agno', 'LangChain', 'Local MCP']}
-  languages={['typescript', 'typescript', 'typescript', 'python', 'python', 'typescript']}
-  sources={[
-    `import { vercelAI } from '@authlane/ai/vercel';
+### Vercel AI
+
+```typescript
+import { vercelAI } from '@authlane/ai/vercel';
 import { Authlane } from '@authlane/sdk';
 import { createTextStreamResponse, streamText, toTextStream, type ModelMessage } from 'ai';
 
@@ -130,8 +155,13 @@ export async function answer(currentUser: { id: string }, messages: ModelMessage
 
   const result = streamText({ model: 'openai/gpt-5-mini', messages, tools });
   return createTextStreamResponse({ stream: toTextStream({ stream: result.stream }) });
-}`,
-    `import { openAIAgents } from '@authlane/ai/openai';
+}
+```
+
+### OpenAI Agents
+
+```typescript
+import { openAIAgents } from '@authlane/ai/openai';
 import { Authlane } from '@authlane/sdk';
 import { Agent, run } from '@openai/agents';
 
@@ -148,8 +178,13 @@ export async function answer(currentUser: { id: string }, prompt: string) {
   const agent = new Agent({ name: 'Assistant', instructions: 'Use connected tools.', tools });
   const result = await run(agent, prompt);
   return { data: result.finalOutput, error: null };
-}`,
-    `import { mastraAI } from '@authlane/ai/mastra';
+}
+```
+
+### Mastra
+
+```typescript
+import { mastraAI } from '@authlane/ai/mastra';
 import { Authlane } from '@authlane/sdk';
 import { Agent } from '@mastra/core/agent';
 
@@ -164,11 +199,20 @@ export async function answer(currentUser: { id: string }, prompt: string) {
   if (error) return { data: null, error };
 
   const agent = new Agent({
-    id: 'assistant', name: 'Assistant', model: 'openai/gpt-5-mini', tools,
+    id: 'assistant',
+    name: 'Assistant',
+    instructions: 'Use connected tools.',
+    model: 'openai/gpt-5-mini',
+    tools,
   });
   return { data: await agent.generate(prompt), error: null };
-}`,
-    `import os
+}
+```
+
+### Agno
+
+```python
+import os
 from dataclasses import dataclass
 
 from agno.agent import Agent
@@ -186,8 +230,13 @@ def answer(current_user: CurrentUser, prompt: str):
         if result.error is not None:
             return result
         assert result.data is not None
-        return Agent(tools=result.data).run(prompt)`,
-    `import os
+        return Agent(tools=result.data).run(prompt)
+```
+
+### LangChain
+
+```python
+import os
 from dataclasses import dataclass
 
 from authlane import Authlane
@@ -207,8 +256,13 @@ def answer(current_user: CurrentUser, prompt: str, model: BaseChatModel):
             return result
         assert result.data is not None
         agent = create_agent(model=model, tools=result.data)
-        return agent.invoke({"messages": [{"role": "user", "content": prompt}]})`,
-    `import { mcpServer } from '@authlane/ai/mcp';
+        return agent.invoke({"messages": [{"role": "user", "content": prompt}]})
+```
+
+### Local MCP
+
+```typescript
+import { mcpServer } from '@authlane/ai/mcp';
 import { Authlane } from '@authlane/sdk';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
@@ -223,9 +277,9 @@ export async function connectMcp(currentUser: { id: string }, transport: Transpo
   if (error) return { data: null, error };
   await server.connect(transport);
   return { data: server, error: null };
-}`,
-  ]}
-/>
+}
+```
+
 
 Listing tools reads definitions and status; it does not issue credentials. A generated callback
 requests one fresh, audited, access-only lease only when invoked, then the local integration calls

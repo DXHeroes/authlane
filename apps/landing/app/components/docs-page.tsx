@@ -1,7 +1,7 @@
 /* biome-ignore-all lint/a11y/noRedundantRoles: Explicit list roles preserve semantics after the visual reset. */
 /* biome-ignore-all lint/a11y/useSemanticElements: Explicit list roles preserve semantics after the visual reset. */
 import Link from 'next/link';
-import { MDXRemote } from 'next-mdx-remote/rsc';
+import { compileMDX } from 'next-mdx-remote/rsc';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import rehypeSlug from 'rehype-slug';
@@ -9,7 +9,7 @@ import remarkGfm from 'remark-gfm';
 import { landingLinks } from '../content';
 import type { DocRecord } from '../lib/docs';
 import { normalizeLanguage } from '../lib/highlight-code';
-import { CodeGroup, DocsCodeBlock } from './docs-code';
+import { CodeGroup, CodeGroupItem, DocsCodeBlock } from './docs-code';
 import { DocsNavigation, PreviousNext } from './docs-navigation';
 import { DocsSearch } from './docs-search';
 import { SiteFooter } from './site-footer';
@@ -91,6 +91,7 @@ const mdxComponents = {
   Performance: (props: CalloutProps) => <Callout tone="performance" {...props} />,
   Steps,
   CodeGroup,
+  CodeGroupItem,
 };
 
 function Breadcrumbs({ doc }: { doc: DocRecord }) {
@@ -156,20 +157,22 @@ export function DocsPage({ doc, children }: { doc: DocRecord; children?: ReactNo
   );
 }
 
+export async function renderDocsMdxSource(source: string): Promise<ReactElement> {
+  const { content } = await compileMDX({
+    source,
+    components: mdxComponents,
+    options: {
+      blockJS: true,
+      blockDangerousJS: true,
+      mdxOptions: {
+        remarkPlugins: [remarkGfm],
+        rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: 'wrap' }]],
+      },
+    },
+  });
+  return content;
+}
+
 export async function DocsMdx({ doc }: { doc: DocRecord }): Promise<ReactElement> {
-  return (
-    <MDXRemote
-      source={doc.source}
-      components={mdxComponents}
-      options={{
-        // Public docs are repository-owned; expressions power typed CodeGroup array props.
-        blockJS: false,
-        blockDangerousJS: true,
-        mdxOptions: {
-          remarkPlugins: [remarkGfm],
-          rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: 'wrap' }]],
-        },
-      }}
-    />
-  );
+  return renderDocsMdxSource(doc.source);
 }

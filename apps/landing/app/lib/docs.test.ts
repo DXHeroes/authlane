@@ -55,6 +55,11 @@ describe('build-time documentation source', () => {
       'Operate',
       'AI coding tools',
     ]);
+    expect(
+      getDocsNavigation()
+        .find((group) => group.group === 'API reference')
+        ?.pages.at(-1)
+    ).toBe('api-reference');
   });
 
   it('publishes complete framework and AI coding tool pages', () => {
@@ -82,7 +87,7 @@ describe('build-time documentation source', () => {
       .flatMap((group) => group.pages)
       .sort();
 
-    expect(sources).toHaveLength(59);
+    expect(sources).toHaveLength(60);
     expect(loaded).toEqual(sources);
     expect(navigation).toEqual(sources);
   });

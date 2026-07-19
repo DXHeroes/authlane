@@ -35,6 +35,7 @@
 - [OAuth callback](https://authlane.io/docs/api-reference/oauth/callback): Validate OAuth state and PKCE, store encrypted credentials, and return to the hosted connect UI
 - [List tools](https://authlane.io/docs/api-reference/tools/list-tools): Return MCP tools or OpenAI functions for currently usable connections
 - [API overview](https://authlane.io/docs/api-reference/introduction): Use the scoped Authlane control-plane API and open the complete read-only OpenAPI reference.
+- [API reference](https://authlane.io/docs/api-reference): Inspect the complete read-only Authlane OpenAPI control-plane contract.
 - [GitHub](https://authlane.io/docs/integrations/github): Use the local GitHub adapter with Authlane credentials
 - [Linear](https://authlane.io/docs/integrations/linear): Use the local Linear adapter with Authlane credentials
 - [Jira](https://authlane.io/docs/integrations/jira): Use the local Jira adapter with Authlane credentials

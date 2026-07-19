@@ -90,7 +90,8 @@
         "api-reference/oauth/authorize",
         "api-reference/oauth/callback",
         "api-reference/tools/list-tools",
-        "api-reference/introduction"
+        "api-reference/introduction",
+        "api-reference"
       ]
     },
     {

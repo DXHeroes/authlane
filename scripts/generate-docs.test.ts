@@ -101,6 +101,72 @@ describe('documentation asset generation', () => {
     );
   });
 
+  it('converts safe CodeGroup items into labelled Markdown fences', () => {
+    const model = buildDocumentationModel({
+      navigation: [{ group: 'Start', pages: ['quickstart'] }],
+      documents: [
+        {
+          slug: 'quickstart',
+          source: [
+            '---',
+            'title: Quickstart',
+            'description: Choose a runtime.',
+            '---',
+            '',
+            '<CodeGroup>',
+            '<CodeGroupItem label="TypeScript">',
+            '',
+            '```typescript',
+            'const ok = true;',
+            '```',
+            '',
+            '</CodeGroupItem>',
+            '<CodeGroupItem label="Python">',
+            '',
+            '```python',
+            'ok = True',
+            '```',
+            '',
+            '</CodeGroupItem>',
+            '</CodeGroup>',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    const markdown = model.documents[0].publicMarkdown;
+    expect(markdown).toContain('### TypeScript\n\n```typescript\nconst ok = true;\n```');
+    expect(markdown).toContain('### Python\n\n```python\nok = True\n```');
+    expect(markdown).not.toContain('<CodeGroup');
+    expect(markdown).not.toContain('<CodeGroupItem');
+  });
+
+  it('publishes every Quickstart runtime as labelled plain Markdown without expression props', () => {
+    const assets = renderGeneratedAssets(
+      buildDocumentationModel(loadDocumentation(repositoryRoot))
+    );
+    const quickstart = assets.markdown.get('quickstart') ?? '';
+
+    for (const label of [
+      'Vercel AI',
+      'OpenAI Agents',
+      'Mastra',
+      'Agno',
+      'LangChain',
+      'Local MCP',
+    ]) {
+      expect(quickstart.match(new RegExp(`^### ${label}$`, 'gm'))).toHaveLength(2);
+      expect(assets.llmsFull.match(new RegExp(`^### ${label}$`, 'gm'))).toHaveLength(2);
+    }
+    for (const output of [quickstart, assets.llmsFull]) {
+      expect(output).not.toContain('<CodeGroup');
+      expect(output).not.toContain('<CodeGroupItem');
+      expect(output).not.toContain('labels={');
+      expect(output).not.toContain('sources={');
+      expect(output).not.toContain('`pnpm add @authlane/sdk @authlane/ai ai zod`,');
+    }
+  });
+
   it('emits page and heading search entries with stable shape and searchable identifiers', () => {
     const model = buildDocumentationModel({
       navigation: [{ group: 'SDK', pages: ['sdk/typescript'] }],

@@ -138,6 +138,12 @@ function toPublicMarkdownBody(source, documentSlugs) {
       continue;
     }
 
+    const codeGroupItemOpen = /^\s*<CodeGroupItem\s+label=(['"])([^'"]+)\1>\s*$/.exec(line);
+    if (codeGroupItemOpen) {
+      output.push(`### ${codeGroupItemOpen[2]}`);
+      continue;
+    }
+
     const withoutComponents = line.replace(/<\/?[A-Z][A-Za-z0-9]*(?:\s[^>]*)?\/?>/g, '');
     if (withoutComponents.trim() || !line.trim()) {
       output.push(rewriteDocumentationLinks(withoutComponents, documentSlugs));

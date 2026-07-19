@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { getAllDocs } from '../lib/docs';
 import robots from '../robots';
 import sitemap from '../sitemap';
+import { generateStaticParams } from './[...slug]/page';
 import ApiReferencePage from './api-reference/page';
 
 const landingRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -37,6 +38,12 @@ describe('documentation publication contract', () => {
     expect(viewer).toContain('Request example');
     expect(viewer).toContain('Response example');
     expect(viewer).toContain('Webhook example');
+  });
+
+  it('keeps the explicit API viewer out of catch-all static generation', () => {
+    const params = generateStaticParams();
+    expect(params).toHaveLength(getAllDocs().length - 1);
+    expect(params).not.toContainEqual({ slug: ['api-reference'] });
   });
 
   it('renders resolved operation and webhook examples into static HTML', () => {

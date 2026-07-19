@@ -152,3 +152,142 @@ workspace-root warning in this isolated worktree; compilation and all 68 static 
 The public Markdown generator preserves multiline `CodeGroup` source syntax rather than converting
 it into labelled fences; all source panels remain present and searchable, but a later generator
 polish can improve their plain-Markdown presentation without changing this task's runtime docs.
+
+## Review fixes
+
+Follow-up commit subject: `fix(docs): harden task-oriented guide rendering`
+
+### Implementation
+
+- Restored the MDX compiler's general JavaScript block with `blockJS: true` while retaining
+  `blockDangerousJS: true`.
+  - Replaced both expression-prop Quickstart groups with safe `<CodeGroup>` and
+    `<CodeGroupItem label="...">` child markup using plain string attributes and ordinary fenced
+    code.
+  - Added a real compiler entry point used by `DocsMdx` and its renderer tests. The tests render
+    child-based groups through the production compiler, prove every fixture label/panel remains in
+    the no-JavaScript HTML, and prove arithmetic expressions, imports, exports, dynamic imports,
+    and a mocked side effect do not execute.
+  - `CodeGroup` now validates that the group is non-empty, every direct child is a
+    `CodeGroupItem`, every label is a non-empty string, and every item has a code child. Invalid
+    authoring fails with an actionable message.
+- Added the required `instructions: 'Use connected tools.'` property to both Mastra `Agent`
+  examples and locked it with a type-oriented content contract.
+- Wrapped the service-catalog call and both response returns in the complete exported
+  `listServices()` server function.
+- Added canonical `apps/docs/api-reference.mdx`, placed `api-reference` last in the API reference
+  navigation group, and excluded that slug from catch-all static params so the explicit generated
+  OpenAPI viewer remains the sole owner of `/docs/api-reference`.
+- Extended deterministic Markdown conversion to render each `CodeGroupItem` label as a Markdown
+  heading, preserve its fenced code byte-for-byte, and remove all group wrappers and expression-prop
+  syntax. `quickstart.md` and `llms-full.txt` now contain two labelled sets of the six runtime
+  alternatives with no raw `CodeGroup` markup.
+- Regenerated 64 deterministic assets for the expanded 60-page manifest.
+
+### Review RED evidence
+
+Child-based component API before implementation:
+
+```text
+$ pnpm --filter @authlane/landing exec vitest run app/components/docs-page.test.tsx
+Test Files 1 failed (1)
+Tests 3 failed | 10 passed (13)
+```
+
+The old array API dereferenced missing `labels`; empty and invalid groups therefore produced a
+generic TypeError instead of the required validation errors.
+
+Real safe renderer before registration/compiler hardening:
+
+```text
+$ pnpm --filter @authlane/landing exec vitest run app/components/docs-page.test.tsx
+Test Files 1 failed (1)
+Tests 2 failed | 13 passed (15)
+TypeError: renderDocsMdxSource is not a function
+```
+
+Content and generated Markdown before the review fixes:
+
+```text
+$ pnpm vitest run scripts/docs-quickstart.test.ts scripts/generate-docs.test.ts --environment node
+Test Files 2 failed (2)
+Tests 4 failed | 15 passed (19)
+```
+
+The failures identified the module-scope service returns, expression-prop groups, missing Mastra
+instruction, absent Markdown labels, and leaked group syntax.
+
+Navigation and route ownership before the canonical page:
+
+```text
+$ pnpm --filter @authlane/landing exec vitest run app/lib/docs.test.ts app/docs/docs-contract.test.ts
+Test Files 1 failed | 1 passed (2)
+Tests 2 failed | 10 passed (12)
+
+$ pnpm --filter @authlane/landing exec vitest run app/docs/docs-contract.test.ts
+Test Files 1 failed (1)
+Tests 1 failed | 4 passed (5)
+```
+
+The API group ended at `api-reference/introduction`, the source/manifest still had 59 pages, and
+catch-all static generation still included every manifest record.
+
+### Review GREEN evidence
+
+Focused content and generator regressions:
+
+```text
+$ pnpm vitest run scripts/docs-quickstart.test.ts scripts/generate-docs.test.ts --environment node
+Test Files 2 passed (2)
+Tests 19 passed (19)
+```
+
+Focused renderer, navigation, and publication regressions:
+
+```text
+$ pnpm --filter @authlane/landing exec vitest run \
+  app/components/docs-page.test.tsx app/lib/docs.test.ts app/docs/docs-contract.test.ts
+Test Files 3 passed (3)
+Tests 27 passed (27)
+```
+
+Full output verification:
+
+```text
+$ pnpm docs:generate
+Generated 64 documentation assets.
+
+$ pnpm docs:check
+Documentation assets are current.
+
+$ pnpm --filter @authlane/landing build
+Compiled successfully and generated/exported 68 static pages.
+
+$ pnpm type-check
+Tasks: 50 successful, 50 total; example and performance type checks passed.
+
+$ pnpm exec biome check <10 changed implementation/test files>
+Checked 10 files. No fixes applied.
+
+$ git diff --check
+exit 0
+```
+
+### Review self-review
+
+- The Quickstart retains the exact five steps, one-time tenant service snapshot, authenticated user
+  scoping before every adapter, explicit result handling, and provider-direct execution boundary.
+- No general MDX expression execution is needed by the documentation source; all interactive group
+  metadata is represented as static child structure.
+- The real compiler regression uses an unresolved import plus expression and dynamic-import payloads;
+  rendering succeeds without resolving them, producing `42`, or calling the mocked side effect.
+- The generated manifest contains `api-reference` exactly once as the API group's final entry, while
+  catch-all static params omit it and the explicit viewer builds successfully.
+- The earlier plain-Markdown `CodeGroup` concern is resolved by labelled fenced alternatives in both
+  public Markdown and the complete LLM export.
+
+### Review concerns
+
+No remaining functional concerns. The production build continues to emit Next.js's existing
+multiple-lockfile workspace-root warning in this isolated worktree; compilation and static export
+are unaffected.

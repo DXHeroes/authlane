@@ -10,6 +10,7 @@ const customIntegrationsUrl = new URL(
 );
 const frameworksUrl = new URL('../apps/docs/sdk/frameworks.mdx', import.meta.url);
 const pythonSdkUrl = new URL('../apps/docs/sdk/python.mdx', import.meta.url);
+const mastraSdkUrl = new URL('../apps/docs/sdk/mastra.mdx', import.meta.url);
 const typescriptSdkUrl = new URL('../apps/docs/sdk/typescript.mdx', import.meta.url);
 
 describe('task-oriented documentation content', () => {
@@ -33,6 +34,38 @@ describe('task-oriented documentation content', () => {
       [...headings]
         .map((heading) => quickstart.indexOf(heading))
         .sort((left, right) => left - right)
+    );
+  });
+
+  it('keeps the service-list example inside a complete exported server function', async () => {
+    const quickstart = await readFile(quickstartUrl, 'utf8');
+    const listSection = quickstart.slice(
+      quickstart.indexOf('## 2. List the services your tenant enabled'),
+      quickstart.indexOf('## 3. Create a connect session for the signed-in user')
+    );
+
+    expect(listSection).toContain('export async function listServices() {');
+    expect(listSection).toContain('  return Response.json({ services });\n}');
+    expect(listSection.indexOf('export async function listServices() {')).toBeLessThan(
+      listSection.indexOf('return Response.json({ services });')
+    );
+  });
+
+  it('uses safe child CodeGroups and the required Mastra Agent instructions', async () => {
+    const [quickstart, mastraSdk] = await Promise.all([
+      readFile(quickstartUrl, 'utf8'),
+      readFile(mastraSdkUrl, 'utf8'),
+    ]);
+
+    expect(quickstart.match(/<CodeGroup>/g)).toHaveLength(2);
+    expect(quickstart.match(/<CodeGroupItem label="Vercel AI">/g)).toHaveLength(2);
+    expect(quickstart).not.toContain('labels={');
+    expect(quickstart).not.toContain('languages={');
+    expect(quickstart).not.toContain('sources={');
+    expect(quickstart).toContain("instructions: 'Use connected tools.',");
+    expect(mastraSdk).toContain("instructions: 'Use connected tools.',");
+    expect(quickstart.indexOf("instructions: 'Use connected tools.',")).toBeLessThan(
+      quickstart.indexOf("model: 'openai/gpt-5-mini'", quickstart.indexOf('new Agent({'))
     );
   });
 

@@ -30,6 +30,7 @@ export async function answer(currentUser: { id: string }, prompt: string) {
   const agent = new Agent({
     id: 'workspace-assistant',
     name: 'Workspace assistant',
+    instructions: 'Use connected tools.',
     model: 'openai/gpt-5-mini',
     tools,
   });

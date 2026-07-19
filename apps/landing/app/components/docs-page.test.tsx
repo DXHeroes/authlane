@@ -4,9 +4,9 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getDoc } from '../lib/docs';
-import { CodeGroup, DocsCodeBlock } from './docs-code';
+import { CodeGroup, CodeGroupItem, DocsCodeBlock } from './docs-code';
 import { DocsNavigation, PreviousNext } from './docs-navigation';
-import { Callout, DocsPage, PageActions, Steps } from './docs-page';
+import { Callout, DocsPage, PageActions, renderDocsMdxSource, Steps } from './docs-page';
 
 describe('documentation page components', () => {
   beforeAll(() => {
@@ -40,11 +40,14 @@ describe('documentation page components', () => {
 
   it('renders an accessible code group with all panels available without JavaScript', () => {
     const html = renderToStaticMarkup(
-      <CodeGroup
-        labels={['TypeScript', 'Python']}
-        languages={['typescript', 'python']}
-        sources={['const ok = true;', 'ok = True']}
-      />
+      <CodeGroup>
+        <CodeGroupItem label="TypeScript">
+          <DocsCodeBlock language="typescript" source="const ok = true;" />
+        </CodeGroupItem>
+        <CodeGroupItem label="Python">
+          <DocsCodeBlock language="python" source="ok = True" />
+        </CodeGroupItem>
+      </CodeGroup>
     );
     expect(html).toContain('role="tablist"');
     expect(html.match(/role="tab"/g)).toHaveLength(2);
@@ -54,23 +57,93 @@ describe('documentation page components', () => {
     expect(html).not.toContain('hidden=""');
   });
 
-  it('preserves repository-owned CodeGroup expression props through MDX compilation', () => {
-    const pageSource = readFileSync(resolve(process.cwd(), 'app/components/docs-page.tsx'), 'utf8');
-
-    expect(pageSource).toContain('blockJS: false');
-    expect(pageSource).toContain('blockDangerousJS: true');
-  });
-
-  it('rejects mismatched code group arrays', () => {
+  it('rejects empty code groups and non-item children with actionable errors', () => {
+    expect(() => renderToStaticMarkup(<CodeGroup />)).toThrow(
+      'CodeGroup requires at least one CodeGroupItem.'
+    );
     expect(() =>
       renderToStaticMarkup(
-        <CodeGroup
-          labels={['TypeScript', 'Python']}
-          languages={['typescript']}
-          sources={['const ok = true;', 'ok = True']}
-        />
+        <CodeGroup>
+          <p>Not a code group item.</p>
+        </CodeGroup>
       )
-    ).toThrow('CodeGroup labels, languages, and sources must have equal lengths.');
+    ).toThrow('CodeGroup children must be CodeGroupItem elements.');
+  });
+
+  it('rejects code group items without a label or code child', () => {
+    expect(() =>
+      renderToStaticMarkup(
+        <CodeGroup>
+          <CodeGroupItem label=" ">
+            <DocsCodeBlock language="text" source="value" />
+          </CodeGroupItem>
+        </CodeGroup>
+      )
+    ).toThrow('CodeGroupItem requires a non-empty label.');
+    expect(() =>
+      renderToStaticMarkup(
+        <CodeGroup>
+          <CodeGroupItem label="Empty" />
+        </CodeGroup>
+      )
+    ).toThrow('CodeGroupItem "Empty" requires a code child.');
+  });
+
+  it('renders safe child-based CodeGroup markup through the real MDX compiler', async () => {
+    const content = await renderDocsMdxSource(
+      [
+        '<CodeGroup>',
+        '<CodeGroupItem label="TypeScript">',
+        '',
+        '```typescript',
+        'const ok = true;',
+        '```',
+        '',
+        '</CodeGroupItem>',
+        '<CodeGroupItem label="Python">',
+        '',
+        '```python',
+        'ok = True',
+        '```',
+        '',
+        '</CodeGroupItem>',
+        '</CodeGroup>',
+      ].join('\n')
+    );
+    const html = renderToStaticMarkup(content);
+
+    expect(html.match(/role="tab"/g)).toHaveLength(2);
+    expect(html.match(/role="tabpanel"/g)).toHaveLength(2);
+    expect(html).toContain('TypeScript');
+    expect(html).toContain('Python');
+    expect(html).toContain('const ok = true;');
+    expect(html).toContain('ok = True');
+    expect(html).not.toContain('hidden=""');
+  });
+
+  it('blocks MDX expressions, imports, exports, and dynamic behavior without side effects', async () => {
+    const sideEffect = vi.fn(() => 'unsafe');
+    vi.stubGlobal('__authlaneDocsSideEffect', sideEffect);
+    const content = await renderDocsMdxSource(
+      [
+        "import Exploit from 'virtual:docs-side-effect'",
+        'export const exported = globalThis.__authlaneDocsSideEffect();',
+        '',
+        'Static text.',
+        '',
+        'Expression: {40 + 2}',
+        '',
+        'Dynamic: {import("virtual:docs-side-effect")}',
+        '',
+        'Side effect: {globalThis.__authlaneDocsSideEffect()}',
+      ].join('\n')
+    );
+    const html = renderToStaticMarkup(content);
+
+    expect(html).toContain('Static text.');
+    expect(html).not.toContain('42');
+    expect(html).not.toContain('unsafe');
+    expect(sideEffect).not.toHaveBeenCalled();
   });
 
   it('renders semantic steps and labelled callout tones', () => {

@@ -5,7 +5,9 @@ import { getAllDocs, getDoc } from '../../lib/docs';
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return getAllDocs().map((doc) => ({ slug: doc.slug.split('/') }));
+  return getAllDocs()
+    .filter((doc) => doc.slug !== 'api-reference')
+    .map((doc) => ({ slug: doc.slug.split('/') }));
 }
 
 export function generateMetadata({

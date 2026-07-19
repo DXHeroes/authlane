@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { Children, isValidElement, type ReactElement, type ReactNode, useId } from 'react';
 import { highlightCode, normalizeLanguage } from '../lib/highlight-code';
 
 const languageLabels: Record<string, string> = {
@@ -47,25 +47,44 @@ export function DocsCodeBlock({ language, source }: { language: string; source: 
   );
 }
 
-export function CodeGroup({
-  labels,
-  languages,
-  sources,
-}: {
-  labels: string[];
-  languages: string[];
-  sources: string[];
-}) {
-  if (labels.length !== languages.length || labels.length !== sources.length) {
-    throw new Error('CodeGroup labels, languages, and sources must have equal lengths.');
+export type CodeGroupItemProps = {
+  label: string;
+  children?: ReactNode;
+};
+
+export function CodeGroupItem({ children }: CodeGroupItemProps) {
+  return <>{children}</>;
+}
+
+function validatedCodeGroupItems(children: ReactNode): ReactElement<CodeGroupItemProps>[] {
+  const items = Children.toArray(children);
+  if (items.length === 0) {
+    throw new Error('CodeGroup requires at least one CodeGroupItem.');
   }
+
+  return items.map((item) => {
+    if (!isValidElement<CodeGroupItemProps>(item) || item.type !== CodeGroupItem) {
+      throw new Error('CodeGroup children must be CodeGroupItem elements.');
+    }
+    if (typeof item.props.label !== 'string' || !item.props.label.trim()) {
+      throw new Error('CodeGroupItem requires a non-empty label.');
+    }
+    if (Children.count(item.props.children) === 0) {
+      throw new Error(`CodeGroupItem "${item.props.label}" requires a code child.`);
+    }
+    return item;
+  });
+}
+
+export function CodeGroup({ children }: { children?: ReactNode }) {
+  const items = validatedCodeGroupItems(children);
 
   const groupId = useId();
 
   return (
     <div className="code-tabs docs-code-group" data-tab-group>
       <div className="code-tabs__list" role="tablist" aria-label="Code examples">
-        {labels.map((label, index) => {
+        {items.map((item, index) => {
           const tabId = `${groupId}-tab-${index}`;
           const panelId = `${groupId}-panel-${index}`;
           return (
@@ -79,12 +98,12 @@ export function CodeGroup({
               aria-selected={index === 0}
               tabIndex={index === 0 ? 0 : -1}
             >
-              {label}
+              {item.props.label}
             </button>
           );
         })}
       </div>
-      {sources.map((source, index) => {
+      {items.map((item, index) => {
         const tabId = `${groupId}-tab-${index}`;
         const panelId = `${groupId}-panel-${index}`;
         return (
@@ -95,7 +114,7 @@ export function CodeGroup({
             role="tabpanel"
             aria-labelledby={tabId}
           >
-            <DocsCodeBlock language={languages[index]} source={source} />
+            {item.props.children}
           </div>
         );
       })}

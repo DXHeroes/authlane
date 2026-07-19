@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  authModeConfiguration,
   isSignUpEnabled,
+  parseAuthMode,
   parseAuthSecrets,
+  validateMagicLinkEmailConfiguration,
   validateTrustedOrigins,
 } from '../../src/lib/auth-security-config.js';
 
@@ -42,5 +45,62 @@ describe('authentication security configuration', () => {
     expect(isSignUpEnabled('true', 'production')).toBe(true);
     expect(isSignUpEnabled('false', 'development')).toBe(false);
     expect(() => isSignUpEnabled('yes', 'production')).toThrow(/true or false/);
+  });
+
+  it('supports explicit passwordless and password authentication modes', () => {
+    expect(parseAuthMode(undefined)).toBe('email-password');
+    expect(parseAuthMode(' magic-link ')).toBe('magic-link');
+    expect(parseAuthMode('email-password')).toBe('email-password');
+    expect(() => parseAuthMode('password')).toThrow(/AUTHLANE_AUTH_MODE/);
+  });
+
+  it('requires complete email delivery configuration for production magic links', () => {
+    expect(() =>
+      validateMagicLinkEmailConfiguration({
+        authMode: 'magic-link',
+        environment: 'production',
+        resendApiKey: undefined,
+        emailFrom: 'Authlane <auth@mail.authlane.io>',
+      })
+    ).toThrow(/RESEND_API_KEY/);
+    expect(() =>
+      validateMagicLinkEmailConfiguration({
+        authMode: 'magic-link',
+        environment: 'production',
+        resendApiKey: 'runtime-secret',
+        emailFrom: undefined,
+      })
+    ).toThrow(/EMAIL_FROM/);
+    expect(() =>
+      validateMagicLinkEmailConfiguration({
+        authMode: 'magic-link',
+        environment: 'production',
+        resendApiKey: 'runtime-secret',
+        emailFrom: 'Authlane <auth@mail.authlane.io>',
+      })
+    ).not.toThrow();
+    expect(() =>
+      validateMagicLinkEmailConfiguration({
+        authMode: 'email-password',
+        environment: 'production',
+      })
+    ).not.toThrow();
+  });
+
+  it('locks magic links to hashed, single-use, ten-minute tokens', () => {
+    expect(authModeConfiguration('magic-link', true)).toEqual({
+      emailAndPasswordEnabled: false,
+      twoFactorEnabled: false,
+      magicLink: {
+        disableSignUp: false,
+        expiresIn: 600,
+        storeToken: 'hashed',
+      },
+    });
+    expect(authModeConfiguration('email-password', false)).toEqual({
+      emailAndPasswordEnabled: true,
+      twoFactorEnabled: true,
+      magicLink: null,
+    });
   });
 });

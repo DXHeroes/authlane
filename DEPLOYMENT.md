@@ -66,7 +66,10 @@ For the DX Heroes demo use:
 - `APP_URL=https://app.authlane.io`, `BETTER_AUTH_URL=https://app.authlane.io`, and
   `CORS_ORIGIN=https://app.authlane.io` plus only explicitly required tenant origins;
 - `AUTHLANE_LANDING_HOSTS=authlane.io`, `AUTHLANE_APP_HOSTS=app.authlane.io`, and
-  `AUTHLANE_ALLOW_SIGNUP=false`;
+  `AUTHLANE_AUTH_MODE=magic-link`, `AUTHLANE_ALLOW_SIGNUP=true`;
+- a new masked, runtime-only `RESEND_API_KEY` and
+  `EMAIL_FROM=Authlane <auth@mail.authlane.io>` after Resend verifies DKIM and SPF for
+  `mail.authlane.io`;
 - independent URL-safe 64-hex database/Redis passwords, `v1:<64-hex>` keyrings,
   `1:<64-hex>` Better Auth secrets, and a 64-hex metrics token;
 - `RATE_LIMIT_MAX_REQUESTS=30000` and `RATE_LIMIT_WINDOW_MS=60000` for the acceptance benchmark;
@@ -84,10 +87,11 @@ service belongs in this stack; SaaS runtimes call providers directly.
 
 ### First-owner bootstrap
 
-1. Set `AUTHLANE_ALLOW_SIGNUP=true` and deploy.
-2. Register the first owner in the browser; never send the password or TOTP seed through chat or logs.
-3. Enable MFA, sign in again to obtain a fresh session, and create the initial organization settings.
-4. Set `AUTHLANE_ALLOW_SIGNUP=false`, redeploy, and verify registration is rejected while sign-in works.
+1. Verify Resend DNS, revoke any disclosed sending key, and create a new sending-only key.
+2. Set the four passwordless variables above and deploy.
+3. Request a link in the browser, complete onboarding, and verify the organization is active.
+4. Keep sign-up open for Authlane Cloud, or set `AUTHLANE_ALLOW_SIGNUP=false` for a closed
+   self-hosted installation. Existing users can still request links when sign-up is closed.
 
 For GitHub OAuth create an app with homepage `https://app.authlane.io` and callback
 `https://app.authlane.io/api/v1/oauth/github/callback`. Enter its client ID and secret only in

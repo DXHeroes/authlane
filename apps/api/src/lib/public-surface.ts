@@ -81,7 +81,16 @@ export function isDocsPath(path: string): boolean {
   return path === '/docs' || path.startsWith('/docs/');
 }
 
-const PRODUCT_PREFIXES = ['/api', '/connect', '/login', '/register', '/dashboard'];
+const PRODUCT_PREFIXES = [
+  '/api',
+  '/connect',
+  '/login',
+  '/register',
+  '/onboarding',
+  '/reauth',
+  '/two-factor',
+  '/dashboard',
+];
 
 export function isProductOnlyPath(path: string): boolean {
   return PRODUCT_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));

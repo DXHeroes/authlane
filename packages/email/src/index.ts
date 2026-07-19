@@ -15,6 +15,7 @@ export {
 export {
   type EmailResult,
   sendEmailVerification,
+  sendMagicLink,
   sendOrganizationInvitation,
   sendPasswordReset,
   sendWelcomeEmail,
@@ -24,6 +25,8 @@ export {
 export {
   EmailVerification,
   type EmailVerificationProps,
+  MagicLink,
+  type MagicLinkProps,
   OrganizationInvitation,
   type OrganizationInvitationProps,
   PasswordReset,

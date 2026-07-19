@@ -1,7 +1,9 @@
 import { Errors } from '@authlane/shared';
 import type { Context, Next } from 'hono';
+import type { AuthMode } from '../lib/auth-security-config.js';
 
 interface DashboardSessionSecurityOptions {
+  authMode: AuthMode;
   trustedOrigins: string[];
   now?: () => Date;
   stepUpMaxAgeSeconds?: number;
@@ -39,7 +41,7 @@ export function dashboardSessionSecurity(options: DashboardSessionSecurityOption
     }
 
     const user = c.get('user');
-    if (!user?.twoFactorEnabled) {
+    if (options.authMode === 'email-password' && !user?.twoFactorEnabled) {
       return c.json(Errors.mfaEnrollmentRequired(), 403);
     }
 

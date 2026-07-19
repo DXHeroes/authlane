@@ -36,6 +36,10 @@ EMAIL_FROM=Your App <noreply@yourdomain.com>
 APP_URL=https://your-app-url.com
 ```
 
+For Authlane passwordless authentication, use a verified sender domain and keep the sending key in
+the runtime secret manager. Magic-link delivery is considered successful only when Resend accepts the
+message; provider rejection aborts the authentication request.
+
 ## Usage
 
 ### Send Organization Invitation
@@ -62,6 +66,19 @@ await sendEmailVerification('user@example.com', {
   verificationLink: 'https://app.example.com/verify-email?token=xyz',
   expiresIn: '24 hours',
 });
+```
+
+### Send a magic link
+
+```typescript
+import { sendMagicLink } from '@authlane/email';
+
+const result = await sendMagicLink('user@example.com', {
+  magicLink: 'https://app.example.com/api/auth/magic-link/verify?token=...',
+  expiresIn: '10 minutes',
+});
+
+if (!result.success) throw new Error('Authentication email delivery failed');
 ```
 
 ### Send Password Reset
@@ -95,6 +112,7 @@ await sendWelcomeEmail('user@example.com', {
 |----------|-------------|---------|
 | `OrganizationInvitation` | Invitation to join an organization | `organization.inviteMember()` |
 | `EmailVerification` | Verify email address | Sign-up or manual trigger |
+| `MagicLink` | Sign in or sign up without a password | Magic-link authentication request |
 | `PasswordReset` | Reset password link | Forgot password flow |
 | `WelcomeEmail` | Welcome after joining | After invitation accepted |
 
@@ -126,6 +144,14 @@ Send an email verification email.
 **Parameters:**
 - `to` (string): Recipient email address
 - `props` (EmailVerificationProps): Template properties
+
+### `sendMagicLink(to, props)`
+
+Send a single-use passwordless authentication link.
+
+**Parameters:**
+- `to` (string): Recipient email address
+- `props` (MagicLinkProps): Template properties
 
 ### `sendPasswordReset(to, props)`
 
@@ -170,8 +196,6 @@ if (!result.success) {
 ## License
 
 MIT License. Copyright © 2026 Authlane contributors.
-
-
 
 
 

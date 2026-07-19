@@ -11,8 +11,9 @@ Before exposing Authlane to the internet:
 - configure `TRUSTED_PROXY_CIDRS` only for the immediate proxies you operate;
 - run migrations with the migrator role, API traffic with `authlane_app`, and jobs with `authlane_job`;
 - keep PostgreSQL and Redis off public networks and enable encrypted transport when they leave the host;
-- require dashboard MFA, retain audit logs, and alert on repeated auth failures, refresh failures, and
-  credential-lease issuance anomalies;
+- require fresh passwordless sessions or dashboard MFA according to `AUTHLANE_AUTH_MODE`, retain
+  audit logs, and alert on repeated auth failures, refresh failures, and credential-lease issuance
+  anomalies;
 - verify backups by restoring into an isolated environment, and protect backups with a separate key;
 - require CI tests, CodeQL, OSV, dependency review, secret scanning, and container scanning.
 
@@ -33,7 +34,10 @@ AUTHLANE_APP_HOSTS=app.authlane.io
 APP_URL=https://app.authlane.io
 BETTER_AUTH_URL=https://app.authlane.io
 CORS_ORIGIN=https://app.authlane.io
+AUTHLANE_AUTH_MODE=magic-link
 AUTHLANE_ALLOW_SIGNUP=false
+RESEND_API_KEY=<runtime-only secret>
+EMAIL_FROM=Authlane <auth@mail.authlane.io>
 ```
 
 The image contains only public build artifacts. Supply `DATABASE_URL`, `SYSTEM_DATABASE_URL`,
@@ -45,8 +49,9 @@ available only on the app host, where `/docs` is read from `/app/public-landing/
 fail closed, and `X-Forwarded-Host` does not select a surface. `/health` remains host-independent for
 container and load-balancer checks.
 
-`AUTHLANE_ALLOW_SIGNUP=false` remains the production default. Open signup only as a deliberate,
-time-bounded bootstrap action, then disable it again.
+`AUTHLANE_ALLOW_SIGNUP=false` remains the self-hosted production default. Authlane Cloud may keep it
+enabled intentionally. Production magic-link mode requires a verified sender and runtime-only Resend
+key, and fails closed when either mail setting is absent.
 
 ## Key rotation
 

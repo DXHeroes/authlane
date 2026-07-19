@@ -192,6 +192,11 @@ the one-shot migrator uses a separate role. Production configuration requires ex
 versioned keyrings, and explicit database, Redis, worker, auth, and metrics secrets. Follow the
 [self-hosting guide](https://authlane.io/docs/guides/self-hosting) before launch.
 
+Self-hosting defaults to `AUTHLANE_AUTH_MODE=email-password`. For passwordless auth, select
+`magic-link`, configure a verified Resend sender at runtime, and set `AUTHLANE_ALLOW_SIGNUP` to your
+intended account-creation policy. Production magic-link startup fails closed without complete email
+delivery configuration.
+
 ## Develop Authlane
 
 ```bash

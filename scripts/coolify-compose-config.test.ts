@@ -8,6 +8,7 @@ const publicOriginVariables = [
   'AUTHLANE_LANDING_HOSTS',
   'AUTHLANE_APP_HOSTS',
   'AUTHLANE_ALLOW_SIGNUP',
+  'AUTHLANE_AUTH_MODE',
 ] as const;
 
 describe('Coolify runtime configuration', () => {
@@ -76,5 +77,6 @@ describe('Coolify runtime configuration', () => {
     expect(values.get('AUTHLANE_LANDING_HOSTS')).toBe('authlane.io');
     expect(values.get('AUTHLANE_APP_HOSTS')).toBe('app.authlane.io');
     expect(values.get('AUTHLANE_ALLOW_SIGNUP')).toBe('false');
+    expect(values.get('AUTHLANE_AUTH_MODE')).toBe('email-password');
   });
 });

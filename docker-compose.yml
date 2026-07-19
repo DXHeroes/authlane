@@ -7,6 +7,7 @@ x-app-environment: &app-environment
   APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
   BETTER_AUTH_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
   BETTER_AUTH_SECRETS: ${BETTER_AUTH_SECRETS:?Set a versioned Better Auth secret ring}
+  AUTHLANE_AUTH_MODE: ${AUTHLANE_AUTH_MODE:-email-password}
   AUTHLANE_ALLOW_SIGNUP: ${AUTHLANE_ALLOW_SIGNUP:-false}
   CORS_ORIGIN: ${CORS_ORIGIN:?Set exact comma-separated HTTPS origins}
   DATABASE_URL: postgresql://authlane_app:${AUTHLANE_RUNTIME_DB_PASSWORD:?Set a URL-safe database password}@postgres:5432/authlane

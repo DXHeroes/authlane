@@ -10,6 +10,7 @@ initSentry();
 
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createDatabaseClient, type Database } from '@authlane/database';
+import type { EmailResult } from '@authlane/email';
 import { Errors, getEnv } from '@authlane/shared';
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
@@ -28,6 +29,7 @@ import {
   type AuthSecondaryStorage,
   createEncryptedRedisSecondaryStorage,
 } from './lib/auth-secondary-storage.js';
+import { type AuthMode, isSignUpEnabled, parseAuthMode } from './lib/auth-security-config.js';
 import { type CacheStore, MemoryCacheStore, RedisCacheStore } from './lib/cache.js';
 import { resolveClientIp } from './lib/client-ip.js';
 import {
@@ -100,6 +102,9 @@ export function createApp(
     landingPublicRoot?: string;
     landingHosts?: string[];
     appHosts?: string[];
+    authMode?: AuthMode;
+    signUpEnabled?: boolean;
+    sendMagicLinkEmail?: (email: string, url: string) => Promise<EmailResult>;
   }
 ) {
   const app = new Hono();
@@ -114,6 +119,10 @@ export function createApp(
     options?.landingHosts ?? (process.env.AUTHLANE_LANDING_HOSTS ?? 'authlane.io').split(',');
   const appHosts =
     options?.appHosts ?? (process.env.AUTHLANE_APP_HOSTS ?? 'app.authlane.io').split(',');
+  const environment = process.env.NODE_ENV || 'development';
+  const authMode = options?.authMode ?? parseAuthMode(process.env.AUTHLANE_AUTH_MODE);
+  const signUpEnabled =
+    options?.signUpEnabled ?? isSignUpEnabled(process.env.AUTHLANE_ALLOW_SIGNUP, environment);
 
   const landingStatic = landingPublicRoot ? serveStatic({ root: landingPublicRoot }) : undefined;
   const landingNextStatic = landingPublicRoot
@@ -172,9 +181,12 @@ export function createApp(
 
   // Create Better Auth instance
   const auth = createAuth(db, {
+    authMode,
     baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+    signUpEnabled,
     trustedOrigins,
     secondaryStorage: options?.authSecondaryStorage,
+    sendMagicLinkEmail: options?.sendMagicLinkEmail,
   });
 
   // Global middleware
@@ -390,6 +402,11 @@ export function createApp(
   });
 
   // Better Auth routes (public)
+  app.get('/api/auth/config', (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json({ data: { mode: authMode, signUpEnabled }, error: null });
+  });
+
   app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
     try {
       const headers = new Headers(c.req.raw.headers);
@@ -408,6 +425,7 @@ export function createApp(
   app.use(
     '/api/v1/dashboard/*',
     dashboardSessionSecurity({
+      authMode,
       trustedOrigins,
     })
   );

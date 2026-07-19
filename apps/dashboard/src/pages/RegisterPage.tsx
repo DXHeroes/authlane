@@ -8,6 +8,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
   const { register } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -16,7 +17,8 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await register(name, email, password);
+      const result = await register(name, email, password);
+      setVerificationPending(result.verificationPending);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to register');
     } finally {
@@ -36,17 +38,22 @@ export default function RegisterPage() {
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
           )}
+          {verificationPending && (
+            <output className="block rounded-md bg-primary/10 p-4 text-sm">
+              <strong>Check your inbox.</strong> Verify your email, then finish workspace setup.
+            </output>
+          )}
 
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
               <label htmlFor="name" className="block text-sm font-medium">
-                Organization name
+                Your name
               </label>
               <input
                 id="name"
                 name="name"
                 type="text"
-                autoComplete="organization"
+                autoComplete="name"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}

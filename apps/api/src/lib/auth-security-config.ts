@@ -1,5 +1,60 @@
 const DEVELOPMENT_AUTH_SECRET = `1:${'development-only-authlane-secret'.padEnd(32, '-')}`;
 
+export type AuthMode = 'magic-link' | 'email-password';
+
+export interface AuthModeConfiguration {
+  emailAndPasswordEnabled: boolean;
+  twoFactorEnabled: boolean;
+  magicLink: null | {
+    disableSignUp: boolean;
+    expiresIn: number;
+    storeToken: 'hashed';
+  };
+}
+
+export function authModeConfiguration(
+  authMode: AuthMode,
+  signUpEnabled: boolean
+): AuthModeConfiguration {
+  if (authMode === 'magic-link') {
+    return {
+      emailAndPasswordEnabled: false,
+      twoFactorEnabled: false,
+      magicLink: {
+        disableSignUp: !signUpEnabled,
+        expiresIn: 600,
+        storeToken: 'hashed',
+      },
+    };
+  }
+  return {
+    emailAndPasswordEnabled: true,
+    twoFactorEnabled: true,
+    magicLink: null,
+  };
+}
+
+export function parseAuthMode(value: string | undefined): AuthMode {
+  const normalized = value?.trim().toLowerCase() || 'email-password';
+  if (normalized === 'magic-link' || normalized === 'email-password') return normalized;
+  throw new Error('AUTHLANE_AUTH_MODE must be magic-link or email-password');
+}
+
+export function validateMagicLinkEmailConfiguration(options: {
+  authMode: AuthMode;
+  environment: string;
+  resendApiKey?: string;
+  emailFrom?: string;
+}): void {
+  if (options.authMode !== 'magic-link' || options.environment !== 'production') return;
+  if (!options.resendApiKey?.trim()) {
+    throw new Error('RESEND_API_KEY is required for production magic-link authentication');
+  }
+  if (!options.emailFrom?.trim()) {
+    throw new Error('EMAIL_FROM is required for production magic-link authentication');
+  }
+}
+
 export function isSignUpEnabled(value: string | undefined, environment: string): boolean {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) {

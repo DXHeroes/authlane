@@ -163,7 +163,15 @@ describe('host-aware public routing', () => {
   });
 
   it('retains product authentication and dashboard fallbacks on the app surface', async () => {
-    for (const path of ['/login', '/register', '/dashboard', '/dashboard/settings']) {
+    for (const path of [
+      '/login',
+      '/register',
+      '/onboarding',
+      '/reauth',
+      '/two-factor',
+      '/dashboard',
+      '/dashboard/settings',
+    ]) {
       const response = await request(path, 'app.authlane.io');
       expect(response.status, path).toBe(200);
       expect(await response.text(), path).toContain('Product fixture');
@@ -171,7 +179,16 @@ describe('host-aware public routing', () => {
   });
 
   it('denies every product-only route on the landing surface', async () => {
-    for (const path of ['/api/v1/services', '/connect', '/login', '/register', '/dashboard']) {
+    for (const path of [
+      '/api/v1/services',
+      '/connect',
+      '/login',
+      '/register',
+      '/onboarding',
+      '/reauth',
+      '/two-factor',
+      '/dashboard',
+    ]) {
       const response = await request(path, 'authlane.io');
       expect(response.status, path).toBe(404);
       expect(await response.text(), path).not.toContain('Product fixture');

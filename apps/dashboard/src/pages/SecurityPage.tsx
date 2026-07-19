@@ -8,7 +8,7 @@ interface Enrollment {
 }
 
 export default function SecurityPage() {
-  const { user } = useAuth();
+  const { authMode, user } = useAuth();
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -71,6 +71,26 @@ export default function SecurityPage() {
       setIsLoading(false);
     }
   };
+
+  if (authMode === 'magic-link') {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Account security</h1>
+          <p className="mt-2 text-muted-foreground">
+            Your account is passwordless. One-time links expire after ten minutes and sensitive
+            changes require a freshly authenticated session.
+          </p>
+        </div>
+        <section className="space-y-2 rounded-lg border p-6">
+          <h2 className="text-xl font-semibold">Email sign-in</h2>
+          <p className="text-sm text-muted-foreground">
+            Secure links are sent only to {user?.email}. Each link can be used once.
+          </p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-8">

@@ -5,6 +5,8 @@
 
 export type { EmailVerificationProps } from './EmailVerification.js';
 export { EmailVerification } from './EmailVerification.js';
+export type { MagicLinkProps } from './MagicLink.js';
+export { MagicLink } from './MagicLink.js';
 export type { OrganizationInvitationProps } from './OrganizationInvitation.js';
 export { OrganizationInvitation } from './OrganizationInvitation.js';
 export type { PasswordResetProps } from './PasswordReset.js';

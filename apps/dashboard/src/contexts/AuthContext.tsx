@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
+import { organizationSlug } from '@/lib/auth-helpers';
 
 // Types
 interface User {
@@ -30,6 +31,14 @@ interface Session {
   };
 }
 
+export type AuthMode = 'magic-link' | 'email-password';
+
+interface MagicLinkDestinations {
+  callbackURL: string;
+  newUserCallbackURL?: string;
+  errorCallbackURL: string;
+}
+
 interface AuthContextType {
   user: User | null;
   organization: Organization | null;
@@ -37,11 +46,19 @@ interface AuthContextType {
   session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  authMode: AuthMode;
+  signUpEnabled: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  requestMagicLink: (email: string, destinations: MagicLinkDestinations) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<{ verificationPending: boolean }>;
   logout: () => Promise<void>;
   switchOrganization: (organizationId: string) => Promise<void>;
   createOrganization: (name: string, slug: string) => Promise<Organization>;
+  completeOnboarding: (name: string, organizationName: string) => Promise<void>;
   refreshOrganizations: () => Promise<void>;
 }
 
@@ -52,6 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<AuthMode>('email-password');
+  const [signUpEnabled, setSignUpEnabled] = useState(false);
 
   // Load all organizations
   const refreshOrganizations = async () => {
@@ -69,6 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadSession = async () => {
       try {
+        const configResponse = await fetch('/api/auth/config', { credentials: 'include' });
+        if (!configResponse.ok) throw new Error('Authentication configuration is unavailable');
+        const configResult = (await configResponse.json()) as {
+          data: { mode: AuthMode; signUpEnabled: boolean };
+        };
+        setAuthMode(configResult.data.mode);
+        setSignUpEnabled(configResult.data.signUpEnabled);
+
         const result = await authClient.getSession();
         if (result.data) {
           setSession(result.data as Session);
@@ -136,6 +163,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (nextOrganizations[0]) setOrganization(nextOrganizations[0]);
   };
 
+  const requestMagicLink = async (email: string, destinations: MagicLinkDestinations) => {
+    const result = await authClient.signIn.magicLink({
+      email,
+      ...destinations,
+    });
+    if (result.error) throw new Error(result.error.message || 'Could not send sign-in link');
+  };
+
   const register = async (name: string, email: string, password: string) => {
     // Sign up
     const result = await authClient.signUp.email({
@@ -148,37 +183,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(result.error.message || 'Registration failed');
     }
 
-    // Create default organization
-    const orgSlug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '-')
-      .replace(/-+/g, '-');
-    const orgResult = await authClient.organization.create({
-      name,
-      slug: orgSlug,
-    });
-
-    if (orgResult.data) {
-      const newOrg = orgResult.data as unknown as Organization;
-      // Automatically set the new org as active
-      await authClient.organization.setActive({
-        organizationId: newOrg.id,
-      });
-      setOrganization(newOrg);
-      setOrganizations([newOrg]);
-    }
-
-    // Reload session
     const sessionResult = await authClient.getSession();
     if (sessionResult.data) {
       setSession(sessionResult.data as Session);
+      return { verificationPending: false };
     }
+    return { verificationPending: true };
   };
 
   const logout = async () => {
     await authClient.signOut();
     setSession(null);
     setOrganization(null);
+    setOrganizations([]);
   };
 
   const switchOrganization = async (organizationId: string) => {
@@ -219,6 +236,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result.data as unknown as Organization;
   };
 
+  const completeOnboarding = async (name: string, organizationName: string) => {
+    const updateResult = await authClient.updateUser({ name });
+    if (updateResult.error) {
+      throw new Error(updateResult.error.message || 'Could not update your profile');
+    }
+
+    const existingResult = await authClient.organization.list();
+    if (existingResult.error) {
+      throw new Error(existingResult.error.message || 'Could not load your workspaces');
+    }
+    const existingOrganizations = (existingResult.data as unknown as Organization[]) || [];
+    let nextOrganization = existingOrganizations[0];
+
+    if (!nextOrganization) {
+      const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 16);
+      const createResult = await authClient.organization.create({
+        name: organizationName,
+        slug: organizationSlug(organizationName, suffix),
+      });
+      if (createResult.error || !createResult.data) {
+        throw new Error(createResult.error?.message || 'Could not create your workspace');
+      }
+      nextOrganization = createResult.data as unknown as Organization;
+    }
+
+    const activeResult = await authClient.organization.setActive({
+      organizationId: nextOrganization.id,
+    });
+    if (activeResult.error) {
+      throw new Error(activeResult.error.message || 'Could not activate your workspace');
+    }
+
+    const organizationsResult = await authClient.organization.list();
+    const refreshedOrganizations =
+      (organizationsResult.data as unknown as Organization[] | null) ?? [];
+    setOrganizations(
+      refreshedOrganizations.length > 0 ? refreshedOrganizations : [nextOrganization]
+    );
+    setOrganization(nextOrganization);
+    const sessionResult = await authClient.getSession();
+    if (sessionResult.data) setSession(sessionResult.data as Session);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -228,11 +288,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         isAuthenticated: !!session?.user,
         isLoading,
+        authMode,
+        signUpEnabled,
         login,
+        requestMagicLink,
         register,
         logout,
         switchOrganization,
         createOrganization,
+        completeOnboarding,
         refreshOrganizations,
       }}
     >

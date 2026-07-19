@@ -28,6 +28,29 @@ Use `DATABASE_URL` for the NOBYPASSRLS application role and `SYSTEM_DATABASE_URL
 granted worker. Keep PostgreSQL and Redis on private networks and require TLS when traffic leaves a
 private host.
 
+## Choose an authentication mode
+
+Authlane defaults to `AUTHLANE_AUTH_MODE=email-password` for backwards-compatible self-hosting and
+the local demo. This mode keeps password sign-in, email verification when Resend is configured, and
+TOTP for sensitive dashboard changes.
+
+For a passwordless installation, set:
+
+```bash
+AUTHLANE_AUTH_MODE=magic-link
+AUTHLANE_ALLOW_SIGNUP=true
+RESEND_API_KEY=<runtime-only Resend sending key>
+EMAIL_FROM=Authlane <auth@mail.authlane.io>
+```
+
+Production `magic-link` mode fails at startup when `RESEND_API_KEY` or `EMAIL_FROM` is missing. Verify
+the sender domain's DKIM and SPF records before switching traffic. Links are single-use, stored only
+as hashes, and expire after ten minutes. `AUTHLANE_ALLOW_SIGNUP=false` lets existing users sign in but
+prevents a link from creating a new account.
+
+Never paste a production sending key into source control, build arguments, issue trackers, logs, or
+chat. If a key is disclosed, revoke it and create a replacement before deployment.
+
 Optional local monitoring starts with:
 
 ```bash

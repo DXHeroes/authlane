@@ -2,7 +2,12 @@ import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { dashboardSessionSecurity } from '../../src/middleware/dashboard-session-security.js';
 
-function appFor(options: { twoFactorEnabled: boolean; sessionCreatedAt: Date; now?: Date }) {
+function appFor(options: {
+  authMode?: 'magic-link' | 'email-password';
+  twoFactorEnabled: boolean;
+  sessionCreatedAt: Date;
+  now?: Date;
+}) {
   const app = new Hono();
   app.use('*', async (c, next) => {
     c.set('principal', {
@@ -25,6 +30,7 @@ function appFor(options: { twoFactorEnabled: boolean; sessionCreatedAt: Date; no
   app.use(
     '*',
     dashboardSessionSecurity({
+      authMode: options.authMode ?? 'email-password',
       trustedOrigins: ['https://app.authlane.test'],
       now: () => options.now ?? new Date('2026-07-16T10:00:00.000Z'),
       stepUpMaxAgeSeconds: 600,
@@ -88,5 +94,32 @@ describe('dashboard session mutation security', () => {
 
     expect(mutation.status).toBe(200);
     expect(read.status).toBe(200);
+  });
+
+  it('uses a fresh magic-link session as step-up without requiring TOTP', async () => {
+    const response = await appFor({
+      authMode: 'magic-link',
+      twoFactorEnabled: false,
+      sessionCreatedAt: new Date('2026-07-16T09:55:00.000Z'),
+    }).request('/resource', {
+      method: 'POST',
+      headers: { Origin: 'https://app.authlane.test', 'Sec-Fetch-Site': 'same-origin' },
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  it('still rejects a stale magic-link session', async () => {
+    const response = await appFor({
+      authMode: 'magic-link',
+      twoFactorEnabled: false,
+      sessionCreatedAt: new Date('2026-07-16T09:00:00.000Z'),
+    }).request('/resource', {
+      method: 'POST',
+      headers: { Origin: 'https://app.authlane.test' },
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: 'STEP_UP_REQUIRED' });
   });
 });

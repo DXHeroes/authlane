@@ -5,7 +5,9 @@
 
 import type { Database } from '@authlane/database';
 import {
+  type EmailResult,
   sendEmailVerification,
+  sendMagicLink,
   sendOrganizationInvitation,
   sendPasswordReset,
   sendWelcomeEmail,
@@ -13,14 +15,19 @@ import {
 import { hashUserPassword, verifyUserPassword } from '@authlane/shared';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { organization, twoFactor } from 'better-auth/plugins';
+import { magicLink, organization, twoFactor } from 'better-auth/plugins';
+import { requireEmailDelivery } from './auth-email-delivery.js';
 import {
   type AuthSecondaryStorage,
   shouldStoreAuthSessionsInDatabase,
 } from './auth-secondary-storage.js';
 import {
+  type AuthMode,
+  authModeConfiguration,
   isSignUpEnabled,
+  parseAuthMode,
   parseAuthSecrets,
+  validateMagicLinkEmailConfiguration,
   validateTrustedOrigins,
 } from './auth-security-config.js';
 
@@ -76,7 +83,10 @@ function isEmailEnabled(): boolean {
 export function createAuth(
   db: Database,
   options?: {
+    authMode?: AuthMode;
     baseURL?: string;
+    signUpEnabled?: boolean;
+    sendMagicLinkEmail?: (email: string, url: string) => Promise<EmailResult>;
     trustedOrigins?: string[];
     secondaryStorage?: AuthSecondaryStorage;
   }
@@ -84,6 +94,16 @@ export function createAuth(
   const appUrl = getAppUrl();
   const emailEnabled = isEmailEnabled();
   const environment = process.env.NODE_ENV || 'development';
+  const authMode = options?.authMode ?? parseAuthMode(process.env.AUTHLANE_AUTH_MODE);
+  const signUpEnabled =
+    options?.signUpEnabled ?? isSignUpEnabled(process.env.AUTHLANE_ALLOW_SIGNUP, environment);
+  const modeConfiguration = authModeConfiguration(authMode, signUpEnabled);
+  validateMagicLinkEmailConfiguration({
+    authMode,
+    environment,
+    resendApiKey: process.env.RESEND_API_KEY,
+    emailFrom: process.env.EMAIL_FROM,
+  });
   const trustedOrigins = validateTrustedOrigins(
     options?.trustedOrigins ||
       [
@@ -110,11 +130,13 @@ export function createAuth(
     emailVerification: emailEnabled
       ? {
           sendVerificationEmail: async ({ user, url }) => {
-            await sendEmailVerification(user.email, {
-              userName: user.name || undefined,
-              verificationLink: url,
-              expiresIn: '24 hours',
-            });
+            requireEmailDelivery(
+              await sendEmailVerification(user.email, {
+                userName: user.name || undefined,
+                verificationLink: url,
+                expiresIn: '24 hours',
+              })
+            );
           },
           sendOnSignUp: true,
           autoSignInAfterVerification: true,
@@ -123,8 +145,8 @@ export function createAuth(
 
     // Email + password authentication
     emailAndPassword: {
-      enabled: true,
-      disableSignUp: !isSignUpEnabled(process.env.AUTHLANE_ALLOW_SIGNUP, environment),
+      enabled: modeConfiguration.emailAndPasswordEnabled,
+      disableSignUp: !signUpEnabled,
       requireEmailVerification: emailEnabled, // Enable when email provider is configured
       minPasswordLength: 12,
       maxPasswordLength: 128,
@@ -137,11 +159,13 @@ export function createAuth(
       // Password reset email
       sendResetPassword: emailEnabled
         ? async ({ user, url }) => {
-            await sendPasswordReset(user.email, {
-              userName: user.name || undefined,
-              resetLink: url,
-              expiresIn: '30 minutes',
-            });
+            requireEmailDelivery(
+              await sendPasswordReset(user.email, {
+                userName: user.name || undefined,
+                resetLink: url,
+                expiresIn: '30 minutes',
+              })
+            );
           }
         : undefined,
     },
@@ -203,13 +227,15 @@ export function createAuth(
         sendInvitationEmail: emailEnabled
           ? async (data) => {
               const inviteLink = `${appUrl}/accept-invitation/${data.id}`;
-              await sendOrganizationInvitation(data.email, {
-                inviterName: data.inviter.user.name || data.inviter.user.email,
-                organizationName: data.organization.name,
-                inviteLink,
-                role: data.role,
-                expiresIn: '48 hours',
-              });
+              requireEmailDelivery(
+                await sendOrganizationInvitation(data.email, {
+                  inviterName: data.inviter.user.name || data.inviter.user.email,
+                  organizationName: data.organization.name,
+                  inviteLink,
+                  role: data.role,
+                  expiresIn: '48 hours',
+                })
+              );
             }
           : undefined,
 
@@ -233,18 +259,35 @@ export function createAuth(
           : undefined,
       }),
 
-      twoFactor({
-        issuer: 'Authlane',
-        skipVerificationOnEnable: false,
-        allowPasswordless: false,
-        twoFactorCookieMaxAge: 60 * 10,
-        trustDeviceMaxAge: 60 * 60 * 24 * 7,
-        accountLockout: {
-          enabled: true,
-          maxFailedAttempts: 5,
-          durationSeconds: 60 * 15,
-        },
-      }),
+      ...(modeConfiguration.twoFactorEnabled
+        ? [
+            twoFactor({
+              issuer: 'Authlane',
+              skipVerificationOnEnable: false,
+              allowPasswordless: false,
+              twoFactorCookieMaxAge: 60 * 10,
+              trustDeviceMaxAge: 60 * 60 * 24 * 7,
+              accountLockout: {
+                enabled: true,
+                maxFailedAttempts: 5,
+                durationSeconds: 60 * 15,
+              },
+            }),
+          ]
+        : []),
+      ...(modeConfiguration.magicLink
+        ? [
+            magicLink({
+              ...modeConfiguration.magicLink,
+              sendMagicLink: async ({ email, url }) => {
+                const result = options?.sendMagicLinkEmail
+                  ? await options.sendMagicLinkEmail(email, url)
+                  : await sendMagicLink(email, { magicLink: url, expiresIn: '10 minutes' });
+                requireEmailDelivery(result);
+              },
+            }),
+          ]
+        : []),
 
       // SSO plugin can be added here later:
       // sso({

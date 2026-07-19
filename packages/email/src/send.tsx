@@ -7,6 +7,8 @@ import { getEmailClient, getEmailConfig } from './client.js';
 import {
   EmailVerification,
   type EmailVerificationProps,
+  MagicLink,
+  type MagicLinkProps,
   OrganizationInvitation,
   type OrganizationInvitationProps,
   PasswordReset,
@@ -22,6 +24,26 @@ export interface EmailResult {
   success: boolean;
   messageId?: string;
   error?: string;
+}
+
+export async function sendMagicLink(to: string, props: MagicLinkProps): Promise<EmailResult> {
+  try {
+    const client = getEmailClient();
+    const config = getEmailConfig();
+    const { data, error } = await client.emails.send({
+      from: config.fromAddress,
+      to,
+      subject: 'Sign in to Authlane',
+      react: <MagicLink {...props} />,
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true, messageId: data?.id };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown email delivery error',
+    };
+  }
 }
 
 /**

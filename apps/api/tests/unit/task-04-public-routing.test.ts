@@ -61,6 +61,22 @@ describe('Task 04 public documentation routing', () => {
     }
   });
 
+  it('serves downloadable documentation assets with tooling-friendly content types', async () => {
+    const cases = [
+      ['/docs/openapi.yaml', 'application/yaml'],
+      ['/docs/openapi.json', 'application/json'],
+      ['/docs/markdown/quickstart.md', 'text/markdown'],
+      ['/llms.txt', 'text/plain'],
+    ] as const;
+
+    for (const [path, contentType] of cases) {
+      const response = await request(path, 'authlane.io');
+
+      expect(response.status, path).toBe(200);
+      expect(response.headers.get('content-type'), path).toContain(contentType);
+    }
+  });
+
   it('serves the hydrated API reference under the production self-only script CSP', async () => {
     const response = await request('/docs/api-reference', 'authlane.io');
     const html = await response.text();

@@ -63,6 +63,23 @@ function isDocumentationPath(path: string): boolean {
   return isDocsPath(path) || ROOT_DOCUMENTATION_ASSETS.has(path);
 }
 
+function withDocumentationContentType(response: Response, path: string): Response {
+  const contentType = /\.ya?ml$/i.test(path)
+    ? 'application/yaml; charset=utf-8'
+    : /\.md$/i.test(path)
+      ? 'text/markdown; charset=utf-8'
+      : undefined;
+  if (!contentType) return response;
+
+  const headers = new Headers(response.headers);
+  headers.set('Content-Type', contentType);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 /**
  * Create Hono app with routes and middleware
  * Exported for testing purposes
@@ -289,6 +306,7 @@ export function createApp(
     if (isDocsPath(c.req.path)) {
       response =
         c.req.path === '/docs' ? await runStatic(docsIndex, c) : await runStatic(docsStatic, c);
+      if (response) response = withDocumentationContentType(response, c.req.path);
     } else if (c.req.path === '/') {
       response = await runStatic(landingIndex, c);
     } else if (c.req.path.startsWith('/_next/static/')) {

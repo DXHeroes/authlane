@@ -4,10 +4,18 @@ import { getAllDocs } from './lib/docs';
 export const dynamic = 'force-static';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const docs = getAllDocs().map((doc) => ({
-    url: `https://authlane.io/docs/${doc.slug}`,
+  const docs = [
+    ...new Set(
+      getAllDocs().map((doc) =>
+        doc.slug === 'introduction'
+          ? 'https://authlane.io/docs'
+          : `https://authlane.io/docs/${doc.slug}`
+      )
+    ),
+  ].map((url) => ({
+    url,
     changeFrequency: 'weekly' as const,
-    priority: 0.7,
+    priority: url === 'https://authlane.io/docs' ? 0.9 : url.endsWith('/api-reference') ? 0.8 : 0.7,
   }));
 
   return [
@@ -15,16 +23,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: 'https://authlane.io/',
       changeFrequency: 'monthly',
       priority: 1,
-    },
-    {
-      url: 'https://authlane.io/docs',
-      changeFrequency: 'weekly',
-      priority: 0.9,
-    },
-    {
-      url: 'https://authlane.io/docs/api-reference',
-      changeFrequency: 'weekly',
-      priority: 0.8,
     },
     ...docs,
   ];

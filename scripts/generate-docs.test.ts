@@ -1,8 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import sitemap from '../apps/landing/app/sitemap';
+import docsManifest from '../apps/landing/app/generated/docs-manifest.json';
 import {
   buildDocumentationModel,
   loadDocumentation,
@@ -21,6 +23,35 @@ describe('documentation asset generation', () => {
     for (const directory of temporaryDirectories.splice(0)) {
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+
+  it('keeps the complete offline docs gate separate from the bounded network smoke', () => {
+    const scripts = JSON.parse(
+      readFileSync(resolve(repositoryRoot, 'package.json'), 'utf8')
+    ).scripts;
+
+    expect(scripts['docs:check']).toContain('generate-docs.mjs --check');
+    expect(scripts['docs:check']).toContain('docs-domain-contract.test.ts');
+    expect(scripts['docs:check']).toContain('readme-devex.test.ts');
+    expect(scripts['docs:check']).toContain('generate-docs.test.ts');
+    expect(scripts['docs:check']).not.toContain('check-doc-links');
+    expect(scripts['docs:links']).toBe('node scripts/check-doc-links.mjs');
+    expect(scripts.build).not.toContain('docs:links');
+  });
+
+  it('publishes every manifest route exactly once with introduction canonicalized to docs home', () => {
+    const urls = sitemap().map((entry) => entry.url);
+    const expectedUrls = new Set([
+      'https://authlane.io/',
+      ...docsManifest.documents.map(({ slug }) =>
+        slug === 'introduction' ? 'https://authlane.io/docs' : `https://authlane.io/docs/${slug}`
+      ),
+    ]);
+
+    expect(new Set(urls).size).toBe(urls.length);
+    expect(urls).not.toContain('https://authlane.io/docs/introduction');
+    expect(new Set(urls)).toEqual(expectedUrls);
+    expect(urls.filter((url) => url === 'https://authlane.io/docs/api-reference')).toHaveLength(1);
   });
 
   it('emits deterministic manifest, search, Markdown, and LLM assets', async () => {
@@ -143,6 +174,62 @@ describe('documentation asset generation', () => {
     expect(markdown).toContain('### Python\n\n```python\nok = True\n```');
     expect(markdown).not.toContain('<CodeGroup');
     expect(markdown).not.toContain('<CodeGroupItem');
+  });
+
+  it('requires a fenced code block inside every CodeGroupItem', () => {
+    const invalid = validateDocumentation({
+      navigation: [{ group: 'Start', pages: ['quickstart'] }],
+      documents: [
+        {
+          slug: 'quickstart',
+          source: [
+            '---',
+            'title: Quickstart',
+            'description: Choose a runtime.',
+            '---',
+            '',
+            '<CodeGroup>',
+            '<CodeGroupItem label="TypeScript">',
+            '<strong>This is markup, not code.</strong>',
+            '</CodeGroupItem>',
+            '</CodeGroup>',
+          ].join('\n'),
+        },
+      ],
+    });
+    const valid = validateDocumentation({
+      navigation: [{ group: 'Start', pages: ['quickstart'] }],
+      documents: [
+        {
+          slug: 'quickstart',
+          source: [
+            '---',
+            'title: Quickstart',
+            'description: Choose a runtime.',
+            '---',
+            '',
+            '<CodeGroup>',
+            '<CodeGroupItem label="TypeScript">',
+            '',
+            '```typescript',
+            'const ok = true;',
+            '```',
+            '',
+            '</CodeGroupItem>',
+            '</CodeGroup>',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    expect(invalid).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          'quickstart: invalid CodeGroupItem child: expected one fenced code block'
+        ),
+      ])
+    );
+    expect(valid.filter((violation) => violation.includes('CodeGroupItem'))).toEqual([]);
   });
 
   it('publishes every Quickstart runtime as labelled plain Markdown without expression props', () => {

@@ -384,6 +384,53 @@ function validationMessage(slug, rule, detail) {
   return `${slug}: ${rule}: ${detail}`;
 }
 
+function codeGroupItemChildren(source) {
+  const children = [];
+  let outsideFence = false;
+  let item = null;
+  let itemFence = false;
+
+  for (const line of normalizeLineEndings(source).split('\n')) {
+    if (!item) {
+      if (isFence(line)) {
+        outsideFence = !outsideFence;
+        continue;
+      }
+      if (!outsideFence && /^\s*<CodeGroupItem\s+label=(['"])[^'"]+\1>\s*$/.test(line)) {
+        item = [];
+        itemFence = false;
+      }
+      continue;
+    }
+
+    if (!itemFence && /^\s*<\/CodeGroupItem>\s*$/.test(line)) {
+      children.push(item);
+      item = null;
+      continue;
+    }
+
+    item.push(line);
+    if (isFence(line)) itemFence = !itemFence;
+  }
+
+  if (item) children.push(item);
+  return children;
+}
+
+function isSingleNonEmptyFencedCodeBlock(lines) {
+  const child = [...lines];
+  while (child[0]?.trim() === '') child.shift();
+  while (child.at(-1)?.trim() === '') child.pop();
+
+  return (
+    child.length >= 3 &&
+    /^\s*```[^\s`]*\s*$/.test(child[0]) &&
+    /^\s*```\s*$/.test(child.at(-1)) &&
+    child.filter((line) => isFence(line)).length === 2 &&
+    child.slice(1, -1).some((line) => line.trim() !== '')
+  );
+}
+
 export function validateDocumentation({ navigation, documents }) {
   const violations = [];
   const navigationSlugs = new Set();
@@ -446,6 +493,14 @@ export function validateDocumentation({ navigation, documents }) {
     for (const language of extractCodeFenceLanguages(source)) {
       if (!knownCodeLanguages.has(language)) {
         violations.push(validationMessage(slug, `unknown code fence language "${language}"`, slug));
+      }
+    }
+
+    for (const child of codeGroupItemChildren(parsed.body)) {
+      if (!isSingleNonEmptyFencedCodeBlock(child)) {
+        violations.push(
+          validationMessage(slug, 'invalid CodeGroupItem child', 'expected one fenced code block')
+        );
       }
     }
 

@@ -9,10 +9,18 @@ tenant policy, encrypted credentials, connection status, and canonical tool defi
 trusted runtime executes tools and calls providers directly.
 
 [Documentation](https://authlane.io/docs) ·
+[Quickstart](https://authlane.io/docs/quickstart) ·
 [API reference](https://authlane.io/docs/api-reference) ·
 [OpenAPI YAML](https://authlane.io/docs/openapi.yaml) ·
+[OpenAPI JSON](https://authlane.io/docs/openapi.json) ·
 [Agent plugin](./docs/agent-plugins.md) ·
 [Security](./SECURITY.md)
+
+[TypeScript SDK](https://authlane.io/docs/sdk/typescript) ·
+[Python SDK](https://authlane.io/docs/sdk/python) ·
+[Framework adapters](https://authlane.io/docs/sdk/frameworks) ·
+[Integration authoring](https://authlane.io/docs/guides/custom-integrations) ·
+[AI coding tools](https://authlane.io/docs/ai-tools/marketplace)
 
 ## First success in four steps
 

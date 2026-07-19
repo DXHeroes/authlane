@@ -31,7 +31,7 @@ export interface OrganizationInvitationProps {
 export function OrganizationInvitation({
   inviterName = 'A team member',
   organizationName = 'Your Organization',
-  inviteLink = 'https://app.authlane.dev/accept-invitation/xxx',
+  inviteLink = 'https://app.authlane.io/accept-invitation/xxx',
   role = 'member',
   expiresIn = '48 hours',
 }: OrganizationInvitationProps) {

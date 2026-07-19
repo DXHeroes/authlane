@@ -20,7 +20,7 @@ export interface EmailConfig {
  */
 export function getEmailConfig(): EmailConfig {
   const apiKey = process.env.RESEND_API_KEY;
-  const fromAddress = process.env.EMAIL_FROM || 'Authlane <noreply@authlane.dev>';
+  const fromAddress = process.env.EMAIL_FROM || 'Authlane <noreply@authlane.io>';
   const appUrl = process.env.APP_URL || 'http://localhost:5173';
 
   if (!apiKey) {

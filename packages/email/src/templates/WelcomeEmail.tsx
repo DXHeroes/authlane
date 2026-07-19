@@ -30,7 +30,7 @@ export interface WelcomeEmailProps {
 export function WelcomeEmail({
   userName = 'there',
   organizationName = 'Your Organization',
-  dashboardLink = 'https://app.authlane.dev/dashboard',
+  dashboardLink = 'https://app.authlane.io/dashboard',
   role = 'member',
 }: WelcomeEmailProps) {
   const previewText = `Welcome to ${organizationName} on Authlane!`;

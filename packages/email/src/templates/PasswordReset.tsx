@@ -28,7 +28,7 @@ export interface PasswordResetProps {
  */
 export function PasswordReset({
   userName = 'there',
-  resetLink = 'https://app.authlane.dev/reset-password?token=xxx',
+  resetLink = 'https://app.authlane.io/reset-password?token=xxx',
   expiresIn = '1 hour',
 }: PasswordResetProps) {
   const previewText = 'Reset your Authlane password';

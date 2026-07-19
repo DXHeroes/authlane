@@ -22,10 +22,21 @@ describe('README developer experience', () => {
     expect(readme).toContain('from authlane.adapters import langchain');
   });
 
-  it('links the canonical docs and OpenAPI contract', () => {
-    expect(readme).toContain('[Documentation](https://authlane.io/docs)');
-    expect(readme).toContain('[API reference](https://authlane.io/docs/api-reference)');
-    expect(readme).toContain('[OpenAPI YAML](https://authlane.io/docs/openapi.yaml)');
+  it('links every canonical developer destination using published manifest routes', () => {
+    for (const link of [
+      '[Documentation](https://authlane.io/docs)',
+      '[Quickstart](https://authlane.io/docs/quickstart)',
+      '[API reference](https://authlane.io/docs/api-reference)',
+      '[OpenAPI YAML](https://authlane.io/docs/openapi.yaml)',
+      '[OpenAPI JSON](https://authlane.io/docs/openapi.json)',
+      '[TypeScript SDK](https://authlane.io/docs/sdk/typescript)',
+      '[Python SDK](https://authlane.io/docs/sdk/python)',
+      '[Framework adapters](https://authlane.io/docs/sdk/frameworks)',
+      '[Integration authoring](https://authlane.io/docs/guides/custom-integrations)',
+      '[AI coding tools](https://authlane.io/docs/ai-tools/marketplace)',
+    ]) {
+      expect(readme).toContain(link);
+    }
     expect(existsSync(resolve(repositoryRoot, 'apps/docs/api-reference/openapi.yaml'))).toBe(true);
   });
 

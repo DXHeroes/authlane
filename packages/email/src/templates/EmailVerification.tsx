@@ -28,7 +28,7 @@ export interface EmailVerificationProps {
  */
 export function EmailVerification({
   userName = 'there',
-  verificationLink = 'https://app.authlane.dev/verify-email?token=xxx',
+  verificationLink = 'https://app.authlane.io/verify-email?token=xxx',
   expiresIn = '24 hours',
 }: EmailVerificationProps) {
   const previewText = 'Verify your email address for Authlane';

@@ -7,6 +7,7 @@ describe('Authlane Scalar configuration', () => {
       url: '/docs/openapi.json',
       hideTestRequestButton: true,
       hideClientButton: true,
+      hiddenClients: true,
       showDeveloperTools: 'never',
       withDefaultFonts: false,
       telemetry: false,

@@ -8,6 +8,7 @@ export const authlaneScalarConfig = {
   defaultHttpClient: { targetKey: 'shell', clientKey: 'curl' },
   hideTestRequestButton: true,
   hideClientButton: true,
+  hiddenClients: true,
   showDeveloperTools: 'never',
   withDefaultFonts: false,
   telemetry: false,

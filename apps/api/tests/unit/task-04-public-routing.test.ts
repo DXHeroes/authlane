@@ -41,12 +41,23 @@ describe('Task 04 public documentation routing', () => {
       ['/docs/api-reference', 'API reference fixture'],
       ['/docs/openapi.yaml', 'openapi: 3.1.0'],
       ['/docs/openapi.json', '"openapi": "3.1.0"'],
+      ['/llms.txt', 'Authlane LLM index fixture'],
+      ['/llms-full.txt', 'Authlane full LLM context fixture'],
     ] as const;
 
     for (const [path, body] of cases) {
       const response = await request(path, 'authlane.io');
       expect(response.status, path).toBe(200);
       expect(await response.text(), path).toContain(body);
+    }
+  });
+
+  it('redirects root LLM documentation assets from the app surface to the apex', async () => {
+    for (const path of ['/llms.txt', '/llms-full.txt']) {
+      const response = await request(path, 'app.authlane.io');
+
+      expect(response.status, path).toBe(308);
+      expect(response.headers.get('location'), path).toBe(`https://authlane.io${path}`);
     }
   });
 

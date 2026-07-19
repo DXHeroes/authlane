@@ -2225,6 +2225,10 @@ li {
   max-width: 100%;
 }
 
+.authlane-api-reference .security-requirement-badge {
+  display: none !important;
+}
+
 .docs-nav-mobile summary {
   display: flex;
   min-height: 3rem;

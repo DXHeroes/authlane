@@ -57,6 +57,12 @@ import {
 } from './middleware/rate-limit.js';
 import { createApiRouter } from './routes/index.js';
 
+const ROOT_DOCUMENTATION_ASSETS = new Set(['/llms.txt', '/llms-full.txt']);
+
+function isDocumentationPath(path: string): boolean {
+  return isDocsPath(path) || ROOT_DOCUMENTATION_ASSETS.has(path);
+}
+
 /**
  * Create Hono app with routes and middleware
  * Exported for testing purposes
@@ -270,7 +276,7 @@ export function createApp(
       return c.json(errorResult(Errors.notFound('Route', c.req.path)), 404);
     }
     if (surface.kind === 'app') {
-      if (isDocsPath(c.req.path)) {
+      if (isDocumentationPath(c.req.path)) {
         return c.redirect(canonicalRedirectLocation(c.req.url), 308);
       }
       await next();
@@ -287,7 +293,10 @@ export function createApp(
       response = await runStatic(landingIndex, c);
     } else if (c.req.path.startsWith('/_next/static/')) {
       response = await runImmutableStatic(landingNextStatic, c);
-    } else if (['/favicon.ico', '/icon.svg', '/robots.txt', '/sitemap.xml'].includes(c.req.path)) {
+    } else if (
+      ROOT_DOCUMENTATION_ASSETS.has(c.req.path) ||
+      ['/favicon.ico', '/icon.svg', '/robots.txt', '/sitemap.xml'].includes(c.req.path)
+    ) {
       response = await runStatic(landingStatic, c);
     }
 

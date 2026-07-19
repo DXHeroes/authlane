@@ -15,10 +15,10 @@ describe('Authlane Scalar configuration', () => {
       modelsSectionLabel: 'Schemas',
       orderRequiredPropertiesFirst: true,
       agent: { disabled: true },
+      mcp: { disabled: true },
     });
     expect(authlaneScalarConfig).not.toHaveProperty('proxyUrl');
     expect(authlaneScalarConfig).not.toHaveProperty('authentication');
-    expect(authlaneScalarConfig).not.toHaveProperty('mcp');
     expect(authlaneScalarConfig).not.toHaveProperty('plugins');
   });
 });

@@ -20,6 +20,9 @@ function request(path: string, host: string) {
   return app.request(path, { headers: { host } });
 }
 
+const executableInlineScriptPattern =
+  /<script\b(?![^>]*\btype=(['"])application\/ld\+json\1)(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script\s*>/i;
+
 describe('Task 04 public documentation routing', () => {
   it('recognizes only the docs namespace', () => {
     expect('isDocsPath' in publicSurface).toBe(true);
@@ -44,6 +47,35 @@ describe('Task 04 public documentation routing', () => {
       const response = await request(path, 'authlane.io');
       expect(response.status, path).toBe(200);
       expect(await response.text(), path).toContain(body);
+    }
+  });
+
+  it('serves the hydrated API reference under the production self-only script CSP', async () => {
+    const response = await request('/docs/api-reference', 'authlane.io');
+    const html = await response.text();
+    const sources = [...html.matchAll(/<script\b[^>]*\bsrc=(['"])(.*?)\1[^>]*>/gi)].map(
+      (match) => match[2]
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-security-policy')).toContain("script-src 'self'");
+    expect(response.headers.get('content-security-policy')).not.toMatch(
+      /script-src[^;]*'unsafe-inline'/
+    );
+    expect(response.headers.get('content-security-policy')).not.toContain('sha256-');
+    expect(html).not.toMatch(executableInlineScriptPattern);
+    expect(sources).toEqual([
+      '/_next/static/chunks/app-0123456789abcdef.js',
+      '/_next/static/authlane-next-flight-0123456789ab.js',
+    ]);
+
+    for (const source of sources) {
+      const asset = await request(source, 'authlane.io');
+      expect(asset.status, source).toBe(200);
+      expect(asset.headers.get('content-type'), source).toMatch(/javascript/);
+      expect(asset.headers.get('cache-control'), source).toBe(
+        'public, max-age=31536000, immutable'
+      );
     }
   });
 

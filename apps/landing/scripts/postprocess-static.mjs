@@ -9,6 +9,53 @@ const scriptPattern = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
 const scriptSourcePattern = /(?:^|\s)src\s*=\s*(['"])(.*?)\1/i;
 const scriptTypePattern = /(?:^|\s)type\s*=\s*(['"])(.*?)\1/i;
 const interactionScriptPattern = /^\/_next\/static\/authlane-interactions-[a-f0-9]{12}\.js$/;
+const nextFlightScriptPattern = /^\/_next\/static\/authlane-next-flight-[a-f0-9]{12}\.js$/;
+const nextRuntimeScriptPattern =
+  /^\/_next\/static\/chunks\/(?:[^/?#]+\/)*[^/?#]*[-.][a-f0-9]{16}\.js$/;
+
+/** @param {string} content */
+function isNextFlightPayload(content) {
+  const source = content.trim();
+  if (/^\(self\.__next_f\s*=\s*self\.__next_f\s*\|\|\s*\[\]\)\.push\(\[0\]\)\s*;?$/.test(source)) {
+    return true;
+  }
+
+  const push = source.match(/^self\.__next_f\.push\(([\s\S]*)\)\s*;?$/);
+  if (!push) return false;
+
+  try {
+    const payload = JSON.parse(push[1]);
+    return (
+      Array.isArray(payload) &&
+      payload.length === 2 &&
+      payload[0] === 1 &&
+      typeof payload[1] === 'string'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * @param {string} content
+ * @returns {{ fileName: string; publicPath: string; source: string }}
+ */
+function flightAsset(content) {
+  const source = content.trim();
+  const fingerprint = createHash('sha256').update(source).digest('hex').slice(0, 12);
+  const fileName = `authlane-next-flight-${fingerprint}.js`;
+  return { fileName, publicPath: `/_next/static/${fileName}`, source };
+}
+
+/** @param {string} html */
+export function scalarHydrationAssets(html) {
+  return [...html.matchAll(scriptPattern)].flatMap((match) => {
+    const attributes = match[1] ?? '';
+    const content = match[2] ?? '';
+    if (attributes.trim() || !isNextFlightPayload(content)) return [];
+    return [flightAsset(content)];
+  });
+}
 
 /**
  * @param {string} html
@@ -18,13 +65,17 @@ const interactionScriptPattern = /^\/_next\/static\/authlane-interactions-[a-f0-
 export function makeStaticDocument(html, interactionScriptPath, mode) {
   const preparedDocument =
     mode === 'scalar'
-      ? html
+      ? html.replace(scriptPattern, (script, attributes, content) => {
+          if (attributes.trim() || !isNextFlightPayload(content)) return script;
+          const asset = flightAsset(content);
+          return `<script src="${asset.publicPath}"></script>`;
+        })
       : html
           .replace(nextScriptPreloadPattern, '')
           .replace(scriptPattern, (script, attributes, content) => {
             const source = attributes.match(scriptSourcePattern)?.[2];
             if (source?.startsWith('/_next/static/')) return '';
-            if (!source && /(?:self\.)?__next_f/.test(content)) return '';
+            if (!source && !attributes.trim() && isNextFlightPayload(content)) return '';
             return script;
           });
 
@@ -47,6 +98,7 @@ export function staticDocumentViolations(html, mode) {
   }
 
   const interactionScripts = [];
+  let nextFlightScripts = 0;
   for (const match of html.matchAll(scriptPattern)) {
     const attributes = match[1] ?? '';
     const content = match[2] ?? '';
@@ -54,10 +106,18 @@ export function staticDocumentViolations(html, mode) {
     if (source) {
       if (source.startsWith('/_next/static/authlane-interactions')) {
         interactionScripts.push({ attributes, source });
+      } else if (nextFlightScriptPattern.test(source)) {
+        if (mode === 'scalar') {
+          nextFlightScripts += 1;
+        } else {
+          violations.push(`contains a Scalar hydration script: ${source}`);
+        }
       } else if (mode === 'static' && source.startsWith('/_next/static/')) {
         violations.push(`contains a Next runtime script: ${source}`);
-      } else if (mode === 'scalar' && source.startsWith('/_next/static/')) {
+      } else if (mode === 'scalar' && nextRuntimeScriptPattern.test(source)) {
         continue;
+      } else if (mode === 'scalar' && source.startsWith('/_next/static/')) {
+        violations.push(`contains an unexpected or non-fingerprinted Next script: ${source}`);
       } else {
         violations.push(`contains an unexpected external script: ${source}`);
       }
@@ -65,10 +125,13 @@ export function staticDocumentViolations(html, mode) {
     }
 
     const type = attributes.match(scriptTypePattern)?.[2]?.toLowerCase();
-    const isNextHydrationPayload = mode === 'scalar' && /(?:self\.)?__next_f/.test(content);
-    if (type !== 'application/ld+json' && !isNextHydrationPayload) {
+    if (type !== 'application/ld+json') {
       violations.push('contains executable inline script');
     }
+  }
+
+  if (mode === 'scalar' && nextFlightScripts === 0) {
+    violations.push('expected at least one fingerprinted Scalar hydration script');
   }
 
   if (interactionScripts.length !== 1) {
@@ -116,6 +179,11 @@ async function postprocessStaticExport() {
     const html = await readFile(path, 'utf8');
     const relativeOutputPath = relative(outputDirectory, path).split(sep).join('/');
     const mode = relativeOutputPath === 'docs/api-reference/index.html' ? 'scalar' : 'static';
+    if (mode === 'scalar') {
+      for (const asset of scalarHydrationAssets(html)) {
+        await writeFile(join(outputDirectory, '_next', 'static', asset.fileName), asset.source);
+      }
+    }
     const document = makeStaticDocument(html, interactionPublicPath, mode);
     const violations = staticDocumentViolations(document, mode);
     if (violations.length > 0) {

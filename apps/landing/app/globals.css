@@ -2225,10 +2225,6 @@ li {
   max-width: 100%;
 }
 
-.authlane-api-reference .scalar-app .scalar-mcp-layer {
-  display: none;
-}
-
 .docs-nav-mobile summary {
   display: flex;
   min-height: 3rem;

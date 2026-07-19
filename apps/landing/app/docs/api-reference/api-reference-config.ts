@@ -16,4 +16,5 @@ export const authlaneScalarConfig = {
   modelsSectionLabel: 'Schemas',
   orderRequiredPropertiesFirst: true,
   agent: { disabled: true },
+  mcp: { disabled: true },
 } satisfies AnyApiReferenceConfiguration;

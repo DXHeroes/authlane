@@ -39,7 +39,9 @@ describe('documentation publication contract', () => {
     expect(viewer).not.toMatch(/\b(?:fetch|XMLHttpRequest)\s*\(/);
     expect(viewer).toContain("getDoc('api-reference')");
     expect(viewer).not.toContain('const doc: DocRecord');
-    expect(viewer).toContain('Read-only API reference. Never paste an Authlane API key into browser tools.');
+    expect(viewer).toContain(
+      'Read-only API reference. Never paste an Authlane API key into browser tools.'
+    );
     expect(viewer).toContain('OpenAPI YAML');
     expect(viewer).toContain('OpenAPI JSON');
     expect(viewer).toContain('<a href="/docs/openapi.yaml">');
@@ -47,8 +49,8 @@ describe('documentation publication contract', () => {
     expect(viewer).not.toContain('<Link href="/docs/openapi.');
     expect(viewer).toContain('ApiReferenceClient');
     expect(client).toContain("'use client'");
-    expect(client).toContain("@scalar/api-reference-react/style.css");
-    expect(styles).toContain('.authlane-api-reference .scalar-app .scalar-mcp-layer');
+    expect(client).toContain('@scalar/api-reference-react/style.css');
+    expect(styles).not.toContain('.scalar-mcp-layer');
   });
 
   it('keeps the explicit API viewer out of catch-all static generation', () => {
@@ -62,7 +64,9 @@ describe('documentation publication contract', () => {
     const html = renderToStaticMarkup(ApiReferencePage());
     vi.unstubAllGlobals();
 
-    expect(html).toContain('Read-only API reference. Never paste an Authlane API key into browser tools.');
+    expect(html).toContain(
+      'Read-only API reference. Never paste an Authlane API key into browser tools.'
+    );
     expect(html).toContain('OpenAPI YAML');
     expect(html).toContain('OpenAPI JSON');
     expect(html).toContain('Loading the interactive API reference');

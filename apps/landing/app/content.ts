@@ -13,6 +13,7 @@ export const serviceGroups = [
       { id: 'slack', name: 'Slack' },
       { id: 'discord', name: 'Discord' },
       { id: 'gmail', name: 'Gmail' },
+      { id: 'microsoft-mail', name: 'Microsoft Mail' },
     ],
   },
   {
@@ -21,6 +22,8 @@ export const serviceGroups = [
       { id: 'notion', name: 'Notion' },
       { id: 'google-drive', name: 'Google Drive' },
       { id: 'google-calendar', name: 'Google Calendar' },
+      { id: 'microsoft-sharepoint', name: 'Microsoft Drive (SharePoint)' },
+      { id: 'microsoft-calendar', name: 'Microsoft Calendar' },
     ],
   },
   {
@@ -29,6 +32,7 @@ export const serviceGroups = [
       { id: 'hubspot', name: 'HubSpot' },
       { id: 'salesforce', name: 'Salesforce' },
       { id: 'pipedrive', name: 'Pipedrive' },
+      { id: 'attio', name: 'Attio' },
     ],
   },
   {

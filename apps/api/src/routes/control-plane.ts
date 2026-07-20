@@ -4,6 +4,7 @@ import type {
   CredentialLease,
   CredentialPlacement,
   OAuthProviderContext,
+  ToolAccessPolicy,
   ToolFormat,
 } from '@authlane/shared';
 import {
@@ -23,6 +24,7 @@ export interface ControlPlaneService {
   name: string;
   authType: string;
   enabled: boolean;
+  toolAccessPolicy: ToolAccessPolicy;
   config: unknown;
 }
 
@@ -63,9 +65,14 @@ export interface ControlPlaneRepository {
 export interface ToolRegistry {
   getTools(
     serviceIds: string[],
-    format: ToolFormat
+    format: ToolFormat,
+    toolAccessPolicies?: Readonly<Record<string, ToolAccessPolicy>>
   ): Promise<{ tools?: unknown[]; functions?: unknown[] }>;
-  getVersion(serviceIds: string[], format: ToolFormat): Promise<string>;
+  getVersion(
+    serviceIds: string[],
+    format: ToolFormat,
+    toolAccessPolicies?: Readonly<Record<string, ToolAccessPolicy>>
+  ): Promise<string>;
 }
 
 interface ControlPlaneRouterOptions {
@@ -255,21 +262,29 @@ export function createControlPlaneRouter(
       storedConnections.map((connection) => [connection.serviceId, connection])
     );
     const requestTime = now();
-    const views = tenantServices.map((service) =>
-      connectionView(service.id, connectionsByService.get(service.id), requestTime)
-    );
+    const views = tenantServices.map((service) => ({
+      ...connectionView(service.id, connectionsByService.get(service.id), requestTime),
+      toolAccessPolicy: service.toolAccessPolicy,
+    }));
     const connectedServiceIds = views
       .filter((connection) => connection.connected)
       .map((connection) => connection.serviceId);
+    const toolAccessPolicies = Object.fromEntries(
+      tenantServices.map((service) => [service.id, service.toolAccessPolicy])
+    );
 
     const [version, servicesWithTools] = await Promise.all([
-      registry.getVersion(connectedServiceIds, format),
+      registry.getVersion(connectedServiceIds, format, toolAccessPolicies),
       Promise.all(
         views.map(async (connection) => {
           if (!connection.connected) {
             return { ...connection, tools: [] };
           }
-          const definitions = await registry.getTools([connection.serviceId], format);
+          const definitions = await registry.getTools(
+            [connection.serviceId],
+            format,
+            toolAccessPolicies
+          );
           return {
             ...connection,
             tools: format === 'mcp' ? (definitions.tools ?? []) : (definitions.functions ?? []),
@@ -302,9 +317,13 @@ export function createControlPlaneRouter(
       );
     }
     const principal = c.get('principal');
-    const storedConnections = await repository.listConnections(
-      principal.organizationId,
-      externalUserId
+    const [tenantServices, storedConnections] = await Promise.all([
+      repository.listTenantServices(principal.organizationId),
+      repository.listConnections(principal.organizationId, externalUserId),
+    ]);
+    const enabledServiceIds = new Set(tenantServices.map((service) => service.id));
+    const toolAccessPolicies = Object.fromEntries(
+      tenantServices.map((service) => [service.id, service.toolAccessPolicy])
     );
     const requestTime = now();
     const connectedServiceIds = storedConnections
@@ -319,10 +338,11 @@ export function createControlPlaneRouter(
             requestTime
           ) === 'connected'
       )
+      .filter((connection) => enabledServiceIds.has(connection.serviceId))
       .map((connection) => connection.serviceId);
     const [definitions, version] = await Promise.all([
-      registry.getTools(connectedServiceIds, format),
-      registry.getVersion(connectedServiceIds, format),
+      registry.getTools(connectedServiceIds, format, toolAccessPolicies),
+      registry.getVersion(connectedServiceIds, format, toolAccessPolicies),
     ]);
     return c.json({ data: { ...definitions, version }, error: null });
   });

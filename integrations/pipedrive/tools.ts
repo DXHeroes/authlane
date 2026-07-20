@@ -3,7 +3,12 @@
  * Executable tool handlers with credential injection
  */
 
-import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
+import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
+import {
+  createProviderMcpOnlyTools,
+  type OAuth2Credentials,
+  type ToolHandler,
+} from '@authlane/shared';
 
 /**
  * Make Pipedrive API request with OAuth token
@@ -45,6 +50,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'pipedrive_create_deal',
       description: 'Creates a new deal in Pipedrive CRM',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -129,6 +140,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'pipedrive_list_deals',
       description: 'Lists deals from Pipedrive CRM with optional filtering and pagination',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -214,6 +231,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'pipedrive_get_deal',
       description: 'Retrieves a specific deal by ID from Pipedrive CRM',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -235,6 +258,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'pipedrive_update_deal',
       description: 'Updates an existing deal in Pipedrive CRM',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -319,6 +348,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'pipedrive_add_contact',
       description: 'Creates a new person (contact) in Pipedrive CRM',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -409,6 +444,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'pipedrive_list_contacts',
       description:
         'Lists persons (contacts) from Pipedrive CRM with optional filtering and pagination',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -477,6 +518,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'pipedrive_get_contact',
       description: 'Retrieves a specific person (contact) by ID from Pipedrive CRM',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -498,6 +545,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'pipedrive_update_contact',
       description: 'Updates an existing person (contact) in Pipedrive CRM',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -568,6 +621,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'pipedrive_search',
       description:
         'Searches across deals, persons, organizations, products, and files in Pipedrive',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -639,3 +698,12 @@ export const tools: Record<string, ToolHandler> = {
     },
   },
 };
+
+// Keep the backwards-compatible direct API handlers above and fill the rest of
+// Pipedrive's hosted MCP inventory with provider-only handlers. Provider data
+// still flows directly between the SaaS runtime and Pipedrive.
+for (const [name, tool] of Object.entries(
+  createProviderMcpOnlyTools(publicToolDefinitionsByService.pipedrive)
+)) {
+  tools[name] ??= tool;
+}

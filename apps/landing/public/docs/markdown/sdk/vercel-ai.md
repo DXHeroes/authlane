@@ -26,7 +26,9 @@ const authlane = new Authlane({
 
 export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
   const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  const { data: tools, error } = await user.tools.list({
+    adapter: vercelAI({ approval: 'write-and-destructive' }),
+  });
   if (error) {
     return Response.json({ error }, { status: error.statusCode ?? 400 });
   }
@@ -39,6 +41,7 @@ export async function answer(currentUser: { id: string }, messages: ModelMessage
 ## Expected result
 
 `tools` is a Vercel AI `ToolSet` containing only effective connected tools for this user.
+Read tools run normally. Vercel AI receives `needsApproval: true` for write and destructive tools.
 
 ## Handle errors
 

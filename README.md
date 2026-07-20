@@ -80,6 +80,20 @@ return streamText({ model, messages, tools });
 Adapters are available for Vercel AI SDK, OpenAI Agents, Mastra, and an in-process local MCP
 server. Authlane does not expose a hosted MCP server or tool-execution endpoint.
 
+For each enabled service, the tenant chooses `read_only` or `full`. Authlane filters the canonical
+tool set before it reaches the SDK and preserves standard MCP annotations. SDK definitions include
+`risk: 'read' | 'write' | 'destructive'`, so your product can display, disable, or approve actions
+without guessing from tool names. Framework approval is a separate runtime choice:
+
+```typescript
+const { data: tools } = await authlane
+  .user('user_123')
+  .tools.list({ adapter: vercelAI({ approval: 'write-and-destructive' }) });
+```
+
+Read-only tenant policy prevents write and destructive tools from being issued at all; approval
+controls which issued tools require confirmation immediately before execution.
+
 ## Python
 
 ```bash

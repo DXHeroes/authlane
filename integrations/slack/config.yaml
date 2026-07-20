@@ -29,6 +29,17 @@ config:
     - users.profile:write
     - search:read.public
     - search:read.users
+  read_only_scopes:
+    - channels:read
+    - groups:read
+    - channels:history
+    - groups:history
+    - im:history
+    - mpim:history
+    - users:read
+    - search:read.public
+    - search:read.private
+    - search:read.users
   docs_url: https://docs.slack.dev/reference/methods/
   setup_guide_url: https://docs.slack.dev/ai/slack-mcp-server/developing/
   developer_console_url: https://api.slack.com/apps

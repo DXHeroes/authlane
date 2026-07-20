@@ -1,7 +1,7 @@
 import { SUPPORTED_SERVICE_IDS } from '@authlane/shared';
-import { productionServices } from './seed.js';
+import { productionServices, type ProductionService } from './seed.js';
 
-export type SupportedServiceCatalogEntry = (typeof productionServices)[number];
+export type SupportedServiceCatalogEntry = ProductionService;
 
 export interface ServiceCatalogStore {
   upsertService(service: SupportedServiceCatalogEntry): Promise<void>;
@@ -9,7 +9,7 @@ export interface ServiceCatalogStore {
 
 const supportedServiceIds = new Set<string>(SUPPORTED_SERVICE_IDS);
 
-export const SUPPORTED_SERVICE_CATALOG = productionServices.filter((service) =>
+export const SUPPORTED_SERVICE_CATALOG: ProductionService[] = productionServices.filter((service) =>
   supportedServiceIds.has(service.id)
 );
 

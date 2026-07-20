@@ -8,6 +8,8 @@ config:
     - read_only
   default_scopes:
     - read_only
+  read_only_scopes:
+    - read_only
   docs_url: https://docs.stripe.com/api
   setup_guide_url: https://docs.stripe.com/connect/oauth-reference
   developer_console_url: https://dashboard.stripe.com/settings/connect

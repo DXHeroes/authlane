@@ -41,6 +41,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_list_records',
       description: 'Lists records from an Airtable table with optional filtering and sorting',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -180,6 +186,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_create_record',
       description: 'Creates a new record in an Airtable table',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -235,6 +247,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_update_record',
       description: 'Updates an existing record in an Airtable table',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -305,6 +323,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_get_record',
       description: 'Retrieves a single record by ID from an Airtable table',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -366,6 +390,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_delete_record',
       description: 'Deletes a record from an Airtable table',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -406,6 +436,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_create_records_batch',
       description: 'Creates multiple records in an Airtable table (up to 10 at once)',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -472,6 +508,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_update_records_batch',
       description: 'Updates multiple records in an Airtable table (up to 10 at once)',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -551,6 +593,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_delete_records_batch',
       description: 'Deletes multiple records from an Airtable table (up to 10 at once)',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -595,6 +643,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_list_bases',
       description: 'Lists all bases (workspaces) accessible by the user',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -620,6 +674,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'airtable_get_base_schema',
       description:
         'Retrieves the schema (structure) of an Airtable base including all tables and fields',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -642,6 +702,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'airtable_get_table_schema',
       description: 'Retrieves the schema (structure) of a specific table including all fields',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

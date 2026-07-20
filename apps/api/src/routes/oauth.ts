@@ -358,6 +358,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         authorization_url?: string;
         scopes?: unknown;
         default_scopes?: unknown;
+        read_only_scopes?: unknown;
       };
       if (!config.authorization_url || !tenantService.oauthClientId) {
         return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);
@@ -442,7 +443,9 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       authorizationUrl.searchParams.set('redirect_uri', callbackUrl);
       authorizationUrl.searchParams.set('response_type', 'code');
       const configuredScopes = normalizeOAuthScopeNames(
-        config.default_scopes ?? config.scopes ?? []
+        tenantService.toolAccessPolicy === 'read_only'
+          ? (config.read_only_scopes ?? config.default_scopes ?? config.scopes ?? [])
+          : (config.default_scopes ?? config.scopes ?? [])
       );
       if (!configuredScopes) {
         return c.json(

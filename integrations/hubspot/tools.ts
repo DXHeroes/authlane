@@ -98,6 +98,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'hubspot_list_contacts',
       description: 'Lists contacts from HubSpot CRM with optional filtering and pagination',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: listInputSchema,
     },
     handler: (params, credentials) => listObjects('contacts', params, credentials),
@@ -106,6 +112,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'hubspot_list_deals',
       description: 'Lists deals from HubSpot CRM with optional filtering and pagination',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: listInputSchema,
     },
     handler: (params, credentials) => listObjects('deals', params, credentials),
@@ -114,6 +126,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'hubspot_get_contact',
       description: 'Retrieves a specific contact by ID from HubSpot CRM',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -133,7 +151,11 @@ export const tools: Record<string, ToolHandler> = {
       },
     },
     handler: (params, credentials) => {
-      const { contactId, properties, archived = false } = params as {
+      const {
+        contactId,
+        properties,
+        archived = false,
+      } = params as {
         contactId: string;
         properties?: string[];
         archived?: boolean;
@@ -145,6 +167,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'hubspot_get_deal',
       description: 'Retrieves a specific deal by ID from HubSpot CRM',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -164,7 +192,11 @@ export const tools: Record<string, ToolHandler> = {
       },
     },
     handler: (params, credentials) => {
-      const { dealId, properties, archived = false } = params as {
+      const {
+        dealId,
+        properties,
+        archived = false,
+      } = params as {
         dealId: string;
         properties?: string[];
         archived?: boolean;

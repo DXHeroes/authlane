@@ -9,6 +9,7 @@ type IntegrationImporter = () => Promise<IntegrationModule>;
 
 const builtInIntegrationImporters = {
   airtable: () => import('@authlane/integration-airtable'),
+  attio: () => import('@authlane/integration-attio'),
   discord: () => import('@authlane/integration-discord'),
   github: () => import('@authlane/integration-github'),
   gmail: () => import('@authlane/integration-gmail'),
@@ -17,6 +18,9 @@ const builtInIntegrationImporters = {
   hubspot: () => import('@authlane/integration-hubspot'),
   jira: () => import('@authlane/integration-jira'),
   linear: () => import('@authlane/integration-linear'),
+  'microsoft-calendar': () => import('@authlane/integration-microsoft-calendar'),
+  'microsoft-mail': () => import('@authlane/integration-microsoft-mail'),
+  'microsoft-sharepoint': () => import('@authlane/integration-microsoft-sharepoint'),
   notion: () => import('@authlane/integration-notion'),
   pipedrive: () => import('@authlane/integration-pipedrive'),
   salesforce: () => import('@authlane/integration-salesforce'),

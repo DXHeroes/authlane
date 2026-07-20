@@ -87,7 +87,7 @@ describe('build-time documentation source', () => {
       .flatMap((group) => group.pages)
       .sort();
 
-    expect(sources).toHaveLength(59);
+    expect(sources).toHaveLength(63);
     expect(loaded).toEqual(sources);
     expect(navigation).toEqual(sources);
   });

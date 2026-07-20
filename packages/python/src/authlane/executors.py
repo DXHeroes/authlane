@@ -1068,6 +1068,26 @@ BUILDERS = {
     "stripe": _stripe,
 }
 
+DIRECT_PIPEDRIVE_TOOLS = frozenset(
+    {
+        "pipedrive_create_deal",
+        "pipedrive_list_deals",
+        "pipedrive_get_deal",
+        "pipedrive_update_deal",
+        "pipedrive_add_contact",
+        "pipedrive_list_contacts",
+        "pipedrive_get_contact",
+        "pipedrive_update_contact",
+        "pipedrive_search",
+    }
+)
+MCP_ONLY_TOOL_KEYS = frozenset(
+    key
+    for key in definition_index()
+    if key[0] in {"attio", "microsoft-calendar", "microsoft-mail", "microsoft-sharepoint"}
+    or (key[0] == "pipedrive" and key[1] not in DIRECT_PIPEDRIVE_TOOLS)
+)
+
 FORWARD_UNKNOWN_ARGUMENT_TOOLS = frozenset(
     {
         ("hubspot", "hubspot_create_contact"),
@@ -1179,6 +1199,9 @@ def _declared_arguments(
     if (service_id, tool_name) in FORWARD_UNKNOWN_ARGUMENT_TOOLS:
         return dict(arguments)
     definition = definition_index()[(service_id, tool_name)]
+    additional_properties = definition.input_schema.get("additionalProperties")
+    if additional_properties is True or isinstance(additional_properties, Mapping):
+        return dict(arguments)
     properties = cast(Mapping[str, Any], definition.input_schema.get("properties", {}))
     return {key: value for key, value in arguments.items() if key in properties}
 
@@ -1257,11 +1280,12 @@ def execute(
 ) -> Result[Any]:
     if not _validated(service_id, tool_name, arguments):
         return Result.failure(invalid_tool_input())
-    if service_id in BUILDERS and not _is_oauth_credential(credential):
+    if (service_id, tool_name) in definition_index() and not _is_oauth_credential(credential):
         return Result.failure(credential_type_unsupported())
     try:
         arguments = _declared_arguments(service_id, tool_name, arguments)
-        if provider_mcp and (mcp_transport is not None or transport is None):
+        mcp_only = (service_id, tool_name) in MCP_ONLY_TOOL_KEYS
+        if provider_mcp and (mcp_transport is not None or transport is None or mcp_only):
             mcp_attempt = execute_preferred_provider_mcp(
                 service_id=service_id,
                 tool_name=tool_name,
@@ -1276,6 +1300,8 @@ def execute(
                     if mcp_attempt.failed
                     else Result.success(mcp_attempt.data)
                 )
+        if mcp_only:
+            return Result.failure(provider_error())
         headers, credential_params = _credential_headers(credential)
         spec = _prepare(service_id, tool_name, arguments, credential)
         headers.update(_provider_headers(service_id, tool_name))
@@ -1367,11 +1393,12 @@ async def aexecute(
 ) -> Result[Any]:
     if not _validated(service_id, tool_name, arguments):
         return Result.failure(invalid_tool_input())
-    if service_id in BUILDERS and not _is_oauth_credential(credential):
+    if (service_id, tool_name) in definition_index() and not _is_oauth_credential(credential):
         return Result.failure(credential_type_unsupported())
     try:
         arguments = _declared_arguments(service_id, tool_name, arguments)
-        if provider_mcp and (mcp_transport is not None or transport is None):
+        mcp_only = (service_id, tool_name) in MCP_ONLY_TOOL_KEYS
+        if provider_mcp and (mcp_transport is not None or transport is None or mcp_only):
             mcp_attempt = await aexecute_preferred_provider_mcp(
                 service_id=service_id,
                 tool_name=tool_name,
@@ -1386,6 +1413,8 @@ async def aexecute(
                     if mcp_attempt.failed
                     else Result.success(mcp_attempt.data)
                 )
+        if mcp_only:
+            return Result.failure(provider_error())
         headers, credential_params = _credential_headers(credential)
         spec = _prepare(service_id, tool_name, arguments, credential)
         headers.update(_provider_headers(service_id, tool_name))

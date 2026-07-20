@@ -1,0 +1,62 @@
+---
+title: Microsoft Mail
+description: 'Connect Microsoft Mail and use its tools through the Authlane control plane.'
+serviceId: microsoft-mail
+authType: oauth2
+---
+
+## Prerequisites
+
+Confirm Work IQ availability for the Microsoft 365 tenant. Review the official
+[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
+[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+and [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+
+## Self-hosted setup
+
+1. Create a multi-tenant Web app registration in Microsoft Entra ID.
+2. Add `https://<your-authlane-host>/api/v1/oauth/microsoft-mail/callback` as a Web redirect URI.
+3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
+4. Create a client secret and copy its value immediately.
+
+## Configure authentication
+
+Open **Dashboard → Services → Microsoft Mail**. Save the Application Client ID and Client Secret,
+choose the tool policy, and enable the service. The Client Secret belongs only in Authlane's
+encrypted server-side configuration.
+
+## Scopes
+
+- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
+- `offline_access` permits refresh tokens.
+- `openid` and `profile` identify the connected user.
+
+## Execution path
+
+The SaaS runtime prioritizes Microsoft's official Work IQ MCP endpoint
+`https://workiq.svc.cloud.microsoft/mcp`. Authlane validates mail paths and issues a credential
+lease; provider traffic then flows directly between the SaaS runtime and Microsoft. Only
+`/me/messages`, `/me/mailFolders`, `/me/sendMail`, and `/me/outlook` families are accepted.
+
+## Available tools
+
+- `microsoft_mail_fetch`
+- `microsoft_mail_create_entity`
+- `microsoft_mail_update_entity`
+- `microsoft_mail_delete_entity`
+- `microsoft_mail_do_action`
+- `microsoft_mail_call_function`
+- `microsoft_mail_get_schema`
+- `microsoft_mail_search_paths`
+
+## Connection lifecycle
+
+Authlane encrypts the Work IQ OAuth credential and refreshes it before expiry when possible.
+Reconnect after tenant revocation or an `expired`/`error` state. A tool-policy change expires the
+old connection so the new consent and effective tool set stay aligned.
+
+## Troubleshooting
+
+- `AADSTS50011` means the Entra redirect URI differs from the Authlane callback.
+- Verify Work IQ tenant availability, delegated permission, and administrator consent.
+- Do not substitute a Microsoft Graph token; Work IQ validates its own token audience.

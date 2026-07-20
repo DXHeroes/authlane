@@ -60,6 +60,7 @@ export interface OrganizationService {
   organizationId: string;
   serviceId: string;
   enabled: boolean;
+  toolAccessPolicy: 'read_only' | 'full';
   // OAuth credentials
   customClientId?: string;
   customClientSecret?: string;
@@ -68,6 +69,19 @@ export interface OrganizationService {
   config?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ServiceTool {
+  name: string;
+  description: string;
+  risk: 'read' | 'write' | 'destructive';
+  enabledByPolicy: boolean;
+  annotations: {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+    idempotentHint: boolean;
+    openWorldHint: boolean;
+  };
 }
 
 export interface Connection {

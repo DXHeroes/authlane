@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@authlane/integration-airtable": "workspace:*",
+    "@authlane/integration-attio": "workspace:*",
     "@authlane/integration-discord": "workspace:*",
     "@authlane/integration-github": "workspace:*",
     "@authlane/integration-gmail": "workspace:*",
@@ -52,6 +53,9 @@
     "@authlane/integration-hubspot": "workspace:*",
     "@authlane/integration-jira": "workspace:*",
     "@authlane/integration-linear": "workspace:*",
+    "@authlane/integration-microsoft-calendar": "workspace:*",
+    "@authlane/integration-microsoft-mail": "workspace:*",
+    "@authlane/integration-microsoft-sharepoint": "workspace:*",
     "@authlane/integration-notion": "workspace:*",
     "@authlane/integration-pipedrive": "workspace:*",
     "@authlane/integration-salesforce": "workspace:*",

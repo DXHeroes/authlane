@@ -13,6 +13,31 @@ const issueSchema = {
 } as const;
 
 describe('openAIAgents', () => {
+  it('maps Authlane destructive risk to OpenAI Agents approval requirements', async () => {
+    const adapter = openAIAgents({ approval: 'destructive' });
+    const tools = adapter.build({
+      externalUserId: 'user_123',
+      tools: (['read', 'write', 'destructive'] as const).map((risk) => ({
+        serviceId: 'linear',
+        name: `linear_${risk}`,
+        description: `${risk} tool`,
+        annotations: {
+          readOnlyHint: risk === 'read',
+          destructiveHint: risk === 'destructive',
+          idempotentHint: risk === 'read',
+          openWorldHint: true,
+        },
+        risk,
+        inputSchema: issueSchema,
+      })),
+      execute: vi.fn(),
+    });
+
+    expect(
+      await Promise.all(tools.map((tool) => tool.needsApproval(new RunContext(), {} as never)))
+    ).toEqual([false, false, true]);
+  });
+
   it('builds non-strict FunctionTools and invokes the bound user executor', async () => {
     const execute = vi.fn(async () => ({ id: 'issue_123' }));
     const sourceDefinition = {

@@ -6,6 +6,12 @@
     {
       "name": "discord_get_current_user",
       "description": "Returns the Discord profile of the connected OAuth user",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -15,6 +21,12 @@
     {
       "name": "discord_get_current_user_guild_member",
       "description": "Returns the connected user member record in a Discord guild",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -23,12 +35,20 @@
             "description": "Discord guild ID"
           }
         },
-        "required": ["guild_id"]
+        "required": [
+          "guild_id"
+        ]
       }
     },
     {
       "name": "discord_list_connections",
       "description": "Lists external accounts connected to the Discord OAuth user",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -38,6 +58,12 @@
     {
       "name": "discord_list_guilds",
       "description": "Lists guilds that the connected Discord user belongs to",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {

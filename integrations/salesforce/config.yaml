@@ -20,6 +20,11 @@ config:
     - api
     - refresh_token
     - id
+  read_only_scopes:
+    - mcp_api
+    - api
+    - refresh_token
+    - id
   # Salesforce-specific settings
   features:
     soql: true  # Supports Salesforce Object Query Language

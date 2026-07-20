@@ -17,6 +17,11 @@ config:
     - data.records:write
     - schema.bases:read
     - workspacesAndBases:read
+  read_only_scopes:
+    - data.records:read
+    - data.recordComments:read
+    - schema.bases:read
+    - workspacesAndBases:read
   docs_url: https://airtable.com/developers/web/api/introduction
   setup_guide_url: https://airtable.com/developers/web/guides/oauth-integrations
   developer_console_url: https://airtable.com/create/oauth

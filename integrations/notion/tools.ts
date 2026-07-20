@@ -42,6 +42,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_create_page',
       description: 'Creates a new page in a Notion database or as a child of another page',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -136,6 +142,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_query_database',
       description: 'Queries a Notion database with optional filters and sorting',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -219,6 +231,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_update_page',
       description: 'Updates properties of an existing Notion page',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -302,6 +320,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_get_page',
       description: 'Retrieves a page from Notion by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -336,6 +360,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_get_database',
       description: 'Retrieves database information including schema',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -357,6 +387,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_list_databases',
       description: 'Lists all databases that the integration has access to',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -395,6 +431,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_search',
       description: 'Searches all pages and databases that the integration has access to',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -476,6 +518,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_append_block_children',
       description: 'Appends new block children to a page or block',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -517,6 +565,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_get_block',
       description: 'Retrieves a block by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -538,6 +592,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_get_block_children',
       description: 'Retrieves children blocks of a page or block',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -579,6 +639,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_update_block',
       description: 'Updates a block by ID',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -621,6 +687,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_delete_block',
       description: 'Deletes (archives) a block by ID',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -646,6 +718,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_get_user',
       description: 'Retrieves a user by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -667,6 +745,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_list_users',
       description: 'Lists all users in the workspace',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -703,6 +787,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'notion_get_bot_user',
       description: 'Retrieves the bot user associated with the integration',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {},

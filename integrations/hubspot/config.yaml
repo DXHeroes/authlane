@@ -6,6 +6,7 @@ config:
   token_url: https://mcp.hubspot.com/oauth/v3/token
   scopes: []
   default_scopes: []
+  read_only_scopes: []
   docs_url: https://developers.hubspot.com/docs/api-reference/overview
   setup_guide_url: https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server
   developer_console_url: https://app.hubspot.com/developer/

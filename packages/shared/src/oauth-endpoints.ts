@@ -69,6 +69,22 @@ const OAUTH_ENDPOINTS: Record<
     authorization: ['https://airtable.com/oauth2/v1/authorize'],
     token: ['https://airtable.com/oauth2/v1/token'],
   },
+  attio: {
+    authorization: ['https://app.attio.com/oidc/authorize'],
+    token: ['https://app.attio.com/oidc/token'],
+  },
+  'microsoft-calendar': {
+    authorization: ['https://login.microsoftonline.com/common/oauth2/v2.0/authorize'],
+    token: ['https://login.microsoftonline.com/common/oauth2/v2.0/token'],
+  },
+  'microsoft-mail': {
+    authorization: ['https://login.microsoftonline.com/common/oauth2/v2.0/authorize'],
+    token: ['https://login.microsoftonline.com/common/oauth2/v2.0/token'],
+  },
+  'microsoft-sharepoint': {
+    authorization: ['https://login.microsoftonline.com/common/oauth2/v2.0/authorize'],
+    token: ['https://login.microsoftonline.com/common/oauth2/v2.0/token'],
+  },
 };
 
 const DEMO_OAUTH_ENDPOINTS = {
@@ -93,7 +109,10 @@ export interface FetchOAuthTokenOptions {
   fetchImpl?: (input: string, init: RequestInit) => Promise<Response>;
 }
 
-const PROVIDER_CONTEXT_FIELDS: Record<string, { field: string; parentDomain: string; label: string }> = {
+const PROVIDER_CONTEXT_FIELDS: Record<
+  string,
+  { field: string; parentDomain: string; label: string }
+> = {
   pipedrive: {
     field: 'api_domain',
     parentDomain: 'pipedrive.com',

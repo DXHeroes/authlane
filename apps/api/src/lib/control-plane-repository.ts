@@ -21,12 +21,13 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
   constructor(private readonly db: Database) {}
 
   async listTenantServices(organizationId: string) {
-    return this.db
+    const rows = await this.db
       .select({
         id: services.id,
         name: services.name,
         authType: services.authType,
         enabled: organizationServices.enabled,
+        toolAccessPolicy: organizationServices.toolAccessPolicy,
         config: services.config,
       })
       .from(organizationServices)
@@ -39,6 +40,11 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
           inArray(services.id, [...SUPPORTED_SERVICE_IDS])
         )
       );
+    return rows.map((row) => ({
+      ...row,
+      toolAccessPolicy:
+        row.toolAccessPolicy === 'full' ? ('full' as const) : ('read_only' as const),
+    }));
   }
 
   async listConnections(organizationId: string, externalUserId: string) {

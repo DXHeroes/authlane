@@ -93,7 +93,9 @@
                           "id",
                           "name",
                           "authType",
-                          "enabled"
+                          "enabled",
+                          "toolAccessPolicy",
+                          "config"
                         ],
                         "properties": {
                           "id": {
@@ -111,6 +113,18 @@
                           },
                           "enabled": {
                             "type": "boolean"
+                          },
+                          "toolAccessPolicy": {
+                            "type": "string",
+                            "enum": [
+                              "read_only",
+                              "full"
+                            ],
+                            "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+                          },
+                          "config": {
+                            "type": "object",
+                            "additionalProperties": true
                           }
                         }
                       }
@@ -1026,9 +1040,18 @@
                               {
                                 "type": "object",
                                 "required": [
-                                  "tools"
+                                  "tools",
+                                  "toolAccessPolicy"
                                 ],
                                 "properties": {
+                                  "toolAccessPolicy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "read_only",
+                                      "full"
+                                    ],
+                                    "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+                                  },
                                   "tools": {
                                     "type": "array",
                                     "items": {
@@ -1038,7 +1061,8 @@
                                           "required": [
                                             "name",
                                             "description",
-                                            "inputSchema"
+                                            "inputSchema",
+                                            "annotations"
                                           ],
                                           "properties": {
                                             "name": {
@@ -1050,6 +1074,29 @@
                                             "inputSchema": {
                                               "type": "object",
                                               "additionalProperties": true
+                                            },
+                                            "annotations": {
+                                              "type": "object",
+                                              "required": [
+                                                "readOnlyHint",
+                                                "destructiveHint",
+                                                "idempotentHint",
+                                                "openWorldHint"
+                                              ],
+                                              "properties": {
+                                                "readOnlyHint": {
+                                                  "type": "boolean"
+                                                },
+                                                "destructiveHint": {
+                                                  "type": "boolean"
+                                                },
+                                                "idempotentHint": {
+                                                  "type": "boolean"
+                                                },
+                                                "openWorldHint": {
+                                                  "type": "boolean"
+                                                }
+                                              }
                                             }
                                           }
                                         },
@@ -1058,7 +1105,8 @@
                                           "required": [
                                             "name",
                                             "description",
-                                            "parameters"
+                                            "parameters",
+                                            "metadata"
                                           ],
                                           "properties": {
                                             "name": {
@@ -1070,6 +1118,58 @@
                                             "parameters": {
                                               "type": "object",
                                               "additionalProperties": true
+                                            },
+                                            "metadata": {
+                                              "type": "object",
+                                              "required": [
+                                                "authlane"
+                                              ],
+                                              "properties": {
+                                                "authlane": {
+                                                  "type": "object",
+                                                  "required": [
+                                                    "serviceId",
+                                                    "risk",
+                                                    "annotations"
+                                                  ],
+                                                  "properties": {
+                                                    "serviceId": {
+                                                      "type": "string"
+                                                    },
+                                                    "risk": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "read",
+                                                        "write",
+                                                        "destructive"
+                                                      ]
+                                                    },
+                                                    "annotations": {
+                                                      "type": "object",
+                                                      "required": [
+                                                        "readOnlyHint",
+                                                        "destructiveHint",
+                                                        "idempotentHint",
+                                                        "openWorldHint"
+                                                      ],
+                                                      "properties": {
+                                                        "readOnlyHint": {
+                                                          "type": "boolean"
+                                                        },
+                                                        "destructiveHint": {
+                                                          "type": "boolean"
+                                                        },
+                                                        "idempotentHint": {
+                                                          "type": "boolean"
+                                                        },
+                                                        "openWorldHint": {
+                                                          "type": "boolean"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
                                             }
                                           }
                                         }
@@ -1551,7 +1651,8 @@
                                 "required": [
                                   "name",
                                   "description",
-                                  "inputSchema"
+                                  "inputSchema",
+                                  "annotations"
                                 ],
                                 "properties": {
                                   "name": {
@@ -1563,6 +1664,29 @@
                                   "inputSchema": {
                                     "type": "object",
                                     "additionalProperties": true
+                                  },
+                                  "annotations": {
+                                    "type": "object",
+                                    "required": [
+                                      "readOnlyHint",
+                                      "destructiveHint",
+                                      "idempotentHint",
+                                      "openWorldHint"
+                                    ],
+                                    "properties": {
+                                      "readOnlyHint": {
+                                        "type": "boolean"
+                                      },
+                                      "destructiveHint": {
+                                        "type": "boolean"
+                                      },
+                                      "idempotentHint": {
+                                        "type": "boolean"
+                                      },
+                                      "openWorldHint": {
+                                        "type": "boolean"
+                                      }
+                                    }
                                   }
                                 }
                               }
@@ -1586,7 +1710,8 @@
                                 "required": [
                                   "name",
                                   "description",
-                                  "parameters"
+                                  "parameters",
+                                  "metadata"
                                 ],
                                 "properties": {
                                   "name": {
@@ -1598,6 +1723,58 @@
                                   "parameters": {
                                     "type": "object",
                                     "additionalProperties": true
+                                  },
+                                  "metadata": {
+                                    "type": "object",
+                                    "required": [
+                                      "authlane"
+                                    ],
+                                    "properties": {
+                                      "authlane": {
+                                        "type": "object",
+                                        "required": [
+                                          "serviceId",
+                                          "risk",
+                                          "annotations"
+                                        ],
+                                        "properties": {
+                                          "serviceId": {
+                                            "type": "string"
+                                          },
+                                          "risk": {
+                                            "type": "string",
+                                            "enum": [
+                                              "read",
+                                              "write",
+                                              "destructive"
+                                            ]
+                                          },
+                                          "annotations": {
+                                            "type": "object",
+                                            "required": [
+                                              "readOnlyHint",
+                                              "destructiveHint",
+                                              "idempotentHint",
+                                              "openWorldHint"
+                                            ],
+                                            "properties": {
+                                              "readOnlyHint": {
+                                                "type": "boolean"
+                                              },
+                                              "destructiveHint": {
+                                                "type": "boolean"
+                                              },
+                                              "idempotentHint": {
+                                                "type": "boolean"
+                                              },
+                                              "openWorldHint": {
+                                                "type": "boolean"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
                                   }
                                 }
                               }
@@ -5547,7 +5724,9 @@
           "id",
           "name",
           "authType",
-          "enabled"
+          "enabled",
+          "toolAccessPolicy",
+          "config"
         ],
         "properties": {
           "id": {
@@ -5565,6 +5744,18 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "toolAccessPolicy": {
+            "type": "string",
+            "enum": [
+              "read_only",
+              "full"
+            ],
+            "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": true
           }
         }
       },
@@ -5583,7 +5774,9 @@
                 "id",
                 "name",
                 "authType",
-                "enabled"
+                "enabled",
+                "toolAccessPolicy",
+                "config"
               ],
               "properties": {
                 "id": {
@@ -5601,6 +5794,18 @@
                 },
                 "enabled": {
                   "type": "boolean"
+                },
+                "toolAccessPolicy": {
+                  "type": "string",
+                  "enum": [
+                    "read_only",
+                    "full"
+                  ],
+                  "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+                },
+                "config": {
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }
@@ -5737,6 +5942,45 @@
         "type": "object",
         "additionalProperties": true
       },
+      "ToolAccessPolicy": {
+        "type": "string",
+        "enum": [
+          "read_only",
+          "full"
+        ],
+        "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+      },
+      "ToolRisk": {
+        "type": "string",
+        "enum": [
+          "read",
+          "write",
+          "destructive"
+        ]
+      },
+      "ToolAnnotations": {
+        "type": "object",
+        "required": [
+          "readOnlyHint",
+          "destructiveHint",
+          "idempotentHint",
+          "openWorldHint"
+        ],
+        "properties": {
+          "readOnlyHint": {
+            "type": "boolean"
+          },
+          "destructiveHint": {
+            "type": "boolean"
+          },
+          "idempotentHint": {
+            "type": "boolean"
+          },
+          "openWorldHint": {
+            "type": "boolean"
+          }
+        }
+      },
       "ToolDefinition": {
         "oneOf": [
           {
@@ -5744,7 +5988,8 @@
             "required": [
               "name",
               "description",
-              "inputSchema"
+              "inputSchema",
+              "annotations"
             ],
             "properties": {
               "name": {
@@ -5756,6 +6001,29 @@
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": true
+              },
+              "annotations": {
+                "type": "object",
+                "required": [
+                  "readOnlyHint",
+                  "destructiveHint",
+                  "idempotentHint",
+                  "openWorldHint"
+                ],
+                "properties": {
+                  "readOnlyHint": {
+                    "type": "boolean"
+                  },
+                  "destructiveHint": {
+                    "type": "boolean"
+                  },
+                  "idempotentHint": {
+                    "type": "boolean"
+                  },
+                  "openWorldHint": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           },
@@ -5764,7 +6032,8 @@
             "required": [
               "name",
               "description",
-              "parameters"
+              "parameters",
+              "metadata"
             ],
             "properties": {
               "name": {
@@ -5776,6 +6045,58 @@
               "parameters": {
                 "type": "object",
                 "additionalProperties": true
+              },
+              "metadata": {
+                "type": "object",
+                "required": [
+                  "authlane"
+                ],
+                "properties": {
+                  "authlane": {
+                    "type": "object",
+                    "required": [
+                      "serviceId",
+                      "risk",
+                      "annotations"
+                    ],
+                    "properties": {
+                      "serviceId": {
+                        "type": "string"
+                      },
+                      "risk": {
+                        "type": "string",
+                        "enum": [
+                          "read",
+                          "write",
+                          "destructive"
+                        ]
+                      },
+                      "annotations": {
+                        "type": "object",
+                        "required": [
+                          "readOnlyHint",
+                          "destructiveHint",
+                          "idempotentHint",
+                          "openWorldHint"
+                        ],
+                        "properties": {
+                          "readOnlyHint": {
+                            "type": "boolean"
+                          },
+                          "destructiveHint": {
+                            "type": "boolean"
+                          },
+                          "idempotentHint": {
+                            "type": "boolean"
+                          },
+                          "openWorldHint": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -5786,7 +6107,8 @@
         "required": [
           "name",
           "description",
-          "inputSchema"
+          "inputSchema",
+          "annotations"
         ],
         "properties": {
           "name": {
@@ -5798,6 +6120,29 @@
           "inputSchema": {
             "type": "object",
             "additionalProperties": true
+          },
+          "annotations": {
+            "type": "object",
+            "required": [
+              "readOnlyHint",
+              "destructiveHint",
+              "idempotentHint",
+              "openWorldHint"
+            ],
+            "properties": {
+              "readOnlyHint": {
+                "type": "boolean"
+              },
+              "destructiveHint": {
+                "type": "boolean"
+              },
+              "idempotentHint": {
+                "type": "boolean"
+              },
+              "openWorldHint": {
+                "type": "boolean"
+              }
+            }
           }
         }
       },
@@ -5806,7 +6151,8 @@
         "required": [
           "name",
           "description",
-          "parameters"
+          "parameters",
+          "metadata"
         ],
         "properties": {
           "name": {
@@ -5818,6 +6164,58 @@
           "parameters": {
             "type": "object",
             "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object",
+            "required": [
+              "authlane"
+            ],
+            "properties": {
+              "authlane": {
+                "type": "object",
+                "required": [
+                  "serviceId",
+                  "risk",
+                  "annotations"
+                ],
+                "properties": {
+                  "serviceId": {
+                    "type": "string"
+                  },
+                  "risk": {
+                    "type": "string",
+                    "enum": [
+                      "read",
+                      "write",
+                      "destructive"
+                    ]
+                  },
+                  "annotations": {
+                    "type": "object",
+                    "required": [
+                      "readOnlyHint",
+                      "destructiveHint",
+                      "idempotentHint",
+                      "openWorldHint"
+                    ],
+                    "properties": {
+                      "readOnlyHint": {
+                        "type": "boolean"
+                      },
+                      "destructiveHint": {
+                        "type": "boolean"
+                      },
+                      "idempotentHint": {
+                        "type": "boolean"
+                      },
+                      "openWorldHint": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -5880,9 +6278,18 @@
           {
             "type": "object",
             "required": [
-              "tools"
+              "tools",
+              "toolAccessPolicy"
             ],
             "properties": {
+              "toolAccessPolicy": {
+                "type": "string",
+                "enum": [
+                  "read_only",
+                  "full"
+                ],
+                "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+              },
               "tools": {
                 "type": "array",
                 "items": {
@@ -5892,7 +6299,8 @@
                       "required": [
                         "name",
                         "description",
-                        "inputSchema"
+                        "inputSchema",
+                        "annotations"
                       ],
                       "properties": {
                         "name": {
@@ -5904,6 +6312,29 @@
                         "inputSchema": {
                           "type": "object",
                           "additionalProperties": true
+                        },
+                        "annotations": {
+                          "type": "object",
+                          "required": [
+                            "readOnlyHint",
+                            "destructiveHint",
+                            "idempotentHint",
+                            "openWorldHint"
+                          ],
+                          "properties": {
+                            "readOnlyHint": {
+                              "type": "boolean"
+                            },
+                            "destructiveHint": {
+                              "type": "boolean"
+                            },
+                            "idempotentHint": {
+                              "type": "boolean"
+                            },
+                            "openWorldHint": {
+                              "type": "boolean"
+                            }
+                          }
                         }
                       }
                     },
@@ -5912,7 +6343,8 @@
                       "required": [
                         "name",
                         "description",
-                        "parameters"
+                        "parameters",
+                        "metadata"
                       ],
                       "properties": {
                         "name": {
@@ -5924,6 +6356,58 @@
                         "parameters": {
                           "type": "object",
                           "additionalProperties": true
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "required": [
+                            "authlane"
+                          ],
+                          "properties": {
+                            "authlane": {
+                              "type": "object",
+                              "required": [
+                                "serviceId",
+                                "risk",
+                                "annotations"
+                              ],
+                              "properties": {
+                                "serviceId": {
+                                  "type": "string"
+                                },
+                                "risk": {
+                                  "type": "string",
+                                  "enum": [
+                                    "read",
+                                    "write",
+                                    "destructive"
+                                  ]
+                                },
+                                "annotations": {
+                                  "type": "object",
+                                  "required": [
+                                    "readOnlyHint",
+                                    "destructiveHint",
+                                    "idempotentHint",
+                                    "openWorldHint"
+                                  ],
+                                  "properties": {
+                                    "readOnlyHint": {
+                                      "type": "boolean"
+                                    },
+                                    "destructiveHint": {
+                                      "type": "boolean"
+                                    },
+                                    "idempotentHint": {
+                                      "type": "boolean"
+                                    },
+                                    "openWorldHint": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
                         }
                       }
                     }
@@ -6024,9 +6508,18 @@
                     {
                       "type": "object",
                       "required": [
-                        "tools"
+                        "tools",
+                        "toolAccessPolicy"
                       ],
                       "properties": {
+                        "toolAccessPolicy": {
+                          "type": "string",
+                          "enum": [
+                            "read_only",
+                            "full"
+                          ],
+                          "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+                        },
                         "tools": {
                           "type": "array",
                           "items": {
@@ -6036,7 +6529,8 @@
                                 "required": [
                                   "name",
                                   "description",
-                                  "inputSchema"
+                                  "inputSchema",
+                                  "annotations"
                                 ],
                                 "properties": {
                                   "name": {
@@ -6048,6 +6542,29 @@
                                   "inputSchema": {
                                     "type": "object",
                                     "additionalProperties": true
+                                  },
+                                  "annotations": {
+                                    "type": "object",
+                                    "required": [
+                                      "readOnlyHint",
+                                      "destructiveHint",
+                                      "idempotentHint",
+                                      "openWorldHint"
+                                    ],
+                                    "properties": {
+                                      "readOnlyHint": {
+                                        "type": "boolean"
+                                      },
+                                      "destructiveHint": {
+                                        "type": "boolean"
+                                      },
+                                      "idempotentHint": {
+                                        "type": "boolean"
+                                      },
+                                      "openWorldHint": {
+                                        "type": "boolean"
+                                      }
+                                    }
                                   }
                                 }
                               },
@@ -6056,7 +6573,8 @@
                                 "required": [
                                   "name",
                                   "description",
-                                  "parameters"
+                                  "parameters",
+                                  "metadata"
                                 ],
                                 "properties": {
                                   "name": {
@@ -6068,6 +6586,58 @@
                                   "parameters": {
                                     "type": "object",
                                     "additionalProperties": true
+                                  },
+                                  "metadata": {
+                                    "type": "object",
+                                    "required": [
+                                      "authlane"
+                                    ],
+                                    "properties": {
+                                      "authlane": {
+                                        "type": "object",
+                                        "required": [
+                                          "serviceId",
+                                          "risk",
+                                          "annotations"
+                                        ],
+                                        "properties": {
+                                          "serviceId": {
+                                            "type": "string"
+                                          },
+                                          "risk": {
+                                            "type": "string",
+                                            "enum": [
+                                              "read",
+                                              "write",
+                                              "destructive"
+                                            ]
+                                          },
+                                          "annotations": {
+                                            "type": "object",
+                                            "required": [
+                                              "readOnlyHint",
+                                              "destructiveHint",
+                                              "idempotentHint",
+                                              "openWorldHint"
+                                            ],
+                                            "properties": {
+                                              "readOnlyHint": {
+                                                "type": "boolean"
+                                              },
+                                              "destructiveHint": {
+                                                "type": "boolean"
+                                              },
+                                              "idempotentHint": {
+                                                "type": "boolean"
+                                              },
+                                              "openWorldHint": {
+                                                "type": "boolean"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
                                   }
                                 }
                               }
@@ -6109,7 +6679,8 @@
                       "required": [
                         "name",
                         "description",
-                        "inputSchema"
+                        "inputSchema",
+                        "annotations"
                       ],
                       "properties": {
                         "name": {
@@ -6121,6 +6692,29 @@
                         "inputSchema": {
                           "type": "object",
                           "additionalProperties": true
+                        },
+                        "annotations": {
+                          "type": "object",
+                          "required": [
+                            "readOnlyHint",
+                            "destructiveHint",
+                            "idempotentHint",
+                            "openWorldHint"
+                          ],
+                          "properties": {
+                            "readOnlyHint": {
+                              "type": "boolean"
+                            },
+                            "destructiveHint": {
+                              "type": "boolean"
+                            },
+                            "idempotentHint": {
+                              "type": "boolean"
+                            },
+                            "openWorldHint": {
+                              "type": "boolean"
+                            }
+                          }
                         }
                       }
                     }
@@ -6144,7 +6738,8 @@
                       "required": [
                         "name",
                         "description",
-                        "parameters"
+                        "parameters",
+                        "metadata"
                       ],
                       "properties": {
                         "name": {
@@ -6156,6 +6751,58 @@
                         "parameters": {
                           "type": "object",
                           "additionalProperties": true
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "required": [
+                            "authlane"
+                          ],
+                          "properties": {
+                            "authlane": {
+                              "type": "object",
+                              "required": [
+                                "serviceId",
+                                "risk",
+                                "annotations"
+                              ],
+                              "properties": {
+                                "serviceId": {
+                                  "type": "string"
+                                },
+                                "risk": {
+                                  "type": "string",
+                                  "enum": [
+                                    "read",
+                                    "write",
+                                    "destructive"
+                                  ]
+                                },
+                                "annotations": {
+                                  "type": "object",
+                                  "required": [
+                                    "readOnlyHint",
+                                    "destructiveHint",
+                                    "idempotentHint",
+                                    "openWorldHint"
+                                  ],
+                                  "properties": {
+                                    "readOnlyHint": {
+                                      "type": "boolean"
+                                    },
+                                    "destructiveHint": {
+                                      "type": "boolean"
+                                    },
+                                    "idempotentHint": {
+                                      "type": "boolean"
+                                    },
+                                    "openWorldHint": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
                         }
                       }
                     }

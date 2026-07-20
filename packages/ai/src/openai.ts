@@ -1,6 +1,6 @@
 import type { UserToolAdapter } from '@authlane/sdk';
 import { type FunctionTool, tool } from '@openai/agents';
-import { createBuiltInAdapter, type FrameworkAdapterOptions } from './adapter.js';
+import { createBuiltInAdapter, type FrameworkAdapterOptions, requiresApproval } from './adapter.js';
 
 const invalidToolInput = () => ({
   error: { code: 'INVALID_TOOL_INPUT', message: 'Tool input must be a JSON object.' },
@@ -49,6 +49,7 @@ export function openAIAgents(
           description,
           parameters: parameters as unknown as NonStrictJsonObjectSchema,
           strict: false,
+          needsApproval: requiresApproval(definition.risk, options.approval),
           errorFunction: () => JSON.stringify(invalidToolInput()),
           async execute(modelInput) {
             const input = asToolInput(modelInput);

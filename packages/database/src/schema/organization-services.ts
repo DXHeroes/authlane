@@ -1,4 +1,5 @@
-import { boolean, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { boolean, check, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { organization } from './auth.js';
 import { secretRecords } from './secret-records.js';
 import { services } from './services.js';
@@ -17,6 +18,7 @@ export const organizationServices = pgTable(
       .references(() => services.id, { onDelete: 'cascade' })
       .notNull(),
     enabled: boolean('enabled').default(true).notNull(),
+    toolAccessPolicy: text('tool_access_policy').default('read_only').notNull(),
     // OAuth credentials
     oauthClientId: text('oauth_client_id'), // Optional: organization's own OAuth app
     oauthClientSecretId: text('oauth_client_secret_id').references(() => secretRecords.id, {
@@ -33,6 +35,10 @@ export const organizationServices = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.organizationId, table.serviceId] }),
+    toolAccessPolicyCheck: check(
+      'organization_services_tool_access_policy_check',
+      sql`${table.toolAccessPolicy} in ('read_only', 'full')`
+    ),
   })
 );
 

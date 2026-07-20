@@ -42,6 +42,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_create_issue',
       description: 'Creates a new issue in a GitHub repository',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -91,6 +97,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_list_issues',
       description: 'Lists issues in a GitHub repository',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -140,6 +152,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_create_pull_request',
       description: 'Creates a new pull request in a GitHub repository',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -206,6 +224,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_list_repos',
       description: 'List repositories for the authenticated user or an organization',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -257,6 +281,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_get_file',
       description: 'Get the contents of a file from a GitHub repository',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -308,6 +338,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_create_file',
       description: 'Create or update a file in a GitHub repository',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -377,6 +413,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_search_code',
       description: 'Search for code across GitHub repositories',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -430,6 +472,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'github_list_pull_requests',
       description: 'List pull requests in a GitHub repository',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

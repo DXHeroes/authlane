@@ -9,7 +9,7 @@ import pytest
 
 from authlane import Authlane
 from authlane.adapters import generic
-from authlane.executors import EXECUTOR_REGISTRY, aexecute
+from authlane.executors import EXECUTOR_REGISTRY, MCP_ONLY_TOOL_KEYS, aexecute
 from authlane.models import ToolDefinition
 
 CANONICAL = (
@@ -25,10 +25,11 @@ def test_executor_registry_matches_all_canonical_tools_exactly() -> None:
         for tool in integration["tools"]
     }
 
-    assert len(expected) == 108
+    assert len(expected) == 189
     assert set(EXECUTOR_REGISTRY) == expected
     assert {service for service, _ in EXECUTOR_REGISTRY} == {
         "airtable",
+        "attio",
         "discord",
         "github",
         "gmail",
@@ -37,6 +38,9 @@ def test_executor_registry_matches_all_canonical_tools_exactly() -> None:
         "hubspot",
         "jira",
         "linear",
+        "microsoft-calendar",
+        "microsoft-mail",
+        "microsoft-sharepoint",
         "notion",
         "pipedrive",
         "salesforce",
@@ -62,6 +66,9 @@ def test_every_canonical_executor_builds_and_sends_a_native_provider_request() -
     executed: set[tuple[str, str]] = set()
     for integration in document["integrations"]:
         for tool in integration["tools"]:
+            key = (integration["serviceId"], tool["name"])
+            if key in MCP_ONLY_TOOL_KEYS:
+                continue
             arguments = _required_example(tool["inputSchema"])
             if tool["name"] == "jira_transition_issue":
                 arguments["transitionId"] = "transition-1"
@@ -81,9 +88,9 @@ def test_every_canonical_executor_builds_and_sends_a_native_provider_request() -
                 transport=httpx.MockTransport(provider),
             )
             assert result.error is None, (integration["serviceId"], tool["name"], result.error)
-            executed.add((integration["serviceId"], tool["name"]))
+            executed.add(key)
 
-    assert executed == set(EXECUTOR_REGISTRY)
+    assert executed == set(EXECUTOR_REGISTRY) - MCP_ONLY_TOOL_KEYS
 
 
 def test_generic_sync_tool_gets_fresh_lease_then_calls_provider_directly() -> None:

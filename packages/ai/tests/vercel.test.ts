@@ -32,6 +32,33 @@ type DynamicExecute = (
 ) => PromiseLike<unknown> | unknown;
 
 describe('vercelAI', () => {
+  it('maps Authlane risk metadata to Vercel AI SDK approval requirements', () => {
+    const adapter = vercelAI({ approval: 'write-and-destructive' });
+    const definitions = (['read', 'write', 'destructive'] as const).map((risk) => ({
+      serviceId: 'github',
+      name: `github_${risk}`,
+      description: `${risk} tool`,
+      annotations: {
+        readOnlyHint: risk === 'read',
+        destructiveHint: risk === 'destructive',
+        idempotentHint: risk === 'read',
+        openWorldHint: true,
+      },
+      risk,
+      inputSchema: repositorySchema,
+    }));
+
+    const tools = adapter.build({
+      externalUserId: 'user_123',
+      tools: definitions,
+      execute: vi.fn(),
+    });
+
+    expect(tools.github_read?.needsApproval).toBe(false);
+    expect(tools.github_write?.needsApproval).toBe(true);
+    expect(tools.github_destructive?.needsApproval).toBe(true);
+  });
+
   it('builds a canonical ToolSet and delegates execution to the bound user executor', async () => {
     const execute = vi.fn(async () => ({ repositories: ['authlane'] }));
     const firstDefinition = {

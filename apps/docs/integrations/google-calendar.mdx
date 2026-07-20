@@ -30,6 +30,10 @@ URL exactly.
 
 ## Scopes
 
+**Read-only tools** requests `calendar.readonly` and `calendar.events.readonly`. **Full tool set**
+uses the write-capable event scope below. Authlane filters the corresponding definitions in
+addition to requesting least-privilege OAuth scopes.
+
 - `https://www.googleapis.com/auth/calendar.events` permits event creation, updates, and deletion.
 - `https://www.googleapis.com/auth/calendar.readonly` permits calendar and event reads.
 

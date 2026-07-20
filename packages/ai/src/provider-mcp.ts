@@ -528,8 +528,143 @@ function mapPipedriveToolCall(
       arguments: { id, ...(toCamelCase(changes) as Record<string, unknown>) },
     };
   }
+
+  const providerName = {
+    pipedrive_get_activities: 'getActivities',
+    pipedrive_get_activity: 'getActivity',
+    pipedrive_add_activity: 'addActivity',
+    pipedrive_update_activity: 'updateActivity',
+    pipedrive_search_deals: 'searchDeals',
+    pipedrive_search_persons: 'searchPersons',
+    pipedrive_get_organizations: 'getOrganizations',
+    pipedrive_get_organization: 'getOrganization',
+    pipedrive_add_organization: 'addOrganization',
+    pipedrive_update_organization: 'updateOrganization',
+    pipedrive_search_organization: 'searchOrganization',
+    pipedrive_search_leads: 'searchLeads',
+    pipedrive_convert_lead_to_deal: 'convertLeadToDeal',
+    pipedrive_get_lead_conversion_status: 'getLeadConversionStatus',
+    pipedrive_get_stages: 'getStages',
+    pipedrive_get_stage: 'getStage',
+    pipedrive_get_notes: 'getNotes',
+    pipedrive_get_note: 'getNote',
+    pipedrive_add_note: 'addNote',
+    pipedrive_update_note: 'updateNote',
+  }[localToolName];
+  if (providerName) {
+    return {
+      name: providerName,
+      arguments: toCamelCase(input) as Record<string, unknown>,
+    };
+  }
   return null;
 }
+
+type MicrosoftWorkload = 'mail' | 'calendar' | 'sharepoint';
+
+const MICROSOFT_WORKLOAD_PATHS: Record<MicrosoftWorkload, readonly RegExp[]> = {
+  mail: [/^\/me\/(messages|mailFolders|sendMail|outlook)(\/|\?|$)/i],
+  calendar: [
+    /^\/me\/(calendar|calendars|calendarView|events|findMeetingTimes|getSchedule)(\/|\?|$)/i,
+  ],
+  sharepoint: [/^\/(me\/drive|drives|sites|shares)(\/|\?|$)/i],
+};
+
+const MICROSOFT_SEARCH_FILTERS: Record<MicrosoftWorkload, string> = {
+  mail: 'messages|mailFolders|sendMail|outlook',
+  calendar: 'calendar|calendars|calendarView|events|findMeetingTimes|getSchedule',
+  sharepoint: 'drive|drives|sites|shares',
+};
+
+function isMicrosoftWorkloadPath(workload: MicrosoftWorkload, value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.startsWith('/') &&
+    !value.includes('://') &&
+    MICROSOFT_WORKLOAD_PATHS[workload].some((pattern) => pattern.test(value))
+  );
+}
+
+function mapMicrosoftWorkIqToolCall(
+  workload: MicrosoftWorkload,
+  localToolName: string,
+  input: Record<string, unknown>
+): ProviderToolCall | null {
+  const prefix = `microsoft_${workload}_`;
+  if (!localToolName.startsWith(prefix)) return null;
+  const operation = localToolName.slice(prefix.length);
+
+  if (operation === 'fetch') {
+    const entityUrls = input.entityUrls;
+    if (
+      !Array.isArray(entityUrls) ||
+      entityUrls.length === 0 ||
+      entityUrls.length > 20 ||
+      !entityUrls.every((value) => isMicrosoftWorkloadPath(workload, value))
+    ) {
+      return null;
+    }
+    return { name: 'fetch', arguments: { entityUrls } };
+  }
+
+  const pathKey = {
+    create_entity: 'parentUrl',
+    update_entity: 'entityUrl',
+    delete_entity: 'entityUrl',
+    do_action: 'actionUrl',
+    call_function: 'functionUrl',
+  }[operation];
+  if (pathKey) {
+    const path = input[pathKey];
+    if (!isMicrosoftWorkloadPath(workload, path)) return null;
+    const jsonBody = input.jsonBody;
+    if (jsonBody !== undefined && (typeof jsonBody !== 'string' || jsonBody.length > 1_000_000)) {
+      return null;
+    }
+    return {
+      name: operation,
+      arguments: { [pathKey]: path, ...(jsonBody === undefined ? {} : { jsonBody }) },
+    };
+  }
+
+  if (operation === 'get_schema') {
+    if (
+      !isMicrosoftWorkloadPath(workload, input.path) ||
+      !['fetch', 'create', 'update'].includes(String(input.operationType)) ||
+      (input.format !== undefined && !['jsonschema', 'typescript'].includes(String(input.format)))
+    ) {
+      return null;
+    }
+    return {
+      name: 'get_schema',
+      arguments: {
+        path: input.path,
+        operationType: input.operationType,
+        ...(input.format === undefined ? {} : { format: input.format }),
+      },
+    };
+  }
+
+  if (operation === 'search_paths') {
+    return {
+      name: 'search_paths',
+      arguments: { filter: MICROSOFT_SEARCH_FILTERS[workload] },
+    };
+  }
+
+  return null;
+}
+
+const microsoftMappedToolNames = (workload: MicrosoftWorkload) => [
+  `microsoft_${workload}_fetch`,
+  `microsoft_${workload}_create_entity`,
+  `microsoft_${workload}_update_entity`,
+  `microsoft_${workload}_delete_entity`,
+  `microsoft_${workload}_do_action`,
+  `microsoft_${workload}_call_function`,
+  `microsoft_${workload}_get_schema`,
+  `microsoft_${workload}_search_paths`,
+];
 
 const PROVIDER_MCP_POLICIES: Readonly<Record<string, ProviderMcpPolicy>> = Object.freeze({
   airtable: {
@@ -541,6 +676,11 @@ const PROVIDER_MCP_POLICIES: Readonly<Record<string, ProviderMcpPolicy>> = Objec
       'airtable_get_base_schema',
       'airtable_get_table_schema',
     ],
+  },
+  attio: {
+    endpoint: 'https://mcp.attio.com/mcp',
+    prefixes: ['attio_'],
+    allowDirectFallback: false,
   },
   github: {
     endpoint: 'https://api.githubcopilot.com/mcp/',
@@ -617,6 +757,30 @@ const PROVIDER_MCP_POLICIES: Readonly<Record<string, ProviderMcpPolicy>> = Objec
     endpoint: 'https://mcp.linear.app/mcp',
     prefixes: ['linear_'],
   },
+  'microsoft-calendar': {
+    endpoint: 'https://workiq.svc.cloud.microsoft/mcp',
+    requiredScope: 'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+    prefixes: ['microsoft_calendar_'],
+    allowDirectFallback: false,
+    mapToolCall: (name, input) => mapMicrosoftWorkIqToolCall('calendar', name, input),
+    mappedToolNames: microsoftMappedToolNames('calendar'),
+  },
+  'microsoft-mail': {
+    endpoint: 'https://workiq.svc.cloud.microsoft/mcp',
+    requiredScope: 'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+    prefixes: ['microsoft_mail_'],
+    allowDirectFallback: false,
+    mapToolCall: (name, input) => mapMicrosoftWorkIqToolCall('mail', name, input),
+    mappedToolNames: microsoftMappedToolNames('mail'),
+  },
+  'microsoft-sharepoint': {
+    endpoint: 'https://workiq.svc.cloud.microsoft/mcp',
+    requiredScope: 'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+    prefixes: ['microsoft_sharepoint_'],
+    allowDirectFallback: false,
+    mapToolCall: (name, input) => mapMicrosoftWorkIqToolCall('sharepoint', name, input),
+    mappedToolNames: microsoftMappedToolNames('sharepoint'),
+  },
   pipedrive: {
     endpoint: 'https://mcp.pipedrive.ai/mcp',
     prefixes: ['pipedrive_'],
@@ -631,6 +795,26 @@ const PROVIDER_MCP_POLICIES: Readonly<Record<string, ProviderMcpPolicy>> = Objec
       'pipedrive_get_contact',
       'pipedrive_update_contact',
       'pipedrive_search',
+      'pipedrive_get_activities',
+      'pipedrive_get_activity',
+      'pipedrive_add_activity',
+      'pipedrive_update_activity',
+      'pipedrive_search_deals',
+      'pipedrive_search_persons',
+      'pipedrive_get_organizations',
+      'pipedrive_get_organization',
+      'pipedrive_add_organization',
+      'pipedrive_update_organization',
+      'pipedrive_search_organization',
+      'pipedrive_search_leads',
+      'pipedrive_convert_lead_to_deal',
+      'pipedrive_get_lead_conversion_status',
+      'pipedrive_get_stages',
+      'pipedrive_get_stage',
+      'pipedrive_get_notes',
+      'pipedrive_get_note',
+      'pipedrive_add_note',
+      'pipedrive_update_note',
     ],
   },
   salesforce: {

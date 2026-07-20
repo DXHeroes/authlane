@@ -13,6 +13,10 @@ config:
     - read:jira-work
     - write:jira-work
     - offline_access
+  read_only_scopes:
+    - read:jira-work
+    - read:jira-user
+    - offline_access
   docs_url: https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/
   setup_guide_url: https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/
   developer_console_url: https://developer.atlassian.com/console/myapps/

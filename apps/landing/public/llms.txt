@@ -50,6 +50,10 @@
 - [Pipedrive](https://authlane.io/docs/integrations/pipedrive): Connect Pipedrive and use its tools through the Authlane control plane.
 - [Stripe](https://authlane.io/docs/integrations/stripe): Connect Stripe and use its tools through the Authlane control plane.
 - [Airtable](https://authlane.io/docs/integrations/airtable): Connect Airtable and use its tools through the Authlane control plane.
+- [Attio CRM](https://authlane.io/docs/integrations/attio): Connect Attio CRM and use its tools through the Authlane control plane.
+- [Microsoft Mail](https://authlane.io/docs/integrations/microsoft-mail): Connect Microsoft Mail and use its tools through the Authlane control plane.
+- [Microsoft Calendar](https://authlane.io/docs/integrations/microsoft-calendar): Connect Microsoft Calendar and use its tools through the Authlane control plane.
+- [Microsoft Drive (SharePoint)](https://authlane.io/docs/integrations/microsoft-sharepoint): Connect Microsoft Drive (SharePoint) and use its tools through the Authlane control plane.
 - [Build a connection](https://authlane.io/docs/guides/custom-integrations): Add canonical definitions and a direct-execution adapter for an Authlane service.
 - [Integration contract](https://authlane.io/docs/guides/integration-contract): Define a canonical service contract and matching direct-execution adapters without gateway behavior.
 - [Local integration testing](https://authlane.io/docs/guides/integration-testing): Verify integration contracts, OAuth boundaries, redaction, tenant isolation, and direct provider execution.

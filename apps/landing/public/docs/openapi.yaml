@@ -616,7 +616,7 @@ components:
           $ref: '#/components/schemas/AuthlaneError'
     Service:
       type: object
-      required: [id, name, authType, enabled]
+      required: [id, name, authType, enabled, toolAccessPolicy, config]
       properties:
         id:
           type: string
@@ -627,6 +627,10 @@ components:
           enum: [oauth2, api_key]
         enabled:
           type: boolean
+        toolAccessPolicy:
+          $ref: '#/components/schemas/ToolAccessPolicy'
+        config:
+          $ref: '#/components/schemas/JsonSchema'
     CatalogResult:
       type: object
       required: [data, error]
@@ -672,13 +676,32 @@ components:
     JsonSchema:
       type: object
       additionalProperties: true
+    ToolAccessPolicy:
+      type: string
+      enum: [read_only, full]
+      description: Per-service tenant policy. Read-only removes every write or destructive tool.
+    ToolRisk:
+      type: string
+      enum: [read, write, destructive]
+    ToolAnnotations:
+      type: object
+      required: [readOnlyHint, destructiveHint, idempotentHint, openWorldHint]
+      properties:
+        readOnlyHint:
+          type: boolean
+        destructiveHint:
+          type: boolean
+        idempotentHint:
+          type: boolean
+        openWorldHint:
+          type: boolean
     ToolDefinition:
       oneOf:
         - $ref: '#/components/schemas/McpToolDefinition'
         - $ref: '#/components/schemas/OpenAIFunctionDefinition'
     McpToolDefinition:
       type: object
-      required: [name, description, inputSchema]
+      required: [name, description, inputSchema, annotations]
       properties:
         name:
           type: string
@@ -686,9 +709,11 @@ components:
           type: string
         inputSchema:
           $ref: '#/components/schemas/JsonSchema'
+        annotations:
+          $ref: '#/components/schemas/ToolAnnotations'
     OpenAIFunctionDefinition:
       type: object
-      required: [name, description, parameters]
+      required: [name, description, parameters, metadata]
       properties:
         name:
           type: string
@@ -696,12 +721,28 @@ components:
           type: string
         parameters:
           $ref: '#/components/schemas/JsonSchema'
+        metadata:
+          type: object
+          required: [authlane]
+          properties:
+            authlane:
+              type: object
+              required: [serviceId, risk, annotations]
+              properties:
+                serviceId:
+                  type: string
+                risk:
+                  $ref: '#/components/schemas/ToolRisk'
+                annotations:
+                  $ref: '#/components/schemas/ToolAnnotations'
     CapabilityService:
       allOf:
         - $ref: '#/components/schemas/Connection'
         - type: object
-          required: [tools]
+          required: [tools, toolAccessPolicy]
           properties:
+            toolAccessPolicy:
+              $ref: '#/components/schemas/ToolAccessPolicy'
             tools:
               type: array
               items:

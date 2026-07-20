@@ -8,8 +8,22 @@ import {
 import { assertOpenApiResponse } from '../helpers/openapi-response.js';
 
 const services = [
-  { id: 'github', name: 'GitHub', authType: 'oauth2', enabled: true, config: {} },
-  { id: 'slack', name: 'Slack', authType: 'oauth2', enabled: true, config: {} },
+  {
+    id: 'github',
+    name: 'GitHub',
+    authType: 'oauth2',
+    enabled: true,
+    toolAccessPolicy: 'full' as const,
+    config: {},
+  },
+  {
+    id: 'slack',
+    name: 'Slack',
+    authType: 'oauth2',
+    enabled: true,
+    toolAccessPolicy: 'full' as const,
+    config: {},
+  },
 ];
 
 function repository(overrides: Partial<ControlPlaneRepository> = {}): ControlPlaneRepository {
@@ -47,15 +61,25 @@ function appFor(
     now?: () => Date;
     secretStore?: SecretStore;
     scopes?: string[];
+    registry?: {
+      getTools: ReturnType<typeof vi.fn>;
+      getVersion: ReturnType<typeof vi.fn>;
+    };
   } = {}
 ) {
-  const registry = {
+  const registry = options.registry ?? {
     getTools: vi.fn(async (serviceIds: string[], format: 'mcp' | 'openai') =>
       format === 'mcp'
         ? {
             tools: serviceIds.map((id) => ({
               name: `${id}_tool`,
               description: id,
+              annotations: {
+                readOnlyHint: true,
+                destructiveHint: false,
+                idempotentHint: true,
+                openWorldHint: true,
+              },
               inputSchema: { type: 'object', properties: {} },
             })),
           }
@@ -64,6 +88,18 @@ function appFor(
               name: `${id}_tool`,
               description: id,
               parameters: { type: 'object', properties: {} },
+              metadata: {
+                authlane: {
+                  serviceId: id,
+                  risk: 'read',
+                  annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                    openWorldHint: true,
+                  },
+                },
+              },
             })),
           }
     ),
@@ -109,10 +145,17 @@ describe('control-plane read API', () => {
             status: 'connected',
             connected: true,
             expiresAt: '2027-01-01T00:00:00.000Z',
+            toolAccessPolicy: 'full',
             tools: [
               {
                 name: 'github_tool',
                 description: 'github',
+                annotations: {
+                  readOnlyHint: true,
+                  destructiveHint: false,
+                  idempotentHint: true,
+                  openWorldHint: true,
+                },
                 inputSchema: { type: 'object', properties: {} },
               },
             ],
@@ -122,11 +165,36 @@ describe('control-plane read API', () => {
             status: 'disconnected',
             connected: false,
             expiresAt: null,
+            toolAccessPolicy: 'full',
             tools: [],
           },
         ],
       },
       error: null,
+    });
+  });
+
+  it('applies each service tool policy to capabilities and version generation', async () => {
+    const registry = {
+      getTools: vi.fn().mockResolvedValue({ tools: [] }),
+      getVersion: vi.fn().mockResolvedValue('policy-version'),
+    };
+    const repo = repository({
+      listTenantServices: vi
+        .fn()
+        .mockResolvedValue([{ ...services[0], toolAccessPolicy: 'read_only' }]),
+    });
+
+    const response = await appFor(repo, { registry }).request(
+      '/api/v1/users/user_1/capabilities?format=mcp'
+    );
+
+    expect(response.status).toBe(200);
+    expect(registry.getTools).toHaveBeenCalledWith(['github'], 'mcp', {
+      github: 'read_only',
+    });
+    expect(registry.getVersion).toHaveBeenCalledWith(['github'], 'mcp', {
+      github: 'read_only',
     });
   });
 

@@ -45,6 +45,53 @@ describe('IntegrationRegistry', () => {
     expect(second).toBe(first);
   });
 
+  it('filters write and destructive tools for a read-only tenant policy', async () => {
+    const registry = new IntegrationRegistry(async () => ({
+      tools: {
+        github_list_repos: {
+          definition: {
+            name: 'github_list_repos',
+            description: 'Lists repositories',
+            annotations: {
+              readOnlyHint: true,
+              destructiveHint: false,
+              idempotentHint: true,
+              openWorldHint: true,
+            },
+            inputSchema: { type: 'object', properties: {} },
+          },
+        },
+        github_create_issue: {
+          definition: {
+            name: 'github_create_issue',
+            description: 'Creates an issue',
+            annotations: {
+              readOnlyHint: false,
+              destructiveHint: false,
+              idempotentHint: false,
+              openWorldHint: true,
+            },
+            inputSchema: { type: 'object', properties: {} },
+          },
+        },
+      },
+    }));
+
+    expect(await registry.getTools(['github'], 'mcp', { github: 'read_only' })).toEqual({
+      tools: [expect.objectContaining({ name: 'github_list_repos' })],
+    });
+    expect(await registry.getTools(['github'], 'openai', { github: 'read_only' })).toEqual({
+      functions: [
+        expect.objectContaining({
+          name: 'github_list_repos',
+          metadata: expect.objectContaining({
+            authlane: expect.objectContaining({ risk: 'read' }),
+          }),
+        }),
+      ],
+    });
+  });
+
   it('converts locally executable adapter definitions without executing them', async () => {
     const handler = vi.fn();
     const registry = new IntegrationRegistry(async () => ({
@@ -53,6 +100,12 @@ describe('IntegrationRegistry', () => {
           definition: {
             name: 'github_list_repos',
             description: 'Lists repositories',
+            annotations: {
+              readOnlyHint: true,
+              destructiveHint: false,
+              idempotentHint: true,
+              openWorldHint: true,
+            },
             inputSchema: { type: 'object', properties: {} },
           },
           handler,
@@ -66,6 +119,18 @@ describe('IntegrationRegistry', () => {
           name: 'github_list_repos',
           description: 'Lists repositories',
           parameters: { type: 'object', properties: {} },
+          metadata: {
+            authlane: {
+              serviceId: 'github',
+              risk: 'read',
+              annotations: {
+                readOnlyHint: true,
+                destructiveHint: false,
+                idempotentHint: true,
+                openWorldHint: true,
+              },
+            },
+          },
         },
       ],
     });

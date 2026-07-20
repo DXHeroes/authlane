@@ -39,6 +39,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'slack_send_message',
       description: 'Sends a message to a Slack channel or direct message',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -90,6 +96,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'slack_list_channels',
       description: 'Lists all channels in the Slack workspace',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -134,6 +146,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'slack_create_channel',
       description: 'Creates a new channel in the Slack workspace',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -169,6 +187,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'slack_list_users',
       description: 'Lists all users in the Slack workspace',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -206,6 +230,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'slack_set_status',
       description: 'Sets the status of the authenticated user',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

@@ -1,0 +1,116 @@
+---
+title: Attio CRM
+description: 'Connect Attio CRM and use its tools through the Authlane control plane.'
+serviceId: attio
+authType: oauth2
+---
+
+## Prerequisites
+
+Use an Attio workspace where you may install apps. Review the official
+[Attio MCP overview](https://docs.attio.com/mcp/overview) and open the
+[Attio developer console](https://build.attio.com).
+
+## Self-hosted setup
+
+Register a confidential OAuth client for the exact callback
+`https://<your-authlane-host>/api/v1/oauth/attio/callback`:
+
+```bash
+curl --request POST https://app.attio.com/oauth/register \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_name": "Authlane",
+    "redirect_uris": ["https://<your-authlane-host>/api/v1/oauth/attio/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "token_endpoint_auth_method": "client_secret_post"
+  }'
+```
+
+Copy the generated values from the one-time response. Re-register the client if the public callback
+host changes.
+
+## Configure authentication
+
+Open **Dashboard → Services → Attio CRM**. Save the OAuth Client ID and Client Secret, select
+**Read-only tools** or **Full tool set**, and enable the service. Keep the Client Secret only in
+Authlane's encrypted server-side configuration.
+
+## Scopes
+
+- `mcp` authorizes Attio MCP tools.
+- `offline_access` permits refresh tokens.
+- `openid` identifies the connected Attio account.
+
+Attio uses the same OAuth scope for reads and mutations. Authlane therefore enforces the tenant
+tool policy server-side and requires users to reconnect after a policy change.
+
+## Execution path
+
+The SaaS runtime prioritizes Attio's official MCP endpoint `https://mcp.attio.com/mcp`. Attio is
+MCP-only: the runtime obtains a fresh Authlane credential lease and calls Attio directly. CRM
+records, tool arguments, and results never pass through Authlane.
+
+## Available tools
+
+### Records and attributes
+
+- `attio_search_records`
+- `attio_list_records`
+- `attio_get_records_by_ids`
+- `attio_create_record`
+- `attio_upsert_record`
+- `attio_update_record`
+- `attio_list_attribute_definitions`
+
+### Lists and comments
+
+- `attio_list_lists`
+- `attio_list_list_attribute_definitions`
+- `attio_list_records_in_list`
+- `attio_add_record_to_list`
+- `attio_update_list`
+- `attio_update_list_entry_by_id`
+- `attio_update_list_entry_by_record_id`
+- `attio_create_comment`
+- `attio_list_comments`
+- `attio_list_comment_replies`
+- `attio_delete_comment`
+
+### Notes, tasks, meetings, and communications
+
+- `attio_create_note`
+- `attio_search_notes_by_metadata`
+- `attio_semantic_search_notes`
+- `attio_get_note_body`
+- `attio_update_note`
+- `attio_list_tasks`
+- `attio_create_task`
+- `attio_update_task`
+- `attio_search_meetings`
+- `attio_search_call_recordings_by_metadata`
+- `attio_semantic_search_call_recordings`
+- `attio_get_call_recording`
+- `attio_search_emails_by_metadata`
+- `attio_semantic_search_emails`
+- `attio_get_email_content`
+
+### Workspace and reporting
+
+- `attio_list_workspace_members`
+- `attio_list_workspace_teams`
+- `attio_whoami`
+- `attio_run_basic_report`
+
+## Connection lifecycle
+
+After PKCE consent, Authlane stores the Attio credential encrypted and reports `connected`. It
+refreshes expiring access when Attio returns refresh material. Reconnect an `expired` or `error`
+connection; changing tool policy intentionally expires existing connections.
+
+## Troubleshooting
+
+- A redirect mismatch means the registered DCR URI differs from the public HTTPS callback.
+- A missing mutation in read-only mode is expected.
+- Revoke and re-register a leaked client secret before updating Authlane.

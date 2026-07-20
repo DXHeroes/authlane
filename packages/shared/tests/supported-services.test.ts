@@ -5,6 +5,7 @@ describe('supported service catalog', () => {
   it('publishes exactly the installed MVP integrations', () => {
     expect(SUPPORTED_SERVICE_IDS).toEqual([
       'airtable',
+      'attio',
       'discord',
       'github',
       'gmail',
@@ -13,6 +14,9 @@ describe('supported service catalog', () => {
       'hubspot',
       'jira',
       'linear',
+      'microsoft-calendar',
+      'microsoft-mail',
+      'microsoft-sharepoint',
       'notion',
       'pipedrive',
       'salesforce',

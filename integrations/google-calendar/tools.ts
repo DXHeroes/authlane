@@ -46,6 +46,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gcal_create_event',
       description: 'Creates a new event in Google Calendar',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -211,6 +217,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gcal_list_events',
       description: 'Lists events from a Google Calendar with optional filtering and pagination',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -316,6 +328,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gcal_update_event',
       description: 'Updates an existing event in Google Calendar',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -494,6 +512,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gcal_get_event',
       description: 'Gets details of a specific event by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -534,6 +558,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gcal_delete_event',
       description: 'Deletes an event from Google Calendar',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -581,6 +611,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gcal_list_calendars',
       description: 'Lists all calendars accessible to the user',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -643,6 +679,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'gcal_quick_add',
       description:
         'Creates an event based on a simple text string (e.g., "Dinner with John tomorrow at 7pm")',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

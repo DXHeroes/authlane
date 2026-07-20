@@ -82,6 +82,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'jira_create_issue',
       description: 'Creates a new issue in a Jira project',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -187,6 +193,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'jira_list_issues',
       description: 'Lists issues from Jira using JQL (Jira Query Language)',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -270,6 +282,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'jira_transition_issue',
       description: 'Transitions a Jira issue to a different status/state',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -381,6 +399,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'jira_get_transitions',
       description: 'Gets available transitions for a Jira issue',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -402,6 +426,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'jira_update_issue',
       description: 'Updates an existing Jira issue',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -484,6 +514,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'jira_add_comment',
       description: 'Adds a comment to a Jira issue',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

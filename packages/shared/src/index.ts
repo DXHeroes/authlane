@@ -14,5 +14,7 @@ export * from './oauth.js';
 export * from './oauth-endpoints.js';
 export * from './supported-services.js';
 export * from './types.js';
+export * from './tool-safety.js';
+export * from './provider-tool-factories.js';
 export * from './user-password.js';
 export * from './utils.js';

@@ -623,13 +623,13 @@ export function validateIntegrationPages(model, integrationConfigs) {
   );
   const configs = new Map(integrationConfigs.map((config) => [config.serviceId, config]));
 
-  if (integrationConfigs.length !== 14) {
+  if (integrationConfigs.length !== 18) {
     violations.push(
-      `integrations: integration page config/manifest count must be 14, found ${integrationConfigs.length}`
+      `integrations: integration page config/manifest count must be 18, found ${integrationConfigs.length}`
     );
   }
-  if (pages.size !== 14) {
-    violations.push(`integrations: integration page count must be 14, found ${pages.size}`);
+  if (pages.size !== 18) {
+    violations.push(`integrations: integration page count must be 18, found ${pages.size}`);
   }
 
   for (const [serviceId] of pages) {

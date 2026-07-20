@@ -32,6 +32,9 @@ POLICIES: dict[str, ProviderMcpPolicy] = {
             "airtable_get_table_schema",
         ),
     ),
+    "attio": ProviderMcpPolicy(
+        "https://mcp.attio.com/mcp", ("attio_",), allow_direct_fallback=False
+    ),
     "github": ProviderMcpPolicy(
         "https://api.githubcopilot.com/mcp/",
         ("github_",),
@@ -90,6 +93,54 @@ POLICIES: dict[str, ProviderMcpPolicy] = {
         mapped_tools=("jira_create_issue", "jira_list_issues"),
     ),
     "linear": ProviderMcpPolicy("https://mcp.linear.app/mcp", ("linear_",)),
+    "microsoft-calendar": ProviderMcpPolicy(
+        "https://workiq.svc.cloud.microsoft/mcp",
+        ("microsoft_calendar_",),
+        required_scope="api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask",
+        allow_direct_fallback=False,
+        mapped_tools=(
+            "microsoft_calendar_fetch",
+            "microsoft_calendar_create_entity",
+            "microsoft_calendar_update_entity",
+            "microsoft_calendar_delete_entity",
+            "microsoft_calendar_do_action",
+            "microsoft_calendar_call_function",
+            "microsoft_calendar_get_schema",
+            "microsoft_calendar_search_paths",
+        ),
+    ),
+    "microsoft-mail": ProviderMcpPolicy(
+        "https://workiq.svc.cloud.microsoft/mcp",
+        ("microsoft_mail_",),
+        required_scope="api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask",
+        allow_direct_fallback=False,
+        mapped_tools=(
+            "microsoft_mail_fetch",
+            "microsoft_mail_create_entity",
+            "microsoft_mail_update_entity",
+            "microsoft_mail_delete_entity",
+            "microsoft_mail_do_action",
+            "microsoft_mail_call_function",
+            "microsoft_mail_get_schema",
+            "microsoft_mail_search_paths",
+        ),
+    ),
+    "microsoft-sharepoint": ProviderMcpPolicy(
+        "https://workiq.svc.cloud.microsoft/mcp",
+        ("microsoft_sharepoint_",),
+        required_scope="api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask",
+        allow_direct_fallback=False,
+        mapped_tools=(
+            "microsoft_sharepoint_fetch",
+            "microsoft_sharepoint_create_entity",
+            "microsoft_sharepoint_update_entity",
+            "microsoft_sharepoint_delete_entity",
+            "microsoft_sharepoint_do_action",
+            "microsoft_sharepoint_call_function",
+            "microsoft_sharepoint_get_schema",
+            "microsoft_sharepoint_search_paths",
+        ),
+    ),
     "pipedrive": ProviderMcpPolicy(
         "https://mcp.pipedrive.ai/mcp",
         ("pipedrive_",),
@@ -103,6 +154,26 @@ POLICIES: dict[str, ProviderMcpPolicy] = {
             "pipedrive_get_contact",
             "pipedrive_update_contact",
             "pipedrive_search",
+            "pipedrive_get_activities",
+            "pipedrive_get_activity",
+            "pipedrive_add_activity",
+            "pipedrive_update_activity",
+            "pipedrive_search_deals",
+            "pipedrive_search_persons",
+            "pipedrive_get_organizations",
+            "pipedrive_get_organization",
+            "pipedrive_add_organization",
+            "pipedrive_update_organization",
+            "pipedrive_search_organization",
+            "pipedrive_search_leads",
+            "pipedrive_convert_lead_to_deal",
+            "pipedrive_get_lead_conversion_status",
+            "pipedrive_get_stages",
+            "pipedrive_get_stage",
+            "pipedrive_get_notes",
+            "pipedrive_get_note",
+            "pipedrive_add_note",
+            "pipedrive_update_note",
         ),
     ),
     "salesforce": ProviderMcpPolicy(
@@ -222,6 +293,107 @@ def _pipedrive_call(
     if tool_name == "pipedrive_update_contact":
         changes = {key: value for key, value in arguments.items() if key != "person_id"}
         return "updatePerson", {"id": arguments.get("person_id"), **_camel(changes)}
+    provider_name = {
+        "pipedrive_get_activities": "getActivities",
+        "pipedrive_get_activity": "getActivity",
+        "pipedrive_add_activity": "addActivity",
+        "pipedrive_update_activity": "updateActivity",
+        "pipedrive_search_deals": "searchDeals",
+        "pipedrive_search_persons": "searchPersons",
+        "pipedrive_get_organizations": "getOrganizations",
+        "pipedrive_get_organization": "getOrganization",
+        "pipedrive_add_organization": "addOrganization",
+        "pipedrive_update_organization": "updateOrganization",
+        "pipedrive_search_organization": "searchOrganization",
+        "pipedrive_search_leads": "searchLeads",
+        "pipedrive_convert_lead_to_deal": "convertLeadToDeal",
+        "pipedrive_get_lead_conversion_status": "getLeadConversionStatus",
+        "pipedrive_get_stages": "getStages",
+        "pipedrive_get_stage": "getStage",
+        "pipedrive_get_notes": "getNotes",
+        "pipedrive_get_note": "getNote",
+        "pipedrive_add_note": "addNote",
+        "pipedrive_update_note": "updateNote",
+    }.get(tool_name)
+    if provider_name:
+        return provider_name, _camel(arguments)
+    return None
+
+
+MICROSOFT_PATH_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
+    "mail": (re.compile(r"^/me/(messages|mailFolders|sendMail|outlook)(/|\?|$)", re.I),),
+    "calendar": (
+        re.compile(
+            r"^/me/(calendar|calendars|calendarView|events|findMeetingTimes|getSchedule)(/|\?|$)",
+            re.I,
+        ),
+    ),
+    "sharepoint": (re.compile(r"^/(me/drive|drives|sites|shares)(/|\?|$)", re.I),),
+}
+MICROSOFT_SEARCH_FILTERS = {
+    "mail": "messages|mailFolders|sendMail|outlook",
+    "calendar": "calendar|calendars|calendarView|events|findMeetingTimes|getSchedule",
+    "sharepoint": "drive|drives|sites|shares",
+}
+
+
+def _microsoft_path(workload: str, value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value.startswith("/")
+        and "://" not in value
+        and any(pattern.search(value) for pattern in MICROSOFT_PATH_PATTERNS[workload])
+    )
+
+
+def _microsoft_call(
+    workload: str, tool_name: str, arguments: Mapping[str, Any]
+) -> tuple[str, dict[str, Any]] | None:
+    prefix = f"microsoft_{workload}_"
+    if not tool_name.startswith(prefix):
+        return None
+    operation = tool_name.removeprefix(prefix)
+    if operation == "fetch":
+        urls = arguments.get("entityUrls")
+        if (
+            not isinstance(urls, list)
+            or not 1 <= len(urls) <= 20
+            or not all(_microsoft_path(workload, value) for value in urls)
+        ):
+            return None
+        return "fetch", {"entityUrls": urls}
+    path_key = {
+        "create_entity": "parentUrl",
+        "update_entity": "entityUrl",
+        "delete_entity": "entityUrl",
+        "do_action": "actionUrl",
+        "call_function": "functionUrl",
+    }.get(operation)
+    if path_key:
+        path = arguments.get(path_key)
+        body = arguments.get("jsonBody")
+        if not _microsoft_path(workload, path) or (
+            body is not None and (not isinstance(body, str) or len(body) > 1_000_000)
+        ):
+            return None
+        return operation, {path_key: path, **({"jsonBody": body} if body is not None else {})}
+    if operation == "get_schema":
+        path = arguments.get("path")
+        operation_type = arguments.get("operationType")
+        format_ = arguments.get("format")
+        if (
+            not _microsoft_path(workload, path)
+            or operation_type not in {"fetch", "create", "update"}
+            or format_ not in {None, "jsonschema", "typescript"}
+        ):
+            return None
+        return "get_schema", {
+            "path": path,
+            "operationType": operation_type,
+            **({"format": format_} if format_ else {}),
+        }
+    if operation == "search_paths":
+        return "search_paths", {"filter": MICROSOFT_SEARCH_FILTERS[workload]}
     return None
 
 
@@ -580,6 +752,13 @@ def _resolve_call(
 ) -> tuple[str, dict[str, Any], bool] | None:
     if service_id == "hubspot":
         mapped = _hubspot_call(tool_name, arguments)
+        if mapped and mapped[0] in provider_tool_names:
+            return mapped[0], mapped[1], False
+        return None
+
+    if service_id.startswith("microsoft-"):
+        workload = service_id.removeprefix("microsoft-")
+        mapped = _microsoft_call(workload, tool_name, arguments)
         if mapped and mapped[0] in provider_tool_names:
             return mapped[0], mapped[1], False
         return None

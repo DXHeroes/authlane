@@ -8,6 +8,12 @@
         {
           "name": "airtable_create_record",
           "description": "Creates a new record in an Airtable table",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -40,6 +46,12 @@
         {
           "name": "airtable_create_records_batch",
           "description": "Creates multiple records in an Airtable table (up to 10 at once)",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -85,6 +97,12 @@
         {
           "name": "airtable_delete_record",
           "description": "Deletes a record from an Airtable table",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -111,6 +129,12 @@
         {
           "name": "airtable_delete_records_batch",
           "description": "Deletes multiple records from an Airtable table (up to 10 at once)",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -141,6 +165,12 @@
         {
           "name": "airtable_get_base_schema",
           "description": "Retrieves the schema (structure) of an Airtable base including all tables and fields",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -157,6 +187,12 @@
         {
           "name": "airtable_get_record",
           "description": "Retrieves a single record by ID from an Airtable table",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -200,6 +236,12 @@
         {
           "name": "airtable_get_table_schema",
           "description": "Retrieves the schema (structure) of a specific table including all fields",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -221,6 +263,12 @@
         {
           "name": "airtable_list_bases",
           "description": "Lists all bases (workspaces) accessible by the user",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -235,6 +283,12 @@
         {
           "name": "airtable_list_records",
           "description": "Lists records from an Airtable table with optional filtering and sorting",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -325,6 +379,12 @@
         {
           "name": "airtable_update_record",
           "description": "Updates an existing record in an Airtable table",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -367,6 +427,12 @@
         {
           "name": "airtable_update_records_batch",
           "description": "Updates multiple records in an Airtable table (up to 10 at once)",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -423,11 +489,578 @@
     },
     {
       "schemaVersion": "1.0",
+      "serviceId": "attio",
+      "tools": [
+        {
+          "name": "attio_add_record_to_list",
+          "description": "Add an Attio record to a list",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_create_comment",
+          "description": "Create an Attio comment",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_create_note",
+          "description": "Create an Attio note",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_create_record",
+          "description": "Create an Attio record",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_create_task",
+          "description": "Create an Attio task",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_delete_comment",
+          "description": "Delete an Attio comment and any replies",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_get_call_recording",
+          "description": "Retrieve an Attio call recording and transcript",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_get_email_content",
+          "description": "Retrieve the full content of an Attio email",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_get_note_body",
+          "description": "Retrieve the full body of an Attio note",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_get_records_by_ids",
+          "description": "Retrieve Attio records by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_attribute_definitions",
+          "description": "List attribute definitions for an Attio object",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_comment_replies",
+          "description": "List replies to an Attio comment",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_comments",
+          "description": "List Attio comments",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_list_attribute_definitions",
+          "description": "List Attio list-entry attributes",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_lists",
+          "description": "List Attio workspace lists",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_records",
+          "description": "List records in an Attio object",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_records_in_list",
+          "description": "List records in an Attio list",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_tasks",
+          "description": "List Attio tasks",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_workspace_members",
+          "description": "List Attio workspace members",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_list_workspace_teams",
+          "description": "List Attio workspace teams",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_run_basic_report",
+          "description": "Run an aggregate Attio report",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_search_call_recordings_by_metadata",
+          "description": "Search Attio call recordings by metadata",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_search_emails_by_metadata",
+          "description": "Search Attio emails by metadata",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_search_meetings",
+          "description": "Search Attio meetings",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_search_notes_by_metadata",
+          "description": "Search Attio notes by metadata",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_search_records",
+          "description": "Full-text search for Attio records",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_semantic_search_call_recordings",
+          "description": "Semantically search Attio call recordings",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_semantic_search_emails",
+          "description": "Semantically search Attio emails",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_semantic_search_notes",
+          "description": "Semantically search Attio notes",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_update_list",
+          "description": "Update an Attio list",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_update_list_entry_by_id",
+          "description": "Update an Attio list entry by ID",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_update_list_entry_by_record_id",
+          "description": "Update an Attio list entry by record ID",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_update_note",
+          "description": "Update an Attio note",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_update_record",
+          "description": "Update an Attio record",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_update_task",
+          "description": "Update an Attio task",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_upsert_record",
+          "description": "Create or update an Attio record by matching attribute",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "attio_whoami",
+          "description": "Get the current Attio user and workspace identity",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": "1.0",
       "serviceId": "discord",
       "tools": [
         {
           "name": "discord_get_current_user",
           "description": "Returns the Discord profile of the connected OAuth user",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {},
@@ -437,6 +1070,12 @@
         {
           "name": "discord_get_current_user_guild_member",
           "description": "Returns the connected user member record in a Discord guild",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -453,6 +1092,12 @@
         {
           "name": "discord_list_connections",
           "description": "Lists external accounts connected to the Discord OAuth user",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {},
@@ -462,6 +1107,12 @@
         {
           "name": "discord_list_guilds",
           "description": "Lists guilds that the connected Discord user belongs to",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -496,6 +1147,12 @@
         {
           "name": "github_create_file",
           "description": "Create or update a file in a GitHub repository",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -540,6 +1197,12 @@
         {
           "name": "github_create_issue",
           "description": "Creates a new issue in a GitHub repository",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -577,6 +1240,12 @@
         {
           "name": "github_create_pull_request",
           "description": "Creates a new pull request in a GitHub repository",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -621,6 +1290,12 @@
         {
           "name": "github_get_file",
           "description": "Get the contents of a file from a GitHub repository",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -651,6 +1326,12 @@
         {
           "name": "github_list_issues",
           "description": "Lists issues in a GitHub repository",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -685,6 +1366,12 @@
         {
           "name": "github_list_pull_requests",
           "description": "List pull requests in a GitHub repository",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -745,6 +1432,12 @@
         {
           "name": "github_list_repos",
           "description": "List repositories for the authenticated user or an organization",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -788,6 +1481,12 @@
         {
           "name": "github_search_code",
           "description": "Search for code across GitHub repositories",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -829,6 +1528,12 @@
         {
           "name": "gmail_create_draft",
           "description": "Creates a draft email",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -877,6 +1582,12 @@
         {
           "name": "gmail_create_label",
           "description": "Creates a new label in Gmail",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -920,6 +1631,12 @@
         {
           "name": "gmail_get_email",
           "description": "Gets a specific email by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -954,6 +1671,12 @@
         {
           "name": "gmail_get_thread",
           "description": "Gets an email thread by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -987,6 +1710,12 @@
         {
           "name": "gmail_list_drafts",
           "description": "Lists all draft emails",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1007,6 +1736,12 @@
         {
           "name": "gmail_list_labels",
           "description": "Lists all labels in the Gmail account",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {},
@@ -1016,6 +1751,12 @@
         {
           "name": "gmail_modify_email",
           "description": "Modifies labels on an email (mark as read/unread, archive, star, etc.)",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1046,6 +1787,12 @@
         {
           "name": "gmail_read_emails",
           "description": "Reads emails from Gmail inbox or specific folder",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1096,6 +1843,12 @@
         {
           "name": "gmail_search_emails",
           "description": "Searches for emails in Gmail using Gmail search syntax",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1145,6 +1898,12 @@
         {
           "name": "gmail_send_email",
           "description": "Sends an email via Gmail",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1208,6 +1967,12 @@
         {
           "name": "gmail_trash_email",
           "description": "Moves an email to trash",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1230,6 +1995,12 @@
         {
           "name": "gcal_create_event",
           "description": "Creates a new event in Google Calendar",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1362,6 +2133,12 @@
         {
           "name": "gcal_delete_event",
           "description": "Deletes an event from Google Calendar",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1393,6 +2170,12 @@
         {
           "name": "gcal_get_event",
           "description": "Gets details of a specific event by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1418,6 +2201,12 @@
         {
           "name": "gcal_list_calendars",
           "description": "Lists all calendars accessible to the user",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1458,6 +2247,12 @@
         {
           "name": "gcal_list_events",
           "description": "Lists events from a Google Calendar with optional filtering and pagination",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1521,6 +2316,12 @@
         {
           "name": "gcal_quick_add",
           "description": "Creates an event based on a simple text string (e.g., \"Dinner with John tomorrow at 7pm\")",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1552,6 +2353,12 @@
         {
           "name": "gcal_update_event",
           "description": "Updates an existing event in Google Calendar",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1697,6 +2504,12 @@
         {
           "name": "gdrive_copy_file",
           "description": "Creates a copy of a file",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1726,6 +2539,12 @@
         {
           "name": "gdrive_create_folder",
           "description": "Creates a new folder in Google Drive",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1760,6 +2579,12 @@
         {
           "name": "gdrive_delete_file",
           "description": "Permanently deletes a file from Google Drive (bypasses trash)",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1781,6 +2606,12 @@
         {
           "name": "gdrive_download_file",
           "description": "Downloads a file from Google Drive (returns base64 encoded content)",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1806,6 +2637,12 @@
         {
           "name": "gdrive_export_file",
           "description": "Exports a Google Workspace document (Docs, Sheets, Slides) to a different format",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1827,6 +2664,12 @@
         {
           "name": "gdrive_get_file",
           "description": "Gets metadata for a specific file or folder by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1852,6 +2695,12 @@
         {
           "name": "gdrive_list_files",
           "description": "Lists files and folders in Google Drive with optional filtering and pagination",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1903,6 +2752,12 @@
         {
           "name": "gdrive_list_permissions",
           "description": "Lists all permissions for a file or folder",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1924,6 +2779,12 @@
         {
           "name": "gdrive_remove_permission",
           "description": "Removes a permission from a file or folder",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1950,6 +2811,12 @@
         {
           "name": "gdrive_search_files",
           "description": "Searches for files using Google Drive query syntax (convenience wrapper for gdrive_list_files with search focus)",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -1986,6 +2853,12 @@
         {
           "name": "gdrive_share_file",
           "description": "Creates a permission to share a file or folder with a user or make it publicly accessible",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2048,6 +2921,12 @@
         {
           "name": "gdrive_trash_file",
           "description": "Moves a file to trash (can be restored later)",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2069,6 +2948,12 @@
         {
           "name": "gdrive_update_file",
           "description": "Updates file metadata or content",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2128,6 +3013,12 @@
         {
           "name": "gdrive_upload_file",
           "description": "Uploads a file to Google Drive",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2178,6 +3069,12 @@
         {
           "name": "hubspot_get_contact",
           "description": "Retrieves a specific contact by ID from HubSpot CRM",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2206,6 +3103,12 @@
         {
           "name": "hubspot_get_deal",
           "description": "Retrieves a specific deal by ID from HubSpot CRM",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2234,6 +3137,12 @@
         {
           "name": "hubspot_list_contacts",
           "description": "Lists contacts from HubSpot CRM with optional filtering and pagination",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2280,6 +3189,12 @@
         {
           "name": "hubspot_list_deals",
           "description": "Lists deals from HubSpot CRM with optional filtering and pagination",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2332,6 +3247,12 @@
         {
           "name": "jira_add_comment",
           "description": "Adds a comment to a Jira issue",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2353,6 +3274,12 @@
         {
           "name": "jira_create_issue",
           "description": "Creates a new issue in a Jira project",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2409,6 +3336,12 @@
         {
           "name": "jira_get_transitions",
           "description": "Gets available transitions for a Jira issue",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2425,6 +3358,12 @@
         {
           "name": "jira_list_issues",
           "description": "Lists issues from Jira using JQL (Jira Query Language)",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2469,6 +3408,12 @@
         {
           "name": "jira_transition_issue",
           "description": "Transitions a Jira issue to a different status/state",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2505,6 +3450,12 @@
         {
           "name": "jira_update_issue",
           "description": "Updates an existing Jira issue",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2554,6 +3505,12 @@
         {
           "name": "linear_create_issue",
           "description": "Creates a new issue in Linear",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2594,6 +3551,12 @@
         {
           "name": "linear_create_project",
           "description": "Creates a new project in Linear",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2630,6 +3593,12 @@
         {
           "name": "linear_list_issues",
           "description": "Lists issues in Linear with optional filters",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2652,6 +3621,12 @@
         {
           "name": "linear_list_projects",
           "description": "Lists projects in Linear",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2670,6 +3645,12 @@
         {
           "name": "linear_update_issue",
           "description": "Updates an existing issue in Linear",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2707,11 +3688,650 @@
     },
     {
       "schemaVersion": "1.0",
+      "serviceId": "microsoft-calendar",
+      "tools": [
+        {
+          "name": "microsoft_calendar_call_function",
+          "description": "Call a Microsoft calendar function",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "functionUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "functionUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_create_entity",
+          "description": "Create a Microsoft calendar entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "parentUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "JSON-encoded request body"
+              }
+            },
+            "required": [
+              "parentUrl",
+              "jsonBody"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_delete_entity",
+          "description": "Delete a Microsoft calendar entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "entityUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_do_action",
+          "description": "Execute a Microsoft calendar action",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "actionUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "Optional JSON-encoded request body"
+              }
+            },
+            "required": [
+              "actionUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_fetch",
+          "description": "Read Microsoft calendar entities",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrls": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "entityUrls"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_get_schema",
+          "description": "Get the Work IQ schema for a Microsoft calendar operation",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Calendar resource path such as /me/events"
+              },
+              "operationType": {
+                "type": "string",
+                "enum": [
+                  "fetch",
+                  "create",
+                  "update"
+                ]
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "jsonschema",
+                  "typescript"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "operationType"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_search_paths",
+          "description": "Search Work IQ Microsoft calendar paths",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_update_entity",
+          "description": "Update a Microsoft calendar entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "JSON-encoded request body"
+              }
+            },
+            "required": [
+              "entityUrl",
+              "jsonBody"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": "1.0",
+      "serviceId": "microsoft-mail",
+      "tools": [
+        {
+          "name": "microsoft_mail_call_function",
+          "description": "Call a Microsoft mail function",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "functionUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "functionUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_create_entity",
+          "description": "Create a Microsoft mail entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "parentUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "JSON-encoded request body"
+              }
+            },
+            "required": [
+              "parentUrl",
+              "jsonBody"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_delete_entity",
+          "description": "Delete a Microsoft mail entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "entityUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_do_action",
+          "description": "Execute a Microsoft mail action",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "actionUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "Optional JSON-encoded request body"
+              }
+            },
+            "required": [
+              "actionUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_fetch",
+          "description": "Read Microsoft mail entities",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrls": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "entityUrls"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_get_schema",
+          "description": "Get the Work IQ schema for a Microsoft mail operation",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Mail resource path such as /me/messages"
+              },
+              "operationType": {
+                "type": "string",
+                "enum": [
+                  "fetch",
+                  "create",
+                  "update"
+                ]
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "jsonschema",
+                  "typescript"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "operationType"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_search_paths",
+          "description": "Search Work IQ Microsoft mail paths",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_update_entity",
+          "description": "Update a Microsoft mail entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "JSON-encoded request body"
+              }
+            },
+            "required": [
+              "entityUrl",
+              "jsonBody"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": "1.0",
+      "serviceId": "microsoft-sharepoint",
+      "tools": [
+        {
+          "name": "microsoft_sharepoint_call_function",
+          "description": "Call a Microsoft sharepoint function",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "functionUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "functionUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_create_entity",
+          "description": "Create a Microsoft sharepoint entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "parentUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "JSON-encoded request body"
+              }
+            },
+            "required": [
+              "parentUrl",
+              "jsonBody"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_delete_entity",
+          "description": "Delete a Microsoft sharepoint entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "entityUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_do_action",
+          "description": "Execute a Microsoft sharepoint action",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "actionUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "Optional JSON-encoded request body"
+              }
+            },
+            "required": [
+              "actionUrl"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_fetch",
+          "description": "Read Microsoft sharepoint entities",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrls": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "entityUrls"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_get_schema",
+          "description": "Get the Work IQ schema for a Microsoft sharepoint operation",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "SharePoint or Drive path such as /me/drive"
+              },
+              "operationType": {
+                "type": "string",
+                "enum": [
+                  "fetch",
+                  "create",
+                  "update"
+                ]
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "jsonschema",
+                  "typescript"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "operationType"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_search_paths",
+          "description": "Search Work IQ Microsoft sharepoint paths",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_update_entity",
+          "description": "Update a Microsoft sharepoint entity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityUrl": {
+                "type": "string"
+              },
+              "jsonBody": {
+                "type": "string",
+                "description": "JSON-encoded request body"
+              }
+            },
+            "required": [
+              "entityUrl",
+              "jsonBody"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": "1.0",
       "serviceId": "notion",
       "tools": [
         {
           "name": "notion_append_block_children",
           "description": "Appends new block children to a page or block",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2740,6 +4360,12 @@
         {
           "name": "notion_create_page",
           "description": "Creates a new page in a Notion database or as a child of another page",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2824,6 +4450,12 @@
         {
           "name": "notion_delete_block",
           "description": "Deletes (archives) a block by ID",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2840,6 +4472,12 @@
         {
           "name": "notion_get_block",
           "description": "Retrieves a block by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2856,6 +4494,12 @@
         {
           "name": "notion_get_block_children",
           "description": "Retrieves children blocks of a page or block",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2882,6 +4526,12 @@
         {
           "name": "notion_get_bot_user",
           "description": "Retrieves the bot user associated with the integration",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {},
@@ -2891,6 +4541,12 @@
         {
           "name": "notion_get_database",
           "description": "Retrieves database information including schema",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2907,6 +4563,12 @@
         {
           "name": "notion_get_page",
           "description": "Retrieves a page from Notion by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2930,6 +4592,12 @@
         {
           "name": "notion_get_user",
           "description": "Retrieves a user by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2946,6 +4614,12 @@
         {
           "name": "notion_list_databases",
           "description": "Lists all databases that the integration has access to",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2966,6 +4640,12 @@
         {
           "name": "notion_list_users",
           "description": "Lists all users in the workspace",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -2986,6 +4666,12 @@
         {
           "name": "notion_query_database",
           "description": "Queries a Notion database with optional filters and sorting",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3053,6 +4739,12 @@
         {
           "name": "notion_search",
           "description": "Searches all pages and databases that the integration has access to",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3120,6 +4812,12 @@
         {
           "name": "notion_update_block",
           "description": "Updates a block by ID",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3145,6 +4843,12 @@
         {
           "name": "notion_update_page",
           "description": "Updates properties of an existing Notion page",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3220,8 +4924,29 @@
       "serviceId": "pipedrive",
       "tools": [
         {
+          "name": "pipedrive_add_activity",
+          "description": "Create a Pipedrive activity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
           "name": "pipedrive_add_contact",
           "description": "Creates a new person (contact) in Pipedrive CRM",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3307,8 +5032,59 @@
           }
         },
         {
+          "name": "pipedrive_add_note",
+          "description": "Create a Pipedrive note",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_add_organization",
+          "description": "Create a Pipedrive organization",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_convert_lead_to_deal",
+          "description": "Convert a Pipedrive lead to a deal",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
           "name": "pipedrive_create_deal",
           "description": "Creates a new deal in Pipedrive CRM",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3391,8 +5167,44 @@
           }
         },
         {
+          "name": "pipedrive_get_activities",
+          "description": "Fetch Pipedrive activities",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_get_activity",
+          "description": "Fetch one Pipedrive activity",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
           "name": "pipedrive_get_contact",
           "description": "Retrieves a specific person (contact) by ID from Pipedrive CRM",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3409,6 +5221,12 @@
         {
           "name": "pipedrive_get_deal",
           "description": "Retrieves a specific deal by ID from Pipedrive CRM",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3423,8 +5241,119 @@
           }
         },
         {
+          "name": "pipedrive_get_lead_conversion_status",
+          "description": "Get Pipedrive lead conversion status",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_get_note",
+          "description": "Fetch one Pipedrive note",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_get_notes",
+          "description": "Fetch Pipedrive notes",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_get_organization",
+          "description": "Fetch one Pipedrive organization",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_get_organizations",
+          "description": "Fetch Pipedrive organizations",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_get_stage",
+          "description": "Fetch one Pipedrive pipeline stage",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_get_stages",
+          "description": "Fetch Pipedrive pipeline stages",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
           "name": "pipedrive_list_contacts",
           "description": "Lists persons (contacts) from Pipedrive CRM with optional filtering and pagination",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3462,6 +5391,12 @@
         {
           "name": "pipedrive_list_deals",
           "description": "Lists deals from Pipedrive CRM with optional filtering and pagination",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3516,6 +5451,12 @@
         {
           "name": "pipedrive_search",
           "description": "Searches across deals, persons, organizations, products, and files in Pipedrive",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3568,8 +5509,89 @@
           }
         },
         {
+          "name": "pipedrive_search_deals",
+          "description": "Search Pipedrive deals",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_search_leads",
+          "description": "Search Pipedrive leads",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_search_organization",
+          "description": "Search Pipedrive organizations",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_search_persons",
+          "description": "Search Pipedrive persons",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_update_activity",
+          "description": "Update a Pipedrive activity",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
           "name": "pipedrive_update_contact",
           "description": "Updates an existing person (contact) in Pipedrive CRM",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3642,6 +5664,12 @@
         {
           "name": "pipedrive_update_deal",
           "description": "Updates an existing deal in Pipedrive CRM",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3720,6 +5748,36 @@
               "deal_id"
             ]
           }
+        },
+        {
+          "name": "pipedrive_update_note",
+          "description": "Update a Pipedrive note",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        {
+          "name": "pipedrive_update_organization",
+          "description": "Update a Pipedrive organization",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
         }
       ]
     },
@@ -3730,6 +5788,12 @@
         {
           "name": "salesforce_create_contact",
           "description": "Creates a new contact in Salesforce CRM",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3839,6 +5903,12 @@
         {
           "name": "salesforce_create_opportunity",
           "description": "Creates a new opportunity in Salesforce CRM",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3904,6 +5974,12 @@
         {
           "name": "salesforce_get_object",
           "description": "Retrieves a specific Salesforce object by ID",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3932,6 +6008,12 @@
         {
           "name": "salesforce_query",
           "description": "Executes a SOQL (Salesforce Object Query Language) query to retrieve data from Salesforce. SOQL syntax is similar to SQL but designed for Salesforce objects.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -3953,6 +6035,12 @@
         {
           "name": "salesforce_update_opportunity",
           "description": "Updates an existing opportunity in Salesforce CRM",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4053,6 +6141,12 @@
         {
           "name": "slack_create_channel",
           "description": "Creates a new channel in the Slack workspace",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4073,6 +6167,12 @@
         {
           "name": "slack_list_channels",
           "description": "Lists all channels in the Slack workspace",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4095,6 +6195,12 @@
         {
           "name": "slack_list_users",
           "description": "Lists all users in the Slack workspace",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4113,6 +6219,12 @@
         {
           "name": "slack_send_message",
           "description": "Sends a message to a Slack channel or direct message",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4145,6 +6257,12 @@
         {
           "name": "slack_set_status",
           "description": "Sets the status of the authenticated user",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4175,6 +6293,12 @@
         {
           "name": "stripe_get_charge",
           "description": "Retrieves details of a specific charge (payment)",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4191,6 +6315,12 @@
         {
           "name": "stripe_get_customer",
           "description": "Retrieves details of a specific customer",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4207,6 +6337,12 @@
         {
           "name": "stripe_list_charges",
           "description": "Lists charges (payments) in your Stripe account",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -4229,6 +6365,12 @@
         {
           "name": "stripe_list_customers",
           "description": "Lists customers in your Stripe account with pagination support",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
           "inputSchema": {
             "type": "object",
             "properties": {

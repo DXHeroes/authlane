@@ -14,6 +14,11 @@ config:
     - guilds
     - guilds.members.read
     - connections
+  read_only_scopes:
+    - identify
+    - guilds
+    - guilds.members.read
+    - connections
   docs_url: https://docs.discord.com/developers/reference
   setup_guide_url: https://docs.discord.com/developers/quick-start/getting-started
   developer_console_url: https://discord.com/developers/applications

@@ -18,6 +18,17 @@ export interface FrameworkAdapterOptions {
   providerMcp?: 'prefer' | 'disabled';
   providerMcpClientFactory?: ProviderMcpClientFactory;
   providerMcpForCustomIntegrations?: boolean;
+  approval?: ApprovalPolicy;
+}
+
+export type ApprovalPolicy = 'none' | 'destructive' | 'write-and-destructive';
+
+export function requiresApproval(
+  risk: 'read' | 'write' | 'destructive',
+  policy: ApprovalPolicy = 'none'
+): boolean {
+  if (policy === 'write-and-destructive') return risk !== 'read';
+  return policy === 'destructive' && risk === 'destructive';
 }
 
 const invalidCredentialError = () =>

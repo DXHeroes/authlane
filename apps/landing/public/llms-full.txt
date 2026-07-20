@@ -629,7 +629,9 @@ const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
 export async function runForUser(currentUser: { id: string }, messages: ModelMessage[]) {
   const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  const { data: tools, error } = await user.tools.list({
+    adapter: vercelAI({ approval: 'write-and-destructive' }),
+  });
   if (error) return { data: null, error };
   return { data: streamText({ model: 'openai/gpt-5-mini', messages, tools }), error: null };
 }
@@ -637,6 +639,32 @@ export async function runForUser(currentUser: { id: string }, messages: ModelMes
 
 Binding `authlane.user(currentUser.id)` comes before adapter selection. The capability read builds
 only definitions and callbacks. Each callback requests a fresh lease when it is invoked.
+
+## Tool safety metadata
+
+Every canonical tool includes MCP annotations:
+
+- `readOnlyHint` identifies retrieval without provider mutation.
+- `destructiveHint` identifies delete or equivalent irreversible operations.
+- `idempotentHint` describes whether repeating a mutation has the same effect.
+- `openWorldHint` signals that the tool communicates with an external provider.
+
+Authlane derives `risk: 'read' | 'write' | 'destructive'` and preserves both the annotations and
+risk in MCP and OpenAI responses. Missing or invalid annotations fail closed instead of being
+treated as read-only.
+
+The tenant chooses **Read-only tools** or **Full tool set** independently for every service in the
+dashboard. Read-only filtering happens in the control plane before definitions reach your SDK.
+Changing a policy invalidates affected connections so the next OAuth grant uses the matching scope
+set.
+
+Adapter approval policies are separate from service filtering:
+
+```typescript
+vercelAI({ approval: 'none' });                  // never request framework approval
+vercelAI({ approval: 'destructive' });           // approval for destructive tools
+vercelAI({ approval: 'write-and-destructive' }); // approval for every mutation
+```
 
 ## Expected result
 
@@ -1057,8 +1085,15 @@ def load_tools(external_user_id: str):
         if result.error is not None:
             return result
         assert result.data is not None
+        for tool in result.data.values():
+            print(tool.name)
         return result.data
 ```
+
+Raw capability definitions expose `tool.annotations` and the derived `tool.risk` value (`read`,
+`write`, or `destructive`). Use those values to build an approval gate in Agno, LangChain, OpenAI
+Agents, or a custom adapter. Tenant read-only policy is already enforced by Authlane before Python
+receives the tool list.
 
 ## Async applications
 
@@ -1127,7 +1162,9 @@ const authlane = new Authlane({
 
 export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
   const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  const { data: tools, error } = await user.tools.list({
+    adapter: vercelAI({ approval: 'write-and-destructive' }),
+  });
   if (error) {
     return Response.json({ error }, { status: error.statusCode ?? 400 });
   }
@@ -1140,6 +1177,7 @@ export async function answer(currentUser: { id: string }, messages: ModelMessage
 ## Expected result
 
 `tools` is a Vercel AI `ToolSet` containing only effective connected tools for this user.
+Read tools run normally. Vercel AI receives `needsApproval: true` for write and destructive tools.
 
 ## Handle errors
 
@@ -1183,7 +1221,9 @@ const authlane = new Authlane({
 
 export async function answer(currentUser: { id: string }, prompt: string) {
   const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
+  const { data: tools, error } = await user.tools.list({
+    adapter: openAIAgents({ approval: 'write-and-destructive' }),
+  });
   if (error) return { data: null, error };
 
   const agent = new Agent({
@@ -1200,6 +1240,7 @@ export async function answer(currentUser: { id: string }, prompt: string) {
 
 The agent receives non-strict OpenAI `FunctionTool` objects whose callbacks remain bound to the
 authenticated external user.
+OpenAI Agents receives native `needsApproval` predicates derived from Authlane tool risk metadata.
 
 ## Handle errors
 
@@ -2155,6 +2196,10 @@ or path as a redirect mismatch.
 
 ## Scopes
 
+**Read-only tools** requests only `https://www.googleapis.com/auth/gmail.readonly`. **Full tool
+set** requests the scopes below and exposes the matching mutations. Changing the policy requires
+users to reconnect.
+
 - `https://www.googleapis.com/auth/gmail.send` permits sending mail.
 - `https://www.googleapis.com/auth/gmail.readonly` permits reading messages, threads, labels, and
   drafts exposed by the adapter.
@@ -2330,6 +2375,9 @@ Client Secret, save, and enable Google Drive. The callback must match the public
 
 ## Scopes
 
+**Read-only tools** requests only `drive.readonly` and `drive.metadata.readonly`. **Full tool set**
+adds the write-capable scopes documented below and exposes create/update/delete tools.
+
 - `https://www.googleapis.com/auth/drive.file` permits access to files the app creates or opens.
 - `https://www.googleapis.com/auth/drive.readonly` permits reading files visible to the connected
   account.
@@ -2418,6 +2466,10 @@ Client Secret, save, and enable the service. The registered callback must match 
 URL exactly.
 
 ## Scopes
+
+**Read-only tools** requests `calendar.readonly` and `calendar.events.readonly`. **Full tool set**
+uses the write-capable event scope below. Authlane filters the corresponding definitions in
+addition to requesting least-privilege OAuth scopes.
 
 - `https://www.googleapis.com/auth/calendar.events` permits event creation, updates, and deletion.
 - `https://www.googleapis.com/auth/calendar.readonly` permits calendar and event reads.
@@ -2655,10 +2707,9 @@ response supplies the company-specific API domain used by the adapter.
 
 ## Scopes
 
-- `deals:full` reads, creates, and updates deals. Choose `deals:read` instead only for a custom
-  read-only deployment.
-- `contacts:full` reads, creates, and updates people and organizations. Choose `contacts:read`
-  instead only when the connection must be read-only.
+- **Full tool set** requests `deals:full` and `contacts:full` for read/write access.
+- **Read-only tools** requests `deals:read` and `contacts:read` and removes mutations from the
+  capability response.
 - `search:read` enables `pipedrive_search`.
 
 Pipedrive does not define separate `:write` scopes for these APIs. The `:full` scopes are the
@@ -2684,6 +2735,7 @@ results.
 - `pipedrive_get_deal`
 - `pipedrive_create_deal`
 - `pipedrive_update_deal`
+- `pipedrive_search_deals`
 
 ### Contacts
 
@@ -2691,6 +2743,37 @@ results.
 - `pipedrive_get_contact`
 - `pipedrive_add_contact`
 - `pipedrive_update_contact`
+- `pipedrive_search_persons`
+
+### Organizations
+
+- `pipedrive_get_organizations`
+- `pipedrive_get_organization`
+- `pipedrive_add_organization`
+- `pipedrive_update_organization`
+- `pipedrive_search_organization`
+
+### Activities
+
+- `pipedrive_get_activities`
+- `pipedrive_get_activity`
+- `pipedrive_add_activity`
+- `pipedrive_update_activity`
+
+### Leads and stages
+
+- `pipedrive_search_leads`
+- `pipedrive_convert_lead_to_deal`
+- `pipedrive_get_lead_conversion_status`
+- `pipedrive_get_stages`
+- `pipedrive_get_stage`
+
+### Notes
+
+- `pipedrive_get_notes`
+- `pipedrive_get_note`
+- `pipedrive_add_note`
+- `pipedrive_update_note`
 
 ### Search
 
@@ -2866,6 +2949,307 @@ session after recent reauthentication, then stop offering Airtable tools.
   `app...` base ID or table name is wrong.
 - Record writes require `data.records:write`; schema discovery requires `schema.bases:read`.
 - Batch create, update, and delete calls accept at most ten records per adapter invocation.
+
+Source: https://authlane.io/docs/integrations/attio
+
+# Attio CRM
+
+Connect Attio CRM and use its tools through the Authlane control plane.
+
+## Prerequisites
+
+Use an Attio workspace where you may install apps. Review the official
+[Attio MCP overview](https://docs.attio.com/mcp/overview) and open the
+[Attio developer console](https://build.attio.com).
+
+## Self-hosted setup
+
+Register a confidential OAuth client for the exact callback
+`https://<your-authlane-host>/api/v1/oauth/attio/callback`:
+
+```bash
+curl --request POST https://app.attio.com/oauth/register \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_name": "Authlane",
+    "redirect_uris": ["https://<your-authlane-host>/api/v1/oauth/attio/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "token_endpoint_auth_method": "client_secret_post"
+  }'
+```
+
+Copy the generated values from the one-time response. Re-register the client if the public callback
+host changes.
+
+## Configure authentication
+
+Open **Dashboard → Services → Attio CRM**. Save the OAuth Client ID and Client Secret, select
+**Read-only tools** or **Full tool set**, and enable the service. Keep the Client Secret only in
+Authlane's encrypted server-side configuration.
+
+## Scopes
+
+- `mcp` authorizes Attio MCP tools.
+- `offline_access` permits refresh tokens.
+- `openid` identifies the connected Attio account.
+
+Attio uses the same OAuth scope for reads and mutations. Authlane therefore enforces the tenant
+tool policy server-side and requires users to reconnect after a policy change.
+
+## Execution path
+
+The SaaS runtime prioritizes Attio's official MCP endpoint `https://mcp.attio.com/mcp`. Attio is
+MCP-only: the runtime obtains a fresh Authlane credential lease and calls Attio directly. CRM
+records, tool arguments, and results never pass through Authlane.
+
+## Available tools
+
+### Records and attributes
+
+- `attio_search_records`
+- `attio_list_records`
+- `attio_get_records_by_ids`
+- `attio_create_record`
+- `attio_upsert_record`
+- `attio_update_record`
+- `attio_list_attribute_definitions`
+
+### Lists and comments
+
+- `attio_list_lists`
+- `attio_list_list_attribute_definitions`
+- `attio_list_records_in_list`
+- `attio_add_record_to_list`
+- `attio_update_list`
+- `attio_update_list_entry_by_id`
+- `attio_update_list_entry_by_record_id`
+- `attio_create_comment`
+- `attio_list_comments`
+- `attio_list_comment_replies`
+- `attio_delete_comment`
+
+### Notes, tasks, meetings, and communications
+
+- `attio_create_note`
+- `attio_search_notes_by_metadata`
+- `attio_semantic_search_notes`
+- `attio_get_note_body`
+- `attio_update_note`
+- `attio_list_tasks`
+- `attio_create_task`
+- `attio_update_task`
+- `attio_search_meetings`
+- `attio_search_call_recordings_by_metadata`
+- `attio_semantic_search_call_recordings`
+- `attio_get_call_recording`
+- `attio_search_emails_by_metadata`
+- `attio_semantic_search_emails`
+- `attio_get_email_content`
+
+### Workspace and reporting
+
+- `attio_list_workspace_members`
+- `attio_list_workspace_teams`
+- `attio_whoami`
+- `attio_run_basic_report`
+
+## Connection lifecycle
+
+After PKCE consent, Authlane stores the Attio credential encrypted and reports `connected`. It
+refreshes expiring access when Attio returns refresh material. Reconnect an `expired` or `error`
+connection; changing tool policy intentionally expires existing connections.
+
+## Troubleshooting
+
+- A redirect mismatch means the registered DCR URI differs from the public HTTPS callback.
+- A missing mutation in read-only mode is expected.
+- Revoke and re-register a leaked client secret before updating Authlane.
+
+Source: https://authlane.io/docs/integrations/microsoft-mail
+
+# Microsoft Mail
+
+Connect Microsoft Mail and use its tools through the Authlane control plane.
+
+## Prerequisites
+
+Confirm Work IQ availability for the Microsoft 365 tenant. Review the official
+[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
+[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+and [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+
+## Self-hosted setup
+
+1. Create a multi-tenant Web app registration in Microsoft Entra ID.
+2. Add `https://<your-authlane-host>/api/v1/oauth/microsoft-mail/callback` as a Web redirect URI.
+3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
+4. Create a client secret and copy its value immediately.
+
+## Configure authentication
+
+Open **Dashboard → Services → Microsoft Mail**. Save the Application Client ID and Client Secret,
+choose the tool policy, and enable the service. The Client Secret belongs only in Authlane's
+encrypted server-side configuration.
+
+## Scopes
+
+- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
+- `offline_access` permits refresh tokens.
+- `openid` and `profile` identify the connected user.
+
+## Execution path
+
+The SaaS runtime prioritizes Microsoft's official Work IQ MCP endpoint
+`https://workiq.svc.cloud.microsoft/mcp`. Authlane validates mail paths and issues a credential
+lease; provider traffic then flows directly between the SaaS runtime and Microsoft. Only
+`/me/messages`, `/me/mailFolders`, `/me/sendMail`, and `/me/outlook` families are accepted.
+
+## Available tools
+
+- `microsoft_mail_fetch`
+- `microsoft_mail_create_entity`
+- `microsoft_mail_update_entity`
+- `microsoft_mail_delete_entity`
+- `microsoft_mail_do_action`
+- `microsoft_mail_call_function`
+- `microsoft_mail_get_schema`
+- `microsoft_mail_search_paths`
+
+## Connection lifecycle
+
+Authlane encrypts the Work IQ OAuth credential and refreshes it before expiry when possible.
+Reconnect after tenant revocation or an `expired`/`error` state. A tool-policy change expires the
+old connection so the new consent and effective tool set stay aligned.
+
+## Troubleshooting
+
+- `AADSTS50011` means the Entra redirect URI differs from the Authlane callback.
+- Verify Work IQ tenant availability, delegated permission, and administrator consent.
+- Do not substitute a Microsoft Graph token; Work IQ validates its own token audience.
+
+Source: https://authlane.io/docs/integrations/microsoft-calendar
+
+# Microsoft Calendar
+
+Connect Microsoft Calendar and use its tools through the Authlane control plane.
+
+## Prerequisites
+
+Confirm Work IQ availability and review the official
+[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
+[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+and [Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+
+## Self-hosted setup
+
+1. Create a multi-tenant Web app in Microsoft Entra ID.
+2. Register `https://<your-authlane-host>/api/v1/oauth/microsoft-calendar/callback`.
+3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
+4. Create a client secret. One Entra app may serve all Microsoft services when every exact callback
+   URI is registered.
+
+## Configure authentication
+
+Open **Dashboard → Services → Microsoft Calendar**. Enter the Application Client ID and Client
+Secret, select read-only or full tools, and enable the service. Never expose the Client Secret to a
+browser.
+
+## Scopes
+
+- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
+- `offline_access` permits refresh tokens.
+- `openid` and `profile` identify the connected Microsoft user.
+
+## Execution path
+
+The runtime prioritizes Microsoft's official MCP endpoint `https://workiq.svc.cloud.microsoft/mcp`.
+Authlane restricts calls to `/me/calendar`, `/me/calendars`, `/me/calendarView`, `/me/events`,
+`/me/findMeetingTimes`, and `/me/getSchedule`; the SaaS runtime then calls Microsoft directly.
+
+## Available tools
+
+- `microsoft_calendar_fetch`
+- `microsoft_calendar_create_entity`
+- `microsoft_calendar_update_entity`
+- `microsoft_calendar_delete_entity`
+- `microsoft_calendar_do_action`
+- `microsoft_calendar_call_function`
+- `microsoft_calendar_get_schema`
+- `microsoft_calendar_search_paths`
+
+## Connection lifecycle
+
+Authlane encrypts and refreshes the OAuth credential and reports effective connection state.
+Reconnect an `expired` or `error` connection. A tool-policy change deliberately requires new
+consent so read-only and full scopes cannot drift.
+
+## Troubleshooting
+
+- Use a Web redirect URI and match scheme, host, port, and path exactly.
+- Verify the returned token contains the Work IQ permission.
+- The connected user still needs access to the requested calendars.
+
+Source: https://authlane.io/docs/integrations/microsoft-sharepoint
+
+# Microsoft Drive (SharePoint)
+
+Connect Microsoft Drive (SharePoint) and use its tools through the Authlane control plane.
+
+## Prerequisites
+
+Confirm Work IQ availability and review the official
+[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
+[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+and [Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+
+## Self-hosted setup
+
+1. Create a multi-tenant Web app in Microsoft Entra ID.
+2. Add `https://<your-authlane-host>/api/v1/oauth/microsoft-sharepoint/callback` as a redirect URI.
+3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
+4. Create a client secret and copy its value immediately.
+
+## Configure authentication
+
+Open **Dashboard → Services → Microsoft Drive (SharePoint)**. Save the Application Client ID and
+Client Secret, select the tool policy, and enable the service. Keep the Client Secret server-side.
+
+## Scopes
+
+- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
+- `offline_access` permits refresh tokens.
+- `openid` and `profile` identify the connected Microsoft user.
+
+## Execution path
+
+The SaaS runtime prioritizes Microsoft's official MCP endpoint
+`https://workiq.svc.cloud.microsoft/mcp`. Authlane accepts only `/me/drive`, `/drives`, `/sites`,
+and `/shares` resource families. The runtime calls Microsoft directly; Authlane never proxies files,
+tool inputs, or provider responses.
+
+## Available tools
+
+- `microsoft_sharepoint_fetch`
+- `microsoft_sharepoint_create_entity`
+- `microsoft_sharepoint_update_entity`
+- `microsoft_sharepoint_delete_entity`
+- `microsoft_sharepoint_do_action`
+- `microsoft_sharepoint_call_function`
+- `microsoft_sharepoint_get_schema`
+- `microsoft_sharepoint_search_paths`
+
+## Connection lifecycle
+
+Authlane stores the credential encrypted, refreshes it when possible, and exposes effective status.
+Reconnect after revocation or an `expired`/`error` state. Policy changes intentionally invalidate
+old credentials and require fresh consent.
+
+## Troubleshooting
+
+- Verify the user can open the target site or drive in Microsoft 365.
+- Check redirect URI, Work IQ availability, delegated permission, and tenant consent.
+- A path outside the SharePoint/Drive allowlist is rejected before MCP execution.
 
 Source: https://authlane.io/docs/guides/custom-integrations
 

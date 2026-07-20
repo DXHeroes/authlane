@@ -29,6 +29,9 @@ Client Secret, save, and enable Google Drive. The callback must match the public
 
 ## Scopes
 
+**Read-only tools** requests only `drive.readonly` and `drive.metadata.readonly`. **Full tool set**
+adds the write-capable scopes documented below and exposes create/update/delete tools.
+
 - `https://www.googleapis.com/auth/drive.file` permits access to files the app creates or opens.
 - `https://www.googleapis.com/auth/drive.readonly` permits reading files visible to the connected
   account.

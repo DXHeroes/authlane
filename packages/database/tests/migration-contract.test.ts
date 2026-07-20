@@ -10,6 +10,10 @@ const oauthMigration = readFileSync(
   join(import.meta.dirname, '../drizzle/0002_unique_penance.sql'),
   'utf8'
 );
+const toolPolicyMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0003_lyrical_quasar.sql'),
+  'utf8'
+);
 const roles = readFileSync(join(import.meta.dirname, '../sql/roles.sql'), 'utf8');
 
 describe('control-plane migration', () => {
@@ -49,5 +53,13 @@ describe('control-plane migration', () => {
     expect(migration).not.toContain('"credentials_enc" text');
     expect(migration).not.toContain('"oauth_client_secret_enc" text');
     expect(migration).not.toContain('"api_key_enc" text');
+  });
+
+  it('defaults newly enabled services to read-only while preserving existing tenant behavior', () => {
+    expect(toolPolicyMigration).toContain(
+      '"tool_access_policy" text DEFAULT \'read_only\' NOT NULL'
+    );
+    expect(toolPolicyMigration).toContain('SET "tool_access_policy" = \'full\'');
+    expect(toolPolicyMigration).toContain("\"tool_access_policy\" in ('read_only', 'full')");
   });
 });

@@ -6,6 +6,12 @@ import { mastraAI } from '../src/mastra.js';
 const githubTool = {
   name: 'github_create_issue',
   description: 'Create a GitHub issue.',
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
   inputSchema: {
     type: 'object',
     properties: { title: { type: 'string' } },
@@ -17,6 +23,12 @@ const githubTool = {
 const slackTool = {
   name: 'slack_send_message',
   description: 'Send a Slack message.',
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
   inputSchema: {
     type: 'object',
     properties: { text: { type: 'string' } },
@@ -66,6 +78,7 @@ describe('Mastra user-scoped SDK flow', () => {
               status: 'connected',
               connected: true,
               expiresAt: null,
+              toolAccessPolicy: 'full',
               tools: [githubTool],
             },
             {
@@ -73,6 +86,7 @@ describe('Mastra user-scoped SDK flow', () => {
               status: 'disconnected',
               connected: false,
               expiresAt: null,
+              toolAccessPolicy: 'full',
               tools: [slackTool],
             },
           ],

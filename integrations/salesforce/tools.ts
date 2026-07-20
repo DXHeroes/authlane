@@ -48,6 +48,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'salesforce_create_contact',
       description: 'Creates a new contact in Salesforce CRM',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -170,6 +176,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'salesforce_query',
       description:
         'Executes a SOQL (Salesforce Object Query Language) query to retrieve data from Salesforce. SOQL syntax is similar to SQL but designed for Salesforce objects.',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -204,6 +216,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'salesforce_update_opportunity',
       description: 'Updates an existing opportunity in Salesforce CRM',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -311,6 +329,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'salesforce_create_opportunity',
       description: 'Creates a new opportunity in Salesforce CRM',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -386,6 +410,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'salesforce_get_object',
       description: 'Retrieves a specific Salesforce object by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

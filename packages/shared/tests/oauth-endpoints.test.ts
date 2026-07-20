@@ -66,18 +66,14 @@ describe('provider OAuth endpoint allowlist', () => {
       Object.fromEntries(getOAuthAuthorizationParameters('linear', ['read', 'write']))
     ).toEqual({ scope: 'read,write' });
     expect(
-      Object.fromEntries(
-        getOAuthAuthorizationParameters('slack', ['chat:write', 'channels:read'])
-      )
+      Object.fromEntries(getOAuthAuthorizationParameters('slack', ['chat:write', 'channels:read']))
     ).toEqual({ scope: 'chat:write,channels:read' });
-    expect(
-      Object.fromEntries(getOAuthAuthorizationParameters('jira', ['read:jira-work']))
-    ).toEqual({ scope: 'read:jira-work', audience: 'api.atlassian.com', prompt: 'consent' });
+    expect(Object.fromEntries(getOAuthAuthorizationParameters('jira', ['read:jira-work']))).toEqual(
+      { scope: 'read:jira-work', audience: 'api.atlassian.com', prompt: 'consent' }
+    );
     expect(
       Object.fromEntries(
-        getOAuthAuthorizationParameters('gmail', [
-          'https://www.googleapis.com/auth/gmail.readonly',
-        ])
+        getOAuthAuthorizationParameters('gmail', ['https://www.googleapis.com/auth/gmail.readonly'])
       )
     ).toEqual({
       scope: 'https://www.googleapis.com/auth/gmail.readonly',

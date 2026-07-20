@@ -1,0 +1,28 @@
+id: attio
+name: Attio CRM
+auth_type: oauth2
+config:
+  authorization_url: https://app.attio.com/oidc/authorize
+  token_url: https://app.attio.com/oidc/token
+  registration_url: https://app.attio.com/oauth/register
+  scopes:
+    - mcp
+    - offline_access
+    - openid
+  default_scopes:
+    - mcp
+    - offline_access
+    - openid
+  read_only_scopes:
+    - mcp
+    - offline_access
+    - openid
+  docs_url: https://docs.attio.com/mcp/overview
+  setup_guide_url: https://docs.attio.com/mcp/overview
+  developer_console_url: https://build.attio.com
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://mcp.attio.com/mcp
+      docs_url: https://docs.attio.com/mcp/overview
+      maturity: stable

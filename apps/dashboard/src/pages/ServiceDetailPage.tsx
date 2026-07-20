@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
-import type { OrganizationService, Service, ServiceConfig } from '@/types';
+import type { OrganizationService, Service, ServiceConfig, ServiceTool } from '@/types';
 
 /**
  * Copy text to clipboard with fallback
@@ -429,8 +429,24 @@ export default function ServiceDetailPage() {
     queryFn: () => api.get<OrganizationService>(`/organization/services/${id}`).catch(() => null),
   });
 
+  const { data: serviceTools = [] } = useQuery({
+    queryKey: ['service-tools', id, orgService?.toolAccessPolicy],
+    queryFn: () => api.get<ServiceTool[]>(`/organization/services/${id}/tools`),
+    enabled: Boolean(id),
+  });
+
   const toggleServiceMutation = useMutation({
     mutationFn: (enabled: boolean) => api.put(`/organization/services/${id}`, { enabled }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['org-service', id] });
+      queryClient.invalidateQueries({ queryKey: ['org-services'] });
+      queryClient.invalidateQueries({ queryKey: ['service-tools', id] });
+    },
+  });
+
+  const updateToolPolicyMutation = useMutation({
+    mutationFn: (toolAccessPolicy: 'read_only' | 'full') =>
+      api.put(`/organization/services/${id}`, { toolAccessPolicy }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['org-service', id] });
       queryClient.invalidateQueries({ queryKey: ['org-services'] });
@@ -507,6 +523,92 @@ export default function ServiceDetailPage() {
           ✓ Configuration saved successfully
         </div>
       )}
+
+      <div className="mb-6 rounded-lg border border-border bg-card p-6">
+        <h2 className="text-xl font-semibold">Tool access</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Read-only exposes only safe retrieval tools. Full also exposes create, update, and delete
+          tools. Changing this setting requires connected users to reconnect with the matching OAuth
+          scopes.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {(['read_only', 'full'] as const).map((policy) => (
+            <button
+              key={policy}
+              type="button"
+              disabled={updateToolPolicyMutation.isPending}
+              onClick={() => updateToolPolicyMutation.mutate(policy)}
+              className={`rounded-lg border p-4 text-left transition-colors ${
+                (orgService?.toolAccessPolicy ?? 'read_only') === policy
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50'
+              }`}
+            >
+              <span className="block font-medium">
+                {policy === 'read_only' ? 'Read-only tools' : 'Full tool set'}
+              </span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {policy === 'read_only'
+                  ? 'List, search, and read actions only'
+                  : 'Includes write and destructive actions'}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-lg border border-border bg-card p-6">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Available tools</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Safety metadata follows MCP annotations and is included in SDK responses.
+            </p>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {serviceTools.filter((tool) => tool.enabledByPolicy).length}/{serviceTools.length}{' '}
+            enabled
+          </span>
+        </div>
+        <div className="mt-4 divide-y divide-border rounded-lg border border-border">
+          {serviceTools.map((tool) => (
+            <div
+              key={tool.name}
+              className={`flex gap-4 p-4 ${tool.enabledByPolicy ? '' : 'opacity-50'}`}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="text-sm font-medium">{tool.name}</code>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      tool.risk === 'read'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : tool.risk === 'write'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {tool.risk === 'read'
+                      ? 'Read-only'
+                      : tool.risk === 'write'
+                        ? 'Writes data'
+                        : 'Destructive'}
+                  </span>
+                  {!tool.enabledByPolicy && (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                      Disabled by policy
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{tool.description}</p>
+              </div>
+            </div>
+          ))}
+          {serviceTools.length === 0 && (
+            <p className="p-4 text-sm text-muted-foreground">No tools are published.</p>
+          )}
+        </div>
+      </div>
 
       {/* Render appropriate section based on auth type */}
       {service.authType === 'oauth2' && (

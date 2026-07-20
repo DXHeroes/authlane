@@ -1,0 +1,562 @@
+{
+  "$schema": "../../schema/integration-manifest.schema.json",
+  "schemaVersion": "1.0",
+  "serviceId": "attio",
+  "tools": [
+    {
+      "name": "attio_search_records",
+      "description": "Full-text search for Attio records",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_records",
+      "description": "List records in an Attio object",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_get_records_by_ids",
+      "description": "Retrieve Attio records by ID",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_create_record",
+      "description": "Create an Attio record",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_upsert_record",
+      "description": "Create or update an Attio record by matching attribute",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_update_record",
+      "description": "Update an Attio record",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_attribute_definitions",
+      "description": "List attribute definitions for an Attio object",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_lists",
+      "description": "List Attio workspace lists",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_list_attribute_definitions",
+      "description": "List Attio list-entry attributes",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_records_in_list",
+      "description": "List records in an Attio list",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_add_record_to_list",
+      "description": "Add an Attio record to a list",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_update_list",
+      "description": "Update an Attio list",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_update_list_entry_by_id",
+      "description": "Update an Attio list entry by ID",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_update_list_entry_by_record_id",
+      "description": "Update an Attio list entry by record ID",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_create_comment",
+      "description": "Create an Attio comment",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_comments",
+      "description": "List Attio comments",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_comment_replies",
+      "description": "List replies to an Attio comment",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_delete_comment",
+      "description": "Delete an Attio comment and any replies",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_create_note",
+      "description": "Create an Attio note",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_search_notes_by_metadata",
+      "description": "Search Attio notes by metadata",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_semantic_search_notes",
+      "description": "Semantically search Attio notes",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_get_note_body",
+      "description": "Retrieve the full body of an Attio note",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_update_note",
+      "description": "Update an Attio note",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_tasks",
+      "description": "List Attio tasks",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_create_task",
+      "description": "Create an Attio task",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_update_task",
+      "description": "Update an Attio task",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_search_meetings",
+      "description": "Search Attio meetings",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_search_call_recordings_by_metadata",
+      "description": "Search Attio call recordings by metadata",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_semantic_search_call_recordings",
+      "description": "Semantically search Attio call recordings",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_get_call_recording",
+      "description": "Retrieve an Attio call recording and transcript",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_search_emails_by_metadata",
+      "description": "Search Attio emails by metadata",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_semantic_search_emails",
+      "description": "Semantically search Attio emails",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_get_email_content",
+      "description": "Retrieve the full content of an Attio email",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_workspace_members",
+      "description": "List Attio workspace members",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_list_workspace_teams",
+      "description": "List Attio workspace teams",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_whoami",
+      "description": "Get the current Attio user and workspace identity",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "attio_run_basic_report",
+      "description": "Run an aggregate Attio report",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    }
+  ]
+}

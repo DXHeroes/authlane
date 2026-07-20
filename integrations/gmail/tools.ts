@@ -77,6 +77,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_send_email',
       description: 'Sends an email via Gmail',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -165,6 +171,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_read_emails',
       description: 'Reads emails from Gmail inbox or specific folder',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -262,6 +274,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_search_emails',
       description: 'Searches for emails in Gmail using Gmail search syntax',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -349,6 +367,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_get_email',
       description: 'Gets a specific email by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -397,6 +421,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_modify_email',
       description: 'Modifies labels on an email (mark as read/unread, archive, star, etc.)',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -440,6 +470,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_trash_email',
       description: 'Moves an email to trash',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -464,6 +500,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_list_labels',
       description: 'Lists all labels in the Gmail account',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {},
@@ -479,6 +521,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_create_label',
       description: 'Creates a new label in Gmail',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -549,6 +597,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_get_thread',
       description: 'Gets an email thread by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -597,6 +651,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_list_drafts',
       description: 'Lists all draft emails',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -631,6 +691,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gmail_create_draft',
       description: 'Creates a draft email',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

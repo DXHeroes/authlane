@@ -1,0 +1,193 @@
+{
+  "$schema": "../../schema/integration-manifest.schema.json",
+  "schemaVersion": "1.0",
+  "serviceId": "microsoft-mail",
+  "tools": [
+    {
+      "name": "microsoft_mail_fetch",
+      "description": "Read Microsoft mail entities",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "entityUrls"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_mail_create_entity",
+      "description": "Create a Microsoft mail entity",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "parentUrl": {
+            "type": "string"
+          },
+          "jsonBody": {
+            "type": "string",
+            "description": "JSON-encoded request body"
+          }
+        },
+        "required": [
+          "parentUrl",
+          "jsonBody"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_mail_update_entity",
+      "description": "Update a Microsoft mail entity",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityUrl": {
+            "type": "string"
+          },
+          "jsonBody": {
+            "type": "string",
+            "description": "JSON-encoded request body"
+          }
+        },
+        "required": [
+          "entityUrl",
+          "jsonBody"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_mail_delete_entity",
+      "description": "Delete a Microsoft mail entity",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityUrl"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_mail_do_action",
+      "description": "Execute a Microsoft mail action",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "actionUrl": {
+            "type": "string"
+          },
+          "jsonBody": {
+            "type": "string",
+            "description": "Optional JSON-encoded request body"
+          }
+        },
+        "required": [
+          "actionUrl"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_mail_call_function",
+      "description": "Call a Microsoft mail function",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "functionUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "functionUrl"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_mail_get_schema",
+      "description": "Get the Work IQ schema for a Microsoft mail operation",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Mail resource path such as /me/messages" },
+          "operationType": { "type": "string", "enum": ["fetch", "create", "update"] },
+          "format": { "type": "string", "enum": ["jsonschema", "typescript"] }
+        },
+        "required": ["path", "operationType"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_mail_search_paths",
+      "description": "Search Work IQ Microsoft mail paths",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  ]
+}

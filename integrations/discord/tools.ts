@@ -8,10 +8,7 @@
 
 import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
-async function discordRequest(
-  endpoint: string,
-  credentials: OAuth2Credentials
-): Promise<unknown> {
+async function discordRequest(endpoint: string, credentials: OAuth2Credentials): Promise<unknown> {
   const response = await fetch(`https://discord.com/api/v10/${endpoint}`, {
     headers: {
       Authorization: `Bearer ${credentials.access_token}`,
@@ -34,6 +31,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'discord_get_current_user',
       description: 'Returns the Discord profile of the connected OAuth user',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: { type: 'object', properties: {}, required: [] },
     },
     handler: (_params, credentials) => discordRequest('users/@me', credentials),
@@ -43,6 +46,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'discord_list_guilds',
       description: 'Lists guilds that the connected Discord user belongs to',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -69,7 +78,12 @@ export const tools: Record<string, ToolHandler> = {
       },
     },
     handler: async (params, credentials) => {
-      const { before, after, limit = 100, with_counts = false } = params as {
+      const {
+        before,
+        after,
+        limit = 100,
+        with_counts = false,
+      } = params as {
         before?: string;
         after?: string;
         limit?: number;
@@ -89,6 +103,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'discord_get_current_user_guild_member',
       description: 'Returns the connected user member record in a Discord guild',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -110,6 +130,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'discord_list_connections',
       description: 'Lists external accounts connected to the Discord OAuth user',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: { type: 'object', properties: {}, required: [] },
     },
     handler: (_params, credentials) => discordRequest('users/@me/connections', credentials),

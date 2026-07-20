@@ -1,5 +1,5 @@
 import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
-import { IntegrationRegistry } from '@authlane/shared';
+import { getToolRisk, IntegrationRegistry } from '@authlane/shared';
 
 export const integrationRegistry = new IntegrationRegistry(async (serviceId) => {
   if (!Object.hasOwn(publicToolDefinitionsByService, serviceId)) {
@@ -16,11 +16,20 @@ export const integrationRegistry = new IntegrationRegistry(async (serviceId) => 
         };
       }
       return {
-        functions: definitions.map(({ name, description, inputSchema }) => ({
-          name,
-          description,
-          parameters: inputSchema,
-        })),
+        functions: definitions.map(
+          ({ serviceId, name, description, inputSchema, annotations }) => ({
+            name,
+            description,
+            parameters: inputSchema,
+            metadata: {
+              authlane: {
+                serviceId,
+                risk: getToolRisk(annotations),
+                annotations,
+              },
+            },
+          })
+        ),
       };
     },
   };

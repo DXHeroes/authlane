@@ -1,5 +1,6 @@
 export const SUPPORTED_SERVICE_IDS = [
   'airtable',
+  'attio',
   'discord',
   'github',
   'gmail',
@@ -8,6 +9,9 @@ export const SUPPORTED_SERVICE_IDS = [
   'hubspot',
   'jira',
   'linear',
+  'microsoft-calendar',
+  'microsoft-mail',
+  'microsoft-sharepoint',
   'notion',
   'pipedrive',
   'salesforce',

@@ -24,7 +24,9 @@ const authlane = new Authlane({
 
 export async function answer(currentUser: { id: string }, prompt: string) {
   const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
+  const { data: tools, error } = await user.tools.list({
+    adapter: openAIAgents({ approval: 'write-and-destructive' }),
+  });
   if (error) return { data: null, error };
 
   const agent = new Agent({
@@ -41,6 +43,7 @@ export async function answer(currentUser: { id: string }, prompt: string) {
 
 The agent receives non-strict OpenAI `FunctionTool` objects whose callbacks remain bound to the
 authenticated external user.
+OpenAI Agents receives native `needsApproval` predicates derived from Authlane tool risk metadata.
 
 ## Handle errors
 

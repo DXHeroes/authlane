@@ -40,6 +40,12 @@ describe('README developer experience', () => {
     expect(existsSync(resolve(repositoryRoot, 'apps/docs/api-reference/openapi.yaml'))).toBe(true);
   });
 
+  it('explains tenant tool filtering and framework approval separately', () => {
+    expect(readme).toContain('`read_only` or `full`');
+    expect(readme).toContain("risk: 'read' | 'write' | 'destructive'");
+    expect(readme).toContain("vercelAI({ approval: 'write-and-destructive' })");
+  });
+
   it('links the completed shared agent plugin', () => {
     expect(readme).toContain('[Agent plugin](./docs/agent-plugins.md)');
     expect(readme).toContain('`integrate-authlane`');

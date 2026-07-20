@@ -9,6 +9,14 @@ import postgres from 'postgres';
 import { CANONICAL_INTEGRATION_CONFIGS } from './integration-configs.js';
 import { services } from './schema/index.js';
 
+export interface ProductionService {
+  id: SupportedServiceId;
+  name: string;
+  authType: 'oauth2';
+  config: Record<string, unknown>;
+  enabled: boolean;
+}
+
 /**
  * Production-ready service configurations
  * Each service has complete OAuth2/API configuration based on official documentation
@@ -994,16 +1002,28 @@ const serviceCandidates = [
   },
 ];
 
-const supportedServiceIds = new Set<string>(SUPPORTED_SERVICE_IDS);
+const serviceCandidateById = new Map<string, (typeof serviceCandidates)[number]>(
+  serviceCandidates.map((service) => [service.id, service])
+);
 
 /**
  * The catalog exposed and seeded by Authlane must exactly match the integrations
  * installed in this release. Historical API examples remain above as migration
  * input only and are never exposed as supported services.
  */
-export const productionServices = serviceCandidates.filter((service) =>
-  supportedServiceIds.has(service.id)
-).map((service) => {
+export const productionServices: ProductionService[] = SUPPORTED_SERVICE_IDS.map(
+  (id) =>
+    serviceCandidateById.get(id) ?? {
+      id,
+      name: id
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' '),
+      authType: 'oauth2',
+      config: {},
+      enabled: true,
+    }
+).map((service): ProductionService => {
   const canonical = CANONICAL_INTEGRATION_CONFIGS[service.id as SupportedServiceId];
   const existingConfig = service.config as Record<string, unknown>;
   const existingScopes = Array.isArray(existingConfig.scopes) ? existingConfig.scopes : [];
@@ -1021,7 +1041,8 @@ export const productionServices = serviceCandidates.filter((service) =>
 
   return {
     ...service,
-    authType: 'oauth2',
+    id: service.id as SupportedServiceId,
+    authType: 'oauth2' as const,
     config: {
       ...existingConfig,
       ...canonical,
@@ -1031,6 +1052,7 @@ export const productionServices = serviceCandidates.filter((service) =>
         required: defaultScopes.has(name),
       })),
       default_scopes: [...canonical.default_scopes],
+      read_only_scopes: [...canonical.read_only_scopes],
     },
   };
 });

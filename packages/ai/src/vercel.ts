@@ -1,6 +1,6 @@
 import type { UserToolAdapter } from '@authlane/sdk';
 import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
-import { createBuiltInAdapter, type FrameworkAdapterOptions } from './adapter.js';
+import { createBuiltInAdapter, type FrameworkAdapterOptions, requiresApproval } from './adapter.js';
 
 const invalidToolInput = () => ({
   error: { code: 'INVALID_TOOL_INPUT', message: 'Tool input must be a JSON object.' },
@@ -34,10 +34,12 @@ export function vercelAI(options: FrameworkAdapterOptions = {}): UserToolAdapter
       const name = definition.name;
       const description = definition.description;
       const inputSchema = definition.inputSchema;
+      const needsApproval = requiresApproval(definition.risk, options.approval);
 
       toolSet[name] = dynamicTool({
         description,
         inputSchema: jsonSchema(inputSchema as Parameters<typeof jsonSchema>[0]),
+        needsApproval,
         async execute(modelInput) {
           const input = asToolInput(modelInput);
           if (!input) {

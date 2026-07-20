@@ -6,6 +6,7 @@ import {
   connectSessions,
   credentialAccessLogs,
   outboxEvents,
+  organizationServices,
   secretRecords,
 } from '../src/schema/index.js';
 
@@ -89,5 +90,6 @@ describe('SaaS-only schema contract', () => {
     );
     expect(columnNames(secretRecords)).not.toContain('plaintext');
     expect(columnNames(connections)).toContain('credential_secret_id');
+    expect(columnNames(organizationServices)).toContain('tool_access_policy');
   });
 });

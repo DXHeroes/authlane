@@ -6,13 +6,24 @@
     {
       "name": "hubspot_get_contact",
       "description": "Retrieves a specific contact by ID from HubSpot CRM",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {
-          "contactId": { "type": "string", "description": "The unique ID of the contact" },
+          "contactId": {
+            "type": "string",
+            "description": "The unique ID of the contact"
+          },
           "properties": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Property names to include in the response"
           },
           "archived": {
@@ -21,19 +32,32 @@
             "default": false
           }
         },
-        "required": ["contactId"]
+        "required": [
+          "contactId"
+        ]
       }
     },
     {
       "name": "hubspot_get_deal",
       "description": "Retrieves a specific deal by ID from HubSpot CRM",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {
-          "dealId": { "type": "string", "description": "The unique ID of the deal" },
+          "dealId": {
+            "type": "string",
+            "description": "The unique ID of the deal"
+          },
           "properties": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Property names to include in the response"
           },
           "archived": {
@@ -42,12 +66,20 @@
             "default": false
           }
         },
-        "required": ["dealId"]
+        "required": [
+          "dealId"
+        ]
       }
     },
     {
       "name": "hubspot_list_contacts",
       "description": "Lists contacts from HubSpot CRM with optional filtering and pagination",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -57,10 +89,15 @@
             "default": 10,
             "maximum": 100
           },
-          "after": { "type": "string", "description": "Pagination cursor from the previous response" },
+          "after": {
+            "type": "string",
+            "description": "Pagination cursor from the previous response"
+          },
           "properties": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Property names to include in the response"
           },
           "archived": {
@@ -70,12 +107,16 @@
           },
           "filterGroups": {
             "type": "array",
-            "items": { "type": "object" },
+            "items": {
+              "type": "object"
+            },
             "description": "HubSpot CRM search filter groups"
           },
           "sorts": {
             "type": "array",
-            "items": { "type": "object" },
+            "items": {
+              "type": "object"
+            },
             "description": "HubSpot CRM search sort expressions"
           }
         },
@@ -85,6 +126,12 @@
     {
       "name": "hubspot_list_deals",
       "description": "Lists deals from HubSpot CRM with optional filtering and pagination",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -94,10 +141,15 @@
             "default": 10,
             "maximum": 100
           },
-          "after": { "type": "string", "description": "Pagination cursor from the previous response" },
+          "after": {
+            "type": "string",
+            "description": "Pagination cursor from the previous response"
+          },
           "properties": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Property names to include in the response"
           },
           "archived": {
@@ -107,12 +159,16 @@
           },
           "filterGroups": {
             "type": "array",
-            "items": { "type": "object" },
+            "items": {
+              "type": "object"
+            },
             "description": "HubSpot CRM search filter groups"
           },
           "sorts": {
             "type": "array",
-            "items": { "type": "object" },
+            "items": {
+              "type": "object"
+            },
             "description": "HubSpot CRM search sort expressions"
           }
         },

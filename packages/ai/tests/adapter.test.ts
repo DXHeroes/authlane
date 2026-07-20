@@ -386,6 +386,106 @@ describe('createBuiltInAdapter', () => {
     expect(directExecute).toHaveBeenCalledOnce();
   });
 
+  it('normalizes canonical Attio names to the official hyphenated MCP tools', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'records' }] }));
+    const providerMcpClientFactory = vi.fn(async () => ({
+      listTools: async () => ['search-records'],
+      callTool,
+      close: async () => undefined,
+    }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('attio', directExecute)],
+      providerMcpClientFactory,
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'attio',
+      toolName: 'attio_search_records',
+      arguments: { query: 'Linear' },
+    });
+
+    expect(result.error).toBeNull();
+    expect(providerMcpClientFactory).toHaveBeenCalledWith({
+      endpoint: 'https://mcp.attio.com/mcp',
+      accessToken: 'oauth-secret',
+      tokenType: 'Bearer',
+    });
+    expect(callTool).toHaveBeenCalledWith('search-records', { query: 'Linear' });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('confines Microsoft Work IQ calls to the selected workload', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'mail' }] }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('microsoft-mail', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['fetch'],
+        callTool,
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+    const credential = {
+      ...oauthLease,
+      scopes: ['api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask'],
+    };
+
+    const allowed = await adapter.execute({
+      ...input,
+      serviceId: 'microsoft-mail',
+      toolName: 'microsoft_mail_fetch',
+      arguments: { entityUrls: ['/me/messages'] },
+      credential,
+    });
+    const blocked = await adapter.execute({
+      ...input,
+      serviceId: 'microsoft-mail',
+      toolName: 'microsoft_mail_fetch',
+      arguments: { entityUrls: ['/sites/root'] },
+      credential,
+    });
+
+    expect(allowed.error).toBeNull();
+    expect(callTool).toHaveBeenCalledOnce();
+    expect(callTool).toHaveBeenCalledWith('fetch', { entityUrls: ['/me/messages'] });
+    expect(blocked).toMatchObject({
+      data: null,
+      error: { code: 'PROVIDER_MCP_TOOL_UNAVAILABLE' },
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('never sends a Microsoft Work IQ token directly to Microsoft Graph', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const adapter = createBuiltInAdapter(({ tools }) => tools, { providerMcp: 'disabled' });
+
+      const result = await adapter.execute({
+        ...input,
+        serviceId: 'microsoft-mail',
+        toolName: 'microsoft_mail_fetch',
+        arguments: { entityUrls: ['/me/messages'] },
+        credential: {
+          ...oauthLease,
+          scopes: ['api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask'],
+        },
+      });
+
+      expect(result).toMatchObject({
+        data: null,
+        error: { code: 'PROVIDER_REQUEST_FAILED', message: 'Provider request failed' },
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('maps Salesforce wrappers to the official SObject MCP tools', async () => {
     const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
     const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'created' }] }));

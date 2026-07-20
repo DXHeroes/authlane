@@ -141,6 +141,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_list_files',
       description: 'Lists files and folders in Google Drive with optional filtering and pagination',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -246,6 +252,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_get_file',
       description: 'Gets metadata for a specific file or folder by ID',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -292,6 +304,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_upload_file',
       description: 'Uploads a file to Google Drive',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -362,6 +380,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_download_file',
       description: 'Downloads a file from Google Drive (returns base64 encoded content)',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -431,6 +455,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_create_folder',
       description: 'Creates a new folder in Google Drive',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -497,6 +527,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_update_file',
       description: 'Updates file metadata or content',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -602,6 +638,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_delete_file',
       description: 'Permanently deletes a file from Google Drive (bypasses trash)',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -636,6 +678,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_trash_file',
       description: 'Moves a file to trash (can be restored later)',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -671,6 +719,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_copy_file',
       description: 'Creates a copy of a file',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -728,6 +782,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'gdrive_search_files',
       description:
         'Searches for files using Google Drive query syntax (convenience wrapper for gdrive_list_files with search focus)',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -796,6 +856,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'gdrive_share_file',
       description:
         'Creates a permission to share a file or folder with a user or make it publicly accessible',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -881,6 +947,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_list_permissions',
       description: 'Lists all permissions for a file or folder',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -913,6 +985,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'gdrive_remove_permission',
       description: 'Removes a permission from a file or folder',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -957,6 +1035,12 @@ export const tools: Record<string, ToolHandler> = {
       name: 'gdrive_export_file',
       description:
         'Exports a Google Workspace document (Docs, Sheets, Slides) to a different format',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

@@ -20,12 +20,22 @@ export interface AuthlaneConfig {
 
 export type ConnectionStatus = 'disconnected' | 'pending' | 'connected' | 'expired' | 'error';
 export type ToolFormat = 'mcp' | 'openai';
+export type ToolAccessPolicy = 'read_only' | 'full';
+export type ToolRisk = 'read' | 'write' | 'destructive';
+
+export interface ToolAnnotations {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+}
 
 export interface Service {
   id: string;
   name: string;
   authType: string;
   enabled: boolean;
+  toolAccessPolicy: ToolAccessPolicy;
   config: Record<string, unknown>;
 }
 
@@ -65,12 +75,20 @@ export interface MCPTool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations: ToolAnnotations;
 }
 
 export interface OpenAIFunction {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
+  metadata: {
+    authlane: {
+      serviceId: string;
+      risk: ToolRisk;
+      annotations: ToolAnnotations;
+    };
+  };
 }
 
 export type ToolsResponse =
@@ -82,6 +100,7 @@ export interface CapabilityService {
   status: ConnectionStatus;
   connected: boolean;
   expiresAt: string | null;
+  toolAccessPolicy: ToolAccessPolicy;
   tools: MCPTool[] | OpenAIFunction[];
 }
 

@@ -15,6 +15,7 @@ export interface CanonicalIntegrationConfig {
   token_url: string;
   scopes: readonly string[];
   default_scopes: readonly string[];
+  read_only_scopes: readonly string[];
   docs_url: string;
   setup_guide_url: string;
   developer_console_url: string;
@@ -40,6 +41,12 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       'schema.bases:read',
       'workspacesAndBases:read',
     ],
+    read_only_scopes: [
+      'data.records:read',
+      'data.recordComments:read',
+      'schema.bases:read',
+      'workspacesAndBases:read',
+    ],
     docs_url: 'https://airtable.com/developers/web/api/introduction',
     setup_guide_url: 'https://airtable.com/developers/web/guides/oauth-integrations',
     developer_console_url: 'https://airtable.com/create/oauth',
@@ -53,11 +60,30 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       fallback: 'direct_api',
     },
   },
+  attio: {
+    authorization_url: 'https://app.attio.com/oidc/authorize',
+    token_url: 'https://app.attio.com/oidc/token',
+    scopes: ['mcp', 'offline_access', 'openid'],
+    default_scopes: ['mcp', 'offline_access', 'openid'],
+    read_only_scopes: ['mcp', 'offline_access', 'openid'],
+    docs_url: 'https://docs.attio.com/mcp/overview',
+    setup_guide_url: 'https://docs.attio.com/mcp/overview',
+    developer_console_url: 'https://build.attio.com',
+    execution: {
+      preferred: 'provider_mcp',
+      provider_mcp: {
+        endpoint: 'https://mcp.attio.com/mcp',
+        docs_url: 'https://docs.attio.com/mcp/overview',
+        maturity: 'stable',
+      },
+    },
+  },
   discord: {
     authorization_url: 'https://discord.com/api/oauth2/authorize',
     token_url: 'https://discord.com/api/oauth2/token',
     scopes: ['identify', 'guilds', 'guilds.members.read', 'connections'],
     default_scopes: ['identify', 'guilds', 'guilds.members.read', 'connections'],
+    read_only_scopes: ['identify', 'guilds', 'guilds.members.read', 'connections'],
     docs_url: 'https://docs.discord.com/developers/reference',
     setup_guide_url: 'https://docs.discord.com/developers/quick-start/getting-started',
     developer_console_url: 'https://discord.com/developers/applications',
@@ -68,6 +94,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
     token_url: 'https://github.com/login/oauth/access_token',
     scopes: ['repo', 'user', 'read:org'],
     default_scopes: ['repo', 'user'],
+    read_only_scopes: ['read:user', 'read:org'],
     docs_url: 'https://docs.github.com/en/rest',
     setup_guide_url:
       'https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app',
@@ -100,6 +127,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       'https://www.googleapis.com/auth/gmail.compose',
       'https://www.googleapis.com/auth/gmail.labels',
     ],
+    read_only_scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
     docs_url: 'https://developers.google.com/workspace/gmail/api/guides',
     setup_guide_url: 'https://developers.google.com/workspace/guides/configure-oauth-consent',
     developer_console_url: 'https://console.cloud.google.com/apis/credentials',
@@ -107,8 +135,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       preferred: 'provider_mcp',
       provider_mcp: {
         endpoint: 'https://gmailmcp.googleapis.com/mcp/v1',
-        docs_url:
-          'https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server',
+        docs_url: 'https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server',
         maturity: 'developer_preview',
       },
       fallback: 'direct_api',
@@ -126,6 +153,10 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
     default_scopes: [
       'https://www.googleapis.com/auth/calendar.events',
       'https://www.googleapis.com/auth/calendar.readonly',
+    ],
+    read_only_scopes: [
+      'https://www.googleapis.com/auth/calendar.readonly',
+      'https://www.googleapis.com/auth/calendar.events.readonly',
     ],
     docs_url: 'https://developers.google.com/workspace/calendar/api/guides/overview',
     setup_guide_url: 'https://developers.google.com/workspace/guides/configure-oauth-consent',
@@ -156,6 +187,10 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       'https://www.googleapis.com/auth/drive.file',
       'https://www.googleapis.com/auth/drive.readonly',
     ],
+    read_only_scopes: [
+      'https://www.googleapis.com/auth/drive.readonly',
+      'https://www.googleapis.com/auth/drive.metadata.readonly',
+    ],
     docs_url: 'https://developers.google.com/workspace/drive/api/guides/about-sdk',
     setup_guide_url: 'https://developers.google.com/workspace/guides/configure-oauth-consent',
     developer_console_url: 'https://console.cloud.google.com/apis/credentials',
@@ -163,8 +198,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       preferred: 'provider_mcp',
       provider_mcp: {
         endpoint: 'https://drivemcp.googleapis.com/mcp/v1',
-        docs_url:
-          'https://developers.google.com/workspace/drive/api/guides/configure-mcp-server',
+        docs_url: 'https://developers.google.com/workspace/drive/api/guides/configure-mcp-server',
         maturity: 'developer_preview',
       },
       fallback: 'direct_api',
@@ -175,6 +209,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
     token_url: 'https://mcp.hubspot.com/oauth/v3/token',
     scopes: [],
     default_scopes: [],
+    read_only_scopes: [],
     docs_url: 'https://developers.hubspot.com/docs/api-reference/overview',
     setup_guide_url:
       'https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server',
@@ -194,6 +229,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
     token_url: 'https://auth.atlassian.com/oauth/token',
     scopes: ['read:jira-work', 'write:jira-work', 'read:jira-user', 'offline_access'],
     default_scopes: ['read:jira-work', 'write:jira-work', 'offline_access'],
+    read_only_scopes: ['read:jira-work', 'read:jira-user', 'offline_access'],
     docs_url: 'https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/',
     setup_guide_url: 'https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/',
     developer_console_url: 'https://developer.atlassian.com/console/myapps/',
@@ -212,6 +248,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
     token_url: 'https://api.linear.app/oauth/token',
     scopes: ['read', 'write', 'issues:create'],
     default_scopes: ['read', 'write'],
+    read_only_scopes: ['read'],
     docs_url: 'https://linear.app/developers',
     setup_guide_url: 'https://linear.app/developers/oauth-2-0-authentication',
     developer_console_url: 'https://linear.app/settings/api',
@@ -225,11 +262,123 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       fallback: 'direct_api',
     },
   },
+  'microsoft-calendar': {
+    authorization_url: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    token_url: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    default_scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    read_only_scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    docs_url:
+      'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview',
+    setup_guide_url:
+      'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry',
+    developer_console_url:
+      'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+    execution: {
+      preferred: 'provider_mcp',
+      provider_mcp: {
+        endpoint: 'https://workiq.svc.cloud.microsoft/mcp',
+        docs_url:
+          'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview',
+        maturity: 'beta',
+      },
+    },
+  },
+  'microsoft-mail': {
+    authorization_url: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    token_url: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    default_scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    read_only_scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    docs_url:
+      'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview',
+    setup_guide_url:
+      'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry',
+    developer_console_url:
+      'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+    execution: {
+      preferred: 'provider_mcp',
+      provider_mcp: {
+        endpoint: 'https://workiq.svc.cloud.microsoft/mcp',
+        docs_url:
+          'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview',
+        maturity: 'beta',
+      },
+    },
+  },
+  'microsoft-sharepoint': {
+    authorization_url: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    token_url: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    default_scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    read_only_scopes: [
+      'api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask',
+      'offline_access',
+      'openid',
+      'profile',
+    ],
+    docs_url:
+      'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview',
+    setup_guide_url:
+      'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry',
+    developer_console_url:
+      'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+    execution: {
+      preferred: 'provider_mcp',
+      provider_mcp: {
+        endpoint: 'https://workiq.svc.cloud.microsoft/mcp',
+        docs_url:
+          'https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview',
+        maturity: 'beta',
+      },
+    },
+  },
   notion: {
     authorization_url: 'https://api.notion.com/v1/oauth/authorize',
     token_url: 'https://api.notion.com/v1/oauth/token',
     scopes: [],
     default_scopes: [],
+    read_only_scopes: [],
     docs_url: 'https://developers.notion.com/reference/intro',
     setup_guide_url: 'https://developers.notion.com/docs/create-a-notion-integration',
     developer_console_url: 'https://www.notion.so/profile/integrations',
@@ -247,6 +396,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
     token_url: 'https://oauth.pipedrive.com/oauth/token',
     scopes: ['deals:read', 'deals:full', 'contacts:read', 'contacts:full', 'search:read'],
     default_scopes: ['deals:full', 'contacts:full', 'search:read'],
+    read_only_scopes: ['deals:read', 'contacts:read', 'search:read'],
     docs_url: 'https://developers.pipedrive.com/docs/api/v1',
     setup_guide_url: 'https://pipedrive.readme.io/docs/marketplace-oauth-authorization',
     developer_console_url: 'https://pipedrive.readme.io/docs/marketplace-manager',
@@ -275,6 +425,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       'web',
     ],
     default_scopes: ['mcp_api', 'api', 'refresh_token', 'id'],
+    read_only_scopes: ['mcp_api', 'api', 'refresh_token', 'id'],
     docs_url: 'https://developer.salesforce.com/docs/platform/hosted-mcp-servers/overview',
     setup_guide_url:
       'https://developer.salesforce.com/docs/platform/hosted-mcp-servers/guide/create-external-client-app.html',
@@ -320,6 +471,18 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
       'search:read.public',
       'search:read.users',
     ],
+    read_only_scopes: [
+      'channels:read',
+      'groups:read',
+      'channels:history',
+      'groups:history',
+      'im:history',
+      'mpim:history',
+      'users:read',
+      'search:read.public',
+      'search:read.private',
+      'search:read.users',
+    ],
     docs_url: 'https://docs.slack.dev/reference/methods/',
     setup_guide_url: 'https://docs.slack.dev/ai/slack-mcp-server/developing/',
     developer_console_url: 'https://api.slack.com/apps',
@@ -338,6 +501,7 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
     token_url: 'https://connect.stripe.com/oauth/token',
     scopes: ['read_only'],
     default_scopes: ['read_only'],
+    read_only_scopes: ['read_only'],
     docs_url: 'https://docs.stripe.com/api',
     setup_guide_url: 'https://docs.stripe.com/connect/oauth-reference',
     developer_console_url: 'https://dashboard.stripe.com/settings/connect',

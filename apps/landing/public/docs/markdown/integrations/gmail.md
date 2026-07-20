@@ -27,6 +27,10 @@ or path as a redirect mismatch.
 
 ## Scopes
 
+**Read-only tools** requests only `https://www.googleapis.com/auth/gmail.readonly`. **Full tool
+set** requests the scopes below and exposes the matching mutations. Changing the policy requires
+users to reconnect.
+
 - `https://www.googleapis.com/auth/gmail.send` permits sending mail.
 - `https://www.googleapis.com/auth/gmail.readonly` permits reading messages, threads, labels, and
   drafts exposed by the adapter.

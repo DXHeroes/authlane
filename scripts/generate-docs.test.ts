@@ -655,11 +655,11 @@ describe('documentation asset generation', () => {
     );
   });
 
-  it('loads the exact shipped 14-service and 108-tool manifest inventory', () => {
+  it('loads the exact shipped 18-service and 189-tool manifest inventory', () => {
     const integrations = loadIntegrationConfigs(repositoryRoot);
 
-    expect(integrations).toHaveLength(14);
-    expect(integrations.flatMap(({ toolNames }) => toolNames)).toHaveLength(108);
+    expect(integrations).toHaveLength(18);
+    expect(integrations.flatMap(({ toolNames }) => toolNames)).toHaveLength(189);
   });
 
   it('validates the repository documentation source tree', () => {
@@ -901,8 +901,8 @@ describe('documentation asset generation', () => {
     );
 
     expect(violations).toEqual([
-      'integrations: integration page config/manifest count must be 14, found 0',
-      'integrations: integration page count must be 14, found 0',
+      'integrations: integration page config/manifest count must be 18, found 0',
+      'integrations: integration page count must be 18, found 0',
     ]);
   });
 

@@ -39,6 +39,7 @@ class Service:
     auth_type: str
     enabled: bool
     config: dict[str, Any]
+    tool_access_policy: Literal["read_only", "full"] = "read_only"
 
 
 ConnectionStatus = Literal["disconnected", "pending", "connected", "expired", "error"]
@@ -55,12 +56,35 @@ class Connection:
     error_code: str | None
 
 
+ToolRisk = Literal["read", "write", "destructive"]
+
+
+@dataclass(frozen=True, slots=True)
+class ToolAnnotations:
+    read_only_hint: bool
+    destructive_hint: bool
+    idempotent_hint: bool
+    open_world_hint: bool
+
+
+UNKNOWN_TOOL_ANNOTATIONS = ToolAnnotations(False, True, False, True)
+
+
 @dataclass(frozen=True, slots=True)
 class ToolDefinition:
     name: str
     description: str
     input_schema: dict[str, Any]
     service_id: str | None = None
+    annotations: ToolAnnotations = UNKNOWN_TOOL_ANNOTATIONS
+
+    @property
+    def risk(self) -> ToolRisk:
+        if self.annotations.destructive_hint:
+            return "destructive"
+        if self.annotations.read_only_hint:
+            return "read"
+        return "write"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +94,7 @@ class CapabilityService:
     connected: bool
     expires_at: str | None
     tools: tuple[ToolDefinition, ...]
+    tool_access_policy: Literal["read_only", "full"] = "read_only"
 
 
 @dataclass(frozen=True, slots=True)

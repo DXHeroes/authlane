@@ -8,6 +8,10 @@ const manifestDirectory = join(packageRoot, 'manifests/v1');
 const schemaPath = join(packageRoot, 'schema/integration-manifest.schema.json');
 const generatedJsonPath = join(packageRoot, 'generated/v1/integrations.json');
 const generatedTypeScriptPath = join(packageRoot, 'src/generated/v1.ts');
+const generatedPythonJsonPath = resolve(
+  packageRoot,
+  '../python/src/authlane/_generated/integrations.json'
+);
 const checkOnly = process.argv.includes('--check');
 
 const schema = JSON.parse(await readFile(schemaPath, 'utf8'));
@@ -51,6 +55,11 @@ for (const fileName of manifestFileNames) {
   const tools = [...manifest.tools].sort((left, right) => compareText(left.name, right.name));
   for (const tool of tools) {
     validateToolInputSchema(manifest.serviceId, tool);
+    if (tool.annotations.readOnlyHint && tool.annotations.destructiveHint) {
+      throw new Error(
+        `Tool ${manifest.serviceId}/${tool.name} cannot be read-only and destructive`
+      );
+    }
     if (toolNames.has(tool.name)) {
       throw new Error(`Duplicate public tool ID: ${tool.name}`);
     }
@@ -74,6 +83,12 @@ export type BuiltInServiceId = ${serviceIdUnion};
 export interface PublicToolContract {
   readonly name: string;
   readonly description: string;
+  readonly annotations: {
+    readonly readOnlyHint: boolean;
+    readonly destructiveHint: boolean;
+    readonly idempotentHint: boolean;
+    readonly openWorldHint: boolean;
+  };
   readonly inputSchema: Readonly<Record<string, unknown>>;
 }
 
@@ -92,6 +107,7 @@ export interface PublicToolDefinition {
   readonly serviceId: BuiltInServiceId;
   readonly name: string;
   readonly description: string;
+  readonly annotations: PublicToolContract['annotations'];
   readonly inputSchema: Readonly<Record<string, unknown>>;
 }
 
@@ -124,9 +140,12 @@ async function assertCurrent(path, expected) {
 if (checkOnly) {
   await assertCurrent(generatedJsonPath, jsonOutput);
   await assertCurrent(generatedTypeScriptPath, typeScriptOutput);
+  await assertCurrent(generatedPythonJsonPath, jsonOutput);
 } else {
   await mkdir(dirname(generatedJsonPath), { recursive: true });
   await mkdir(dirname(generatedTypeScriptPath), { recursive: true });
+  await mkdir(dirname(generatedPythonJsonPath), { recursive: true });
   await writeFile(generatedJsonPath, jsonOutput);
   await writeFile(generatedTypeScriptPath, typeScriptOutput);
+  await writeFile(generatedPythonJsonPath, jsonOutput);
 }

@@ -14,6 +14,7 @@ interface SourceConfig {
     token_url: string;
     scopes: string[];
     default_scopes: string[];
+    read_only_scopes: string[];
     docs_url: string;
     setup_guide_url: string;
     developer_console_url: string;
@@ -35,6 +36,7 @@ describe('runtime integration configuration', () => {
           token_url?: string;
           scopes?: Array<{ name: string }>;
           default_scopes?: string[];
+          read_only_scopes?: string[];
           docs_url?: string;
           setup_guide_url?: string;
           developer_console_url?: string;
@@ -49,6 +51,7 @@ describe('runtime integration configuration', () => {
       authorization_url: source.config.authorization_url,
       token_url: source.config.token_url,
       default_scopes: source.config.default_scopes,
+      read_only_scopes: source.config.read_only_scopes,
       docs_url: source.config.docs_url,
       setup_guide_url: source.config.setup_guide_url,
       developer_console_url: source.config.developer_console_url,

@@ -35,6 +35,17 @@ export type AuthType = 'oauth2' | 'api_key' | 'header';
  */
 export type ToolFormat = 'mcp' | 'openai';
 
+export type ToolAccessPolicy = 'read_only' | 'full';
+
+export type ToolRisk = 'read' | 'write' | 'destructive';
+
+export interface ToolAnnotations {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+}
+
 /**
  * OAuth2 credentials
  */
@@ -117,7 +128,7 @@ export interface CanonicalToolDefinition {
   serviceId: string;
   description: string;
   inputSchema: JsonSchema;
-  annotations?: Record<string, unknown>;
+  annotations: ToolAnnotations;
 }
 
 export interface ToolHandler {
@@ -129,13 +140,20 @@ export interface McpToolDefinition {
   name: string;
   description: string;
   inputSchema: JsonSchema;
-  annotations?: Record<string, unknown>;
+  annotations: ToolAnnotations;
 }
 
 export interface OpenAiToolDefinition {
   name: string;
   description: string;
   parameters: JsonSchema;
+  metadata: {
+    authlane: {
+      serviceId: string;
+      risk: ToolRisk;
+      annotations: ToolAnnotations;
+    };
+  };
 }
 
 export interface ServiceCapability {
@@ -143,6 +161,7 @@ export interface ServiceCapability {
   status: ConnectionStatus;
   connected: boolean;
   expiresAt: string | null;
+  toolAccessPolicy: ToolAccessPolicy;
   tools: McpToolDefinition[] | OpenAiToolDefinition[];
 }
 

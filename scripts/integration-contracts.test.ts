@@ -12,6 +12,7 @@ const generatorPath = join(packageRoot, 'scripts/generate.mjs');
 
 const expectedCounts = {
   airtable: 11,
+  attio: 37,
   discord: 4,
   github: 8,
   gmail: 11,
@@ -20,8 +21,11 @@ const expectedCounts = {
   hubspot: 4,
   jira: 6,
   linear: 5,
+  'microsoft-calendar': 8,
+  'microsoft-mail': 8,
+  'microsoft-sharepoint': 8,
   notion: 15,
-  pipedrive: 9,
+  pipedrive: 29,
   salesforce: 5,
   slack: 5,
   stripe: 4,
@@ -31,6 +35,12 @@ type ManifestTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations: {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+    idempotentHint: boolean;
+    openWorldHint: boolean;
+  };
 };
 
 type IntegrationManifest = {
@@ -62,13 +72,13 @@ function sortedDefinitions(manifests: IntegrationManifest[]) {
 }
 
 describe('canonical integration contracts', () => {
-  it('contains the exact 14-service and 108-tool inventory', () => {
+  it('contains the exact 18-service and 189-tool inventory', () => {
     const manifests = readManifests();
 
     expect(
       Object.fromEntries(manifests.map(({ serviceId, tools }) => [serviceId, tools.length]))
     ).toEqual(expectedCounts);
-    expect(manifests.flatMap(({ tools }) => tools)).toHaveLength(108);
+    expect(manifests.flatMap(({ tools }) => tools)).toHaveLength(189);
   });
 
   it('uses unique IDs and JSON object input schemas', () => {
@@ -88,6 +98,13 @@ describe('canonical integration contracts', () => {
         expect(tool.inputSchema).toMatchObject({ type: 'object' });
         expect(Array.isArray(tool.inputSchema)).toBe(false);
         expect(tool.inputSchema.properties).toBeTypeOf('object');
+        expect(tool.annotations).toEqual({
+          readOnlyHint: expect.any(Boolean),
+          destructiveHint: expect.any(Boolean),
+          idempotentHint: expect.any(Boolean),
+          openWorldHint: expect.any(Boolean),
+        });
+        expect(tool.annotations.destructiveHint && tool.annotations.readOnlyHint).toBe(false);
       }
     }
   });

@@ -5,7 +5,7 @@ from functools import lru_cache
 from importlib.resources import files
 from typing import Any, cast
 
-from .models import ToolDefinition
+from .models import ToolAnnotations, ToolDefinition
 
 
 @lru_cache(maxsize=1)
@@ -23,6 +23,12 @@ def definitions_by_service() -> dict[str, tuple[ToolDefinition, ...]]:
                 name=tool["name"],
                 description=tool["description"],
                 input_schema=tool["inputSchema"],
+                annotations=ToolAnnotations(
+                    read_only_hint=tool["annotations"]["readOnlyHint"],
+                    destructive_hint=tool["annotations"]["destructiveHint"],
+                    idempotent_hint=tool["annotations"]["idempotentHint"],
+                    open_world_hint=tool["annotations"]["openWorldHint"],
+                ),
             )
             for tool in integration["tools"]
         )

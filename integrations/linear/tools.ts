@@ -41,6 +41,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'linear_create_issue',
       description: 'Creates a new issue in Linear',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -116,6 +122,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'linear_list_issues',
       description: 'Lists issues in Linear with optional filters',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -191,6 +203,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'linear_update_issue',
       description: 'Updates an existing issue in Linear',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -261,6 +279,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'linear_list_projects',
       description: 'Lists projects in Linear',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -321,6 +345,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'linear_create_project',
       description: 'Creates a new project in Linear',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

@@ -140,6 +140,28 @@ def test_never_retries_a_started_mcp_mutation_through_direct_api() -> None:
     assert not direct_requests
 
 
+def test_normalizes_canonical_attio_names_to_official_hyphenated_tools() -> None:
+    calls: list[dict[str, Any]] = []
+
+    def mcp(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.read())
+        if payload.get("method") == "tools/call":
+            calls.append(payload["params"])
+        return _mcp_response(request, ["search-records"])
+
+    result = execute(
+        service_id="attio",
+        tool_name="attio_search_records",
+        arguments={"query": "Linear"},
+        credential=_credential(),
+        transport=httpx.MockTransport(lambda _: httpx.Response(500)),
+        mcp_transport=httpx.MockTransport(mcp),
+    )
+
+    assert result.error is None
+    assert calls == [{"name": "search-records", "arguments": {"query": "Linear"}}]
+
+
 def test_translates_salesforce_wrapper_to_official_sobject_tool() -> None:
     calls: list[dict[str, Any]] = []
 
@@ -369,3 +391,37 @@ def test_prefers_official_pipedrive_mcp_for_compatible_crm_operations() -> None:
     assert calls == [{"name": "getDeal", "arguments": {"id": 42}}]
     assert fallback.error is None and fallback.data == {"path": "direct"}
     assert len(direct_requests) == 1
+
+
+def test_confines_microsoft_work_iq_to_the_selected_workload() -> None:
+    calls: list[dict[str, Any]] = []
+
+    def mcp(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.read())
+        if payload.get("method") == "tools/call":
+            calls.append(payload["params"])
+        return _mcp_response(request, ["fetch"])
+
+    credential = {
+        **_credential(),
+        "scopes": ["api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask"],
+    }
+    allowed = execute(
+        service_id="microsoft-mail",
+        tool_name="microsoft_mail_fetch",
+        arguments={"entityUrls": ["/me/messages"]},
+        credential=credential,
+        mcp_transport=httpx.MockTransport(mcp),
+    )
+    blocked = execute(
+        service_id="microsoft-mail",
+        tool_name="microsoft_mail_fetch",
+        arguments={"entityUrls": ["/sites/root"]},
+        credential=credential,
+        mcp_transport=httpx.MockTransport(mcp),
+    )
+
+    assert allowed.error is None
+    assert calls == [{"name": "fetch", "arguments": {"entityUrls": ["/me/messages"]}}]
+    assert blocked.data is None and blocked.error is not None
+    assert blocked.error.code == "PROVIDER_ERROR"

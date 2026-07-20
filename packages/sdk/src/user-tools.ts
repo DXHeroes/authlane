@@ -7,6 +7,7 @@ import type {
   CredentialLease,
   MCPTool,
   Result,
+  ToolRisk,
   ToolsResponse,
   UserScopeToolOptions,
 } from './types.js';
@@ -16,6 +17,7 @@ export interface UserToolDefinition extends MCPTool {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: Readonly<Record<string, unknown>>;
+  readonly risk: ToolRisk;
 }
 
 export interface UserToolAdapter<T> {
@@ -386,6 +388,25 @@ const deepFreezeJsonValue = (value: unknown): boolean => {
 };
 
 const connectionStatuses = new Set(['disconnected', 'pending', 'connected', 'expired', 'error']);
+const toolAccessPolicies = new Set(['read_only', 'full']);
+
+const validateToolAnnotations = (value: unknown) => {
+  if (!isPlainObject(value)) return null;
+  const annotations = {
+    readOnlyHint: value.readOnlyHint,
+    destructiveHint: value.destructiveHint,
+    idempotentHint: value.idempotentHint,
+    openWorldHint: value.openWorldHint,
+  };
+  if (Object.values(annotations).some((entry) => typeof entry !== 'boolean')) return null;
+  if (annotations.readOnlyHint && annotations.destructiveHint) return null;
+  return annotations as {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+    idempotentHint: boolean;
+    openWorldHint: boolean;
+  };
+};
 
 const validateCapabilityTools = (
   data: unknown,
@@ -417,6 +438,8 @@ const validateCapabilityTools = (
       typeof service.connected !== 'boolean' ||
       typeof service.status !== 'string' ||
       !connectionStatuses.has(service.status) ||
+      typeof service.toolAccessPolicy !== 'string' ||
+      !toolAccessPolicies.has(service.toolAccessPolicy) ||
       (service.expiresAt !== null && typeof service.expiresAt !== 'string') ||
       !Array.isArray(service.tools)
     ) {
@@ -434,7 +457,8 @@ const validateCapabilityTools = (
         return null;
       }
       const inputSchema = tool.inputSchema;
-      if (!isPlainObject(inputSchema)) {
+      const annotations = validateToolAnnotations(tool.annotations);
+      if (!isPlainObject(inputSchema) || !annotations) {
         return null;
       }
 
@@ -446,11 +470,18 @@ const validateCapabilityTools = (
         if (!deepFreezeJsonValue(inputSchema)) {
           return null;
         }
+        Object.freeze(annotations);
         visibleTools.push(
           Object.freeze({
             serviceId: service.serviceId,
             name: tool.name,
             description: tool.description,
+            annotations,
+            risk: annotations.readOnlyHint
+              ? 'read'
+              : annotations.destructiveHint
+                ? 'destructive'
+                : 'write',
             inputSchema,
           })
         );

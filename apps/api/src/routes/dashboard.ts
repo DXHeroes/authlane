@@ -5,6 +5,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { createApiKey, getLookupKeyring } from '@authlane/crypto';
+import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
 import {
   and,
   apiKeys,
@@ -25,7 +26,13 @@ import {
   sql,
   user,
 } from '@authlane/database';
-import { Errors, isSupportedServiceId, SUPPORTED_SERVICE_IDS } from '@authlane/shared';
+import {
+  Errors,
+  getToolRisk,
+  isSupportedServiceId,
+  isToolAllowed,
+  SUPPORTED_SERVICE_IDS,
+} from '@authlane/shared';
 import { Hono } from 'hono';
 import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
 import type { CacheStore } from '../lib/cache.js';
@@ -106,9 +113,7 @@ export function createDashboardRouter(
       const [totalServicesCount] = await db
         .select({ count: count() })
         .from(services)
-        .where(
-          and(eq(services.enabled, true), inArray(services.id, [...SUPPORTED_SERVICE_IDS]))
-        );
+        .where(and(eq(services.enabled, true), inArray(services.id, [...SUPPORTED_SERVICE_IDS])));
 
       return c.json({
         data: {
@@ -636,6 +641,7 @@ export function createDashboardRouter(
           organizationId: os.organizationId,
           serviceId: os.serviceId,
           enabled: os.enabled,
+          toolAccessPolicy: os.toolAccessPolicy,
           customClientId: os.oauthClientId,
           // Never return secrets
           apiKey: os.apiKeySecretId ? '********' : undefined,
@@ -648,6 +654,39 @@ export function createDashboardRouter(
       logger.error({ error, requestId: c.get('requestId') }, 'Failed to get organization services');
       return c.json(Errors.internalError('Failed to retrieve organization services'), 500);
     }
+  });
+
+  router.get('/organization/services/:serviceId/tools', async (c) => {
+    const org = c.get('organization');
+    if (!org) {
+      return c.json(Errors.unauthorized('Organization context required'), 401);
+    }
+    const serviceId = c.req.param('serviceId');
+    if (!isSupportedServiceId(serviceId)) {
+      return c.json(Errors.notFound('Service', serviceId), 404);
+    }
+    const [orgService] = await db
+      .select({ toolAccessPolicy: organizationServices.toolAccessPolicy })
+      .from(organizationServices)
+      .where(
+        and(
+          eq(organizationServices.organizationId, org.id),
+          eq(organizationServices.serviceId, serviceId)
+        )
+      )
+      .limit(1);
+    const policy = orgService?.toolAccessPolicy === 'full' ? 'full' : 'read_only';
+    const definitions = publicToolDefinitionsByService[serviceId];
+    return c.json({
+      data: definitions.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        annotations: tool.annotations,
+        risk: getToolRisk(tool.annotations),
+        enabledByPolicy: isToolAllowed(tool.annotations, policy),
+      })),
+      error: null,
+    });
   });
 
   /**
@@ -685,6 +724,7 @@ export function createDashboardRouter(
             organizationId: org.id,
             serviceId,
             enabled: false,
+            toolAccessPolicy: 'read_only',
           },
           error: null,
         });
@@ -695,6 +735,7 @@ export function createDashboardRouter(
           organizationId: orgService.organizationId,
           serviceId: orgService.serviceId,
           enabled: orgService.enabled,
+          toolAccessPolicy: orgService.toolAccessPolicy,
           customClientId: orgService.oauthClientId,
           // Indicate if API key is set without revealing it
           apiKey: orgService.apiKeySecretId ? '********' : undefined,
@@ -724,34 +765,103 @@ export function createDashboardRouter(
       if (!isSupportedServiceId(serviceId)) {
         return c.json(Errors.notFound('Service', serviceId), 404);
       }
-      const body = await c.req.json();
-      const { enabled } = body;
+      const body = (await c.req.json()) as Record<string, unknown>;
+      const { enabled, toolAccessPolicy } = body;
 
-      if (typeof enabled !== 'boolean') {
-        return c.json(Errors.validationError('enabled must be a boolean'), 400);
+      if (enabled !== undefined && typeof enabled !== 'boolean') {
+        return c.json(Errors.validationError('enabled must be a boolean when provided'), 400);
+      }
+      if (
+        toolAccessPolicy !== undefined &&
+        toolAccessPolicy !== 'read_only' &&
+        toolAccessPolicy !== 'full'
+      ) {
+        return c.json(
+          Errors.validationError('toolAccessPolicy must be read_only or full when provided'),
+          400
+        );
+      }
+      if (enabled === undefined && toolAccessPolicy === undefined) {
+        return c.json(Errors.validationError('enabled or toolAccessPolicy must be provided'), 400);
       }
 
-      // Upsert the organization service
+      const [existing] = await db
+        .select()
+        .from(organizationServices)
+        .where(
+          and(
+            eq(organizationServices.organizationId, org.id),
+            eq(organizationServices.serviceId, serviceId)
+          )
+        )
+        .limit(1);
+      const effectiveEnabled = enabled ?? existing?.enabled ?? false;
+      const effectiveToolAccessPolicy =
+        toolAccessPolicy ?? existing?.toolAccessPolicy ?? 'read_only';
+      const policyChanged =
+        existing !== undefined && existing.toolAccessPolicy !== effectiveToolAccessPolicy;
+
       await db
         .insert(organizationServices)
         .values({
           organizationId: org.id,
           serviceId,
-          enabled,
+          enabled: effectiveEnabled,
+          toolAccessPolicy: effectiveToolAccessPolicy,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
           target: [organizationServices.organizationId, organizationServices.serviceId],
           set: {
-            enabled,
+            enabled: effectiveEnabled,
+            toolAccessPolicy: effectiveToolAccessPolicy,
             updatedAt: new Date(),
           },
         });
+
+      if (policyChanged) {
+        const affectedConnections = await db
+          .select({
+            externalUserId: connections.externalUserId,
+            credentialSecretId: connections.credentialSecretId,
+          })
+          .from(connections)
+          .where(and(eq(connections.organizationId, org.id), eq(connections.serviceId, serviceId)));
+        await db
+          .update(connections)
+          .set({
+            status: 'expired',
+            credentialSecretId: null,
+            lastErrorCode: 'TOOL_POLICY_REAUTHORIZATION_REQUIRED',
+            updatedAt: new Date(),
+          })
+          .where(and(eq(connections.organizationId, org.id), eq(connections.serviceId, serviceId)));
+        await Promise.all(
+          affectedConnections.flatMap(({ credentialSecretId }) =>
+            credentialSecretId
+              ? [
+                  secretStore.delete?.(credentialSecretId, org.id, 'connection_credentials') ??
+                    Promise.resolve(),
+                ]
+              : []
+          )
+        );
+        await Promise.all(
+          affectedConnections.map(({ externalUserId }) =>
+            cache?.delete(`control-plane:connections:${org.id}:${externalUserId}`)
+          )
+        );
+      }
       await cache?.delete(`control-plane:tenant-services:${org.id}`);
 
       return c.json({
-        data: { success: true, enabled },
+        data: {
+          success: true,
+          enabled: effectiveEnabled,
+          toolAccessPolicy: effectiveToolAccessPolicy,
+          requiresReauthorization: policyChanged,
+        },
         error: null,
       });
     } catch (error) {

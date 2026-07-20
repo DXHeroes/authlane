@@ -21,7 +21,9 @@ const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
 export async function runForUser(currentUser: { id: string }, messages: ModelMessage[]) {
   const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  const { data: tools, error } = await user.tools.list({
+    adapter: vercelAI({ approval: 'write-and-destructive' }),
+  });
   if (error) return { data: null, error };
   return { data: streamText({ model: 'openai/gpt-5-mini', messages, tools }), error: null };
 }
@@ -29,6 +31,32 @@ export async function runForUser(currentUser: { id: string }, messages: ModelMes
 
 Binding `authlane.user(currentUser.id)` comes before adapter selection. The capability read builds
 only definitions and callbacks. Each callback requests a fresh lease when it is invoked.
+
+## Tool safety metadata
+
+Every canonical tool includes MCP annotations:
+
+- `readOnlyHint` identifies retrieval without provider mutation.
+- `destructiveHint` identifies delete or equivalent irreversible operations.
+- `idempotentHint` describes whether repeating a mutation has the same effect.
+- `openWorldHint` signals that the tool communicates with an external provider.
+
+Authlane derives `risk: 'read' | 'write' | 'destructive'` and preserves both the annotations and
+risk in MCP and OpenAI responses. Missing or invalid annotations fail closed instead of being
+treated as read-only.
+
+The tenant chooses **Read-only tools** or **Full tool set** independently for every service in the
+dashboard. Read-only filtering happens in the control plane before definitions reach your SDK.
+Changing a policy invalidates affected connections so the next OAuth grant uses the matching scope
+set.
+
+Adapter approval policies are separate from service filtering:
+
+```typescript
+vercelAI({ approval: 'none' });                  // never request framework approval
+vercelAI({ approval: 'destructive' });           // approval for destructive tools
+vercelAI({ approval: 'write-and-destructive' }); // approval for every mutation
+```
 
 ## Expected result
 

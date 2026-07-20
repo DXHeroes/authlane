@@ -110,7 +110,11 @@
         "integrations/salesforce",
         "integrations/pipedrive",
         "integrations/stripe",
-        "integrations/airtable"
+        "integrations/airtable",
+        "integrations/attio",
+        "integrations/microsoft-mail",
+        "integrations/microsoft-calendar",
+        "integrations/microsoft-sharepoint"
       ]
     },
     {

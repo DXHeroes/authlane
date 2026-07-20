@@ -13,11 +13,23 @@ type BuiltTools = Record<string, (input: Record<string, unknown>) => Promise<unk
 const githubTool = {
   name: 'github_create_issue',
   description: 'Create a GitHub issue',
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
   inputSchema: { type: 'object' },
 };
 const slackTool = {
   name: 'slack_send_message',
   description: 'Send a Slack message',
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
   inputSchema: { type: 'object' },
 };
 const credential: CredentialLease = {
@@ -39,6 +51,7 @@ const capabilities = {
       status: 'connected',
       connected: true,
       expiresAt: null,
+      toolAccessPolicy: 'full',
       tools: [githubTool],
     },
     {
@@ -46,6 +59,7 @@ const capabilities = {
       status: 'disconnected',
       connected: false,
       expiresAt: null,
+      toolAccessPolicy: 'full',
       tools: [slackTool],
     },
     {
@@ -53,10 +67,12 @@ const capabilities = {
       status: 'expired',
       connected: false,
       expiresAt: '2026-07-17T12:00:00.000Z',
+      toolAccessPolicy: 'full',
       tools: [
         {
           ...githubTool,
           name: 'linear_create_issue',
+          annotations: { ...githubTool.annotations },
           inputSchema: { ...githubTool.inputSchema },
         },
       ],
@@ -66,10 +82,12 @@ const capabilities = {
       status: 'error',
       connected: false,
       expiresAt: null,
+      toolAccessPolicy: 'full',
       tools: [
         {
           ...githubTool,
           name: 'notion_search',
+          annotations: { ...githubTool.annotations },
           inputSchema: { ...githubTool.inputSchema },
         },
       ],
@@ -1099,7 +1117,9 @@ describe('user tool adapter contract', () => {
       .tools.list({ adapter });
     const execution = await listed.data?.invoke();
 
-    expect(listed.data?.definitions).toEqual([{ ...nestedTool, serviceId: 'github' }]);
+    expect(listed.data?.definitions).toEqual([
+      { ...nestedTool, serviceId: 'github', risk: 'write' },
+    ]);
     expect(Object.isFrozen(listed.data?.definitions)).toBe(true);
     expect(Object.isFrozen(listed.data?.definitions[0])).toBe(true);
     expect(Object.isFrozen(listed.data?.definitions[0].inputSchema)).toBe(true);
@@ -1133,7 +1153,7 @@ describe('user tool adapter contract', () => {
       .tools.list({ adapter });
 
     expect(result.error).toBeNull();
-    expect(buildContexts[0].tools).toEqual([{ ...githubTool, serviceId: 'github' }]);
+    expect(buildContexts[0].tools).toEqual([{ ...githubTool, serviceId: 'github', risk: 'write' }]);
   });
 
   it('keeps one bound identity when a public expando changes during capability fetch', async () => {

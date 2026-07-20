@@ -70,8 +70,15 @@ def load_tools(external_user_id: str):
         if result.error is not None:
             return result
         assert result.data is not None
+        for tool in result.data.values():
+            print(tool.name)
         return result.data
 ```
+
+Raw capability definitions expose `tool.annotations` and the derived `tool.risk` value (`read`,
+`write`, or `destructive`). Use those values to build an approval gate in Agno, LangChain, OpenAI
+Agents, or a custom adapter. Tenant read-only policy is already enforced by Authlane before Python
+receives the tool list.
 
 ## Async applications
 

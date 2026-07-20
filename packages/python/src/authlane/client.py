@@ -30,6 +30,7 @@ from .models import (
     QueryPlacement,
     Result,
     Service,
+    ToolAnnotations,
     ToolDefinition,
     ToolsResponse,
 )
@@ -88,12 +89,16 @@ def _required_bool(value: Any) -> bool:
 def _parse_service(value: Any) -> Service:
     item = _as_mapping(value)
     config = _as_mapping(item.get("config", {}))
+    tool_access_policy = item.get("toolAccessPolicy", "read_only")
+    if tool_access_policy not in {"read_only", "full"}:
+        raise ValueError("invalid tool access policy")
     return Service(
         id=_required_string(item.get("id")),
         name=_required_string(item.get("name")),
         auth_type=_required_string(item.get("authType")),
         enabled=_required_bool(item.get("enabled")),
         config=dict(config),
+        tool_access_policy=cast(Any, tool_access_policy),
     )
 
 
@@ -116,11 +121,35 @@ def _parse_connection(value: Any) -> Connection:
 def _parse_tool(value: Any, service_id: str | None = None) -> ToolDefinition:
     item = _as_mapping(value)
     schema = item.get("inputSchema", item.get("parameters"))
+    metadata = item.get("metadata")
+    authlane_metadata = (
+        _as_mapping(_as_mapping(metadata).get("authlane")) if isinstance(metadata, Mapping) else {}
+    )
+    raw_annotations = item.get("annotations", authlane_metadata.get("annotations"))
+    annotations = (
+        _as_mapping(raw_annotations)
+        if isinstance(raw_annotations, Mapping)
+        else {
+            "readOnlyHint": False,
+            "destructiveHint": True,
+            "idempotentHint": False,
+            "openWorldHint": True,
+        }
+    )
+    parsed_annotations = ToolAnnotations(
+        read_only_hint=_required_bool(annotations.get("readOnlyHint")),
+        destructive_hint=_required_bool(annotations.get("destructiveHint")),
+        idempotent_hint=_required_bool(annotations.get("idempotentHint")),
+        open_world_hint=_required_bool(annotations.get("openWorldHint")),
+    )
+    if parsed_annotations.read_only_hint and parsed_annotations.destructive_hint:
+        raise ValueError("tool cannot be read-only and destructive")
     return ToolDefinition(
         name=_required_string(item.get("name")),
         description=_required_string(item.get("description")),
         input_schema=dict(_as_mapping(schema)),
         service_id=service_id,
+        annotations=parsed_annotations,
     )
 
 
@@ -143,12 +172,17 @@ def _parse_capabilities(value: Any) -> Capabilities:
         if status not in {"disconnected", "pending", "connected", "expired", "error"}:
             raise ValueError("invalid status")
         services.append(
+            # Missing policy is treated as the least-privileged legacy default.
             CapabilityService(
                 service_id=service_id,
                 status=cast(Any, status),
                 connected=_required_bool(service.get("connected")),
                 expires_at=_optional_string(service.get("expiresAt")),
                 tools=tuple(_parse_tool(tool, service_id) for tool in raw_tools),
+                tool_access_policy=cast(
+                    Any,
+                    service.get("toolAccessPolicy", "read_only"),
+                ),
             )
         )
     return Capabilities(

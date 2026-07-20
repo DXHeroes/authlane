@@ -447,6 +447,22 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.19.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(happy-dom@20.10.6)(msw@2.12.4(@types/node@22.19.2)(typescript@5.9.3))(vite@6.4.3(@types/node@22.19.2)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
 
+  integrations/attio:
+    dependencies:
+      '@authlane/integration-contracts':
+        specifier: workspace:*
+        version: link:../../packages/integration-contracts
+      '@authlane/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.2
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.19.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(happy-dom@20.10.6)(msw@2.12.4(@types/node@22.19.2)(typescript@5.9.3))(vite@6.4.3(@types/node@22.19.2)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
   integrations/discord:
     dependencies:
       '@authlane/shared':
@@ -599,6 +615,54 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.19.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(happy-dom@20.10.6)(msw@2.12.4(@types/node@22.19.2)(typescript@5.9.3))(vite@6.4.3(@types/node@22.19.2)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
 
+  integrations/microsoft-calendar:
+    dependencies:
+      '@authlane/integration-contracts':
+        specifier: workspace:*
+        version: link:../../packages/integration-contracts
+      '@authlane/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.2
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.19.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(happy-dom@20.10.6)(msw@2.12.4(@types/node@22.19.2)(typescript@5.9.3))(vite@6.4.3(@types/node@22.19.2)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  integrations/microsoft-mail:
+    dependencies:
+      '@authlane/integration-contracts':
+        specifier: workspace:*
+        version: link:../../packages/integration-contracts
+      '@authlane/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.2
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.19.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(happy-dom@20.10.6)(msw@2.12.4(@types/node@22.19.2)(typescript@5.9.3))(vite@6.4.3(@types/node@22.19.2)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  integrations/microsoft-sharepoint:
+    dependencies:
+      '@authlane/integration-contracts':
+        specifier: workspace:*
+        version: link:../../packages/integration-contracts
+      '@authlane/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.2
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.19.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(happy-dom@20.10.6)(msw@2.12.4(@types/node@22.19.2)(typescript@5.9.3))(vite@6.4.3(@types/node@22.19.2)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
   integrations/notion:
     dependencies:
       '@authlane/shared':
@@ -620,6 +684,9 @@ importers:
 
   integrations/pipedrive:
     dependencies:
+      '@authlane/integration-contracts':
+        specifier: workspace:*
+        version: link:../../packages/integration-contracts
       '@authlane/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -699,6 +766,9 @@ importers:
       '@authlane/integration-airtable':
         specifier: workspace:*
         version: link:../../integrations/airtable
+      '@authlane/integration-attio':
+        specifier: workspace:*
+        version: link:../../integrations/attio
       '@authlane/integration-discord':
         specifier: workspace:*
         version: link:../../integrations/discord
@@ -723,6 +793,15 @@ importers:
       '@authlane/integration-linear':
         specifier: workspace:*
         version: link:../../integrations/linear
+      '@authlane/integration-microsoft-calendar':
+        specifier: workspace:*
+        version: link:../../integrations/microsoft-calendar
+      '@authlane/integration-microsoft-mail':
+        specifier: workspace:*
+        version: link:../../integrations/microsoft-mail
+      '@authlane/integration-microsoft-sharepoint':
+        specifier: workspace:*
+        version: link:../../integrations/microsoft-sharepoint
       '@authlane/integration-notion':
         specifier: workspace:*
         version: link:../../integrations/notion

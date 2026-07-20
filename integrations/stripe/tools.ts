@@ -43,6 +43,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'stripe_list_customers',
       description: 'Lists customers in your Stripe account with pagination support',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -88,6 +94,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'stripe_get_customer',
       description: 'Retrieves details of a specific customer',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -112,6 +124,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'stripe_list_charges',
       description: 'Lists charges (payments) in your Stripe account',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {
@@ -157,6 +175,12 @@ export const tools: Record<string, ToolHandler> = {
     definition: {
       name: 'stripe_get_charge',
       description: 'Retrieves details of a specific charge (payment)',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       inputSchema: {
         type: 'object',
         properties: {

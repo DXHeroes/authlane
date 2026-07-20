@@ -34,10 +34,9 @@ response supplies the company-specific API domain used by the adapter.
 
 ## Scopes
 
-- `deals:full` reads, creates, and updates deals. Choose `deals:read` instead only for a custom
-  read-only deployment.
-- `contacts:full` reads, creates, and updates people and organizations. Choose `contacts:read`
-  instead only when the connection must be read-only.
+- **Full tool set** requests `deals:full` and `contacts:full` for read/write access.
+- **Read-only tools** requests `deals:read` and `contacts:read` and removes mutations from the
+  capability response.
 - `search:read` enables `pipedrive_search`.
 
 Pipedrive does not define separate `:write` scopes for these APIs. The `:full` scopes are the
@@ -63,6 +62,7 @@ results.
 - `pipedrive_get_deal`
 - `pipedrive_create_deal`
 - `pipedrive_update_deal`
+- `pipedrive_search_deals`
 
 ### Contacts
 
@@ -70,6 +70,37 @@ results.
 - `pipedrive_get_contact`
 - `pipedrive_add_contact`
 - `pipedrive_update_contact`
+- `pipedrive_search_persons`
+
+### Organizations
+
+- `pipedrive_get_organizations`
+- `pipedrive_get_organization`
+- `pipedrive_add_organization`
+- `pipedrive_update_organization`
+- `pipedrive_search_organization`
+
+### Activities
+
+- `pipedrive_get_activities`
+- `pipedrive_get_activity`
+- `pipedrive_add_activity`
+- `pipedrive_update_activity`
+
+### Leads and stages
+
+- `pipedrive_search_leads`
+- `pipedrive_convert_lead_to_deal`
+- `pipedrive_get_lead_conversion_status`
+- `pipedrive_get_stages`
+- `pipedrive_get_stage`
+
+### Notes
+
+- `pipedrive_get_notes`
+- `pipedrive_get_note`
+- `pipedrive_add_note`
+- `pipedrive_update_note`
 
 ### Search
 

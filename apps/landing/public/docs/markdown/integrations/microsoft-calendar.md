@@ -1,0 +1,59 @@
+# Microsoft Calendar
+
+Connect Microsoft Calendar and use its tools through the Authlane control plane.
+
+## Prerequisites
+
+Confirm Work IQ availability and review the official
+[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
+[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+and [Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+
+## Self-hosted setup
+
+1. Create a multi-tenant Web app in Microsoft Entra ID.
+2. Register `https://<your-authlane-host>/api/v1/oauth/microsoft-calendar/callback`.
+3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
+4. Create a client secret. One Entra app may serve all Microsoft services when every exact callback
+   URI is registered.
+
+## Configure authentication
+
+Open **Dashboard → Services → Microsoft Calendar**. Enter the Application Client ID and Client
+Secret, select read-only or full tools, and enable the service. Never expose the Client Secret to a
+browser.
+
+## Scopes
+
+- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
+- `offline_access` permits refresh tokens.
+- `openid` and `profile` identify the connected Microsoft user.
+
+## Execution path
+
+The runtime prioritizes Microsoft's official MCP endpoint `https://workiq.svc.cloud.microsoft/mcp`.
+Authlane restricts calls to `/me/calendar`, `/me/calendars`, `/me/calendarView`, `/me/events`,
+`/me/findMeetingTimes`, and `/me/getSchedule`; the SaaS runtime then calls Microsoft directly.
+
+## Available tools
+
+- `microsoft_calendar_fetch`
+- `microsoft_calendar_create_entity`
+- `microsoft_calendar_update_entity`
+- `microsoft_calendar_delete_entity`
+- `microsoft_calendar_do_action`
+- `microsoft_calendar_call_function`
+- `microsoft_calendar_get_schema`
+- `microsoft_calendar_search_paths`
+
+## Connection lifecycle
+
+Authlane encrypts and refreshes the OAuth credential and reports effective connection state.
+Reconnect an `expired` or `error` connection. A tool-policy change deliberately requires new
+consent so read-only and full scopes cannot drift.
+
+## Troubleshooting
+
+- Use a Web redirect URI and match scheme, host, port, and path exactly.
+- Verify the returned token contains the Work IQ permission.
+- The connected user still needs access to the requested calendars.

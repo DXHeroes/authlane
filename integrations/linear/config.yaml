@@ -11,6 +11,8 @@ config:
   default_scopes:
     - read
     - write
+  read_only_scopes:
+    - read
   docs_url: https://linear.app/developers
   setup_guide_url: https://linear.app/developers/oauth-2-0-authentication
   developer_console_url: https://linear.app/settings/api

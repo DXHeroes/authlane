@@ -31,12 +31,74 @@ describe('OAuth provider HTTP policy', () => {
         'github',
         'https://github.com/login/oauth/access_token',
         new URLSearchParams({ code: 'code' }),
-        fetchImpl
+        { fetchImpl }
       )
     ).rejects.toThrow(/too large/);
     expect(fetchImpl).toHaveBeenCalledWith(
       'https://github.com/login/oauth/access_token',
       expect.objectContaining({ method: 'POST', redirect: 'error' })
     );
+  });
+
+  it('uses JSON and HTTP Basic for Notion without leaking client credentials into the body', async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ access_token: 'notion-token', token_type: 'bearer' })
+    );
+
+    await fetchOAuthToken(
+      'notion',
+      'https://api.notion.com/v1/oauth/token',
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: 'code',
+        redirect_uri: 'https://app.example.com/callback',
+        client_id: 'client-id',
+        client_secret: 'client-secret',
+      }),
+      { fetchImpl, clientId: 'client-id', clientSecret: 'client-secret' }
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.notion.com/v1/oauth/token',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Basic ${Buffer.from('client-id:client-secret').toString('base64')}`,
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify({
+          grant_type: 'authorization_code',
+          code: 'code',
+          redirect_uri: 'https://app.example.com/callback',
+        }),
+      })
+    );
+  });
+
+  it('uses HTTP Basic with a form body for Pipedrive', async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ access_token: 'pipedrive-token', token_type: 'bearer' })
+    );
+
+    await fetchOAuthToken(
+      'pipedrive',
+      'https://oauth.pipedrive.com/oauth/token',
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: 'code',
+        client_id: 'client-id',
+        client_secret: 'client-secret',
+      }),
+      { fetchImpl, clientId: 'client-id', clientSecret: 'client-secret' }
+    );
+
+    const init = fetchImpl.mock.calls[0]?.[1];
+    expect(init?.headers).toEqual(
+      expect.objectContaining({
+        Authorization: `Basic ${Buffer.from('client-id:client-secret').toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      })
+    );
+    expect(String(init?.body)).not.toContain('client_id');
+    expect(String(init?.body)).not.toContain('client_secret');
   });
 });

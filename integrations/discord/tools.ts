@@ -1,31 +1,27 @@
 /**
- * Discord Integration Tools
- * Executable tool handlers with credential injection
+ * Discord OAuth user tools.
+ *
+ * Discord bot-only guild, channel, and message endpoints require the application's bot token.
+ * Authlane connections contain per-user OAuth credentials, so this adapter intentionally exposes
+ * only endpoints that Discord supports with an OAuth2 user bearer token.
  */
 
 import type { OAuth2Credentials, ToolHandler } from '@authlane/shared';
 
-/**
- * Make Discord API request with OAuth token
- */
 async function discordRequest(
   endpoint: string,
-  credentials: OAuth2Credentials,
-  options: RequestInit = {}
+  credentials: OAuth2Credentials
 ): Promise<unknown> {
   const response = await fetch(`https://discord.com/api/v10/${endpoint}`, {
-    ...options,
     headers: {
       Authorization: `Bearer ${credentials.access_token}`,
       'Content-Type': 'application/json',
-      ...options.headers,
     },
   });
 
   if (!response.ok) {
     const error = (await response.json().catch(() => ({ message: response.statusText }))) as {
       message?: string;
-      errorMessages?: string[];
     };
     throw new Error(`Discord API error: ${error.message || response.statusText}`);
   }
@@ -33,170 +29,89 @@ async function discordRequest(
   return response.json();
 }
 
-/**
- * Discord Tools
- */
 export const tools: Record<string, ToolHandler> = {
-  discord_send_message: {
+  discord_get_current_user: {
     definition: {
-      name: 'discord_send_message',
-      description: 'Sends a message to a Discord channel',
+      name: 'discord_get_current_user',
+      description: 'Returns the Discord profile of the connected OAuth user',
+      inputSchema: { type: 'object', properties: {}, required: [] },
+    },
+    handler: (_params, credentials) => discordRequest('users/@me', credentials),
+  },
+
+  discord_list_guilds: {
+    definition: {
+      name: 'discord_list_guilds',
+      description: 'Lists guilds that the connected Discord user belongs to',
       inputSchema: {
         type: 'object',
         properties: {
-          channel_id: {
+          before: {
             type: 'string',
-            description: 'Discord channel ID to send the message to',
+            description: 'Return guilds before this guild ID',
           },
-          content: {
+          after: {
             type: 'string',
-            description: 'Message text content (supports Discord markdown)',
+            description: 'Return guilds after this guild ID',
           },
-          embeds: {
-            type: 'array',
-            items: { type: 'object' },
-            description: 'Optional embeds for rich message formatting',
+          limit: {
+            type: 'number',
+            description: 'Maximum guilds to return (1-200)',
+            minimum: 1,
+            maximum: 200,
+          },
+          with_counts: {
+            type: 'boolean',
+            description: 'Include approximate member and presence counts',
           },
         },
-        required: ['channel_id', 'content'],
+        required: [],
       },
     },
     handler: async (params, credentials) => {
-      const { channel_id, content, embeds } = params as {
-        channel_id: string;
-        content: string;
-        embeds?: unknown[];
+      const { before, after, limit = 100, with_counts = false } = params as {
+        before?: string;
+        after?: string;
+        limit?: number;
+        with_counts?: boolean;
       };
-
-      const body: Record<string, unknown> = {
-        content,
-      };
-
-      if (embeds) body.embeds = embeds;
-
-      return discordRequest(`channels/${channel_id}/messages`, credentials, {
-        method: 'POST',
-        body: JSON.stringify(body),
+      const query = new URLSearchParams({
+        limit: String(Math.max(1, Math.min(limit, 200))),
+        with_counts: String(with_counts),
       });
+      if (before) query.set('before', before);
+      if (after) query.set('after', after);
+      return discordRequest(`users/@me/guilds?${query}`, credentials);
     },
   },
 
-  discord_list_channels: {
+  discord_get_current_user_guild_member: {
     definition: {
-      name: 'discord_list_channels',
-      description: 'Lists channels in a Discord guild (server)',
+      name: 'discord_get_current_user_guild_member',
+      description: 'Returns the connected user member record in a Discord guild',
       inputSchema: {
         type: 'object',
         properties: {
           guild_id: {
             type: 'string',
-            description: 'Discord guild (server) ID',
+            description: 'Discord guild ID',
           },
         },
         required: ['guild_id'],
       },
     },
     handler: async (params, credentials) => {
-      const { guild_id } = params as {
-        guild_id: string;
-      };
-
-      return discordRequest(`guilds/${guild_id}/channels`, credentials);
+      const { guild_id } = params as { guild_id: string };
+      return discordRequest(`users/@me/guilds/${encodeURIComponent(guild_id)}/member`, credentials);
     },
   },
 
-  discord_create_channel: {
+  discord_list_connections: {
     definition: {
-      name: 'discord_create_channel',
-      description: 'Creates a new channel in a Discord guild',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          guild_id: {
-            type: 'string',
-            description: 'Discord guild (server) ID',
-          },
-          name: {
-            type: 'string',
-            description: 'Channel name (1-100 characters)',
-          },
-          type: {
-            type: 'number',
-            description: 'Channel type (0=text, 2=voice, 4=category)',
-          },
-          topic: {
-            type: 'string',
-            description: 'Channel topic (0-1024 characters)',
-          },
-        },
-        required: ['guild_id', 'name'],
-      },
+      name: 'discord_list_connections',
+      description: 'Lists external accounts connected to the Discord OAuth user',
+      inputSchema: { type: 'object', properties: {}, required: [] },
     },
-    handler: async (params, credentials) => {
-      const {
-        guild_id,
-        name,
-        type = 0,
-        topic,
-      } = params as {
-        guild_id: string;
-        name: string;
-        type?: number;
-        topic?: string;
-      };
-
-      const body: Record<string, unknown> = {
-        name,
-        type,
-      };
-
-      if (topic) body.topic = topic;
-
-      return discordRequest(`guilds/${guild_id}/channels`, credentials, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-    },
-  },
-
-  discord_send_dm: {
-    definition: {
-      name: 'discord_send_dm',
-      description: 'Sends a direct message to a Discord user',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          user_id: {
-            type: 'string',
-            description: 'Discord user ID to send DM to',
-          },
-          content: {
-            type: 'string',
-            description: 'Message text content',
-          },
-        },
-        required: ['user_id', 'content'],
-      },
-    },
-    handler: async (params, credentials) => {
-      const { user_id, content } = params as {
-        user_id: string;
-        content: string;
-      };
-
-      // First, create a DM channel with the user
-      const dmChannel = (await discordRequest('users/@me/channels', credentials, {
-        method: 'POST',
-        body: JSON.stringify({
-          recipient_id: user_id,
-        }),
-      })) as { id: string };
-
-      // Then send the message to that channel
-      return discordRequest(`channels/${dmChannel.id}/messages`, credentials, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-      });
-    },
+    handler: (_params, credentials) => discordRequest('users/@me/connections', credentials),
   },
 };

@@ -8,3 +8,12 @@ config:
     - read_only
   default_scopes:
     - read_only
+  docs_url: https://docs.stripe.com/api
+  setup_guide_url: https://docs.stripe.com/connect/oauth-reference
+  developer_console_url: https://dashboard.stripe.com/settings/connect
+  execution:
+    preferred: direct_api
+    provider_mcp:
+      endpoint: https://mcp.stripe.com
+      docs_url: https://docs.stripe.com/mcp
+      maturity: stable

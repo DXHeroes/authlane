@@ -1725,7 +1725,8 @@ parameters, bodies, responses, schemas, security requirements, and same-origin Y
 It is read-only and does not accept or persist credentials.
 
 The canonical source is the repository-owned
-[OpenAPI 3.1 document](https://github.com/dxheroes/authlane/blob/main/apps/docs/api-reference/openapi.yaml).
+The OpenAPI 3.1 document is available at `https://authlane.io/docs/openapi.yaml` and the
+[interactive API reference](https://authlane.io/docs/api-reference) renders the same source.
 
 Start with [authentication and scopes](/docs/api-reference/authentication), then handle
 [errors and rate limits](/docs/api-reference/errors-and-rate-limits).
@@ -1764,17 +1765,35 @@ Connect GitHub and use its tools through the Authlane control plane.
 
 Create a GitHub OAuth app and choose an account that can access the repositories your tools will
 read or change. Repository and organization policy can still restrict that account after consent.
+Use GitHub's [REST documentation](https://docs.github.com/en/rest),
+[OAuth app guide](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app),
+and [developer settings](https://github.com/settings/developers) as the source of truth.
+
+## Self-hosted setup
+
+1. In GitHub developer settings, choose **OAuth Apps → New OAuth App**.
+2. Set the homepage to your product and the callback to
+   `https://<your-authlane-host>/api/v1/oauth/github/callback`.
+3. Save the app, copy the Client ID, and generate a Client Secret.
+4. Review organization OAuth restrictions before testing a private repository.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/github/callback` as the GitHub OAuth callback.
-Enable GitHub for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults declared in `integrations/github/config.yaml`.
+Open **Dashboard → Services → GitHub → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable GitHub. Authlane encrypts the secret. The callback must match exactly, including
+scheme, host, and path.
 
 ## Scopes
 
 - `repo` permits repository, issue, pull-request, code, and file operations.
 - `user` reads the authorizing user's account context used by repository discovery.
+
+## Execution path
+
+Prefer GitHub's official MCP server at `https://api.githubcopilot.com/mcp/` for AI tool execution
+from the SaaS runtime; follow the [official MCP setup](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server).
+Use the direct adapter only as a deterministic fallback when the MCP server does not expose the
+required operation or the deployment cannot use its authentication model.
 
 ## Available tools
 
@@ -1825,18 +1844,34 @@ Connect Linear and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Linear OAuth application and choose a workspace containing the teams, issues, and projects
-your SaaS will use. The authorizing user must be allowed to perform the requested changes.
+your SaaS will use. The authorizing user must be allowed to perform the requested changes. Use the
+[developer documentation](https://linear.app/developers),
+[OAuth guide](https://linear.app/developers/oauth-2-0-authentication), and
+[API settings](https://linear.app/settings/api) during setup.
+
+## Self-hosted setup
+
+1. Open Linear **Settings → API → OAuth applications** and create an application.
+2. Register `https://<your-authlane-host>/api/v1/oauth/linear/callback` as a callback URL.
+3. Select the scopes below, save, and copy the generated Client ID and Client Secret.
+4. Keep PKCE and refresh-token support enabled for user authorization.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/linear/callback` in the Linear application.
-Enable Linear for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults from `integrations/linear/config.yaml`.
+Open **Dashboard → Services → Linear → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Linear. Authlane always uses PKCE and stores the secret encrypted.
 
 ## Scopes
 
 - `read` permits issue and project reads.
 - `write` permits the exported issue and project mutations.
+
+## Execution path
+
+Prefer Linear's official MCP server at `https://mcp.linear.app/mcp`; the
+[official MCP guide](https://linear.app/docs/mcp) confirms that existing Linear OAuth tokens can be
+sent as bearer tokens. Use the direct GraphQL adapter only when the official server lacks a required
+tool or is unavailable.
 
 ## Available tools
 
@@ -1878,18 +1913,36 @@ Connect Jira and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create an Atlassian OAuth app and identify the Jira site and projects your users will access. The
-connected user must have Jira permission for each requested issue operation.
+connected user must have Jira permission for each requested issue operation. Use the
+[Jira REST documentation](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/),
+[OAuth 2.0 guide](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/), and
+[developer console](https://developer.atlassian.com/console/myapps/) as the source of truth.
+
+## Self-hosted setup
+
+1. Create an OAuth 2.0 (3LO) app in the Atlassian developer console.
+2. Add `https://<your-authlane-host>/api/v1/oauth/jira/callback` as its callback URL.
+3. Add the Jira API permissions and scopes below, then copy the Client ID and Client Secret.
+4. Test with a user who can access the intended cloud site and projects.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/jira/callback` in the Atlassian app. Enable Jira
-for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
-defaults from `integrations/jira/config.yaml`.
+Open **Dashboard → Services → Jira → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Jira. Authlane uses PKCE and discovers the connected cloud ID after consent.
 
 ## Scopes
 
 - `read:jira-work` reads issues, comments, and available transitions.
 - `write:jira-work` creates, updates, transitions, and comments on issues.
+- `offline_access` lets Authlane refresh the connection without asking the user to reconnect whenever
+  the short-lived access token expires.
+
+## Execution path
+
+Prefer Atlassian's official Rovo MCP server at `https://mcp.atlassian.com/v1/mcp/authv2` for AI
+execution; follow the [official setup guide](https://developer.atlassian.com/cloud/rovo-mcp/guides/getting-started/).
+Use the direct Jira adapter only when the server does not expose the required deterministic action
+or the self-hosted runtime uses an incompatible headless authentication mode.
 
 ## Available tools
 
@@ -1922,60 +1975,6 @@ session with recent reauthentication.
   `jira_get_transitions`; status names are not transition IDs.
 - Invalid JQL fails in Jira itself; test the same query for the connected site and user.
 
-Source: https://authlane.io/docs/integrations/sentry
-
-# Sentry
-
-Connect Sentry and use its tools through the Authlane control plane.
-
-## Prerequisites
-
-Create a Sentry OAuth application and identify the organization and project slugs your SaaS will
-use. The connected Sentry user must be able to access those projects and issues.
-
-## Configure authentication
-
-Register `https://<your-authlane-host>/api/v1/oauth/sentry/callback` in the Sentry application.
-Enable Sentry for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults from `integrations/sentry/config.yaml`.
-
-## Scopes
-
-- `project:read` reads project issue data.
-- `event:read` reads issues and their events.
-- `event:write` permits issue status changes and comments exposed by the adapter.
-
-## Available tools
-
-### Inspect issues and events
-
-- `sentry_list_issues`
-- `sentry_get_issue`
-- `sentry_list_events`
-
-### Act on issues
-
-- `sentry_resolve_issue`
-- `sentry_add_comment`
-
-Install `@authlane/integration-sentry` in the SaaS runtime. Each callback obtains a fresh
-credential lease and calls Sentry directly; Authlane handles control-plane state and definitions,
-not event data or responses.
-
-## Connection lifecycle
-
-After consent, Authlane stores the Sentry credential encrypted and returns `connected`. Authlane
-refreshes expiring credentials when Sentry returned refresh material; a permanent failure becomes
-`expired` or `error` and needs reconnect. Disconnect through a fresh hosted session after recent
-reauthentication.
-
-## Troubleshooting
-
-- Organization and project inputs are slugs, while issue operations use Sentry issue IDs.
-- Confirm the connected user can see the project when an issue list is empty.
-- Resolving and commenting require the configured write permission in addition to readable issue
-  access.
-
 Source: https://authlane.io/docs/integrations/slack
 
 # Slack
@@ -1985,32 +1984,49 @@ Connect Slack and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Slack app and choose a workspace where it can access the channels and users needed by your
-SaaS. Add only the bot or user permissions required for the tools you expose.
+SaaS. Add only the user permissions required for the tools you expose. Use the
+[Web API reference](https://docs.slack.dev/reference/methods/),
+[MCP app guide](https://docs.slack.dev/ai/slack-mcp-server/developing/), and
+[Slack app console](https://api.slack.com/apps).
+
+## Self-hosted setup
+
+1. Create an internal or directory-published Slack app; unlisted external apps cannot use Slack MCP.
+2. Enable **Agents → Slack Model Context Protocol (MCP) Server** for the app.
+3. Add `https://<your-authlane-host>/api/v1/oauth/slack/callback` under OAuth redirect URLs.
+4. Add the user-token scopes below, install the app, and copy its Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/slack/callback` as a Slack redirect URL. Enable
-Slack for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
-defaults from `integrations/slack/config.yaml`.
+Open **Dashboard → Services → Slack → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Slack. Authlane uses Slack's confidential user OAuth endpoints and PKCE-compatible
+flow so the resulting identity can be used by the official MCP server.
 
 ## Scopes
 
 - `chat:write` sends channel or direct messages.
 - `channels:read` lists public channels visible to the connected app.
+- `channels:write` creates public channels.
+- `users:read` lists workspace users.
+- `users.profile:write` updates the connected user's status.
+- `search:read.public` lets Slack MCP discover public channels.
+- `search:read.users` lets Slack MCP discover workspace users.
 
-`slack_post_file` is currently unavailable because its handler uses the retired `files.upload`
-method. Do not expose it until the adapter is migrated to Slack's current external upload flow.
+File upload is not exposed: Slack retired `files.upload`, and Authlane will not advertise a tool
+until the adapter implements Slack's current external upload flow.
 
-`slack_set_status` is currently unavailable because it requires a user token plus
-`users.profile:write`; neither is represented by the current repository config. Adding a bot scope
-alone is not sufficient.
+## Execution path
+
+Prefer Slack's official MCP server at `https://mcp.slack.com/mcp`; follow the
+[official Slack MCP documentation](https://docs.slack.dev/ai/slack-mcp-server/). Use the direct Web
+API adapter only for deterministic operations that the official server does not expose. The SaaS
+runtime—not Authlane—owns the MCP client and provider traffic.
 
 ## Available tools
 
-### Messages and files
+### Messages
 
 - `slack_send_message`
-- `slack_post_file` — currently unavailable; see the scope note above.
 
 ### Channels and users
 
@@ -2020,7 +2036,7 @@ alone is not sufficient.
 
 ### User status
 
-- `slack_set_status` — currently unavailable; see the scope note above.
+- `slack_set_status`
 
 Install `@authlane/integration-slack` in the SaaS runtime. A callback gets a fresh credential lease
 and calls Slack directly; messages, file content, and Slack responses do not pass through Authlane.
@@ -2035,8 +2051,7 @@ reauthentication.
 ## Troubleshooting
 
 - Channel listing and posting are limited to channels visible to the connected Slack app.
-- Do not offer file upload until the retired handler is migrated, and do not offer status changes
-  with the current bot-oriented configuration.
+- File upload remains unavailable until the external upload flow is implemented end to end.
 - Use channel and user IDs returned by Slack tools when names are ambiguous.
 
 Source: https://authlane.io/docs/integrations/discord
@@ -2047,35 +2062,53 @@ Connect Discord and use its tools through the Authlane control plane.
 
 ## Prerequisites
 
-Create a Discord OAuth2 application with a bot and choose a guild where that bot can access the
-channels used by your SaaS. Keep the guild, channel, and user IDs required by the tools available.
+Create a Discord OAuth2 application for user authorization. This integration intentionally uses a
+per-user OAuth token and does not request or store the application's bot token.
+Use the official [API reference](https://docs.discord.com/developers/reference),
+[app setup guide](https://docs.discord.com/developers/quick-start/getting-started), and
+[Developer Portal](https://discord.com/developers/applications).
+
+## Self-hosted setup
+
+1. Open the Discord Developer Portal and create an application.
+2. Register `https://<your-authlane-host>/api/v1/oauth/discord/callback` as the exact OAuth redirect.
+3. Copy the application's Client ID and Client Secret.
+4. Enable the `identify`, `guilds`, `guilds.members.read`, and `connections` OAuth scopes.
+5. In Authlane, open **Dashboard → Services → Discord** and save the client credentials.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/discord/callback` in the Discord application.
-Enable Discord for the tenant in Authlane, store the OAuth client ID and encrypted client secret,
-and approve the default scopes from `integrations/discord/config.yaml`.
+Set the OAuth Client ID and Client Secret in **Dashboard → Services → Discord**. Authlane encrypts
+the Client Secret and uses the configured redirect URI during the authorization-code exchange.
 
 ## Scopes
 
-- `bot` installs and authorizes the Discord bot.
-- `messages.write` permits the configured message operations.
+- `identify` reads the connected user's basic Discord profile.
+- `guilds` lists guilds the connected user belongs to.
+- `guilds.members.read` reads that user's member record in a selected guild.
+- `connections` lists the user's linked external accounts.
+
+Do not add the `bot` scope for this adapter. Discord bot tokens are separate application secrets;
+an OAuth installation does not return the bot token, and bot-only message or channel endpoints
+cannot be called with the per-user bearer credential stored by Authlane.
+
+## Execution path
+
+There is no official provider MCP server for Discord. The SaaS runtime therefore uses
+`@authlane/integration-discord` to call Discord directly with a fresh credential lease; Authlane
+never proxies messages or responses.
 
 ## Available tools
 
-### Channels
+### Identity and guilds
 
-- `discord_list_channels`
-- `discord_create_channel`
+- `discord_get_current_user`
+- `discord_list_guilds`
+- `discord_get_current_user_guild_member`
 
-### Messages
+### Linked accounts
 
-- `discord_send_message`
-- `discord_send_dm`
-
-Install `@authlane/integration-discord` in the SaaS runtime. The local adapter uses a fresh
-credential lease to call Discord directly; Authlane remains the connection and definition control
-plane and never proxies messages or responses.
+- `discord_list_connections`
 
 ## Connection lifecycle
 
@@ -2086,9 +2119,10 @@ connect session with recent reauthentication and removes the stored connection.
 
 ## Troubleshooting
 
-- Verify the bot is present in the target guild before using a guild or channel ID.
-- A send failure can mean the bot lacks permission in that channel even when OAuth succeeded.
-- `discord_send_dm` needs a Discord user ID; a username is not a substitute.
+- A missing guild means the connected user does not belong to it or did not grant `guilds`.
+- Member lookup requires `guilds.members.read` and the exact guild ID returned by the guild list.
+- Message sending and channel administration are deliberately absent because they require a bot
+  credential model that is different from Authlane's per-user OAuth connection.
 
 Source: https://authlane.io/docs/integrations/gmail
 
@@ -2099,32 +2133,46 @@ Connect Gmail and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Google OAuth client for a project with Gmail access and choose the Google accounts that
-may authorize it. The connected account supplies the mailbox used by every Gmail tool.
+may authorize it. The connected account supplies the mailbox used by every Gmail tool. Use the
+[Gmail API guides](https://developers.google.com/workspace/gmail/api/guides),
+[OAuth consent guide](https://developers.google.com/workspace/guides/configure-oauth-consent), and
+[Google Cloud credentials console](https://console.cloud.google.com/apis/credentials).
+
+## Self-hosted setup
+
+1. Create or select a Google Cloud project and enable Gmail API. For MCP-first execution, also join
+   the Workspace Developer Preview and enable Gmail MCP API.
+2. Configure the OAuth consent screen, audience, test users, and the scopes below.
+3. Create a **Web application** OAuth client and register
+   `https://<your-authlane-host>/api/v1/oauth/gmail/callback` as an authorized redirect URI.
+4. Copy the generated Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/gmail/callback` in the Google OAuth client.
-Enable Gmail for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults from `integrations/gmail/config.yaml`.
+Open **Dashboard → Services → Gmail → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Gmail. Use an exact HTTPS callback; Google treats a different scheme, host, port,
+or path as a redirect mismatch.
 
 ## Scopes
 
 - `https://www.googleapis.com/auth/gmail.send` permits sending mail.
 - `https://www.googleapis.com/auth/gmail.readonly` permits reading messages, threads, labels, and
   drafts exposed by the adapter.
-
-Configured optional capabilities are separate:
-
 - `https://www.googleapis.com/auth/gmail.compose` enables `gmail_create_draft`.
 - `https://www.googleapis.com/auth/gmail.labels` enables `gmail_create_label`.
 - `https://www.googleapis.com/auth/gmail.modify` enables label changes through
-  `gmail_modify_email` and moving messages to trash through `gmail_trash_email`; it is insufficient
-  for immediate permanent deletion.
+  `gmail_modify_email` and moving messages to trash through `gmail_trash_email`.
 
-`gmail_delete_email` performs an immediate permanent deletion. It requires
-`https://mail.google.com/` and is unavailable with the current repository config because that scope
-is not declared. Do not expose this tool unless the provider configuration and consent model are
-deliberately expanded.
+Permanent deletion is deliberately not exposed: Gmail requires the restricted
+`https://mail.google.com/` scope for that operation. Authlane provides `gmail_trash_email` instead,
+so the default self-hosted setup does not request full mailbox access.
+
+## Execution path
+
+Prefer Google's official Gmail MCP server at `https://gmailmcp.googleapis.com/mcp/v1`; follow the
+[official Gmail MCP guide](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server).
+It is currently a Developer Preview, so keep the direct Gmail API adapter as a documented fallback
+for unavailable MCP tools and non-preview deployments.
 
 ## Available tools
 
@@ -2147,7 +2195,6 @@ deliberately expanded.
 - `gmail_create_label`
 - `gmail_modify_email`
 - `gmail_trash_email`
-- `gmail_delete_email`
 
 Install `@authlane/integration-gmail` in the SaaS runtime. Each callback gets a fresh Authlane
 credential lease and calls Gmail directly from that runtime; message content and Google responses
@@ -2165,8 +2212,7 @@ session after recent user reauthentication.
 - A read or send failure often means the connected Google account is outside the OAuth client's
   allowed users or the requested Gmail scope was not approved.
 - Draft, label, and trash failures must be checked against their distinct compose, labels, and
-  modify scopes. `https://www.googleapis.com/auth/gmail.modify` is insufficient for
-  `gmail_delete_email`.
+  modify scopes.
 - Use Gmail message and thread IDs returned by the read tools; email subjects are not IDs.
 
 Source: https://authlane.io/docs/integrations/notion
@@ -2178,18 +2224,37 @@ Connect Notion and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a public Notion integration and make the pages or databases needed by your SaaS available to
-that integration. The tools can only see content the connected integration can access.
+that integration. The tools can only see content the connected integration can access. Use the
+[API reference](https://developers.notion.com/reference/intro),
+[integration setup guide](https://developers.notion.com/docs/create-a-notion-integration), and
+[integration console](https://www.notion.so/profile/integrations).
+
+## Self-hosted setup
+
+1. Create a **Public integration** in the Notion integration console.
+2. Set its redirect URI to `https://<your-authlane-host>/api/v1/oauth/notion/callback`.
+3. Enable the content capabilities required by the tools and submit any distribution information
+   required for workspaces outside your own.
+4. Copy the OAuth Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/notion/callback` in the Notion integration.
-Enable Notion for the tenant in Authlane and store the OAuth client ID and encrypted client secret.
-Authlane uses the endpoints declared in `integrations/notion/config.yaml`.
+Open **Dashboard → Services → Notion → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Notion. After consent, the user must explicitly share relevant pages or databases
+with the integration.
 
 ## Scopes
 
 The repository config declares no default OAuth scopes for Notion. Do not invent a scope list:
 content access comes from the pages and databases made available to the connected integration.
+
+## Execution path
+
+Notion has an official MCP server at `https://mcp.notion.com/mcp`; follow the
+[official MCP guide](https://developers.notion.com/guides/mcp/get-started-with-mcp). The hosted
+server currently requires its own interactive user OAuth and does not accept an Authlane bearer
+lease. Authlane therefore uses the direct API adapter for headless execution; treating the hosted
+server as a credential-compatible fallback would be incorrect.
 
 ## Available tools
 
@@ -2244,13 +2309,24 @@ Connect Google Drive and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Google OAuth client for a project with Drive access. The connected account must have
-access to the files, folders, and shared drives that the SaaS will use.
+access to the files, folders, and shared drives that the SaaS will use. Use the
+[Drive API guide](https://developers.google.com/workspace/drive/api/guides/about-sdk),
+[OAuth consent guide](https://developers.google.com/workspace/guides/configure-oauth-consent), and
+[Google Cloud credentials console](https://console.cloud.google.com/apis/credentials).
+
+## Self-hosted setup
+
+1. Create or select a Google Cloud project and enable Drive API. For MCP-first execution, also join
+   the Workspace Developer Preview and enable Drive MCP API.
+2. Configure the OAuth consent screen, audience, test users, and the scopes below.
+3. Create a **Web application** OAuth client and register
+   `https://<your-authlane-host>/api/v1/oauth/google-drive/callback` as an authorized redirect URI.
+4. Copy the Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/google-drive/callback` in the Google OAuth
-client. Enable Google Drive for the tenant in Authlane, store the client ID and encrypted client
-secret, and approve the defaults declared in `integrations/google-drive/config.yaml`.
+Open **Dashboard → Services → Google Drive → OAuth Configuration**, enter the Client ID and
+Client Secret, save, and enable Google Drive. The callback must match the public Authlane URL exactly.
 
 ## Scopes
 
@@ -2260,6 +2336,13 @@ secret, and approve the defaults declared in `integrations/google-drive/config.y
 
 The exported adapter includes broader update, delete, and permission tools. Only expose them when
 the tenant has approved a configured scope that grants the corresponding Drive operation.
+
+## Execution path
+
+Prefer Google's official Drive MCP server at `https://drivemcp.googleapis.com/mcp/v1`; follow the
+[official Drive MCP guide](https://developers.google.com/workspace/drive/api/guides/configure-mcp-server).
+It is a Developer Preview, so retain the direct Drive API adapter as the explicit fallback when a
+required tool is missing or the preview cannot be enabled.
 
 ## Available tools
 
@@ -2314,18 +2397,37 @@ Connect Google Calendar and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Google OAuth client for a project with Calendar access. The connected Google account must
-be able to see each calendar that your SaaS will read or change.
+be able to see each calendar that your SaaS will read or change. Use the
+[Calendar API guide](https://developers.google.com/workspace/calendar/api/guides/overview),
+[OAuth consent guide](https://developers.google.com/workspace/guides/configure-oauth-consent), and
+[Google Cloud credentials console](https://console.cloud.google.com/apis/credentials).
+
+## Self-hosted setup
+
+1. Create or select a Google Cloud project and enable Calendar API. For MCP-first execution, also
+   join the Workspace Developer Preview and enable Calendar MCP API.
+2. Configure the OAuth consent screen, audience, test users, and the scopes below.
+3. Create a **Web application** OAuth client and add
+   `https://<your-authlane-host>/api/v1/oauth/google-calendar/callback` as an authorized redirect.
+4. Copy the Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/google-calendar/callback` in the Google OAuth
-client. Enable Google Calendar for the tenant in Authlane, store the client ID and encrypted client
-secret, and approve the defaults from `integrations/google-calendar/config.yaml`.
+Open **Dashboard → Services → Google Calendar → OAuth Configuration**, enter the Client ID and
+Client Secret, save, and enable the service. The registered callback must match the public Authlane
+URL exactly.
 
 ## Scopes
 
 - `https://www.googleapis.com/auth/calendar.events` permits event creation, updates, and deletion.
 - `https://www.googleapis.com/auth/calendar.readonly` permits calendar and event reads.
+
+## Execution path
+
+Prefer Google's official Calendar MCP server at `https://calendarmcp.googleapis.com/mcp/v1`; follow
+the [official Calendar MCP guide](https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server).
+Because it is a Developer Preview, use the direct Calendar API adapter as the explicit fallback for
+missing tools or deployments that cannot enable the preview.
 
 ## Available tools
 
@@ -2369,21 +2471,37 @@ Connect HubSpot and use its tools through the Authlane control plane.
 
 ## Prerequisites
 
-Create a HubSpot OAuth app and choose a HubSpot account containing the contacts and deals your SaaS
-will use. The installing user must be able to grant the requested CRM object permissions.
+Create a HubSpot MCP Auth App and choose a HubSpot account containing the contacts and deals your
+SaaS will use. The installing user must have access to the requested CRM objects. Use the
+[API reference](https://developers.hubspot.com/docs/api-reference/overview),
+[remote MCP setup guide](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server),
+and the [HubSpot development overview](https://app.hubspot.com/developer/).
+
+## Self-hosted setup
+
+1. In HubSpot, open **Development → MCP Auth Apps → Create MCP auth app**.
+2. Add `https://<your-authlane-host>/api/v1/oauth/hubspot/callback` as its Redirect URL.
+3. Save the app and copy its Client ID and Client Secret. HubSpot MCP derives available scopes from
+   server tools and the installing user's permissions.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/hubspot/callback` in the HubSpot app. Enable
-HubSpot for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
-defaults from `integrations/hubspot/config.yaml`.
+Open **Dashboard → Services → HubSpot → OAuth Configuration**, enter the Client ID and Client Secret
+for the MCP Auth App, save, and enable HubSpot. Authlane uses the PKCE flow required by HubSpot and
+stores the secret encrypted.
 
 ## Scopes
 
-- `crm.objects.contacts.read` reads contacts.
-- `crm.objects.contacts.write` creates and updates contacts.
-- `crm.objects.deals.read` reads deals.
-- `crm.objects.deals.write` creates and updates deals.
+The repository declares no default OAuth scopes for HubSpot MCP. Do not enter CRM scopes manually:
+HubSpot derives available scopes from the MCP server's current tools and the permissions granted by
+the installing user.
+
+## Execution path
+
+Prefer HubSpot's official MCP server at `https://mcp.hubspot.com`; follow the
+[official remote MCP guide](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server).
+The MCP Auth App token is used only with this endpoint; Authlane does not retry the call against the
+direct CRM API because those are different OAuth application models.
 
 ## Available tools
 
@@ -2391,19 +2509,19 @@ defaults from `integrations/hubspot/config.yaml`.
 
 - `hubspot_list_contacts`
 - `hubspot_get_contact`
-- `hubspot_create_contact`
-- `hubspot_update_contact`
 
 ### Deals
 
 - `hubspot_list_deals`
 - `hubspot_get_deal`
-- `hubspot_create_deal`
-- `hubspot_update_deal`
+
+Authlane intentionally exposes the deterministic read subset. HubSpot's `manage_crm_objects` write
+tool requires an explicit confirmation contract and its provider schema is still evolving; it is
+not advertised as a stable Authlane tool until that confirmation can be represented end to end.
 
 Install `@authlane/integration-hubspot` in the SaaS runtime. A tool invocation receives a fresh
-lease and calls HubSpot directly; Authlane handles connection state and definitions, not CRM inputs
-or responses.
+lease and calls HubSpot's official MCP server directly; Authlane handles connection state and
+definitions, not CRM inputs or responses.
 
 ## Connection lifecycle
 
@@ -2415,7 +2533,9 @@ session after recent reauthentication.
 ## Troubleshooting
 
 - Check whether the connected HubSpot account exposes the target contact or deal ID.
-- A read scope does not authorize create or update; verify the matching `.write` scope.
+- The installing user's HubSpot permissions determine which MCP tools and objects are available.
+- Write tools are intentionally absent; use the read wrappers unless your SaaS implements an
+  explicit HubSpot MCP confirmation UX for `manage_crm_objects`.
 - Validate property names against the connected account before passing custom contact or deal data.
 
 Source: https://authlane.io/docs/integrations/salesforce
@@ -2426,21 +2546,49 @@ Connect Salesforce and use its tools through the Authlane control plane.
 
 ## Prerequisites
 
-Create a Salesforce connected app and choose an org containing the objects your SaaS will access.
-The authorizing user needs object and field permissions for each query or mutation.
+Choose a Salesforce org containing the objects your SaaS will access. The authorizing user needs
+object and field permissions for each query or mutation. Use the
+[hosted MCP overview](https://developer.salesforce.com/docs/platform/hosted-mcp-servers/overview),
+[External Client App guide](https://developer.salesforce.com/docs/platform/hosted-mcp-servers/guide/create-external-client-app.html),
+and [Salesforce login](https://login.salesforce.com) to reach Setup.
+
+## Self-hosted setup
+
+1. In Salesforce Setup, create an **External Client App**; Connected Apps cannot authenticate the
+   hosted MCP server.
+2. Enable OAuth with PKCE and add
+   `https://<your-authlane-host>/api/v1/oauth/salesforce/callback` as a callback URL.
+3. Add `mcp_api`, `api`, `refresh_token`, and `id`. Under **Security**, enable **Require Secret for
+   Web Server Flow**, then generate and securely copy the Consumer Key as Client ID and Consumer
+   Secret as Client Secret.
+4. Enable and name the hosted MCP server, then assign it to the External Client App.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/salesforce/callback` in the connected app.
-Enable Salesforce for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults from `integrations/salesforce/config.yaml`. The token response supplies the
-Salesforce instance URL used for provider calls.
+Open **Dashboard → Services → Salesforce → OAuth Configuration**, enter the Client ID and
+Client Secret from the same External Client App, save, and enable Salesforce. The `api` scope on
+that app makes the same connection eligible for the direct REST fallback, and its token response
+must supply the Salesforce instance URL.
 
 ## Scopes
 
 - `api` authorizes Salesforce API access.
 - `refresh_token` authorizes refresh-token use.
 - `id` provides the connected user's identity context.
+
+- `mcp_api` authorizes Salesforce hosted MCP access.
+
+The default set includes both `mcp_api` and `api`: the SaaS runtime tries hosted MCP first and can
+use the connection-specific REST instance only when the provider MCP tool is unavailable before a
+call begins.
+
+## Execution path
+
+Prefer Salesforce's official hosted MCP endpoint
+`https://api.salesforce.com/platform/mcp/v1/platform/sobject-all`; follow the
+[official client guide](https://developer.salesforce.com/docs/platform/hosted-mcp-servers/guide/client-connection-overview.html).
+Use the direct REST adapter only when the hosted server is not enabled for the org or lacks the
+required object operation.
 
 ## Available tools
 
@@ -2481,20 +2629,52 @@ Connect Pipedrive and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Pipedrive OAuth app and choose a company account containing the deals and people your SaaS
-will use. The connected user must have access to those CRM records.
+will use. The connected user must have access to those CRM records. Keep the official
+[API documentation](https://developers.pipedrive.com/docs/api/v1),
+[OAuth guide](https://pipedrive.readme.io/docs/marketplace-oauth-authorization), and
+[Marketplace Manager](https://pipedrive.readme.io/docs/marketplace-manager) open while configuring
+the app. Pipedrive's official MCP server is currently beta; its
+[setup guide](https://support.pipedrive.com/en/article/mcp-chatgpt) and
+[tool catalog](https://support.pipedrive.com/en/article/mcp-tools) document the live endpoint and
+available actions.
+
+## Self-hosted setup
+
+1. Open the Pipedrive Marketplace Manager and create a private or marketplace OAuth app.
+2. Register `https://<your-authlane-host>/api/v1/oauth/pipedrive/callback` as the exact callback URL.
+3. Copy the generated Client ID and Client Secret.
+4. Enable the scopes listed below for the app and publish or install it for the target company.
+5. In Authlane, open **Dashboard → Services → Pipedrive**, enable the service, and save the client
+   credentials and scopes.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/pipedrive/callback` in the Pipedrive app. Enable
-Pipedrive for the tenant in Authlane, store the client ID and encrypted client secret, and approve
-the defaults from `integrations/pipedrive/config.yaml`. The connection's provider response supplies
-the company-specific API domain used by the adapter.
+Set the Pipedrive Client ID and Client Secret in **Dashboard → Services → Pipedrive**. Authlane
+encrypts the Client Secret and uses it only for OAuth token exchange. The connection's provider
+response supplies the company-specific API domain used by the adapter.
 
 ## Scopes
 
-- `deals:read` and `deals:write` read and change deals.
-- `contacts:read` and `contacts:write` permit contact access configured for the app.
-- `persons:read` and `persons:write` read and change Pipedrive people records.
+- `deals:full` reads, creates, and updates deals. Choose `deals:read` instead only for a custom
+  read-only deployment.
+- `contacts:full` reads, creates, and updates people and organizations. Choose `contacts:read`
+  instead only when the connection must be read-only.
+- `search:read` enables `pipedrive_search`.
+
+Pipedrive does not define separate `:write` scopes for these APIs. The `:full` scopes are the
+official read/write permissions selected in Marketplace Manager.
+
+## Execution path
+
+Authlane first uses Pipedrive's official beta MCP server at `https://mcp.pipedrive.ai/mcp`. The
+server inherits the connected user's Pipedrive permissions and exposes native deal and person
+tools. Authlane maps only schema-compatible calls. If an Authlane tool uses filtering or pagination
+that the MCP tool cannot represent, it falls back to the connection's company-specific API domain
+before any MCP tool call starts. A possibly-started mutation is never retried through the REST API.
+
+Install `@authlane/integration-pipedrive` in the SaaS runtime. The runtime obtains a fresh credential
+lease, then talks directly to Pipedrive MCP or its REST API; Authlane never proxies CRM inputs or
+results.
 
 ## Available tools
 
@@ -2516,10 +2696,6 @@ the company-specific API domain used by the adapter.
 
 - `pipedrive_search`
 
-Install `@authlane/integration-pipedrive` in the SaaS runtime. Each invocation requests a fresh
-lease and calls the connection's Pipedrive API domain directly; Authlane does not proxy CRM inputs
-or results.
-
 ## Connection lifecycle
 
 After consent, Authlane encrypts the Pipedrive credential and reports `connected`. When the token
@@ -2530,6 +2706,8 @@ after recent reauthentication.
 ## Troubleshooting
 
 - Do not hard-code one Pipedrive company host; use the API domain bound to the connection.
+- Pipedrive MCP is a beta service. If a compatible native MCP tool is unavailable, Authlane safely
+  uses the direct API only before a provider tool call begins.
 - Deal and person tools require record IDs from the connected company account.
 - Verify both the relevant read or write scope and the connected user's visibility when a record is
   missing.
@@ -2543,17 +2721,35 @@ Connect Stripe and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Stripe Connect platform and choose the connected accounts whose customers and charges the
-SaaS will read. The exported adapter is read-only.
+SaaS will read. The exported adapter is read-only. Use the
+[API reference](https://docs.stripe.com/api),
+[Connect OAuth reference](https://docs.stripe.com/connect/oauth-reference), and
+[Connect settings](https://dashboard.stripe.com/settings/connect).
+
+## Self-hosted setup
+
+1. Activate Stripe Connect and configure your platform branding and OAuth settings.
+2. Add `https://<your-authlane-host>/api/v1/oauth/stripe/callback` as the production redirect URI.
+3. Copy the platform Client ID. Use the platform secret key as the confidential Client Secret only
+   in the server-side Authlane configuration.
+4. Request `read_only`, then connect a Standard account for a smoke test.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/stripe/callback` as the Stripe Connect redirect
-URI. Enable Stripe for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the default from `integrations/stripe/config.yaml`.
+Open **Dashboard → Services → Stripe → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Stripe. Never place the platform secret in browser code.
 
 ## Scopes
 
 - `read_only` permits the customer and charge reads exposed by this integration.
+
+## Execution path
+
+Stripe has an official MCP server at `https://mcp.stripe.com`; follow the
+[official MCP guide](https://docs.stripe.com/mcp). For connected accounts, Stripe requires a
+restricted platform key plus the `Stripe-Account` header, so the current OAuth adapter remains the
+safe read-only direct API path. A connected-account OAuth lease alone is not credential-compatible
+with Stripe MCP, so Authlane must not forward it to that server.
 
 ## Available tools
 
@@ -2594,20 +2790,42 @@ Connect Airtable and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create an Airtable OAuth integration and identify the bases and tables your users will access. The
-authorizing Airtable user must already have access to those resources.
+authorizing Airtable user must already have access to those resources. Keep the official
+[API documentation](https://airtable.com/developers/web/api/introduction),
+[OAuth guide](https://airtable.com/developers/web/guides/oauth-integrations), and
+[OAuth integration console](https://airtable.com/create/oauth) open during setup.
+
+## Self-hosted setup
+
+1. Open the Airtable OAuth integration console and create an integration.
+2. Add `https://<your-authlane-host>/api/v1/oauth/airtable/callback` as the redirect URL, replacing
+   the placeholder with the public HTTPS host of your Authlane runtime.
+3. Select the scopes listed below and add the workspaces or bases users may grant.
+4. Save the integration and copy its Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/airtable/callback` in the Airtable integration.
-Enable Airtable for the tenant in Authlane, store the OAuth client ID and encrypted client secret,
-and approve the default scopes below. Authlane uses the authorization and token endpoints declared
-in `integrations/airtable/config.yaml`.
+In Authlane, open **Dashboard → Services → Airtable → OAuth Configuration**. Enter the Client ID
+and Client Secret, save, and enable Airtable for the organization. Authlane encrypts the secret and
+never displays it again. Keep the default scopes below unless your adapter needs an optional scope.
 
 ## Scopes
 
 - `data.records:read` reads table records.
 - `data.records:write` creates, updates, and deletes records.
 - `schema.bases:read` reads the bases, tables, and fields needed by the schema tools.
+- `workspacesAndBases:read` lets the official MCP server discover the bases granted to the
+  connected user.
+
+## Execution path
+
+Prefer Airtable's official MCP server at `https://mcp.airtable.com/mcp`; the
+[official Airtable MCP guide](https://support.airtable.com/v1/docs/using-the-airtable-mcp-server)
+confirms that a manually registered OAuth client and bearer token can authenticate it. Authlane
+uses MCP for operations whose published tool schema preserves the canonical Authlane contract,
+then falls back to the direct Airtable API before a call begins for filters, pagination, record
+operations, or other semantics that do not match exactly. Provider traffic always stays in the
+SaaS runtime.
 
 ## Available tools
 

@@ -3,13 +3,16 @@ import type {
   ConnectionStatus,
   CredentialLease,
   CredentialPlacement,
+  OAuthProviderContext,
   ToolFormat,
 } from '@authlane/shared';
 import {
   Errors,
   getEffectiveConnectionStatus,
+  isSupportedServiceId,
   isValidServiceId,
   isValidUserId,
+  validateOAuthProviderContext,
 } from '@authlane/shared';
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
@@ -75,6 +78,7 @@ interface StoredCredentials {
   token_type?: unknown;
   scope?: unknown;
   expires_at?: unknown;
+  provider_context?: unknown;
   api_key?: unknown;
   placement?: unknown;
 }
@@ -106,7 +110,8 @@ function isCredentialPlacement(value: unknown): value is CredentialPlacement {
 function toCredentialLease(
   stored: StoredCredentials,
   leaseId: string,
-  connectionExpiresAt: Date | null
+  connectionExpiresAt: Date | null,
+  serviceId: string
 ): CredentialLease | null {
   let storedExpiresAt: Date | null = null;
   if (stored.expires_at !== undefined && stored.expires_at !== null) {
@@ -121,6 +126,12 @@ function toCredentialLease(
   const expiresAt = effectiveExpiry?.toISOString() ?? null;
 
   if (typeof stored.access_token === 'string' && stored.access_token.length > 0) {
+    let providerContext: OAuthProviderContext | undefined;
+    try {
+      providerContext = validateOAuthProviderContext(serviceId, stored.provider_context);
+    } catch {
+      return null;
+    }
     return {
       type: 'oauth2',
       leaseId,
@@ -134,6 +145,7 @@ function toCredentialLease(
           ? stored.scope.split(/\s+/).filter((scope) => scope.length > 0)
           : [],
       expiresAt,
+      ...(providerContext ? { providerContext } : {}),
     };
   }
 
@@ -321,7 +333,11 @@ export function createControlPlaneRouter(
     async (c) => {
       const externalUserId = c.req.param('externalUserId');
       const serviceId = c.req.param('serviceId');
-      if (!isValidUserId(externalUserId) || !isValidServiceId(serviceId)) {
+      if (
+        !isValidUserId(externalUserId) ||
+        !isValidServiceId(serviceId) ||
+        !isSupportedServiceId(serviceId)
+      ) {
         return c.json(
           errorResult(Errors.validationError('Invalid external user ID or service ID')),
           400
@@ -376,7 +392,7 @@ export function createControlPlaneRouter(
         );
       }
       const stored = parsed as StoredCredentials;
-      const lease = toCredentialLease(stored, createLeaseId(), connection.expiresAt);
+      const lease = toCredentialLease(stored, createLeaseId(), connection.expiresAt, serviceId);
       if (!lease) {
         return c.json(
           errorResult(Errors.encryptionError('Stored credential material is invalid')),

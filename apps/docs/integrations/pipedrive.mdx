@@ -8,20 +8,52 @@ authType: oauth2
 ## Prerequisites
 
 Create a Pipedrive OAuth app and choose a company account containing the deals and people your SaaS
-will use. The connected user must have access to those CRM records.
+will use. The connected user must have access to those CRM records. Keep the official
+[API documentation](https://developers.pipedrive.com/docs/api/v1),
+[OAuth guide](https://pipedrive.readme.io/docs/marketplace-oauth-authorization), and
+[Marketplace Manager](https://pipedrive.readme.io/docs/marketplace-manager) open while configuring
+the app. Pipedrive's official MCP server is currently beta; its
+[setup guide](https://support.pipedrive.com/en/article/mcp-chatgpt) and
+[tool catalog](https://support.pipedrive.com/en/article/mcp-tools) document the live endpoint and
+available actions.
+
+## Self-hosted setup
+
+1. Open the Pipedrive Marketplace Manager and create a private or marketplace OAuth app.
+2. Register `https://<your-authlane-host>/api/v1/oauth/pipedrive/callback` as the exact callback URL.
+3. Copy the generated Client ID and Client Secret.
+4. Enable the scopes listed below for the app and publish or install it for the target company.
+5. In Authlane, open **Dashboard → Services → Pipedrive**, enable the service, and save the client
+   credentials and scopes.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/pipedrive/callback` in the Pipedrive app. Enable
-Pipedrive for the tenant in Authlane, store the client ID and encrypted client secret, and approve
-the defaults from `integrations/pipedrive/config.yaml`. The connection's provider response supplies
-the company-specific API domain used by the adapter.
+Set the Pipedrive Client ID and Client Secret in **Dashboard → Services → Pipedrive**. Authlane
+encrypts the Client Secret and uses it only for OAuth token exchange. The connection's provider
+response supplies the company-specific API domain used by the adapter.
 
 ## Scopes
 
-- `deals:read` and `deals:write` read and change deals.
-- `contacts:read` and `contacts:write` permit contact access configured for the app.
-- `persons:read` and `persons:write` read and change Pipedrive people records.
+- `deals:full` reads, creates, and updates deals. Choose `deals:read` instead only for a custom
+  read-only deployment.
+- `contacts:full` reads, creates, and updates people and organizations. Choose `contacts:read`
+  instead only when the connection must be read-only.
+- `search:read` enables `pipedrive_search`.
+
+Pipedrive does not define separate `:write` scopes for these APIs. The `:full` scopes are the
+official read/write permissions selected in Marketplace Manager.
+
+## Execution path
+
+Authlane first uses Pipedrive's official beta MCP server at `https://mcp.pipedrive.ai/mcp`. The
+server inherits the connected user's Pipedrive permissions and exposes native deal and person
+tools. Authlane maps only schema-compatible calls. If an Authlane tool uses filtering or pagination
+that the MCP tool cannot represent, it falls back to the connection's company-specific API domain
+before any MCP tool call starts. A possibly-started mutation is never retried through the REST API.
+
+Install `@authlane/integration-pipedrive` in the SaaS runtime. The runtime obtains a fresh credential
+lease, then talks directly to Pipedrive MCP or its REST API; Authlane never proxies CRM inputs or
+results.
 
 ## Available tools
 
@@ -43,10 +75,6 @@ the company-specific API domain used by the adapter.
 
 - `pipedrive_search`
 
-Install `@authlane/integration-pipedrive` in the SaaS runtime. Each invocation requests a fresh
-lease and calls the connection's Pipedrive API domain directly; Authlane does not proxy CRM inputs
-or results.
-
 ## Connection lifecycle
 
 After consent, Authlane encrypts the Pipedrive credential and reports `connected`. When the token
@@ -57,6 +85,8 @@ after recent reauthentication.
 ## Troubleshooting
 
 - Do not hard-code one Pipedrive company host; use the API domain bound to the connection.
+- Pipedrive MCP is a beta service. If a compatible native MCP tool is unavailable, Authlane safely
+  uses the direct API only before a provider tool call begins.
 - Deal and person tools require record IDs from the connected company account.
 - Verify both the relevant read or write scope and the connected user's visibility when a record is
   missing.

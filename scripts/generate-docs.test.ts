@@ -10,6 +10,7 @@ import {
   loadDocumentation,
   loadIntegrationConfigs,
   renderGeneratedAssets,
+  renderIntegrationPackageReadmes,
   validateDocumentation,
   validateIntegrationPages,
   validateRepositoryDocumentation,
@@ -84,6 +85,20 @@ describe('documentation asset generation', () => {
     expect(first.markdown.get('introduction')).toContain('## Boundary');
     expect(first.llms).toContain('https://authlane.io/docs');
     expect(first.llmsFull).toContain('Provider traffic stays direct');
+  });
+
+  it('generates one canonical package README per integration without obsolete runtime routes', () => {
+    const configs = loadIntegrationConfigs(repositoryRoot);
+    const readmes = renderIntegrationPackageReadmes(configs);
+
+    expect(readmes.size).toBe(configs.length);
+    for (const config of configs) {
+      const readme = readmes.get(config.serviceId) ?? '';
+      expect(readme).toContain(`pnpm add @authlane/integration-${config.serviceId}`);
+      expect(readme).toContain(`https://authlane.io/docs/integrations/${config.serviceId}`);
+      expect(readme).not.toContain('/api/v1/users/');
+      expect(readme).not.toContain('/tools/');
+    }
   });
 
   it('reports duplicate navigation, missing frontmatter, and unknown code languages', () => {
@@ -640,11 +655,11 @@ describe('documentation asset generation', () => {
     );
   });
 
-  it('loads the exact shipped 15-service and 119-tool manifest inventory', () => {
+  it('loads the exact shipped 14-service and 108-tool manifest inventory', () => {
     const integrations = loadIntegrationConfigs(repositoryRoot);
 
-    expect(integrations).toHaveLength(15);
-    expect(integrations.flatMap(({ toolNames }) => toolNames)).toHaveLength(119);
+    expect(integrations).toHaveLength(14);
+    expect(integrations.flatMap(({ toolNames }) => toolNames)).toHaveLength(108);
   });
 
   it('validates the repository documentation source tree', () => {
@@ -682,7 +697,7 @@ describe('documentation asset generation', () => {
     );
   });
 
-  it('requires config metadata and the six integration sections', () => {
+  it('requires config metadata and all integration setup sections', () => {
     const model = buildDocumentationModel({
       navigation: [{ group: 'Integrations', pages: ['integrations/github'] }],
       documents: [
@@ -844,15 +859,33 @@ describe('documentation asset generation', () => {
     availableScopes: ['repo', 'user'],
     defaultScopes: ['repo'],
     toolNames: ['github_create_issue'],
+    docsUrl: 'https://docs.github.com/en/rest',
+    setupGuideUrl:
+      'https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app',
+    developerConsoleUrl: 'https://github.com/settings/developers',
+    execution: {
+      preferred: 'provider_mcp',
+      providerMcp: {
+        endpoint: 'https://api.githubcopilot.com/mcp/',
+        docsUrl:
+          'https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server',
+      },
+    },
   };
 
   const completeGithubSections = [
     '## Prerequisites',
-    'Prepare GitHub.',
+    '[REST docs](https://docs.github.com/en/rest)',
+    '[OAuth setup](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)',
+    '[Developer console](https://github.com/settings/developers)',
+    '## Self-hosted setup',
+    '`https://<your-authlane-host>/api/v1/oauth/github/callback`',
     '## Configure authentication',
-    'Configure GitHub.',
+    'Copy the Client ID and Client Secret in Dashboard → Services.',
     '## Scopes',
     '- `repo` permits repositories.',
+    '## Execution path',
+    'Prefer the official provider MCP at `https://api.githubcopilot.com/mcp/`.',
     '## Available tools',
     '- `github_create_issue`',
     '## Connection lifecycle',
@@ -861,15 +894,15 @@ describe('documentation asset generation', () => {
     'Check repository access.',
   ];
 
-  it('requires exactly fifteen config-manifest contracts and pages', () => {
+  it('requires exactly fourteen config-manifest contracts and pages', () => {
     const violations = validateIntegrationPages(
       buildDocumentationModel({ navigation: [], documents: [] }),
       []
     );
 
     expect(violations).toEqual([
-      'integrations: integration page config/manifest count must be 15, found 0',
-      'integrations: integration page count must be 15, found 0',
+      'integrations: integration page config/manifest count must be 14, found 0',
+      'integrations: integration page count must be 14, found 0',
     ]);
   });
 
@@ -891,7 +924,7 @@ describe('documentation asset generation', () => {
     ).toContain('integrations/github: integration page unexpected section "Unsupported"');
   });
 
-  it('requires the six H2 sections in the approved order', () => {
+  it('requires all H2 sections in the approved order', () => {
     const sections = [...completeGithubSections];
     const scopesIndex = sections.indexOf('## Scopes');
     const toolsIndex = sections.indexOf('## Available tools');
@@ -957,24 +990,23 @@ describe('documentation asset generation', () => {
       ({ slug }) => slug === 'integrations/gmail'
     )?.source;
 
-    expect(gmail).toContain('`gmail_delete_email` performs an immediate permanent deletion');
-    expect(gmail).toMatch(/requires\s+`https:\/\/mail\.google\.com\/`/);
-    expect(gmail).toContain('is unavailable with the current repository config');
-    expect(gmail).toContain('`https://www.googleapis.com/auth/gmail.modify` is insufficient');
+    expect(gmail).not.toContain('`gmail_delete_email`');
+    expect(gmail).toContain('Permanent deletion is deliberately not exposed');
+    expect(gmail).toMatch(/requires the restricted\s+`https:\/\/mail\.google\.com\/` scope/);
+    expect(gmail).toContain('`gmail_trash_email`');
     expect(gmail).toContain('`gmail_create_label`');
   });
 
-  it('documents unavailable Slack file upload and status capabilities', () => {
+  it('documents Slack file upload boundary and status scope', () => {
     const slack = loadDocumentation(repositoryRoot).documents.find(
       ({ slug }) => slug === 'integrations/slack'
     )?.source;
 
-    expect(slack).toContain('`slack_post_file` is currently unavailable');
+    expect(slack).not.toContain('`slack_post_file`');
     expect(slack).toContain('retired `files.upload`');
     expect(slack).toContain("Slack's current external upload flow");
-    expect(slack).toContain('`slack_set_status` is currently unavailable');
-    expect(slack).toMatch(/user token plus\s+`users\.profile:write`/);
-    expect(slack).toContain('neither is represented by the current repository config');
+    expect(slack).toContain('`slack_set_status`');
+    expect(slack).toContain('`users.profile:write` updates the connected user');
   });
 
   it('requires every shipped integration page to match config and required sections', async () => {

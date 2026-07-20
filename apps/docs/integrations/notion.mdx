@@ -8,18 +8,37 @@ authType: oauth2
 ## Prerequisites
 
 Create a public Notion integration and make the pages or databases needed by your SaaS available to
-that integration. The tools can only see content the connected integration can access.
+that integration. The tools can only see content the connected integration can access. Use the
+[API reference](https://developers.notion.com/reference/intro),
+[integration setup guide](https://developers.notion.com/docs/create-a-notion-integration), and
+[integration console](https://www.notion.so/profile/integrations).
+
+## Self-hosted setup
+
+1. Create a **Public integration** in the Notion integration console.
+2. Set its redirect URI to `https://<your-authlane-host>/api/v1/oauth/notion/callback`.
+3. Enable the content capabilities required by the tools and submit any distribution information
+   required for workspaces outside your own.
+4. Copy the OAuth Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/notion/callback` in the Notion integration.
-Enable Notion for the tenant in Authlane and store the OAuth client ID and encrypted client secret.
-Authlane uses the endpoints declared in `integrations/notion/config.yaml`.
+Open **Dashboard → Services → Notion → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Notion. After consent, the user must explicitly share relevant pages or databases
+with the integration.
 
 ## Scopes
 
 The repository config declares no default OAuth scopes for Notion. Do not invent a scope list:
 content access comes from the pages and databases made available to the connected integration.
+
+## Execution path
+
+Notion has an official MCP server at `https://mcp.notion.com/mcp`; follow the
+[official MCP guide](https://developers.notion.com/guides/mcp/get-started-with-mcp). The hosted
+server currently requires its own interactive user OAuth and does not accept an Authlane bearer
+lease. Authlane therefore uses the direct API adapter for headless execution; treating the hosted
+server as a credential-compatible fallback would be incorrect.
 
 ## Available tools
 

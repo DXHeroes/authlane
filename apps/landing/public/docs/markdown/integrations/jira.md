@@ -5,18 +5,36 @@ Connect Jira and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create an Atlassian OAuth app and identify the Jira site and projects your users will access. The
-connected user must have Jira permission for each requested issue operation.
+connected user must have Jira permission for each requested issue operation. Use the
+[Jira REST documentation](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/),
+[OAuth 2.0 guide](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/), and
+[developer console](https://developer.atlassian.com/console/myapps/) as the source of truth.
+
+## Self-hosted setup
+
+1. Create an OAuth 2.0 (3LO) app in the Atlassian developer console.
+2. Add `https://<your-authlane-host>/api/v1/oauth/jira/callback` as its callback URL.
+3. Add the Jira API permissions and scopes below, then copy the Client ID and Client Secret.
+4. Test with a user who can access the intended cloud site and projects.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/jira/callback` in the Atlassian app. Enable Jira
-for the tenant in Authlane, store the client ID and encrypted client secret, and approve the
-defaults from `integrations/jira/config.yaml`.
+Open **Dashboard → Services → Jira → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Jira. Authlane uses PKCE and discovers the connected cloud ID after consent.
 
 ## Scopes
 
 - `read:jira-work` reads issues, comments, and available transitions.
 - `write:jira-work` creates, updates, transitions, and comments on issues.
+- `offline_access` lets Authlane refresh the connection without asking the user to reconnect whenever
+  the short-lived access token expires.
+
+## Execution path
+
+Prefer Atlassian's official Rovo MCP server at `https://mcp.atlassian.com/v1/mcp/authv2` for AI
+execution; follow the [official setup guide](https://developer.atlassian.com/cloud/rovo-mcp/guides/getting-started/).
+Use the direct Jira adapter only when the server does not expose the required deterministic action
+or the self-hosted runtime uses an incompatible headless authentication mode.
 
 ## Available tools
 

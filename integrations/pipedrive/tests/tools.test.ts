@@ -7,10 +7,22 @@ describe('pipedrive Integration Tools', () => {
     access_token: 'test_token_123',
     token_type: 'Bearer',
     scope: 'test',
+    metadata: { api_base_url: 'https://acme.pipedrive.com' },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('uses the company API domain from the credential lease', async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce(Response.json({ success: true }));
+
+    await tools.pipedrive_list_deals.handler({}, mockCredentials);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/acme\.pipedrive\.com\/v1\/deals/),
+      expect.any(Object)
+    );
   });
 
   it('has tools defined', () => {

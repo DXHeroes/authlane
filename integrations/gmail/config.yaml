@@ -13,3 +13,16 @@ config:
   default_scopes:
     - https://www.googleapis.com/auth/gmail.send
     - https://www.googleapis.com/auth/gmail.readonly
+    - https://www.googleapis.com/auth/gmail.modify
+    - https://www.googleapis.com/auth/gmail.compose
+    - https://www.googleapis.com/auth/gmail.labels
+  docs_url: https://developers.google.com/workspace/gmail/api/guides
+  setup_guide_url: https://developers.google.com/workspace/guides/configure-oauth-consent
+  developer_console_url: https://console.cloud.google.com/apis/credentials
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://gmailmcp.googleapis.com/mcp/v1
+      docs_url: https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server
+      maturity: developer_preview
+    fallback: direct_api

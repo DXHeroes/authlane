@@ -150,7 +150,6 @@ The core MVP functionality is implemented and working. The platform is ready for
 | Salesforce | 🚧 | OAuth 2.0 | Config only |
 | Pipedrive | 🚧 | OAuth 2.0 | Config only |
 | Jira | 🚧 | OAuth 2.0 | Config only |
-| Sentry | 🚧 | OAuth 2.0 | Config only |
 
 ## Infrastructure
 

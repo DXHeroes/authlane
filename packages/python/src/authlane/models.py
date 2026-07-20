@@ -112,6 +112,11 @@ CredentialPlacement = HeaderPlacement | QueryPlacement
 
 
 @dataclass(frozen=True, slots=True)
+class OAuthProviderContext:
+    api_base_url: str
+
+
+@dataclass(frozen=True, slots=True)
 class OAuthCredentialLease:
     type: Literal["oauth2"]
     lease_id: str
@@ -119,6 +124,7 @@ class OAuthCredentialLease:
     token_type: str
     scopes: tuple[str, ...]
     expires_at: str | None
+    provider_context: OAuthProviderContext | None = None
 
 
 @dataclass(frozen=True, slots=True)

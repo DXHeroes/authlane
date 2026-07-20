@@ -7,21 +7,49 @@ authType: oauth2
 
 ## Prerequisites
 
-Create a Salesforce connected app and choose an org containing the objects your SaaS will access.
-The authorizing user needs object and field permissions for each query or mutation.
+Choose a Salesforce org containing the objects your SaaS will access. The authorizing user needs
+object and field permissions for each query or mutation. Use the
+[hosted MCP overview](https://developer.salesforce.com/docs/platform/hosted-mcp-servers/overview),
+[External Client App guide](https://developer.salesforce.com/docs/platform/hosted-mcp-servers/guide/create-external-client-app.html),
+and [Salesforce login](https://login.salesforce.com) to reach Setup.
+
+## Self-hosted setup
+
+1. In Salesforce Setup, create an **External Client App**; Connected Apps cannot authenticate the
+   hosted MCP server.
+2. Enable OAuth with PKCE and add
+   `https://<your-authlane-host>/api/v1/oauth/salesforce/callback` as a callback URL.
+3. Add `mcp_api`, `api`, `refresh_token`, and `id`. Under **Security**, enable **Require Secret for
+   Web Server Flow**, then generate and securely copy the Consumer Key as Client ID and Consumer
+   Secret as Client Secret.
+4. Enable and name the hosted MCP server, then assign it to the External Client App.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/salesforce/callback` in the connected app.
-Enable Salesforce for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults from `integrations/salesforce/config.yaml`. The token response supplies the
-Salesforce instance URL used for provider calls.
+Open **Dashboard → Services → Salesforce → OAuth Configuration**, enter the Client ID and
+Client Secret from the same External Client App, save, and enable Salesforce. The `api` scope on
+that app makes the same connection eligible for the direct REST fallback, and its token response
+must supply the Salesforce instance URL.
 
 ## Scopes
 
 - `api` authorizes Salesforce API access.
 - `refresh_token` authorizes refresh-token use.
 - `id` provides the connected user's identity context.
+
+- `mcp_api` authorizes Salesforce hosted MCP access.
+
+The default set includes both `mcp_api` and `api`: the SaaS runtime tries hosted MCP first and can
+use the connection-specific REST instance only when the provider MCP tool is unavailable before a
+call begins.
+
+## Execution path
+
+Prefer Salesforce's official hosted MCP endpoint
+`https://api.salesforce.com/platform/mcp/v1/platform/sobject-all`; follow the
+[official client guide](https://developer.salesforce.com/docs/platform/hosted-mcp-servers/guide/client-connection-overview.html).
+Use the direct REST adapter only when the hosted server is not enabled for the org or lacks the
+required object operation.
 
 ## Available tools
 

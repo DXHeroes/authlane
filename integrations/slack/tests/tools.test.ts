@@ -210,57 +210,6 @@ describe('Slack Integration Tools', () => {
     });
   });
 
-  describe('slack_post_file', () => {
-    it('has correct tool definition', () => {
-      const tool = tools.slack_post_file;
-      expect(tool.definition.name).toBe('slack_post_file');
-      expect(tool.definition.description).toContain('file');
-      expect(tool.definition.inputSchema.required).toContain('channels');
-    });
-
-    it('posts a file successfully', async () => {
-      const mockResponse = { ok: true, file: { id: 'F123', name: 'test.txt' } };
-
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await tools.slack_post_file.handler(
-        {
-          channels: 'C123',
-          content: 'File content',
-          filename: 'test.txt',
-        },
-        mockCredentials
-      );
-
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('includes optional parameters', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ ok: true, file: {} }),
-      } as Response);
-
-      await tools.slack_post_file.handler(
-        {
-          channels: 'C123',
-          content: 'Content',
-          filename: 'file.txt',
-          title: 'My File',
-          initial_comment: 'Check this out',
-        },
-        mockCredentials
-      );
-
-      const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-      expect(callBody.title).toBe('My File');
-      expect(callBody.initial_comment).toBe('Check this out');
-    });
-  });
-
   describe('slack_list_users', () => {
     it('has correct tool definition', () => {
       const tool = tools.slack_list_users;

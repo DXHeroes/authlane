@@ -100,7 +100,6 @@
         "integrations/github",
         "integrations/linear",
         "integrations/jira",
-        "integrations/sentry",
         "integrations/slack",
         "integrations/discord",
         "integrations/gmail",

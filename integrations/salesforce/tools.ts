@@ -14,9 +14,10 @@ async function salesforceRequest(
   credentials: OAuth2Credentials,
   options: RequestInit = {}
 ): Promise<unknown> {
-  // Get instance URL from credentials metadata or use default
-  const instanceUrl =
-    (credentials.metadata?.instance_url as string) || 'https://na1.salesforce.com';
+  const instanceUrl = credentials.metadata?.api_base_url;
+  if (typeof instanceUrl !== 'string' || instanceUrl.length === 0) {
+    throw new Error('Salesforce instance URL is missing from the credential lease');
+  }
   const apiVersion = 'v58.0';
 
   const response = await fetch(`${instanceUrl}/services/data/${apiVersion}/${endpoint}`, {

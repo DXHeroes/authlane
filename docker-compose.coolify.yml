@@ -23,7 +23,6 @@ x-app-environment: &app-environment
   RATE_LIMIT_WINDOW_MS:
   RESEND_API_KEY:
   EMAIL_FROM:
-  SENTRY_DSN:
 
 services:
   migrate:

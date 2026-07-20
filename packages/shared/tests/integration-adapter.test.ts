@@ -54,4 +54,38 @@ describe('local integration adapter', () => {
       error: expect.objectContaining({ code: 'TOOL_NOT_FOUND' }),
     });
   });
+
+  it('passes the validated provider API base URL to provider handlers', async () => {
+    const handler = vi.fn().mockResolvedValue({ ok: true });
+    const adapter = createIntegrationAdapter('pipedrive', {
+      pipedrive_list_deals: {
+        definition: {
+          name: 'pipedrive_list_deals',
+          description: 'Lists deals',
+          inputSchema: { type: 'object', properties: {} },
+        },
+        handler,
+      },
+    });
+
+    await adapter.execute(
+      'pipedrive_list_deals',
+      {},
+      {
+        type: 'oauth2',
+        accessToken: 'access',
+        tokenType: 'Bearer',
+        scopes: ['deals:read'],
+        expiresAt: null,
+        providerContext: { apiBaseUrl: 'https://acme.pipedrive.com' },
+      }
+    );
+
+    expect(handler).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        metadata: { api_base_url: 'https://acme.pipedrive.com' },
+      })
+    );
+  });
 });

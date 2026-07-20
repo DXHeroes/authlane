@@ -6,17 +6,35 @@ Connect GitHub and use its tools through the Authlane control plane.
 
 Create a GitHub OAuth app and choose an account that can access the repositories your tools will
 read or change. Repository and organization policy can still restrict that account after consent.
+Use GitHub's [REST documentation](https://docs.github.com/en/rest),
+[OAuth app guide](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app),
+and [developer settings](https://github.com/settings/developers) as the source of truth.
+
+## Self-hosted setup
+
+1. In GitHub developer settings, choose **OAuth Apps → New OAuth App**.
+2. Set the homepage to your product and the callback to
+   `https://<your-authlane-host>/api/v1/oauth/github/callback`.
+3. Save the app, copy the Client ID, and generate a Client Secret.
+4. Review organization OAuth restrictions before testing a private repository.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/github/callback` as the GitHub OAuth callback.
-Enable GitHub for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults declared in `integrations/github/config.yaml`.
+Open **Dashboard → Services → GitHub → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable GitHub. Authlane encrypts the secret. The callback must match exactly, including
+scheme, host, and path.
 
 ## Scopes
 
 - `repo` permits repository, issue, pull-request, code, and file operations.
 - `user` reads the authorizing user's account context used by repository discovery.
+
+## Execution path
+
+Prefer GitHub's official MCP server at `https://api.githubcopilot.com/mcp/` for AI tool execution
+from the SaaS runtime; follow the [official MCP setup](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server).
+Use the direct adapter only as a deterministic fallback when the MCP server does not expose the
+required operation or the deployment cannot use its authentication model.
 
 ## Available tools
 

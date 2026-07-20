@@ -4,9 +4,11 @@ import {
   connections,
   credentialAccessLogs,
   eq,
+  inArray,
   organizationServices,
   services,
 } from '@authlane/database';
+import { SUPPORTED_SERVICE_IDS } from '@authlane/shared';
 import type {
   ControlPlaneConnection,
   ControlPlaneRepository,
@@ -33,7 +35,8 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         and(
           eq(organizationServices.organizationId, organizationId),
           eq(organizationServices.enabled, true),
-          eq(services.enabled, true)
+          eq(services.enabled, true),
+          inArray(services.id, [...SUPPORTED_SERVICE_IDS])
         )
       );
   }
@@ -54,7 +57,8 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
       .where(
         and(
           eq(connections.organizationId, organizationId),
-          eq(connections.externalUserId, externalUserId)
+          eq(connections.externalUserId, externalUserId),
+          inArray(connections.serviceId, [...SUPPORTED_SERVICE_IDS])
         )
       );
   }

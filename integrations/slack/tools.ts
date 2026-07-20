@@ -165,68 +165,6 @@ export const tools: Record<string, ToolHandler> = {
     },
   },
 
-  slack_post_file: {
-    definition: {
-      name: 'slack_post_file',
-      description: 'Uploads and shares a file to a Slack channel',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          channels: {
-            type: 'string',
-            description: 'Comma-separated list of channel IDs to share file to',
-          },
-          content: {
-            type: 'string',
-            description: 'File content as string',
-          },
-          filename: {
-            type: 'string',
-            description: 'Filename',
-          },
-          filetype: {
-            type: 'string',
-            description: 'File type identifier (e.g., "text", "javascript", "python")',
-          },
-          title: {
-            type: 'string',
-            description: 'Title of the file',
-          },
-          initial_comment: {
-            type: 'string',
-            description: 'Initial comment to add with the file',
-          },
-        },
-        required: ['channels', 'content', 'filename'],
-      },
-    },
-    handler: async (params, credentials) => {
-      const { channels, content, filename, filetype, title, initial_comment } = params as {
-        channels: string;
-        content: string;
-        filename: string;
-        filetype?: string;
-        title?: string;
-        initial_comment?: string;
-      };
-
-      const body: Record<string, unknown> = {
-        channels,
-        content,
-        filename,
-      };
-
-      if (filetype) body.filetype = filetype;
-      if (title) body.title = title;
-      if (initial_comment) body.initial_comment = initial_comment;
-
-      return slackRequest('files.upload', credentials, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-    },
-  },
-
   slack_list_users: {
     definition: {
       name: 'slack_list_users',

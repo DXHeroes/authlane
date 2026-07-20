@@ -229,8 +229,7 @@ const authlane = new Authlane({
   apiKey: 'ak_...',
   logger: {
     error: (message, error) => {
-      // Send to your logging service
-      Sentry.captureException(error);
+      console.error(message, error);
     },
   },
 });

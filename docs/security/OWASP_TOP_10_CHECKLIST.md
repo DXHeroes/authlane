@@ -366,7 +366,7 @@ pnpm update
 
 ### Recommendations:
 - 🔄 Add structured logging (Winston/Pino)
-- 🔄 Integrate error tracking (Sentry)
+- 🔄 Integrate centralized error monitoring
 - 🔄 Set up log aggregation (ELK/Datadog/CloudWatch)
 - 🔄 Configure alerts for:
   - High error rates
@@ -445,7 +445,7 @@ When webhooks are implemented:
 
 2. **Logging and Monitoring**
    - Implement centralized logging
-   - Set up error tracking (Sentry)
+   - Set up centralized error monitoring
    - Configure alerting
 
 3. **Dependency Management**

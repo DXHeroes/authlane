@@ -39,7 +39,6 @@
 - [GitHub](https://authlane.io/docs/integrations/github): Connect GitHub and use its tools through the Authlane control plane.
 - [Linear](https://authlane.io/docs/integrations/linear): Connect Linear and use its tools through the Authlane control plane.
 - [Jira](https://authlane.io/docs/integrations/jira): Connect Jira and use its tools through the Authlane control plane.
-- [Sentry](https://authlane.io/docs/integrations/sentry): Connect Sentry and use its tools through the Authlane control plane.
 - [Slack](https://authlane.io/docs/integrations/slack): Connect Slack and use its tools through the Authlane control plane.
 - [Discord](https://authlane.io/docs/integrations/discord): Connect Discord and use its tools through the Authlane control plane.
 - [Gmail](https://authlane.io/docs/integrations/gmail): Connect Gmail and use its tools through the Authlane control plane.

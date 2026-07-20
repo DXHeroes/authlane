@@ -1,0 +1,76 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import YAML from 'yaml';
+import { getProviderMcpPolicy } from '../packages/ai/src/provider-mcp.js';
+import { productionServices } from '../packages/database/src/seed.js';
+import { SUPPORTED_SERVICE_IDS } from '../packages/shared/src/supported-services.js';
+
+interface SourceConfig {
+  id: string;
+  auth_type: string;
+  config: {
+    authorization_url: string;
+    token_url: string;
+    scopes: string[];
+    default_scopes: string[];
+    docs_url: string;
+    setup_guide_url: string;
+    developer_console_url: string;
+    execution: Record<string, unknown>;
+  };
+}
+
+const root = resolve(import.meta.dirname, '..');
+
+describe('runtime integration configuration', () => {
+  it.each(SUPPORTED_SERVICE_IDS)('%s keeps the database catalog aligned with config.yaml', (id) => {
+    const source = YAML.parse(
+      readFileSync(resolve(root, 'integrations', id, 'config.yaml'), 'utf8')
+    ) as SourceConfig;
+    const seeded = productionServices.find((service) => service.id === id);
+    const seededConfig = seeded?.config as
+      | {
+          authorization_url?: string;
+          token_url?: string;
+          scopes?: Array<{ name: string }>;
+          default_scopes?: string[];
+          docs_url?: string;
+          setup_guide_url?: string;
+          developer_console_url?: string;
+          execution?: Record<string, unknown>;
+        }
+      | undefined;
+
+    expect(source.id).toBe(id);
+    expect(source.auth_type).toBe('oauth2');
+    expect(seeded?.authType).toBe(source.auth_type);
+    expect(seededConfig).toMatchObject({
+      authorization_url: source.config.authorization_url,
+      token_url: source.config.token_url,
+      default_scopes: source.config.default_scopes,
+      docs_url: source.config.docs_url,
+      setup_guide_url: source.config.setup_guide_url,
+      developer_console_url: source.config.developer_console_url,
+      execution: source.config.execution,
+    });
+    expect(seededConfig?.scopes?.map((scope) => scope.name)).toEqual(source.config.scopes);
+  });
+
+  it.each(SUPPORTED_SERVICE_IDS)('%s keeps MCP runtime policy aligned with config.yaml', (id) => {
+    const source = YAML.parse(
+      readFileSync(resolve(root, 'integrations', id, 'config.yaml'), 'utf8')
+    ) as SourceConfig;
+    const execution = source.config.execution as {
+      preferred?: string;
+      provider_mcp?: { endpoint?: string };
+    };
+    const runtimePolicy = getProviderMcpPolicy(id);
+
+    if (execution.preferred === 'provider_mcp') {
+      expect(runtimePolicy?.endpoint).toBe(execution.provider_mcp?.endpoint);
+    } else {
+      expect(runtimePolicy).toBeUndefined();
+    }
+  });
+});

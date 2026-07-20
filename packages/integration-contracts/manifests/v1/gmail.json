@@ -95,22 +95,6 @@
       }
     },
     {
-      "name": "gmail_delete_email",
-      "description": "Deletes an email permanently (not trash, permanent deletion)",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Email message ID to delete"
-          }
-        },
-        "required": [
-          "id"
-        ]
-      }
-    },
-    {
       "name": "gmail_get_email",
       "description": "Gets a specific email by ID",
       "inputSchema": {

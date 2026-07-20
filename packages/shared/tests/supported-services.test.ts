@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SUPPORTED_SERVICE_IDS } from '../src/supported-services.js';
+import { isSupportedServiceId, SUPPORTED_SERVICE_IDS } from '../src/supported-services.js';
 
 describe('supported service catalog', () => {
   it('publishes exactly the installed MVP integrations', () => {
@@ -16,9 +16,14 @@ describe('supported service catalog', () => {
       'notion',
       'pipedrive',
       'salesforce',
-      'sentry',
       'slack',
       'stripe',
     ]);
+  });
+
+  it('rejects catalog-only and syntactically valid unknown IDs', () => {
+    expect(isSupportedServiceId('github')).toBe(true);
+    expect(isSupportedServiceId('openai')).toBe(false);
+    expect(isSupportedServiceId('unknown-service')).toBe(false);
   });
 });

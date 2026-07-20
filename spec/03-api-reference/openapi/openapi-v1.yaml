@@ -908,6 +908,14 @@ components:
               type: array
               items:
                 type: string
+            providerContext:
+              type: object
+              description: Validated provider routing metadata for tenant-specific API origins
+              required: [apiBaseUrl]
+              properties:
+                apiBaseUrl:
+                  type: string
+                  format: uri
             value:
               type: string
               description: Present only for API-key leases

@@ -76,6 +76,7 @@ export type CredentialLease =
       tokenType: string;
       scopes: string[];
       expiresAt: string | null;
+      providerContext?: OAuthProviderContext;
     }
   | {
       type: 'api_key';
@@ -92,6 +93,7 @@ export type CredentialMaterial =
       tokenType: string;
       scopes: string[];
       expiresAt: string | null;
+      providerContext?: OAuthProviderContext;
     }
   | {
       type: 'api_key';
@@ -166,6 +168,10 @@ export interface IntegrationAdapter {
  */
 export interface ConnectionMetadata {
   [key: string]: unknown;
+}
+
+export interface OAuthProviderContext {
+  apiBaseUrl: string;
 }
 
 /**

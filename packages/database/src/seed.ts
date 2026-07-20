@@ -4,16 +4,18 @@
  */
 
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { SUPPORTED_SERVICE_IDS, type SupportedServiceId } from '@authlane/shared';
 import postgres from 'postgres';
+import { CANONICAL_INTEGRATION_CONFIGS } from './integration-configs.js';
 import { services } from './schema/index.js';
 
 /**
  * Production-ready service configurations
  * Each service has complete OAuth2/API configuration based on official documentation
  */
-export const productionServices = [
+const serviceCandidates = [
   // ============================================
-  // DEVELOPER TOOLS (4)
+  // DEVELOPER TOOLS (3)
   // ============================================
   {
     id: 'github',
@@ -161,40 +163,6 @@ export const productionServices = [
     },
     enabled: true,
   },
-  {
-    id: 'sentry',
-    name: 'Sentry',
-    authType: 'oauth2',
-    config: {
-      authorization_url: 'https://sentry.io/oauth/authorize/',
-      token_url: 'https://sentry.io/oauth/token/',
-      api_base_url: 'https://sentry.io/api/0',
-      scopes: [
-        { name: 'project:read', description: 'Read project information', required: true },
-        { name: 'project:write', description: 'Write project information', required: false },
-        { name: 'project:admin', description: 'Admin access to projects', required: false },
-        { name: 'project:releases', description: 'Manage releases', required: false },
-        { name: 'team:read', description: 'Read team information', required: false },
-        { name: 'team:write', description: 'Write team information', required: false },
-        { name: 'team:admin', description: 'Admin access to teams', required: false },
-        { name: 'event:read', description: 'Read event data', required: true },
-        { name: 'event:write', description: 'Write event data', required: false },
-        { name: 'event:admin', description: 'Admin access to events', required: false },
-        { name: 'org:read', description: 'Read organization information', required: false },
-        { name: 'org:write', description: 'Write organization information', required: false },
-        { name: 'member:read', description: 'Read member information', required: false },
-        { name: 'member:write', description: 'Write member information', required: false },
-      ],
-      default_scopes: ['project:read', 'event:read', 'org:read'],
-      pkce_required: false,
-      supports_refresh_token: true,
-      docs_url: 'https://docs.sentry.io/api/',
-      setup_guide_url: 'https://docs.sentry.io/api/guides/create-auth-token/',
-      developer_console_url: 'https://sentry.io/settings/developer-settings/',
-    },
-    enabled: true,
-  },
-
   // ============================================
   // COMMUNICATION (3)
   // ============================================
@@ -226,6 +194,16 @@ export const productionServices = [
         { name: 'im:write', description: 'Start direct messages', required: false },
         { name: 'mpim:read', description: 'View group direct messages', required: false },
         { name: 'users:read', description: 'View user information', required: true },
+        {
+          name: 'search:read.public',
+          description: 'Search public channels through Slack MCP',
+          required: true,
+        },
+        {
+          name: 'search:read.users',
+          description: 'Search workspace users through Slack MCP',
+          required: true,
+        },
         { name: 'users:read.email', description: 'View email addresses', required: false },
         { name: 'team:read', description: 'View workspace information', required: false },
         { name: 'files:read', description: 'View files', required: false },
@@ -675,10 +653,20 @@ export const productionServices = [
         },
         { name: 'schema.bases:read', description: 'Read base schema', required: true },
         { name: 'schema.bases:write', description: 'Modify base schema', required: false },
+        {
+          name: 'workspacesAndBases:read',
+          description: 'Discover granted workspaces and bases through Airtable MCP',
+          required: true,
+        },
         { name: 'user.email:read', description: 'Read user email', required: false },
         { name: 'webhook:manage', description: 'Manage webhooks', required: false },
       ],
-      default_scopes: ['data.records:read', 'data.records:write', 'schema.bases:read'],
+      default_scopes: [
+        'data.records:read',
+        'data.records:write',
+        'schema.bases:read',
+        'workspacesAndBases:read',
+      ],
       pkce_required: true,
       supports_refresh_token: true,
       // Airtable-specific
@@ -1006,6 +994,47 @@ export const productionServices = [
   },
 ];
 
+const supportedServiceIds = new Set<string>(SUPPORTED_SERVICE_IDS);
+
+/**
+ * The catalog exposed and seeded by Authlane must exactly match the integrations
+ * installed in this release. Historical API examples remain above as migration
+ * input only and are never exposed as supported services.
+ */
+export const productionServices = serviceCandidates.filter((service) =>
+  supportedServiceIds.has(service.id)
+).map((service) => {
+  const canonical = CANONICAL_INTEGRATION_CONFIGS[service.id as SupportedServiceId];
+  const existingConfig = service.config as Record<string, unknown>;
+  const existingScopes = Array.isArray(existingConfig.scopes) ? existingConfig.scopes : [];
+  const descriptions = new Map(
+    existingScopes.flatMap((scope): Array<[string, { description: string }]> => {
+      if (!scope || typeof scope !== 'object' || Array.isArray(scope)) return [];
+      const name = Reflect.get(scope, 'name');
+      const description = Reflect.get(scope, 'description');
+      return typeof name === 'string' && typeof description === 'string'
+        ? [[name, { description }]]
+        : [];
+    })
+  );
+  const defaultScopes = new Set<string>(canonical.default_scopes);
+
+  return {
+    ...service,
+    authType: 'oauth2',
+    config: {
+      ...existingConfig,
+      ...canonical,
+      scopes: canonical.scopes.map((name) => ({
+        name,
+        description: descriptions.get(name)?.description ?? `OAuth permission: ${name}`,
+        required: defaultScopes.has(name),
+      })),
+      default_scopes: [...canonical.default_scopes],
+    },
+  };
+});
+
 /**
  * Seeds the database with initial data
  */
@@ -1030,36 +1059,10 @@ export async function seedDatabase(dbUrl: string) {
   console.log(`\n${'='.repeat(70)}`);
   console.log('✅ Database seeded successfully!\n');
 
-  // Categorize services
-  const publicApis = productionServices.filter((s) => s.authType === 'none');
-  const apiKeyServices = productionServices.filter((s) => s.authType === 'api_key');
-  const oauthServices = productionServices.filter((s) => s.authType === 'oauth2');
-
-  console.log(`\n${'─'.repeat(70)}`);
-  console.log('🚀 PUBLIC APIs - Ready to use NOW! No configuration needed:');
-  console.log('─'.repeat(70));
-  for (const service of publicApis) {
-    const config = service.config as { api_base_url: string; example_call?: string };
-    console.log(`\n   ${service.name}`);
-    console.log(`   └─ ${config.api_base_url}`);
-    if (config.example_call) {
-      console.log(`   └─ Try: ${config.example_call}`);
-    }
-  }
-
-  console.log(`\n${'─'.repeat(70)}`);
-  console.log('🔐 API KEY Services - Just add your API key:');
-  console.log('─'.repeat(70));
-  for (const service of apiKeyServices) {
-    const config = service.config as { setup_guide_url?: string; docs_url?: string };
-    console.log(`\n   ${service.name}`);
-    console.log(`   └─ Get key: ${config.setup_guide_url || config.docs_url || 'See docs'}`);
-  }
-
   console.log(`\n${'─'.repeat(70)}`);
   console.log('🔗 OAuth2 Services - Need Client ID + Client Secret:');
   console.log('─'.repeat(70));
-  for (const service of oauthServices) {
+  for (const service of productionServices) {
     const config = service.config as { developer_console_url?: string };
     console.log(`   • ${service.name}: ${config.developer_console_url || 'See docs'}`);
   }
@@ -1071,9 +1074,7 @@ export async function seedDatabase(dbUrl: string) {
   console.log(`\n${'─'.repeat(70)}`);
   console.log('📊 Summary:');
   console.log('─'.repeat(70));
-  console.log(`   • ${publicApis.length} Public APIs (no auth needed) ✅`);
-  console.log(`   • ${apiKeyServices.length} API Key services (simple setup)`);
-  console.log(`   • ${oauthServices.length} OAuth2 services (need app setup)`);
+  console.log(`   • ${productionServices.length} OAuth2 services (need app setup)`);
   console.log(`   • Total: ${productionServices.length} services`);
 
   console.log(`\n${'='.repeat(70)}\n`);

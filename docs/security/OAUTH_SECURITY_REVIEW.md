@@ -803,7 +803,7 @@ const response = await fetch(tokenUrl, {
 - ✅ Verify HTTPS enforced
 - ✅ Secure encryption key storage (not in env files)
 - ✅ OAuth app credentials in secrets manager
-- ✅ Enable error tracking (Sentry)
+- ✅ Enable centralized error monitoring
 - ✅ Set up monitoring for OAuth failures
 - ✅ Document incident response procedures
 

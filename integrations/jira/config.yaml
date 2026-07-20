@@ -12,3 +12,14 @@ config:
   default_scopes:
     - read:jira-work
     - write:jira-work
+    - offline_access
+  docs_url: https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/
+  setup_guide_url: https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/
+  developer_console_url: https://developer.atlassian.com/console/myapps/
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://mcp.atlassian.com/v1/mcp/authv2
+      docs_url: https://developer.atlassian.com/cloud/rovo-mcp/guides/getting-started/
+      maturity: stable
+    fallback: direct_api

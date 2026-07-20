@@ -30,11 +30,11 @@ CASES = [
     ),
     RequestCase(
         "discord",
-        "discord_list_channels",
-        {"guild_id": "guild123"},
+        "discord_list_guilds",
+        {},
         "GET",
         "discord.com",
-        "/api/v10/guilds/guild123/channels",
+        "/api/v10/users/@me/guilds",
     ),
     RequestCase(
         "github",
@@ -105,7 +105,7 @@ CASES = [
         "pipedrive_get_deal",
         {"deal_id": 7},
         "GET",
-        "api.pipedrive.com",
+        "acme.pipedrive.com",
         "/v1/deals/7",
     ),
     RequestCase(
@@ -113,16 +113,8 @@ CASES = [
         "salesforce_get_object",
         {"objectType": "Contact", "objectId": "003", "fields": ["Id", "Email"]},
         "GET",
-        "na1.salesforce.com",
+        "acme.my.salesforce.com",
         "/services/data/v58.0/sobjects/Contact/003",
-    ),
-    RequestCase(
-        "sentry",
-        "sentry_get_issue",
-        {"issueId": "42"},
-        "GET",
-        "sentry.io",
-        "/api/0/issues/42/",
     ),
     RequestCase(
         "slack",
@@ -154,7 +146,6 @@ JSON_SERVICES = {
     "notion",
     "pipedrive",
     "salesforce",
-    "sentry",
     "slack",
 }
 
@@ -187,6 +178,19 @@ def test_representative_request_shape_for_each_service(case: RequestCase) -> Non
             "tokenType": "Bearer",
             "scopes": [],
             "expiresAt": None,
+            **(
+                {
+                    "providerContext": {
+                        "apiBaseUrl": (
+                            "https://acme.pipedrive.com"
+                            if case.service_id == "pipedrive"
+                            else "https://acme.my.salesforce.com"
+                        )
+                    }
+                }
+                if case.service_id in {"pipedrive", "salesforce"}
+                else {}
+            ),
         },
         transport=httpx.MockTransport(provider),
     )

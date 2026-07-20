@@ -19,7 +19,6 @@ Guide to Authlane service integrations and how to create custom integrations.
 - [Google Drive](./services/google-drive.md)
 - [Gmail](./services/gmail.md)
 - [Discord](./services/discord.md)
-- [Sentry](./services/sentry.md)
 - [HubSpot](./services/hubspot.md)
 - [Salesforce](./services/salesforce.md)
 - [Pipedrive](./services/pipedrive.md)
@@ -203,4 +202,3 @@ Tools can be exposed in two formats:
 - [Integration Structure](./integration-structure.md) - Detailed file structure
 - [Creating Integrations](./creating-integrations.md) - Step-by-step guide
 - [Tool Definitions](./tool-definitions.md) - Tool schema reference
-

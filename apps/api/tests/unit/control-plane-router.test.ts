@@ -243,6 +243,37 @@ describe('credential leases', () => {
     });
   });
 
+  it('issues an allowlisted provider API origin with the access-only lease', async () => {
+    const repo = repository({
+      getConnection: vi.fn(async () => ({
+        id: 'connection_1',
+        serviceId: 'pipedrive',
+        status: 'connected',
+        credentialSecretId: 'secret_1',
+        expiresAt: null,
+        connectedAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastCheckedAt: null,
+        lastErrorCode: null,
+      })),
+    });
+    const store = secretStore({
+      access_token: 'access-token',
+      token_type: 'Bearer',
+      provider_context: { apiBaseUrl: 'https://acme.pipedrive.com' },
+    });
+
+    const response = await appFor(repo, { secretStore: store }).request(
+      '/api/v1/users/user_1/connections/pipedrive/credential-leases',
+      { method: 'POST' }
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      data: { providerContext: { apiBaseUrl: 'https://acme.pipedrive.com' } },
+      error: null,
+    });
+  });
+
   it('issues an API key only with an explicit provider placement', async () => {
     const repo = repository({
       getConnection: vi.fn().mockResolvedValue({

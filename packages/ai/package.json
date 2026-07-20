@@ -55,22 +55,18 @@
     "@authlane/integration-notion": "workspace:*",
     "@authlane/integration-pipedrive": "workspace:*",
     "@authlane/integration-salesforce": "workspace:*",
-    "@authlane/integration-sentry": "workspace:*",
     "@authlane/integration-slack": "workspace:*",
     "@authlane/integration-stripe": "workspace:*",
     "@authlane/sdk": "workspace:*",
-    "@authlane/shared": "workspace:*"
+    "@authlane/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "peerDependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "@mastra/core": "^1.51.0",
     "@openai/agents": "^0.13.4",
     "ai": "^7.0.30"
   },
   "peerDependenciesMeta": {
-    "@modelcontextprotocol/sdk": {
-      "optional": true
-    },
     "@mastra/core": {
       "optional": true
     },

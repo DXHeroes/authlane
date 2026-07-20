@@ -62,14 +62,14 @@ const capabilities = {
       ],
     },
     {
-      serviceId: 'sentry',
+      serviceId: 'notion',
       status: 'error',
       connected: false,
       expiresAt: null,
       tools: [
         {
           ...githubTool,
-          name: 'sentry_get_issue',
+          name: 'notion_search',
           inputSchema: { ...githubTool.inputSchema },
         },
       ],

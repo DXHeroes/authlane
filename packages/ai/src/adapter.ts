@@ -4,11 +4,20 @@ import {
   createError,
   type IntegrationAdapter,
   type Result,
+  validateOAuthProviderContext,
 } from '@authlane/shared';
 import { resolveIntegration, snapshotCustomIntegrations } from './integrations.js';
+import {
+  createProviderMcpClient,
+  executePreferredProviderMcp,
+  type ProviderMcpClientFactory,
+} from './provider-mcp.js';
 
 export interface FrameworkAdapterOptions {
   integrations?: IntegrationAdapter[];
+  providerMcp?: 'prefer' | 'disabled';
+  providerMcpClientFactory?: ProviderMcpClientFactory;
+  providerMcpForCustomIntegrations?: boolean;
 }
 
 const invalidCredentialError = () =>
@@ -44,7 +53,7 @@ function copyScopes(value: unknown): string[] | null {
   return scopes;
 }
 
-function toCredentialMaterial(value: unknown): CredentialMaterial | null {
+function toCredentialMaterial(value: unknown, serviceId: string): CredentialMaterial | null {
   if (typeof value !== 'object' || value === null) {
     return null;
   }
@@ -56,6 +65,7 @@ function toCredentialMaterial(value: unknown): CredentialMaterial | null {
       const tokenType = ownDataValue(value, 'tokenType');
       const rawScopes = ownDataValue(value, 'scopes');
       const expiresAt = ownDataValue(value, 'expiresAt');
+      const rawProviderContext = ownDataValue(value, 'providerContext');
       const scopes = copyScopes(rawScopes);
       if (
         typeof accessToken !== 'string' ||
@@ -67,7 +77,15 @@ function toCredentialMaterial(value: unknown): CredentialMaterial | null {
       ) {
         return null;
       }
-      return { type, accessToken, tokenType, scopes, expiresAt };
+      const providerContext = validateOAuthProviderContext(serviceId, rawProviderContext);
+      return {
+        type,
+        accessToken,
+        tokenType,
+        scopes,
+        expiresAt,
+        ...(providerContext ? { providerContext } : {}),
+      };
     }
 
     if (type === 'api_key') {
@@ -113,17 +131,32 @@ export function createBuiltInAdapter<T>(
     format: 'mcp',
     build,
     async execute(input) {
+      const credential = toCredentialMaterial(input.credential, input.serviceId);
+      if (!credential) {
+        return invalidCredentialError();
+      }
+
+      const hasCustomIntegration = customIntegrations.has(input.serviceId);
+      if (
+        options.providerMcp !== 'disabled' &&
+        (!hasCustomIntegration || options.providerMcpForCustomIntegrations === true)
+      ) {
+        const providerMcp = await executePreferredProviderMcp(
+          input.serviceId,
+          input.toolName,
+          input.arguments as Record<string, unknown>,
+          credential,
+          options.providerMcpClientFactory ?? createProviderMcpClient
+        );
+        if (providerMcp.status === 'completed') return providerMcp.result;
+      }
+
       const resolution = await resolveIntegration(input.serviceId, customIntegrations);
       if (resolution.status === 'not_found') {
         return safeError('INTEGRATION_NOT_FOUND', 'No local adapter for requested service');
       }
       if (resolution.status === 'load_failed') {
         return safeError('INTEGRATION_LOAD_FAILED', 'Local integration adapter is unavailable');
-      }
-
-      const credential = toCredentialMaterial(input.credential);
-      if (!credential) {
-        return invalidCredentialError();
       }
 
       try {

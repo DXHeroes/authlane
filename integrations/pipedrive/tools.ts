@@ -13,7 +13,11 @@ async function pipedriveRequest(
   credentials: OAuth2Credentials,
   options: RequestInit = {}
 ): Promise<unknown> {
-  const response = await fetch(`https://api.pipedrive.com/v1/${endpoint}`, {
+  const apiBaseUrl = credentials.metadata?.api_base_url;
+  if (typeof apiBaseUrl !== 'string' || apiBaseUrl.length === 0) {
+    throw new Error('Pipedrive API domain is missing from the credential lease');
+  }
+  const response = await fetch(`${apiBaseUrl}/v1/${endpoint}`, {
     ...options,
     headers: {
       Authorization: `Bearer ${credentials.access_token}`,

@@ -28,6 +28,7 @@ def _capture(
     arguments: dict[str, Any],
     *,
     responses: list[httpx.Response] | None = None,
+    provider_context: dict[str, str] | None = None,
 ) -> tuple[Any, list[httpx.Request]]:
     requests: list[httpx.Request] = []
     queue = list(responses or [httpx.Response(200, json={"id": "result"})])
@@ -38,11 +39,15 @@ def _capture(
             return httpx.Response(200, json=[{"id": "cloud-1"}])
         return queue.pop(0)
 
+    credential = _oauth()
+    if provider_context is not None:
+        credential["providerContext"] = provider_context
+
     result = execute(
         service_id=service_id,
         tool_name=tool_name,
         arguments=arguments,
-        credential=_oauth(),
+        credential=credential,
         transport=httpx.MockTransport(provider),
     )
     return result, requests
@@ -231,7 +236,12 @@ def test_gmail_notion_github_and_pipedrive_semantics_match_typescript() -> None:
     assert github.error is None
     assert github.data["decodedContent"] == "hello"
 
-    pipedrive, pipedrive_requests = _capture("pipedrive", "pipedrive_list_deals", {})
+    pipedrive, pipedrive_requests = _capture(
+        "pipedrive",
+        "pipedrive_list_deals",
+        {},
+        provider_context={"apiBaseUrl": "https://acme.pipedrive.com"},
+    )
     assert pipedrive.error is None
     assert pipedrive_requests[0].url.params["status"] == "all_not_deleted"
 

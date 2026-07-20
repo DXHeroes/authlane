@@ -8,13 +8,24 @@ authType: oauth2
 ## Prerequisites
 
 Create a Google OAuth client for a project with Drive access. The connected account must have
-access to the files, folders, and shared drives that the SaaS will use.
+access to the files, folders, and shared drives that the SaaS will use. Use the
+[Drive API guide](https://developers.google.com/workspace/drive/api/guides/about-sdk),
+[OAuth consent guide](https://developers.google.com/workspace/guides/configure-oauth-consent), and
+[Google Cloud credentials console](https://console.cloud.google.com/apis/credentials).
+
+## Self-hosted setup
+
+1. Create or select a Google Cloud project and enable Drive API. For MCP-first execution, also join
+   the Workspace Developer Preview and enable Drive MCP API.
+2. Configure the OAuth consent screen, audience, test users, and the scopes below.
+3. Create a **Web application** OAuth client and register
+   `https://<your-authlane-host>/api/v1/oauth/google-drive/callback` as an authorized redirect URI.
+4. Copy the Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/google-drive/callback` in the Google OAuth
-client. Enable Google Drive for the tenant in Authlane, store the client ID and encrypted client
-secret, and approve the defaults declared in `integrations/google-drive/config.yaml`.
+Open **Dashboard → Services → Google Drive → OAuth Configuration**, enter the Client ID and
+Client Secret, save, and enable Google Drive. The callback must match the public Authlane URL exactly.
 
 ## Scopes
 
@@ -24,6 +35,13 @@ secret, and approve the defaults declared in `integrations/google-drive/config.y
 
 The exported adapter includes broader update, delete, and permission tools. Only expose them when
 the tenant has approved a configured scope that grants the corresponding Drive operation.
+
+## Execution path
+
+Prefer Google's official Drive MCP server at `https://drivemcp.googleapis.com/mcp/v1`; follow the
+[official Drive MCP guide](https://developers.google.com/workspace/drive/api/guides/configure-mcp-server).
+It is a Developer Preview, so retain the direct Drive API adapter as the explicit fallback when a
+required tool is missing or the preview cannot be enabled.
 
 ## Available tools
 

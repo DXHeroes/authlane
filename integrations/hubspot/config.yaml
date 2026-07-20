@@ -2,17 +2,16 @@ id: hubspot
 name: HubSpot
 auth_type: oauth2
 config:
-  authorization_url: https://app.hubspot.com/oauth/authorize
-  token_url: https://api.hubapi.com/oauth/v1/token
-  scopes:
-    - crm.objects.contacts.read
-    - crm.objects.contacts.write
-    - crm.objects.deals.read
-    - crm.objects.deals.write
-    - crm.objects.companies.read
-    - crm.objects.companies.write
-  default_scopes:
-    - crm.objects.contacts.read
-    - crm.objects.contacts.write
-    - crm.objects.deals.read
-    - crm.objects.deals.write
+  authorization_url: https://mcp.hubspot.com/oauth/authorize/user
+  token_url: https://mcp.hubspot.com/oauth/v3/token
+  scopes: []
+  default_scopes: []
+  docs_url: https://developers.hubspot.com/docs/api-reference/overview
+  setup_guide_url: https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server
+  developer_console_url: https://app.hubspot.com/developer/
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://mcp.hubspot.com
+      docs_url: https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server
+      maturity: stable

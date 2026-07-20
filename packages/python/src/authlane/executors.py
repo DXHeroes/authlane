@@ -5,7 +5,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx
 from jsonschema import Draft202012Validator
@@ -13,6 +13,7 @@ from jsonschema import Draft202012Validator
 from ._errors import credential_type_unsupported, invalid_tool_input, provider_error
 from .contracts import definition_index
 from .models import ApiKeyCredentialLease, CredentialLease, OAuthCredentialLease, Result
+from .provider_mcp import aexecute_preferred_provider_mcp, execute_preferred_provider_mcp
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +39,6 @@ JSON_PROVIDER_SERVICES = frozenset(
         "notion",
         "pipedrive",
         "salesforce",
-        "sentry",
         "slack",
     }
 )
@@ -187,25 +187,23 @@ def _airtable(tool: str, a: Mapping[str, Any]) -> RequestSpec:
 
 def _discord(tool: str, a: Mapping[str, Any]) -> RequestSpec:
     root = "https://discord.com/api/v10/"
-    if tool == "discord_send_message":
+    if tool == "discord_get_current_user":
+        return RequestSpec("GET", f"{root}users/@me")
+    if tool == "discord_list_guilds":
         return RequestSpec(
-            "POST", f"{root}channels/{a['channel_id']}/messages", json_body=_clean(a, "channel_id")
+            "GET",
+            f"{root}users/@me/guilds",
+            params=[
+                ("limit", str(max(1, min(a.get("limit", 100), 200)))),
+                ("with_counts", str(a.get("with_counts", False)).lower()),
+                *_pairs(a, [("before", "before"), ("after", "after")]),
+            ],
         )
-    if tool == "discord_list_channels":
-        return RequestSpec("GET", f"{root}guilds/{a['guild_id']}/channels")
-    if tool == "discord_create_channel":
+    if tool == "discord_get_current_user_guild_member":
         return RequestSpec(
-            "POST",
-            f"{root}guilds/{a['guild_id']}/channels",
-            json_body={
-                "name": a["name"],
-                "type": a.get("type", 0),
-                **({"topic": a["topic"]} if a.get("topic") else {}),
-            },
+            "GET", f"{root}users/@me/guilds/{quote(str(a['guild_id']), safe='')}/member"
         )
-    return RequestSpec(
-        "POST", f"{root}users/@me/channels", json_body={"recipient_id": a["user_id"]}
-    )
+    return RequestSpec("GET", f"{root}users/@me/connections")
 
 
 def _github(tool: str, a: Mapping[str, Any]) -> RequestSpec:
@@ -320,8 +318,6 @@ def _gmail(tool: str, a: Mapping[str, Any]) -> RequestSpec:
                 if _js_truthy(a.get(local))
             },
         )
-    if tool == "gmail_delete_email":
-        return RequestSpec("DELETE", root + f"/messages/{a['id']}")
     if tool == "gmail_trash_email":
         return RequestSpec("POST", root + f"/messages/{a['id']}/trash")
     if tool == "gmail_list_labels":
@@ -669,11 +665,10 @@ def _hubspot(tool: str, a: Mapping[str, Any]) -> RequestSpec:
         return RequestSpec("POST", root + kind + "/search", json_body=body)
     object_id = a.get("contactId", a.get("dealId"))
     if tool in {"hubspot_get_contact", "hubspot_get_deal"}:
-        params: list[tuple[str, str]] = []
-        if _js_truthy(a.get("properties")):
+        params: list[tuple[str, str]] = [("archived", str(a.get("archived", False)).lower())]
+        if isinstance(a.get("properties"), list):
             params.append(("properties", ",".join(a["properties"])))
-        params.append(("archived", str(a.get("archived", False)).lower()))
-        return RequestSpec("GET", root + f"{kind}/{object_id}", params=params)
+        return RequestSpec("GET", root + f"{kind}/{quote(str(object_id), safe='')}", params=params)
     return RequestSpec(
         "PATCH", root + f"{kind}/{object_id}", json_body={"properties": a["properties"]}
     )
@@ -1001,44 +996,6 @@ def _salesforce(tool: str, a: Mapping[str, Any]) -> RequestSpec:
     return RequestSpec("PATCH", root + f"sobjects/Opportunity/{a['opportunityId']}", json_body=body)
 
 
-def _sentry(tool: str, a: Mapping[str, Any]) -> RequestSpec:
-    root = "https://sentry.io/api/0/"
-    if tool == "sentry_list_issues":
-        endpoint = (
-            f"projects/{a['organizationSlug']}/{a['projectSlug']}/issues/"
-            if a.get("projectSlug")
-            else f"organizations/{a['organizationSlug']}/issues/"
-        )
-        params = _pairs(a, [("query", "query")])
-        if a.get("status"):
-            params.append(("query", f"is:{a['status']}"))
-        params += [
-            ("statsPeriod", str(a.get("statsPeriod", "14d"))),
-            ("limit", str(a.get("limit", 25))),
-            *_pairs(a, [("cursor", "cursor")]),
-            ("sort", str(a.get("sortBy", "date"))),
-        ]
-        return RequestSpec("GET", root + endpoint, params=params)
-    issue = a.get("issueId")
-    if tool == "sentry_resolve_issue":
-        return RequestSpec(
-            "PUT",
-            root + f"issues/{issue}/",
-            json_body={
-                key: value for key, value in _clean(a, "issueId").items() if _js_truthy(value)
-            },
-        )
-    if tool == "sentry_get_issue":
-        return RequestSpec("GET", root + f"issues/{issue}/")
-    if tool == "sentry_list_events":
-        return RequestSpec(
-            "GET",
-            root + f"issues/{issue}/events/",
-            params=[("limit", str(a.get("limit", 25))), *_pairs(a, [("cursor", "cursor")])],
-        )
-    return RequestSpec("POST", root + f"issues/{issue}/comments/", json_body={"text": a["comment"]})
-
-
 def _slack(tool: str, a: Mapping[str, Any]) -> RequestSpec:
     root = "https://slack.com/api/"
     if tool == "slack_send_message":
@@ -1062,12 +1019,6 @@ def _slack(tool: str, a: Mapping[str, Any]) -> RequestSpec:
             "POST",
             root + "conversations.create",
             json_body={"name": a["name"], "is_private": a.get("is_private", False)},
-        )
-    if tool == "slack_post_file":
-        return RequestSpec(
-            "POST",
-            root + "files.upload",
-            json_body={key: value for key, value in a.items() if _js_truthy(value)},
         )
     if tool == "slack_list_users":
         return RequestSpec(
@@ -1113,7 +1064,6 @@ BUILDERS = {
     "notion": _notion,
     "pipedrive": _pipedrive,
     "salesforce": _salesforce,
-    "sentry": _sentry,
     "slack": _slack,
     "stripe": _stripe,
 }
@@ -1238,8 +1188,60 @@ def validate_arguments(service_id: str, tool_name: str, arguments: Mapping[str, 
     return _validated(service_id, tool_name, arguments)
 
 
-def _prepare(service_id: str, tool_name: str, arguments: Mapping[str, Any]) -> RequestSpec:
-    return BUILDERS[service_id](tool_name, arguments)
+def _provider_api_base_url(
+    service_id: str, credential: CredentialLease | Mapping[str, Any]
+) -> str | None:
+    if service_id not in {"pipedrive", "salesforce"}:
+        return None
+    if isinstance(credential, OAuthCredentialLease):
+        value = credential.provider_context.api_base_url if credential.provider_context else None
+    elif isinstance(credential, Mapping):
+        context = credential.get("providerContext")
+        value = context.get("apiBaseUrl") if isinstance(context, Mapping) else None
+    else:
+        value = None
+    if not isinstance(value, str):
+        raise ValueError("missing provider routing context")
+    parsed = urlsplit(value)
+    expected_suffix = ".pipedrive.com" if service_id == "pipedrive" else ".salesforce.com"
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or not parsed.hostname.endswith(expected_suffix)
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port not in {None, 443}
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("invalid provider routing context")
+    return f"https://{parsed.hostname}"
+
+
+def _prepare(
+    service_id: str,
+    tool_name: str,
+    arguments: Mapping[str, Any],
+    credential: CredentialLease | Mapping[str, Any],
+) -> RequestSpec:
+    spec = BUILDERS[service_id](tool_name, arguments)
+    provider_base_url = _provider_api_base_url(service_id, credential)
+    if provider_base_url:
+        placeholder = (
+            "https://api.pipedrive.com"
+            if service_id == "pipedrive"
+            else "https://na1.salesforce.com"
+        )
+        return RequestSpec(
+            spec.method,
+            spec.url.replace(placeholder, provider_base_url, 1),
+            spec.params,
+            spec.json_body,
+            spec.content,
+            spec.headers,
+        )
+    return spec
 
 
 def execute(
@@ -1249,6 +1251,8 @@ def execute(
     arguments: Mapping[str, Any],
     credential: CredentialLease | Mapping[str, Any],
     transport: httpx.BaseTransport | None = None,
+    mcp_transport: httpx.BaseTransport | None = None,
+    provider_mcp: bool = True,
     timeout: float = 30.0,
 ) -> Result[Any]:
     if not _validated(service_id, tool_name, arguments):
@@ -1257,8 +1261,23 @@ def execute(
         return Result.failure(credential_type_unsupported())
     try:
         arguments = _declared_arguments(service_id, tool_name, arguments)
+        if provider_mcp and (mcp_transport is not None or transport is None):
+            mcp_attempt = execute_preferred_provider_mcp(
+                service_id=service_id,
+                tool_name=tool_name,
+                arguments=arguments,
+                credential=credential,
+                transport=mcp_transport,
+                timeout=timeout,
+            )
+            if mcp_attempt.status == "completed":
+                return (
+                    Result.failure(provider_error())
+                    if mcp_attempt.failed
+                    else Result.success(mcp_attempt.data)
+                )
         headers, credential_params = _credential_headers(credential)
-        spec = _prepare(service_id, tool_name, arguments)
+        spec = _prepare(service_id, tool_name, arguments, credential)
         headers.update(_provider_headers(service_id, tool_name))
         headers.update(spec.headers)
         with httpx.Client(transport=transport, timeout=timeout) as client:
@@ -1310,14 +1329,6 @@ def execute(
                 headers=headers,
             )
             result = _parse_provider_response(first, service_id, tool_name, arguments)
-            if tool_name == "discord_send_dm":
-                channel = cast(Mapping[str, Any], result)
-                second = client.post(
-                    f"https://discord.com/api/v10/channels/{channel['id']}/messages",
-                    json={"content": arguments["content"]},
-                    headers=headers,
-                )
-                result = _parse_provider_response(second, service_id)
             if tool_name in {"gmail_read_emails", "gmail_search_emails"} and isinstance(
                 result, Mapping
             ):
@@ -1350,6 +1361,8 @@ async def aexecute(
     arguments: Mapping[str, Any],
     credential: CredentialLease | Mapping[str, Any],
     transport: httpx.AsyncBaseTransport | None = None,
+    mcp_transport: httpx.AsyncBaseTransport | None = None,
+    provider_mcp: bool = True,
     timeout: float = 30.0,
 ) -> Result[Any]:
     if not _validated(service_id, tool_name, arguments):
@@ -1358,8 +1371,23 @@ async def aexecute(
         return Result.failure(credential_type_unsupported())
     try:
         arguments = _declared_arguments(service_id, tool_name, arguments)
+        if provider_mcp and (mcp_transport is not None or transport is None):
+            mcp_attempt = await aexecute_preferred_provider_mcp(
+                service_id=service_id,
+                tool_name=tool_name,
+                arguments=arguments,
+                credential=credential,
+                transport=mcp_transport,
+                timeout=timeout,
+            )
+            if mcp_attempt.status == "completed":
+                return (
+                    Result.failure(provider_error())
+                    if mcp_attempt.failed
+                    else Result.success(mcp_attempt.data)
+                )
         headers, credential_params = _credential_headers(credential)
-        spec = _prepare(service_id, tool_name, arguments)
+        spec = _prepare(service_id, tool_name, arguments, credential)
         headers.update(_provider_headers(service_id, tool_name))
         headers.update(spec.headers)
         async with httpx.AsyncClient(transport=transport, timeout=timeout) as client:
@@ -1410,14 +1438,6 @@ async def aexecute(
                 headers=headers,
             )
             result = _parse_provider_response(response, service_id, tool_name, arguments)
-            if tool_name == "discord_send_dm":
-                channel = cast(Mapping[str, Any], result)
-                second = await client.post(
-                    f"https://discord.com/api/v10/channels/{channel['id']}/messages",
-                    json={"content": arguments["content"]},
-                    headers=headers,
-                )
-                result = _parse_provider_response(second, service_id)
             if tool_name in {"gmail_read_emails", "gmail_search_emails"} and isinstance(
                 result, Mapping
             ):

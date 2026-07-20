@@ -14,17 +14,16 @@ const expectedCounts = {
   airtable: 11,
   discord: 4,
   github: 8,
-  gmail: 12,
+  gmail: 11,
   'google-calendar': 7,
   'google-drive': 14,
-  hubspot: 8,
+  hubspot: 4,
   jira: 6,
   linear: 5,
   notion: 15,
   pipedrive: 9,
   salesforce: 5,
-  sentry: 5,
-  slack: 6,
+  slack: 5,
   stripe: 4,
 } as const;
 
@@ -63,13 +62,13 @@ function sortedDefinitions(manifests: IntegrationManifest[]) {
 }
 
 describe('canonical integration contracts', () => {
-  it('contains the exact 15-service and 119-tool inventory', () => {
+  it('contains the exact 14-service and 108-tool inventory', () => {
     const manifests = readManifests();
 
     expect(
       Object.fromEntries(manifests.map(({ serviceId, tools }) => [serviceId, tools.length]))
     ).toEqual(expectedCounts);
-    expect(manifests.flatMap(({ tools }) => tools)).toHaveLength(119);
+    expect(manifests.flatMap(({ tools }) => tools)).toHaveLength(108);
   });
 
   it('uses unique IDs and JSON object input schemas', () => {

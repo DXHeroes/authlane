@@ -122,11 +122,10 @@ Client Request
 ┌─────────────────┐
 │   Hono Server   │
 │  ┌───────────┐  │
-│  │ Middleware│  │  1. Sentry (error tracking)
-│  │   Stack   │  │  2. Logger (request logging)
-│  │           │  │  3. CORS (cross-origin)
-│  │           │  │  4. Rate Limit
-│  │           │  │  5. Auth (session/API key)
+│  │ Middleware│  │  1. Logger (request logging)
+│  │   Stack   │  │  2. CORS (cross-origin)
+│  │           │  │  3. Rate Limit
+│  │           │  │  4. Auth (session/API key)
 │  └─────┬─────┘  │
 │        │        │
 │  ┌─────▼─────┐  │
@@ -212,7 +211,6 @@ Client Request
 ### Observability
 - **Metrics**: Prometheus format at `/metrics`
 - **Logging**: Structured JSON logs (Pino)
-- **Tracing**: Sentry for error tracking
 
 ## Network Requirements
 
@@ -230,6 +228,5 @@ Client Request
 | PostgreSQL | Primary database | Yes |
 | Redis | Cache and job queue | Optional* |
 | SMTP/Resend | Email delivery | Optional |
-| Sentry | Error tracking | Optional |
 
 *Redis is optional but required for token refresh jobs.

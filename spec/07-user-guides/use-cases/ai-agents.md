@@ -232,7 +232,7 @@ Always:
 const systemPrompt = `You are a DevOps assistant.
 
 You can help with:
-- Monitoring Sentry errors
+- Monitoring application errors
 - Creating Jira tickets
 - Alerting team in Slack
 - Checking GitHub PRs
@@ -349,4 +349,3 @@ async function executeWithAudit(userId, tool, params) {
 - [MCP Server Setup](../../05-sdk/mcp-server/installation.md)
 - [Tool Definitions](../../06-integrations/tool-definitions.md)
 - [Security Best Practices](../../04-security/index.md)
-

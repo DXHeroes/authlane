@@ -5,7 +5,6 @@ export const serviceGroups = [
       { id: 'github', name: 'GitHub' },
       { id: 'linear', name: 'Linear' },
       { id: 'jira', name: 'Jira' },
-      { id: 'sentry', name: 'Sentry' },
     ],
   },
   {

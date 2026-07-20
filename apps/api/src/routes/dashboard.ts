@@ -16,6 +16,7 @@ import {
   desc,
   eq,
   invitation,
+  inArray,
   member,
   organization,
   organizationServices,
@@ -24,7 +25,7 @@ import {
   sql,
   user,
 } from '@authlane/database';
-import { Errors } from '@authlane/shared';
+import { Errors, isSupportedServiceId, SUPPORTED_SERVICE_IDS } from '@authlane/shared';
 import { Hono } from 'hono';
 import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
 import type { CacheStore } from '../lib/cache.js';
@@ -94,7 +95,8 @@ export function createDashboardRouter(
           .where(
             and(
               eq(organizationServices.organizationId, orgId),
-              eq(organizationServices.enabled, true)
+              eq(organizationServices.enabled, true),
+              inArray(organizationServices.serviceId, [...SUPPORTED_SERVICE_IDS])
             )
           );
         enabledServicesCount = count_ || { count: 0 };
@@ -104,7 +106,9 @@ export function createDashboardRouter(
       const [totalServicesCount] = await db
         .select({ count: count() })
         .from(services)
-        .where(eq(services.enabled, true));
+        .where(
+          and(eq(services.enabled, true), inArray(services.id, [...SUPPORTED_SERVICE_IDS]))
+        );
 
       return c.json({
         data: {
@@ -620,7 +624,12 @@ export function createDashboardRouter(
       const orgServicesList = await db
         .select()
         .from(organizationServices)
-        .where(eq(organizationServices.organizationId, org.id));
+        .where(
+          and(
+            eq(organizationServices.organizationId, org.id),
+            inArray(organizationServices.serviceId, [...SUPPORTED_SERVICE_IDS])
+          )
+        );
 
       return c.json({
         data: orgServicesList.map((os) => ({
@@ -653,6 +662,10 @@ export function createDashboardRouter(
       }
 
       const serviceId = c.req.param('serviceId');
+
+      if (!isSupportedServiceId(serviceId)) {
+        return c.json(Errors.notFound('Service', serviceId), 404);
+      }
 
       const [orgService] = await db
         .select()
@@ -708,6 +721,9 @@ export function createDashboardRouter(
       }
 
       const serviceId = c.req.param('serviceId');
+      if (!isSupportedServiceId(serviceId)) {
+        return c.json(Errors.notFound('Service', serviceId), 404);
+      }
       const body = await c.req.json();
       const { enabled } = body;
 
@@ -759,6 +775,9 @@ export function createDashboardRouter(
       }
 
       const serviceId = c.req.param('serviceId');
+      if (!isSupportedServiceId(serviceId)) {
+        return c.json(Errors.notFound('Service', serviceId), 404);
+      }
       const body = await c.req.json();
       const { customClientId, customClientSecret, apiKey } = body;
       const [existing] = await db

@@ -12,3 +12,13 @@ config:
   default_scopes:
     - https://www.googleapis.com/auth/calendar.events
     - https://www.googleapis.com/auth/calendar.readonly
+  docs_url: https://developers.google.com/workspace/calendar/api/guides/overview
+  setup_guide_url: https://developers.google.com/workspace/guides/configure-oauth-consent
+  developer_console_url: https://console.cloud.google.com/apis/credentials
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://calendarmcp.googleapis.com/mcp/v1
+      docs_url: https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server
+      maturity: developer_preview
+    fallback: direct_api

@@ -1,10 +1,17 @@
 import { SUPPORTED_SERVICE_IDS } from '@authlane/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { SUPPORTED_SERVICE_CATALOG, seedServiceCatalog } from '../src/service-catalog.js';
+import { productionServices } from '../src/seed.js';
 
 describe('production service catalog', () => {
   it('contains exactly the installed integrations', () => {
     expect(SUPPORTED_SERVICE_CATALOG.map((service) => service.id).sort()).toEqual([
+      ...SUPPORTED_SERVICE_IDS,
+    ]);
+  });
+
+  it('keeps the legacy seed command on the same supported catalog', () => {
+    expect(productionServices.map((service) => service.id).sort()).toEqual([
       ...SUPPORTED_SERVICE_IDS,
     ]);
   });

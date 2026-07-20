@@ -61,6 +61,461 @@ describe('createBuiltInAdapter', () => {
     expect(result).toEqual({ data: { ok: true }, error: null });
   });
 
+  it('prefers an official provider MCP tool before the built-in direct adapter', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'created' }] }));
+    const close = vi.fn(async () => undefined);
+    const providerMcpClientFactory = vi.fn(async () => ({
+      listTools: async () => ['issue_write'],
+      callTool,
+      close,
+    }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('github', directExecute)],
+      providerMcpClientFactory,
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({ ...input, toolName: 'github_create_issue' });
+
+    expect(result).toEqual({
+      data: { content: [{ type: 'text', text: 'created' }] },
+      error: null,
+    });
+    expect(providerMcpClientFactory).toHaveBeenCalledWith({
+      endpoint: 'https://api.githubcopilot.com/mcp/',
+      accessToken: 'oauth-secret',
+      tokenType: 'Bearer',
+    });
+    expect(callTool).toHaveBeenCalledWith('issue_write', {
+      method: 'create',
+      visibility: 'private',
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('falls back to the direct adapter only before an MCP tool call starts', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('github', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['different_tool'],
+        callTool: vi.fn(),
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    expect(await adapter.execute(input)).toEqual({ data: { path: 'direct' }, error: null });
+    expect(directExecute).toHaveBeenCalledOnce();
+  });
+
+  it('never retries a possibly-started MCP mutation through the direct API', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('github', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['issue_write'],
+        callTool: async () => {
+          throw new Error('ambiguous provider failure');
+        },
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({ ...input, toolName: 'github_create_issue' });
+
+    expect(result).toMatchObject({
+      data: null,
+      error: { code: 'PROVIDER_REQUEST_FAILED', message: 'Provider request failed' },
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('maps GitHub pagination and avoids an invalid MCP file mutation without a branch', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [] }));
+    const providerMcpClientFactory = async () => ({
+      listTools: async () => ['list_issues', 'create_or_update_file'],
+      callTool,
+      close: async () => undefined,
+    });
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('github', directExecute)],
+      providerMcpClientFactory,
+      providerMcpForCustomIntegrations: true,
+    });
+
+    await adapter.execute({
+      ...input,
+      toolName: 'github_list_issues',
+      arguments: { owner: 'dxheroes', repo: 'authlane', state: 'open', limit: 25 },
+    });
+    expect(callTool).toHaveBeenCalledWith('list_issues', {
+      owner: 'dxheroes',
+      repo: 'authlane',
+      state: 'open',
+      perPage: 25,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      toolName: 'github_create_file',
+      arguments: {
+        owner: 'dxheroes',
+        repo: 'authlane',
+        path: 'README.md',
+        message: 'Update README',
+        content: 'content',
+      },
+    });
+    expect(result).toEqual({ data: { path: 'direct' }, error: null });
+    expect(callTool).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps HubSpot read tools to the official provider MCP and never uses a CRM fallback token', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'contacts' }] }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('hubspot', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['search_crm_objects', 'get_crm_objects'],
+        callTool,
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'hubspot',
+      toolName: 'hubspot_list_contacts',
+      arguments: { limit: 20 },
+      credential: { ...oauthLease, scopes: [] },
+    });
+
+    expect(result.error).toBeNull();
+    expect(callTool).toHaveBeenCalledWith('search_crm_objects', {
+      objectType: 'contacts',
+      limit: 20,
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('translates Google Workspace arguments to the official MCP schema', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'draft' }] }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('gmail', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['create_draft'],
+        callTool,
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'gmail',
+      toolName: 'gmail_create_draft',
+      arguments: {
+        to: ['user@example.com'],
+        subject: 'Hello',
+        body: '<strong>Hello</strong>',
+        html: true,
+      },
+      credential: { ...oauthLease, scopes: ['https://www.googleapis.com/auth/gmail.compose'] },
+    });
+
+    expect(result.error).toBeNull();
+    expect(callTool).toHaveBeenCalledWith('create_draft', {
+      to: ['user@example.com'],
+      subject: 'Hello',
+      htmlBody: '<strong>Hello</strong>',
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('uses exact Google MCP schemas and falls back before unsupported semantics', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [] }));
+    const providerMcpClientFactory = async () => ({
+      listTools: async () => ['create_label', 'list_events', 'create_file'],
+      callTool,
+      close: async () => undefined,
+    });
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [
+        customIntegration('gmail', directExecute),
+        customIntegration('google-calendar', directExecute),
+        customIntegration('google-drive', directExecute),
+      ],
+      providerMcpClientFactory,
+      providerMcpForCustomIntegrations: true,
+    });
+
+    await adapter.execute({
+      ...input,
+      serviceId: 'gmail',
+      toolName: 'gmail_create_label',
+      arguments: {
+        name: 'Customers',
+        background_color: '#000000',
+        text_color: '#ffffff',
+      },
+    });
+    expect(callTool).toHaveBeenNthCalledWith(1, 'create_label', {
+      displayName: 'Customers',
+      color: { backgroundColor: '#000000', textColor: '#ffffff' },
+    });
+
+    await adapter.execute({
+      ...input,
+      serviceId: 'google-calendar',
+      toolName: 'gcal_list_events',
+      arguments: {
+        calendar_id: 'primary',
+        max_results: 25,
+        order_by: 'updated',
+      },
+    });
+    expect(callTool).toHaveBeenNthCalledWith(2, 'list_events', {
+      calendarId: 'primary',
+      pageSize: 25,
+      orderBy: 'lastModified',
+    });
+
+    await adapter.execute({
+      ...input,
+      serviceId: 'google-drive',
+      toolName: 'gdrive_create_folder',
+      arguments: { name: 'Reports' },
+    });
+    expect(callTool).toHaveBeenNthCalledWith(3, 'create_file', {
+      title: 'Reports',
+      contentMimeType: 'application/vnd.google-apps.folder',
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'google-calendar',
+      toolName: 'gcal_update_event',
+      arguments: { event_id: 'event_1', attendees: [{ email: 'user@example.com' }] },
+    });
+    expect(result).toEqual({ data: { path: 'direct' }, error: null });
+    expect(callTool).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses the official Airtable MCP server only for schema-compatible operations', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [] }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('airtable', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['list_bases', 'list_tables_for_base', 'get_table_schema'],
+        callTool,
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    await adapter.execute({
+      ...input,
+      serviceId: 'airtable',
+      toolName: 'airtable_list_bases',
+      arguments: {},
+    });
+    await adapter.execute({
+      ...input,
+      serviceId: 'airtable',
+      toolName: 'airtable_get_base_schema',
+      arguments: { base_id: 'app123' },
+    });
+    const fallback = await adapter.execute({
+      ...input,
+      serviceId: 'airtable',
+      toolName: 'airtable_get_table_schema',
+      arguments: { base_id: 'app123', table_id: 'tbl123' },
+    });
+
+    expect(callTool).toHaveBeenNthCalledWith(1, 'list_bases', {});
+    expect(callTool).toHaveBeenNthCalledWith(2, 'list_tables_for_base', { baseId: 'app123' });
+    expect(callTool).toHaveBeenCalledTimes(2);
+    expect(fallback).toEqual({ data: { path: 'direct' }, error: null });
+  });
+
+  it('prefers the official Pipedrive MCP server for compatible CRM operations', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'deal' }] }));
+    const providerMcpClientFactory = vi.fn(async () => ({
+      listTools: async () => ['getDeal', 'getDeals'],
+      callTool,
+      close: async () => undefined,
+    }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('pipedrive', directExecute)],
+      providerMcpClientFactory,
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'pipedrive',
+      toolName: 'pipedrive_get_deal',
+      arguments: { deal_id: 42 },
+    });
+    const fallback = await adapter.execute({
+      ...input,
+      serviceId: 'pipedrive',
+      toolName: 'pipedrive_list_deals',
+      arguments: { stage_id: 7 },
+    });
+
+    expect(providerMcpClientFactory).toHaveBeenCalledWith({
+      endpoint: 'https://mcp.pipedrive.ai/mcp',
+      accessToken: 'oauth-secret',
+      tokenType: 'Bearer',
+    });
+    expect(callTool).toHaveBeenCalledOnce();
+    expect(callTool).toHaveBeenCalledWith('getDeal', { id: 42 });
+    expect(result.error).toBeNull();
+    expect(fallback).toEqual({ data: { path: 'direct' }, error: null });
+    expect(directExecute).toHaveBeenCalledOnce();
+  });
+
+  it('maps Salesforce wrappers to the official SObject MCP tools', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async () => ({ content: [{ type: 'text', text: 'created' }] }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('salesforce', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['createSobjectRecord'],
+        callTool,
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'salesforce',
+      toolName: 'salesforce_create_contact',
+      arguments: { LastName: 'Lovelace', customFields: { Customer_Tier__c: 'Gold' } },
+      credential: { ...oauthLease, scopes: ['mcp_api'] },
+    });
+
+    expect(result.error).toBeNull();
+    expect(callTool).toHaveBeenCalledWith('createSobjectRecord', {
+      'sobject-name': 'Contact',
+      body: { LastName: 'Lovelace', Customer_Tier__c: 'Gold' },
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('discovers the Jira cloud before invoking the official Rovo MCP mutation', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const callTool = vi.fn(async (name: string) =>
+      name === 'getAccessibleAtlassianResources'
+        ? {
+            content: [
+              { type: 'text', text: '[{"id":"cloud-123","url":"https://acme.atlassian.net"}]' },
+            ],
+          }
+        : { content: [{ type: 'text', text: 'created' }] }
+    );
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('jira', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['getAccessibleAtlassianResources', 'createJiraIssue'],
+        callTool,
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'jira',
+      toolName: 'jira_create_issue',
+      arguments: {
+        projectKey: 'AUTH',
+        issueType: 'Task',
+        summary: 'MCP-first',
+        assigneeAccountId: 'account-123',
+        labels: ['integration'],
+      },
+      credential: { ...oauthLease, scopes: ['write:jira-work'] },
+    });
+
+    expect(result.error).toBeNull();
+    expect(callTool).toHaveBeenNthCalledWith(1, 'getAccessibleAtlassianResources', {});
+    expect(callTool).toHaveBeenNthCalledWith(2, 'createJiraIssue', {
+      cloudId: 'cloud-123',
+      projectKey: 'AUTH',
+      issueTypeName: 'Task',
+      summary: 'MCP-first',
+      assignee_account_id: 'account-123',
+      additional_fields: { labels: ['integration'] },
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('does not send a HubSpot MCP credential to the direct CRM adapter', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('hubspot', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['search_crm_objects'],
+        callTool: vi.fn(),
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'hubspot',
+      toolName: 'hubspot_get_contact',
+      arguments: { contactId: 'contact_1' },
+      credential: { ...oauthLease, scopes: [] },
+    });
+
+    expect(result).toMatchObject({
+      data: null,
+      error: { code: 'PROVIDER_MCP_TOOL_UNAVAILABLE' },
+    });
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('forwards only validated provider routing context to a local integration', async () => {
+    let receivedCredential: CredentialMaterial | undefined;
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [
+        customIntegration('pipedrive', async (_toolName, _arguments, credential) => {
+          receivedCredential = credential;
+          return { data: { ok: true }, error: null };
+        }),
+      ],
+    });
+
+    const result = await adapter.execute({
+      ...input,
+      serviceId: 'pipedrive',
+      credential: {
+        ...oauthLease,
+        providerContext: { apiBaseUrl: 'https://acme.pipedrive.com' },
+      },
+    });
+
+    expect(result).toEqual({ data: { ok: true }, error: null });
+    expect(receivedCredential).toMatchObject({
+      providerContext: { apiBaseUrl: 'https://acme.pipedrive.com' },
+    });
+  });
+
   it('snapshots custom integrations and deterministically lets the last duplicate win', async () => {
     const first = vi.fn(async () => ({ data: 'first', error: null }));
     const last = vi.fn(async () => ({ data: 'last', error: null }));
@@ -216,7 +671,7 @@ describe('createBuiltInAdapter', () => {
   });
 
   it('returns INTEGRATION_NOT_FOUND for unknown services', async () => {
-    const adapter = createBuiltInAdapter(({ tools }) => tools);
+    const adapter = createBuiltInAdapter(({ tools }) => tools, { providerMcp: 'disabled' });
 
     const result = await adapter.execute({ ...input, serviceId: 'unknown-service' });
 

@@ -11,7 +11,16 @@ config:
   default_scopes:
     - repo
     - user
-
+  docs_url: https://docs.github.com/en/rest
+  setup_guide_url: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app
+  developer_console_url: https://github.com/settings/developers
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://api.githubcopilot.com/mcp/
+      docs_url: https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server
+      maturity: stable
+    fallback: direct_api
 
 
 

@@ -4,35 +4,53 @@ Connect Discord and use its tools through the Authlane control plane.
 
 ## Prerequisites
 
-Create a Discord OAuth2 application with a bot and choose a guild where that bot can access the
-channels used by your SaaS. Keep the guild, channel, and user IDs required by the tools available.
+Create a Discord OAuth2 application for user authorization. This integration intentionally uses a
+per-user OAuth token and does not request or store the application's bot token.
+Use the official [API reference](https://docs.discord.com/developers/reference),
+[app setup guide](https://docs.discord.com/developers/quick-start/getting-started), and
+[Developer Portal](https://discord.com/developers/applications).
+
+## Self-hosted setup
+
+1. Open the Discord Developer Portal and create an application.
+2. Register `https://<your-authlane-host>/api/v1/oauth/discord/callback` as the exact OAuth redirect.
+3. Copy the application's Client ID and Client Secret.
+4. Enable the `identify`, `guilds`, `guilds.members.read`, and `connections` OAuth scopes.
+5. In Authlane, open **Dashboard → Services → Discord** and save the client credentials.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/discord/callback` in the Discord application.
-Enable Discord for the tenant in Authlane, store the OAuth client ID and encrypted client secret,
-and approve the default scopes from `integrations/discord/config.yaml`.
+Set the OAuth Client ID and Client Secret in **Dashboard → Services → Discord**. Authlane encrypts
+the Client Secret and uses the configured redirect URI during the authorization-code exchange.
 
 ## Scopes
 
-- `bot` installs and authorizes the Discord bot.
-- `messages.write` permits the configured message operations.
+- `identify` reads the connected user's basic Discord profile.
+- `guilds` lists guilds the connected user belongs to.
+- `guilds.members.read` reads that user's member record in a selected guild.
+- `connections` lists the user's linked external accounts.
+
+Do not add the `bot` scope for this adapter. Discord bot tokens are separate application secrets;
+an OAuth installation does not return the bot token, and bot-only message or channel endpoints
+cannot be called with the per-user bearer credential stored by Authlane.
+
+## Execution path
+
+There is no official provider MCP server for Discord. The SaaS runtime therefore uses
+`@authlane/integration-discord` to call Discord directly with a fresh credential lease; Authlane
+never proxies messages or responses.
 
 ## Available tools
 
-### Channels
+### Identity and guilds
 
-- `discord_list_channels`
-- `discord_create_channel`
+- `discord_get_current_user`
+- `discord_list_guilds`
+- `discord_get_current_user_guild_member`
 
-### Messages
+### Linked accounts
 
-- `discord_send_message`
-- `discord_send_dm`
-
-Install `@authlane/integration-discord` in the SaaS runtime. The local adapter uses a fresh
-credential lease to call Discord directly; Authlane remains the connection and definition control
-plane and never proxies messages or responses.
+- `discord_list_connections`
 
 ## Connection lifecycle
 
@@ -43,6 +61,7 @@ connect session with recent reauthentication and removes the stored connection.
 
 ## Troubleshooting
 
-- Verify the bot is present in the target guild before using a guild or channel ID.
-- A send failure can mean the bot lacks permission in that channel even when OAuth succeeded.
-- `discord_send_dm` needs a Discord user ID; a username is not a substitute.
+- A missing guild means the connected user does not belong to it or did not grant `guilds`.
+- Member lookup requires `guilds.members.read` and the exact guild ID returned by the guild list.
+- Message sending and channel administration are deliberately absent because they require a bot
+  credential model that is different from Authlane's per-user OAuth connection.

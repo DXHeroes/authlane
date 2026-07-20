@@ -560,8 +560,10 @@ export function validateDocumentation({ navigation, documents }) {
 
 const requiredIntegrationHeadings = [
   'Prerequisites',
+  'Self-hosted setup',
   'Configure authentication',
   'Scopes',
+  'Execution path',
   'Available tools',
   'Connection lifecycle',
   'Troubleshooting',
@@ -621,13 +623,13 @@ export function validateIntegrationPages(model, integrationConfigs) {
   );
   const configs = new Map(integrationConfigs.map((config) => [config.serviceId, config]));
 
-  if (integrationConfigs.length !== 15) {
+  if (integrationConfigs.length !== 14) {
     violations.push(
-      `integrations: integration page config/manifest count must be 15, found ${integrationConfigs.length}`
+      `integrations: integration page config/manifest count must be 14, found ${integrationConfigs.length}`
     );
   }
-  if (pages.size !== 15) {
-    violations.push(`integrations: integration page count must be 15, found ${pages.size}`);
+  if (pages.size !== 14) {
+    violations.push(`integrations: integration page count must be 14, found ${pages.size}`);
   }
 
   for (const [serviceId] of pages) {
@@ -690,7 +692,53 @@ export function validateIntegrationPages(model, integrationConfigs) {
     }
 
     const sections = h2Sections(page.source);
+    const selfHostedSection = sections.get('Self-hosted setup') ?? '';
+    const authenticationSection = sections.get('Configure authentication') ?? '';
     const scopesSection = sections.get('Scopes') ?? '';
+    const executionSection = sections.get('Execution path') ?? '';
+
+    const callbackUrl = `https://<your-authlane-host>/api/v1/oauth/${config.serviceId}/callback`;
+    if (!quotedInlineValue(selfHostedSection, callbackUrl)) {
+      violations.push(`${slug}: self-hosted setup missing callback URL "${callbackUrl}"`);
+    }
+    if (
+      !/Client ID/i.test(authenticationSection) ||
+      !/Client Secret/i.test(authenticationSection)
+    ) {
+      violations.push(`${slug}: authentication setup must explain Client ID and Client Secret`);
+    }
+    if (!/Dashboard\s*[→>-]\s*Services/i.test(authenticationSection)) {
+      violations.push(`${slug}: authentication setup missing Dashboard to Services path`);
+    }
+    for (const url of [config.docsUrl, config.setupGuideUrl, config.developerConsoleUrl]) {
+      if (!url || !page.source.includes(`](${url})`)) {
+        violations.push(`${slug}: integration page missing official link "${url || 'missing'}"`);
+      }
+    }
+    if (config.execution?.preferred === 'provider_mcp') {
+      const endpoint = config.execution.providerMcp?.endpoint;
+      if (
+        !endpoint ||
+        !quotedInlineValue(executionSection, endpoint) ||
+        !/official.*MCP/i.test(executionSection)
+      ) {
+        violations.push(
+          `${slug}: execution path must prioritize the official provider MCP endpoint`
+        );
+      }
+    } else if (config.execution?.preferred === 'direct_api') {
+      const hasProviderMcp = Boolean(config.execution.providerMcp?.endpoint);
+      const explainsDirectExecution = hasProviderMcp
+        ? /credential-compatible|does not accept an Authlane bearer|not credential-compatible/i.test(
+            executionSection
+          )
+        : /no official provider MCP server/i.test(executionSection);
+      if (!explainsDirectExecution) {
+        violations.push(`${slug}: execution path must explain why direct API execution is used`);
+      }
+    } else if (!['provider_mcp', 'direct_api'].includes(config.execution?.preferred)) {
+      violations.push(`${slug}: config execution preference must be provider_mcp or direct_api`);
+    }
 
     for (const scope of config.defaultScopes) {
       if (!quotedInlineValue(scopesSection, scope)) {
@@ -842,6 +890,20 @@ export function loadIntegrationConfigs(root) {
         authType: String(parsed?.auth_type ?? ''),
         availableScopes,
         defaultScopes: defaultScopes.map((scope) => String(scope)),
+        docsUrl: String(parsed.config?.docs_url ?? ''),
+        setupGuideUrl: String(parsed.config?.setup_guide_url ?? ''),
+        developerConsoleUrl: String(parsed.config?.developer_console_url ?? ''),
+        execution: {
+          preferred: String(parsed.config?.execution?.preferred ?? ''),
+          providerMcp:
+            parsed.config?.execution?.provider_mcp &&
+            typeof parsed.config.execution.provider_mcp === 'object'
+              ? {
+                  endpoint: String(parsed.config.execution.provider_mcp.endpoint ?? ''),
+                  docsUrl: String(parsed.config.execution.provider_mcp.docs_url ?? ''),
+                }
+              : null,
+        },
       };
     });
 
@@ -964,4 +1026,32 @@ export function renderGeneratedAssets(model) {
     llms: model.llms,
     llmsFull: model.llmsFull,
   };
+}
+
+export function renderIntegrationPackageReadmes(configs) {
+  return new Map(
+    configs.map((config) => [
+      config.serviceId,
+      [
+        `# @authlane/integration-${config.serviceId}`,
+        '',
+        `${config.name} canonical tool definitions and SaaS-runtime execution support for Authlane.`,
+        '',
+        '```bash',
+        `pnpm add @authlane/integration-${config.serviceId}`,
+        '```',
+        '',
+        'Use the canonical tools through `@authlane/ai`, or import this package when building a custom',
+        'trusted runtime. Authlane manages connection state and fresh access-only credential leases.',
+        'Provider calls run from the SaaS runtime and never pass through the Authlane control plane.',
+        '',
+        'Self-hosted OAuth app creation, redirect URI, Client ID, Client Secret, scopes, execution',
+        `policy, and troubleshooting are maintained in the canonical setup guide:`,
+        `https://authlane.io/docs/integrations/${config.serviceId}`,
+        '',
+        '[MIT License](./LICENSE)',
+        '',
+      ].join('\n'),
+    ])
+  );
 }

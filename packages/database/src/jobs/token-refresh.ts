@@ -1,4 +1,4 @@
-import { fetchOAuthToken } from '@authlane/shared';
+import { fetchOAuthToken, parseOAuthProviderContext } from '@authlane/shared';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import type { Database } from '../client.js';
 import { connections, organizationServices, outboxEvents, services } from '../schema/index.js';
@@ -111,6 +111,7 @@ export async function refreshToken(
       expires_at?: string;
       scope?: string;
       token_type?: string;
+      provider_context?: { apiBaseUrl: string };
     };
     try {
       credentials = JSON.parse(credentialsBuffer.toString('utf8'));
@@ -125,6 +126,7 @@ export async function refreshToken(
       grant_type: 'refresh_token',
       refresh_token: credentials.refresh_token,
     });
+    let clientSecret = '';
     if (organizationService.oauthClientId) {
       tokenBody.set('client_id', organizationService.oauthClientId);
     }
@@ -135,7 +137,8 @@ export async function refreshToken(
         'oauth_client_secret'
       );
       try {
-        tokenBody.set('client_secret', clientSecretBuffer.toString('utf8'));
+        clientSecret = clientSecretBuffer.toString('utf8');
+        tokenBody.set('client_secret', clientSecret);
       } finally {
         clientSecretBuffer.fill(0);
       }
@@ -143,7 +146,10 @@ export async function refreshToken(
 
     let tokenResult: Awaited<ReturnType<typeof fetchOAuthToken>>;
     try {
-      tokenResult = await fetchOAuthToken(data.serviceId, config.token_url, tokenBody);
+      tokenResult = await fetchOAuthToken(data.serviceId, config.token_url, tokenBody, {
+        clientId: organizationService.oauthClientId ?? undefined,
+        clientSecret,
+      });
     } catch {
       return { success: false, error: 'OAuth refresh request failed', retryable: true };
     }
@@ -166,6 +172,16 @@ export async function refreshToken(
         ? Math.min(tokens.expires_in, 60 * 60 * 24 * 365)
         : null;
     const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1_000) : connection.expiresAt;
+    let providerContext = credentials.provider_context;
+    try {
+      providerContext =
+        parseOAuthProviderContext(data.serviceId, tokens, { required: false }) ?? providerContext;
+    } catch {
+      return await failPermanently(
+        'OAuth provider returned invalid routing metadata',
+        'OAUTH_PROVIDER_CONTEXT_INVALID'
+      );
+    }
     const newCredentialBytes = Buffer.from(
       JSON.stringify({
         access_token: tokens.access_token,
@@ -179,6 +195,7 @@ export async function refreshToken(
             : credentials.token_type || 'Bearer',
         scope: typeof tokens.scope === 'string' ? tokens.scope : credentials.scope,
         expires_at: expiresAt?.toISOString() ?? credentials.expires_at,
+        provider_context: providerContext,
       }),
       'utf8'
     );

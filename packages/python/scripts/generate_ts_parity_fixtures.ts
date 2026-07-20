@@ -13,7 +13,6 @@ import { tools as linear } from '../../../integrations/linear/tools.ts';
 import { tools as notion } from '../../../integrations/notion/tools.ts';
 import { tools as pipedrive } from '../../../integrations/pipedrive/tools.ts';
 import { tools as salesforce } from '../../../integrations/salesforce/tools.ts';
-import { tools as sentry } from '../../../integrations/sentry/tools.ts';
 import { tools as slack } from '../../../integrations/slack/tools.ts';
 import { tools as stripe } from '../../../integrations/stripe/tools.ts';
 
@@ -49,7 +48,6 @@ const integrations = {
   notion,
   pipedrive,
   salesforce,
-  sentry,
   slack,
   stripe,
 } as const;
@@ -323,7 +321,12 @@ async function main(): Promise<void> {
             access_token: 'provider-secret',
             token_type: 'Bearer',
             scope: 'all',
-            metadata: { instance_url: 'https://na1.salesforce.com' },
+            metadata:
+              serviceId === 'pipedrive'
+                ? { api_base_url: 'https://acme.pipedrive.com' }
+                : serviceId === 'salesforce'
+                  ? { api_base_url: 'https://acme.my.salesforce.com' }
+                  : undefined,
           });
         } catch (error) {
           expectedError = {

@@ -74,7 +74,7 @@ Create an npm Trusted Publisher for each public `@authlane/*` package with these
 The 20 configurations cover `@authlane/ai`, `@authlane/integration-contracts`, `@authlane/react`,
 `@authlane/sdk`, `@authlane/shared`, and every `@authlane/integration-*` package for Airtable,
 Discord, GitHub, Gmail, Google Calendar, Google Drive, HubSpot, Jira, Linear, Notion, Pipedrive,
-Salesforce, Sentry, Slack, and Stripe.
+Salesforce, Slack, and Stripe.
 
 Configurations created after 2026-05-20 require an explicit allowed action. Select only
 `npm publish` for this Changesets workflow; do not grant `npm stage publish`. With npm 11.15 or

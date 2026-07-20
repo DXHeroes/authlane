@@ -16,14 +16,20 @@ import {
   withSecurityLookupContext,
   withTenantContext,
 } from '@authlane/database';
+import type { OAuthProviderContext } from '@authlane/shared';
 import {
   Errors,
   generatePKCE,
   generateState,
   getEffectiveConnectionStatus,
+  getOAuthAuthorizationParameters,
   hashApiKey,
+  isSupportedServiceId,
   isValidServiceId,
   isValidUserId,
+  normalizeOAuthScopeNames,
+  parseOAuthProviderContext,
+  SUPPORTED_SERVICE_IDS,
 } from '@authlane/shared';
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
@@ -131,7 +137,8 @@ async function listEnabledServiceIds(db: Database, organizationId: string): Prom
       and(
         eq(organizationServices.organizationId, organizationId),
         eq(organizationServices.enabled, true),
-        eq(services.enabled, true)
+        eq(services.enabled, true),
+        inArray(services.id, [...SUPPORTED_SERVICE_IDS])
       )
     )
     .orderBy(asc(organizationServices.serviceId));
@@ -239,6 +246,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
             eq(organizationServices.organizationId, session.organizationId),
             eq(organizationServices.enabled, true),
             eq(services.enabled, true),
+            inArray(services.id, [...SUPPORTED_SERVICE_IDS]),
             inArray(organizationServices.serviceId, session.allowedServices)
           )
         )
@@ -307,7 +315,12 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       return c.json(errorResult(Errors.validationError('Request body must be valid JSON')), 400);
     }
     const token = connectTokenFromRequest(c.req.header('authorization'));
-    if (!token || !body.parentOrigin || !isValidServiceId(serviceId)) {
+    if (
+      !token ||
+      !body.parentOrigin ||
+      !isValidServiceId(serviceId) ||
+      !isSupportedServiceId(serviceId)
+    ) {
       return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
     }
     const session = await loadConnectSession(db, token, serviceId, body.parentOrigin);
@@ -343,7 +356,8 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
 
       const config = service.config as {
         authorization_url?: string;
-        scopes?: string[];
+        scopes?: unknown;
+        default_scopes?: unknown;
       };
       if (!config.authorization_url || !tenantService.oauthClientId) {
         return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);
@@ -427,10 +441,19 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       authorizationUrl.searchParams.set('client_id', tenantService.oauthClientId);
       authorizationUrl.searchParams.set('redirect_uri', callbackUrl);
       authorizationUrl.searchParams.set('response_type', 'code');
-      authorizationUrl.searchParams.set(
-        'scope',
-        (tenantService.customScopes ?? config.scopes ?? []).join(' ')
+      const configuredScopes = normalizeOAuthScopeNames(
+        config.default_scopes ?? config.scopes ?? []
       );
+      if (!configuredScopes) {
+        return c.json(
+          errorResult(Errors.oauthError('OAuth scopes are not configured safely')),
+          409
+        );
+      }
+      const requestedScopes = tenantService.customScopes ?? configuredScopes;
+      for (const [name, value] of getOAuthAuthorizationParameters(serviceId, requestedScopes)) {
+        authorizationUrl.searchParams.set(name, value);
+      }
       authorizationUrl.searchParams.set('state', state);
       authorizationUrl.searchParams.set('code_challenge', codeChallenge);
       authorizationUrl.searchParams.set('code_challenge_method', 'S256');
@@ -447,7 +470,13 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     if (providerError) {
       return c.json(errorResult(Errors.oauthError('Provider denied authorization')), 400);
     }
-    if (!code || !state || state.length > 512 || !isValidServiceId(serviceId)) {
+    if (
+      !code ||
+      !state ||
+      state.length > 512 ||
+      !isValidServiceId(serviceId) ||
+      !isSupportedServiceId(serviceId)
+    ) {
       return c.json(errorResult(Errors.oauthError('Missing OAuth code or state')), 400);
     }
 
@@ -556,7 +585,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
 
       let tokenResult: Awaited<ReturnType<typeof fetchOAuthToken>>;
       try {
-        tokenResult = await fetchOAuthToken(serviceId, config.token_url, tokenBody);
+        tokenResult = await fetchOAuthToken(serviceId, config.token_url, tokenBody, {
+          clientId: tenantService.oauthClientId,
+          clientSecret,
+        });
       } catch {
         await db
           .update(connections)
@@ -600,6 +632,25 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           ? Math.min(tokens.expires_in, 60 * 60 * 24 * 365)
           : null;
       const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1_000) : null;
+      let providerContext: OAuthProviderContext | undefined;
+      try {
+        providerContext = parseOAuthProviderContext(serviceId, tokens);
+      } catch {
+        await db
+          .update(connections)
+          .set({
+            status: connection.status === 'connected' ? 'connected' : 'error',
+            lastErrorCode: 'OAUTH_PROVIDER_CONTEXT_INVALID',
+            updatedAt: new Date(),
+          })
+          .where(eq(connections.id, connection.id));
+        return c.json(
+          errorResult(
+            Errors.oauthTokenExchangeFailed('Provider returned invalid routing metadata')
+          ),
+          400
+        );
+      }
       const credentialBytes = Buffer.from(
         JSON.stringify({
           access_token: tokens.access_token,
@@ -608,6 +659,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           token_type: typeof tokens.token_type === 'string' ? tokens.token_type : 'Bearer',
           scope: typeof tokens.scope === 'string' ? tokens.scope : undefined,
           expires_at: expiresAt?.toISOString(),
+          provider_context: providerContext,
         }),
         'utf8'
       );
@@ -686,7 +738,12 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       body = {};
     }
     const token = connectTokenFromRequest(c.req.header('authorization'));
-    if (!token || !body.parentOrigin || !isValidServiceId(serviceId)) {
+    if (
+      !token ||
+      !body.parentOrigin ||
+      !isValidServiceId(serviceId) ||
+      !isSupportedServiceId(serviceId)
+    ) {
       return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
     }
     const session = await loadConnectSession(db, token, serviceId, body.parentOrigin);

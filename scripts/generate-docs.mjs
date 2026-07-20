@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 import {
   buildDocumentationModel,
   loadDocumentation,
+  loadIntegrationConfigs,
   renderGeneratedAssets,
+  renderIntegrationPackageReadmes,
   validateRepositoryDocumentation,
 } from './docs-content.mjs';
 
@@ -21,6 +23,7 @@ if (violations.length > 0) {
 }
 
 const assets = renderGeneratedAssets(buildDocumentationModel(documentation));
+const integrationReadmes = renderIntegrationPackageReadmes(loadIntegrationConfigs(root));
 const expectedFiles = [
   {
     path: resolve(root, 'apps/landing/app/generated/docs-manifest.json'),
@@ -35,6 +38,10 @@ const expectedFiles = [
     .map(([slug, contents]) => ({ path: resolve(markdownRoot, `${slug}.md`), contents })),
   { path: resolve(root, 'apps/landing/public/llms.txt'), contents: assets.llms },
   { path: resolve(root, 'apps/landing/public/llms-full.txt'), contents: assets.llmsFull },
+  ...[...integrationReadmes].map(([serviceId, contents]) => ({
+    path: resolve(root, 'integrations', serviceId, 'README.md'),
+    contents,
+  })),
 ].sort((left, right) => left.path.localeCompare(right.path));
 
 async function collectMarkdownFiles(directory) {

@@ -13,7 +13,7 @@ The MVP is complete with core functionality for credential management, OAuth flo
 **Target:** Q1 2025
 
 ### Features
-- [ ] Complete all 15 MVP integration tool definitions
+- [ ] Complete all 14 MVP integration tool definitions
 - [ ] Webhook notifications for connection status changes
 - [ ] Connection health check improvements (actual API calls)
 - [ ] Comprehensive audit logging
@@ -144,8 +144,8 @@ These features are being evaluated but not yet scheduled:
 
 ## Integration Roadmap
 
-### MVP (15 services) - v1.0
-**Developer Tools:** GitHub, Linear, Jira, Sentry
+### MVP (14 services) - v1.0
+**Developer Tools:** GitHub, Linear, Jira
 **Communication:** Slack, Discord, Gmail
 **Productivity:** Notion, Google Drive, Google Calendar
 **CRM:** HubSpot, Salesforce, Pipedrive

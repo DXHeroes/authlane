@@ -64,44 +64,6 @@
       }
     },
     {
-      "name": "slack_post_file",
-      "description": "Uploads and shares a file to a Slack channel",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "channels": {
-            "type": "string",
-            "description": "Comma-separated list of channel IDs to share file to"
-          },
-          "content": {
-            "type": "string",
-            "description": "File content as string"
-          },
-          "filename": {
-            "type": "string",
-            "description": "Filename"
-          },
-          "filetype": {
-            "type": "string",
-            "description": "File type identifier (e.g., \"text\", \"javascript\", \"python\")"
-          },
-          "title": {
-            "type": "string",
-            "description": "Title of the file"
-          },
-          "initial_comment": {
-            "type": "string",
-            "description": "Initial comment to add with the file"
-          }
-        },
-        "required": [
-          "channels",
-          "content",
-          "filename"
-        ]
-      }
-    },
-    {
       "name": "slack_send_message",
       "description": "Sends a message to a Slack channel or direct message",
       "inputSchema": {

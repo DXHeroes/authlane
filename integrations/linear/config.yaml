@@ -11,3 +11,13 @@ config:
   default_scopes:
     - read
     - write
+  docs_url: https://linear.app/developers
+  setup_guide_url: https://linear.app/developers/oauth-2-0-authentication
+  developer_console_url: https://linear.app/settings/api
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://mcp.linear.app/mcp
+      docs_url: https://linear.app/docs/mcp
+      maturity: stable
+    fallback: direct_api

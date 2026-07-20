@@ -20,7 +20,6 @@ const builtInIntegrationImporters = {
   notion: () => import('@authlane/integration-notion'),
   pipedrive: () => import('@authlane/integration-pipedrive'),
   salesforce: () => import('@authlane/integration-salesforce'),
-  sentry: () => import('@authlane/integration-sentry'),
   slack: () => import('@authlane/integration-slack'),
   stripe: () => import('@authlane/integration-stripe'),
 } satisfies Record<SupportedServiceId, IntegrationImporter>;

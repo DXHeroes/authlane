@@ -19,8 +19,8 @@ def main() -> None:
     document = json.loads(source_bytes)
     services = document.get("integrations", [])
     tools = [tool for service in services for tool in service.get("tools", [])]
-    if len(services) != 15 or len(tools) != 119:
-        raise SystemExit("Canonical contract must contain exactly 15 services and 119 tools")
+    if len(services) != 14 or len(tools) != 108:
+        raise SystemExit("Canonical contract must contain exactly 14 services and 108 tools")
 
     if args.check:
         if not TARGET.exists() or TARGET.read_bytes() != source_bytes:

@@ -310,11 +310,9 @@ Complete lifecycle of an API request.
 ```
 1. Request arrives at Hono server
    │
-2. Sentry middleware (error tracking)
+2. Logger middleware (request logging)
    │
-3. Logger middleware (request logging)
-   │
-4. Error handler middleware (try/catch wrapper)
+3. Error handler middleware (try/catch wrapper)
    │
 5. CORS middleware (cross-origin headers)
    │

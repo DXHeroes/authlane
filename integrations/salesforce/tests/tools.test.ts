@@ -7,10 +7,24 @@ describe('salesforce Integration Tools', () => {
     access_token: 'test_token_123',
     token_type: 'Bearer',
     scope: 'test',
+    metadata: { api_base_url: 'https://acme.my.salesforce.com' },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('uses the Salesforce instance from the credential lease', async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce(Response.json({ records: [] }));
+
+    await tools.salesforce_query.handler({ query: 'SELECT Id FROM Account' }, mockCredentials);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^https:\/\/acme\.my\.salesforce\.com\/services\/data\/v58\.0\/query/
+      ),
+      expect.any(Object)
+    );
   });
 
   it('has tools defined', () => {

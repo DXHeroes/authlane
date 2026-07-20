@@ -51,8 +51,7 @@ apps/api/
 │   ├── middleware/           # Hono middleware
 │   │   ├── auth.ts           # Authentication
 │   │   ├── rate-limit.ts     # Rate limiting
-│   │   ├── error-handler.ts  # Error handling
-│   │   └── sentry.ts         # Error tracking
+│   │   └── error-handler.ts  # Error handling
 │   ├── lib/                  # Library code
 │   │   ├── auth.ts           # Better Auth config
 │   │   ├── logger.ts         # Pino logger
@@ -341,7 +340,6 @@ integrations/{service}/
 - salesforce
 - pipedrive
 - jira
-- sentry
 
 ---
 

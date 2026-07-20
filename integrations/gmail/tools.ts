@@ -436,30 +436,6 @@ export const tools: Record<string, ToolHandler> = {
     },
   },
 
-  gmail_delete_email: {
-    definition: {
-      name: 'gmail_delete_email',
-      description: 'Deletes an email permanently (not trash, permanent deletion)',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          id: {
-            type: 'string',
-            description: 'Email message ID to delete',
-          },
-        },
-        required: ['id'],
-      },
-    },
-    handler: async (params, credentials) => {
-      const { id } = params as { id: string };
-
-      return gmailRequest(`/users/me/messages/${id}`, credentials, {
-        method: 'DELETE',
-      });
-    },
-  },
-
   gmail_trash_email: {
     definition: {
       name: 'gmail_trash_email',

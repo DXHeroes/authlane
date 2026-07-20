@@ -34,9 +34,9 @@ def test_typescript_fixture_covers_all_tools_defaults_and_optional_branches() ->
 
     assert PARITY_DOCUMENT["schemaVersion"] == 2
     assert PARITY_DOCUMENT["generator"]["source"] == ("integrations/*/tools.ts exported handlers")
-    assert len(canonical_tools) == 119
+    assert len(canonical_tools) == 108
     assert fixture_tools == canonical_tools
-    assert len(PARITY_CASES) >= 1100
+    assert len(PARITY_CASES) >= 1000
     assert all(
         any(
             case["serviceId"] == service_id
@@ -47,7 +47,7 @@ def test_typescript_fixture_covers_all_tools_defaults_and_optional_branches() ->
         for service_id, tool_name in canonical_tools
     )
     variants = {(case["serviceId"], case["toolName"], case["variant"]) for case in PARITY_CASES}
-    assert sum(case["variant"] == "unknown-field" for case in PARITY_CASES) == 119
+    assert sum(case["variant"] == "unknown-field" for case in PARITY_CASES) == 108
     expected_falsey: set[tuple[str, str, str]] = set()
     for integration in canonical["integrations"]:
         for tool in integration["tools"]:
@@ -77,11 +77,17 @@ def test_python_executor_matches_typescript_provider_fixture(case: dict[str, Any
             headers=response["headers"],
         )
 
+    credential: dict[str, Any] = {"type": "oauth2", "accessToken": "provider-secret"}
+    if case["serviceId"] == "pipedrive":
+        credential["providerContext"] = {"apiBaseUrl": "https://acme.pipedrive.com"}
+    elif case["serviceId"] == "salesforce":
+        credential["providerContext"] = {"apiBaseUrl": "https://acme.my.salesforce.com"}
+
     result = execute(
         service_id=case["serviceId"],
         tool_name=case["toolName"],
         arguments=case["input"],
-        credential={"type": "oauth2", "accessToken": "provider-secret"},
+        credential=credential,
         transport=httpx.MockTransport(provider),
     )
 

@@ -13,7 +13,6 @@
 '@authlane/integration-notion': patch
 '@authlane/integration-pipedrive': patch
 '@authlane/integration-salesforce': patch
-'@authlane/integration-sentry': patch
 '@authlane/integration-slack': patch
 '@authlane/integration-stripe': patch
 '@authlane/react': patch

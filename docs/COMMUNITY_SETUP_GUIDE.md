@@ -182,13 +182,13 @@ Let's build Authlane together! 🚀
 
 We're prioritizing new integrations based on community demand.
 
-## Current Integrations (15)
+## Current Integrations (14)
 
-✅ **Developer**: GitHub, GitLab, Linear, Jira, Sentry
+✅ **Developer**: GitHub, Linear, Jira
 ✅ **Communication**: Slack, Discord, Gmail
-✅ **Productivity**: Notion, Google Drive, Google Calendar, Airtable
+✅ **Productivity**: Notion, Google Drive, Google Calendar
 ✅ **CRM**: HubSpot, Salesforce, Pipedrive
-✅ **Payment**: Stripe
+✅ **Other**: Stripe, Airtable
 
 ## Most Requested (Vote!)
 

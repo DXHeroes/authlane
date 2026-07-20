@@ -16,7 +16,8 @@ parameters, bodies, responses, schemas, security requirements, and same-origin Y
 It is read-only and does not accept or persist credentials.
 
 The canonical source is the repository-owned
-[OpenAPI 3.1 document](https://github.com/dxheroes/authlane/blob/main/apps/docs/api-reference/openapi.yaml).
+The OpenAPI 3.1 document is available at `https://authlane.io/docs/openapi.yaml` and the
+[interactive API reference](https://authlane.io/docs/api-reference) renders the same source.
 
 Start with [authentication and scopes](/docs/api-reference/authentication), then handle
 [errors and rate limits](/docs/api-reference/errors-and-rate-limits).

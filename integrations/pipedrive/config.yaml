@@ -4,36 +4,16 @@ auth_type: oauth2
 config:
   authorization_url: https://oauth.pipedrive.com/oauth/authorize
   token_url: https://oauth.pipedrive.com/oauth/token
-  # Pipedrive OAuth scopes
   scopes:
     - deals:read
-    - deals:write
-    - deals:delete
+    - deals:full
     - contacts:read
-    - contacts:write
-    - contacts:delete
-    - persons:read
-    - persons:write
-    - persons:delete
-    - organizations:read
-    - organizations:write
-    - organizations:delete
-    - activities:read
-    - activities:write
-    - activities:delete
-    - pipelines:read
-    - users:read
-    - notes:read
-    - notes:write
-    - products:read
-    - products:write
+    - contacts:full
+    - search:read
   default_scopes:
-    - deals:read
-    - deals:write
-    - contacts:read
-    - contacts:write
-    - persons:read
-    - persons:write
+    - deals:full
+    - contacts:full
+    - search:read
   # Pipedrive uses company-specific API domains
   # The API domain is returned during OAuth as api_domain (e.g., mycompany.pipedrive.com)
   # API requests go to https://{api_domain}/v1/
@@ -42,3 +22,13 @@ config:
     webhooks: true
     custom_fields: true
   api_version: v1
+  docs_url: https://developers.pipedrive.com/docs/api/v1
+  setup_guide_url: https://pipedrive.readme.io/docs/marketplace-oauth-authorization
+  developer_console_url: https://pipedrive.readme.io/docs/marketplace-manager
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://mcp.pipedrive.ai/mcp
+      docs_url: https://support.pipedrive.com/en/article/mcp-chatgpt
+      maturity: beta
+    fallback: direct_api

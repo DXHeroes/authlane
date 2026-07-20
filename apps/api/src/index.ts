@@ -3,11 +3,6 @@
  * Main entry point for the API application
  */
 
-// Initialize Sentry as early as possible
-import { initSentry, sentryMiddleware } from './lib/sentry.js';
-
-initSentry();
-
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createDatabaseClient, type Database } from '@authlane/database';
 import type { EmailResult } from '@authlane/email';
@@ -217,7 +212,6 @@ export function createApp(
     c.set('publicSurface', resolvePublicSurface(requestHost, { landingHosts, appHosts }));
     await next();
   });
-  app.use('*', sentryMiddleware());
   app.use('*', async (c, next) => {
     await next();
     const oauthPopupPolicy = preservesOAuthPopupOpener(c.req.path);

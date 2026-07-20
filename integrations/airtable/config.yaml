@@ -11,7 +11,19 @@ config:
     - data.recordComments:write
     - schema.bases:read
     - schema.bases:write
+    - workspacesAndBases:read
   default_scopes:
     - data.records:read
     - data.records:write
     - schema.bases:read
+    - workspacesAndBases:read
+  docs_url: https://airtable.com/developers/web/api/introduction
+  setup_guide_url: https://airtable.com/developers/web/guides/oauth-integrations
+  developer_console_url: https://airtable.com/create/oauth
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://mcp.airtable.com/mcp
+      docs_url: https://support.airtable.com/v1/docs/using-the-airtable-mcp-server
+      maturity: stable
+    fallback: direct_api

@@ -5,18 +5,34 @@ Connect Linear and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Linear OAuth application and choose a workspace containing the teams, issues, and projects
-your SaaS will use. The authorizing user must be allowed to perform the requested changes.
+your SaaS will use. The authorizing user must be allowed to perform the requested changes. Use the
+[developer documentation](https://linear.app/developers),
+[OAuth guide](https://linear.app/developers/oauth-2-0-authentication), and
+[API settings](https://linear.app/settings/api) during setup.
+
+## Self-hosted setup
+
+1. Open Linear **Settings → API → OAuth applications** and create an application.
+2. Register `https://<your-authlane-host>/api/v1/oauth/linear/callback` as a callback URL.
+3. Select the scopes below, save, and copy the generated Client ID and Client Secret.
+4. Keep PKCE and refresh-token support enabled for user authorization.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/linear/callback` in the Linear application.
-Enable Linear for the tenant in Authlane, store the client ID and encrypted client secret, and
-approve the defaults from `integrations/linear/config.yaml`.
+Open **Dashboard → Services → Linear → OAuth Configuration**, enter the Client ID and Client Secret,
+save, and enable Linear. Authlane always uses PKCE and stores the secret encrypted.
 
 ## Scopes
 
 - `read` permits issue and project reads.
 - `write` permits the exported issue and project mutations.
+
+## Execution path
+
+Prefer Linear's official MCP server at `https://mcp.linear.app/mcp`; the
+[official MCP guide](https://linear.app/docs/mcp) confirms that existing Linear OAuth tokens can be
+sent as bearer tokens. Use the direct GraphQL adapter only when the official server lacks a required
+tool or is unavailable.
 
 ## Available tools
 

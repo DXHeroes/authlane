@@ -25,7 +25,7 @@ def test_executor_registry_matches_all_canonical_tools_exactly() -> None:
         for tool in integration["tools"]
     }
 
-    assert len(expected) == 119
+    assert len(expected) == 108
     assert set(EXECUTOR_REGISTRY) == expected
     assert {service for service, _ in EXECUTOR_REGISTRY} == {
         "airtable",
@@ -40,7 +40,6 @@ def test_executor_registry_matches_all_canonical_tools_exactly() -> None:
         "notion",
         "pipedrive",
         "salesforce",
-        "sentry",
         "slack",
         "stripe",
     }
@@ -66,14 +65,19 @@ def test_every_canonical_executor_builds_and_sends_a_native_provider_request() -
             arguments = _required_example(tool["inputSchema"])
             if tool["name"] == "jira_transition_issue":
                 arguments["transitionId"] = "transition-1"
+            credential: dict[str, Any] = {
+                "type": "oauth2",
+                "accessToken": "provider-secret",
+            }
+            if integration["serviceId"] == "pipedrive":
+                credential["providerContext"] = {"apiBaseUrl": "https://acme.pipedrive.com"}
+            elif integration["serviceId"] == "salesforce":
+                credential["providerContext"] = {"apiBaseUrl": "https://acme.my.salesforce.com"}
             result = EXECUTOR_REGISTRY[(integration["serviceId"], tool["name"])](
                 service_id=integration["serviceId"],
                 tool_name=tool["name"],
                 arguments=arguments,
-                credential={
-                    "type": "oauth2",
-                    "accessToken": "provider-secret",
-                },
+                credential=credential,
                 transport=httpx.MockTransport(provider),
             )
             assert result.error is None, (integration["serviceId"], tool["name"], result.error)
@@ -366,28 +370,23 @@ def test_client_rejects_an_adapter_that_attempts_a_lease_during_build() -> None:
 
 
 @pytest.mark.anyio
-async def test_async_executor_preserves_discord_dm_and_gmail_read_multicall_semantics() -> None:
+async def test_async_executor_preserves_discord_user_and_gmail_read_semantics() -> None:
     discord_requests: list[str] = []
 
     async def discord_provider(request: httpx.Request) -> httpx.Response:
         discord_requests.append(request.url.path)
-        if request.url.path.endswith("/users/@me/channels"):
-            return httpx.Response(200, json={"id": "dm-channel"})
-        return httpx.Response(200, json={"id": "message"})
+        return httpx.Response(200, json={"id": "user"})
 
     credential = {"type": "oauth2", "accessToken": "provider-secret"}
     discord = await aexecute(
         service_id="discord",
-        tool_name="discord_send_dm",
-        arguments={"user_id": "user", "content": "hello"},
+        tool_name="discord_get_current_user",
+        arguments={},
         credential=credential,
         transport=httpx.MockTransport(discord_provider),
     )
     assert discord.error is None
-    assert discord_requests == [
-        "/api/v10/users/@me/channels",
-        "/api/v10/channels/dm-channel/messages",
-    ]
+    assert discord_requests == ["/api/v10/users/@me"]
 
     gmail_requests: list[str] = []
 

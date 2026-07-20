@@ -13,6 +13,9 @@ function toHandlerCredentials(credential: CredentialMaterial): OAuth2Credentials
     token_type: credential.tokenType,
     scope: credential.scopes.join(' '),
     expires_at: credential.expiresAt ?? undefined,
+    metadata: credential.providerContext
+      ? { api_base_url: credential.providerContext.apiBaseUrl }
+      : undefined,
   };
 }
 

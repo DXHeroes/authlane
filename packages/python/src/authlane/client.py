@@ -26,6 +26,7 @@ from .models import (
     CredentialPlacement,
     HeaderPlacement,
     OAuthCredentialLease,
+    OAuthProviderContext,
     QueryPlacement,
     Result,
     Service,
@@ -191,6 +192,13 @@ def _parse_lease(value: Any) -> CredentialLease:
         scopes = item.get("scopes")
         if not isinstance(scopes, list) or not all(isinstance(scope, str) for scope in scopes):
             raise ValueError("invalid scopes")
+        provider_context_value = item.get("providerContext")
+        provider_context = None
+        if provider_context_value is not None:
+            context = _as_mapping(provider_context_value)
+            provider_context = OAuthProviderContext(
+                api_base_url=_required_string(context.get("apiBaseUrl"))
+            )
         return OAuthCredentialLease(
             type="oauth2",
             lease_id=_required_string(item.get("leaseId")),
@@ -198,6 +206,7 @@ def _parse_lease(value: Any) -> CredentialLease:
             token_type=_required_string(item.get("tokenType")),
             scopes=tuple(scopes),
             expires_at=_optional_string(item.get("expiresAt")),
+            provider_context=provider_context,
         )
     if lease_type == "api_key":
         placement_value = _as_mapping(item.get("placement"))

@@ -2,20 +2,40 @@ id: slack
 name: Slack
 auth_type: oauth2
 config:
-  authorization_url: https://slack.com/oauth/v2/authorize
-  token_url: https://slack.com/api/oauth.v2.access
+  authorization_url: https://slack.com/oauth/v2_user/authorize
+  token_url: https://slack.com/api/oauth.v2.user.access
   scopes:
     - chat:write
     - channels:read
-    - channels:manage
     - channels:write
     - groups:read
     - groups:write
-    - im:read
+    - channels:history
+    - groups:history
+    - im:history
     - im:write
-    - mpim:read
+    - mpim:history
     - mpim:write
     - users:read
+    - users.profile:write
+    - search:read.public
+    - search:read.private
+    - search:read.users
   default_scopes:
     - chat:write
     - channels:read
+    - channels:write
+    - users:read
+    - users.profile:write
+    - search:read.public
+    - search:read.users
+  docs_url: https://docs.slack.dev/reference/methods/
+  setup_guide_url: https://docs.slack.dev/ai/slack-mcp-server/developing/
+  developer_console_url: https://api.slack.com/apps
+  execution:
+    preferred: provider_mcp
+    provider_mcp:
+      endpoint: https://mcp.slack.com/mcp
+      docs_url: https://docs.slack.dev/ai/slack-mcp-server/
+      maturity: stable
+    fallback: direct_api

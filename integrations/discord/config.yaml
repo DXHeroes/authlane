@@ -5,11 +5,17 @@ config:
   authorization_url: https://discord.com/api/oauth2/authorize
   token_url: https://discord.com/api/oauth2/token
   scopes:
-    - bot
-    - messages.read
-    - messages.write
+    - identify
     - guilds
     - guilds.members.read
+    - connections
   default_scopes:
-    - bot
-    - messages.write
+    - identify
+    - guilds
+    - guilds.members.read
+    - connections
+  docs_url: https://docs.discord.com/developers/reference
+  setup_guide_url: https://docs.discord.com/developers/quick-start/getting-started
+  developer_console_url: https://discord.com/developers/applications
+  execution:
+    preferred: direct_api

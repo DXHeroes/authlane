@@ -5,18 +5,37 @@ Connect Google Calendar and use its tools through the Authlane control plane.
 ## Prerequisites
 
 Create a Google OAuth client for a project with Calendar access. The connected Google account must
-be able to see each calendar that your SaaS will read or change.
+be able to see each calendar that your SaaS will read or change. Use the
+[Calendar API guide](https://developers.google.com/workspace/calendar/api/guides/overview),
+[OAuth consent guide](https://developers.google.com/workspace/guides/configure-oauth-consent), and
+[Google Cloud credentials console](https://console.cloud.google.com/apis/credentials).
+
+## Self-hosted setup
+
+1. Create or select a Google Cloud project and enable Calendar API. For MCP-first execution, also
+   join the Workspace Developer Preview and enable Calendar MCP API.
+2. Configure the OAuth consent screen, audience, test users, and the scopes below.
+3. Create a **Web application** OAuth client and add
+   `https://<your-authlane-host>/api/v1/oauth/google-calendar/callback` as an authorized redirect.
+4. Copy the Client ID and Client Secret.
 
 ## Configure authentication
 
-Register `https://<your-authlane-host>/api/v1/oauth/google-calendar/callback` in the Google OAuth
-client. Enable Google Calendar for the tenant in Authlane, store the client ID and encrypted client
-secret, and approve the defaults from `integrations/google-calendar/config.yaml`.
+Open **Dashboard → Services → Google Calendar → OAuth Configuration**, enter the Client ID and
+Client Secret, save, and enable the service. The registered callback must match the public Authlane
+URL exactly.
 
 ## Scopes
 
 - `https://www.googleapis.com/auth/calendar.events` permits event creation, updates, and deletion.
 - `https://www.googleapis.com/auth/calendar.readonly` permits calendar and event reads.
+
+## Execution path
+
+Prefer Google's official Calendar MCP server at `https://calendarmcp.googleapis.com/mcp/v1`; follow
+the [official Calendar MCP guide](https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server).
+Because it is a Developer Preview, use the direct Calendar API adapter as the explicit fallback for
+missing tools or deployments that cannot enable the preview.
 
 ## Available tools
 

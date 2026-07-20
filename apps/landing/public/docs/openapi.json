@@ -2132,6 +2132,19 @@
                                 "type": "string"
                               }
                             },
+                            "providerContext": {
+                              "type": "object",
+                              "description": "Validated provider routing metadata returned for services with tenant-specific API origins.",
+                              "required": [
+                                "apiBaseUrl"
+                              ],
+                              "properties": {
+                                "apiBaseUrl": {
+                                  "type": "string",
+                                  "format": "uri"
+                                }
+                              }
+                            },
                             "expiresAt": {
                               "type": [
                                 "string",
@@ -6198,6 +6211,19 @@
                       "type": "string"
                     }
                   },
+                  "providerContext": {
+                    "type": "object",
+                    "description": "Validated provider routing metadata returned for services with tenant-specific API origins.",
+                    "required": [
+                      "apiBaseUrl"
+                    ],
+                    "properties": {
+                      "apiBaseUrl": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    }
+                  },
                   "expiresAt": {
                     "type": [
                       "string",
@@ -6308,6 +6334,19 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "providerContext": {
+            "type": "object",
+            "description": "Validated provider routing metadata returned for services with tenant-specific API origins.",
+            "required": [
+              "apiBaseUrl"
+            ],
+            "properties": {
+              "apiBaseUrl": {
+                "type": "string",
+                "format": "uri"
+              }
             }
           },
           "expiresAt": {

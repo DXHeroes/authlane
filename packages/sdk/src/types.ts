@@ -51,6 +51,7 @@ export type CredentialLease =
       tokenType: string;
       scopes: string[];
       expiresAt: string | null;
+      providerContext?: { apiBaseUrl: string };
     }
   | {
       type: 'api_key';

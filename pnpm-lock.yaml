@@ -847,6 +847,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
+      ai:
+        specifier: ^7.0.31
+        version: 7.0.31(zod@4.4.3)
     devDependencies:
       '@mastra/core':
         specifier: ^1.51.0
@@ -857,9 +860,6 @@ importers:
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.3
-      ai:
-        specifier: ^7.0.30
-        version: 7.0.31(zod@4.4.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

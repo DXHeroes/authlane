@@ -63,21 +63,18 @@
     "@authlane/integration-stripe": "workspace:*",
     "@authlane/sdk": "workspace:*",
     "@authlane/shared": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ai": "^7.0.31"
   },
   "peerDependencies": {
     "@mastra/core": "^1.51.0",
-    "@openai/agents": "^0.13.4",
-    "ai": "^7.0.30"
+    "@openai/agents": "^0.13.4"
   },
   "peerDependenciesMeta": {
     "@mastra/core": {
       "optional": true
     },
     "@openai/agents": {
-      "optional": true
-    },
-    "ai": {
       "optional": true
     }
   },
@@ -86,7 +83,6 @@
     "@mastra/core": "^1.51.0",
     "@openai/agents": "^0.13.4",
     "@types/node": "^24.10.1",
-    "ai": "^7.0.30",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10",
     "zod": "^4.1.8"

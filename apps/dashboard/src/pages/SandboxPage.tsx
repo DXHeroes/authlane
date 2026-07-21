@@ -8,6 +8,7 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/16/solid';
 import { useMemo, useState } from 'react';
+import { SandboxAgentWorkspace } from '@/components/sandbox/SandboxAgentWorkspace';
 import { api } from '@/lib/api';
 
 type Risk = 'read' | 'write' | 'destructive';
@@ -36,20 +37,8 @@ interface SandboxContext {
 interface SandboxResult {
   status: 'succeeded' | 'failed' | 'approval_required';
   result?: unknown;
-  text?: string;
-  approvalRequests?: Array<{
-    approvalId: string;
-    toolCall: { toolName: string; input: unknown };
-  }>;
-  responseMessages?: unknown[];
   error?: { code: string; message: string };
 }
-
-const modelDefaults = {
-  openai: 'gpt-5-mini',
-  anthropic: 'claude-sonnet-4-5',
-  google: 'gemini-2.5-flash',
-} as const;
 
 const inputClass =
   'w-full rounded-md bg-background px-3 py-2.5 text-base ring-1 ring-border focus-visible:outline-2 -outline-offset-1 focus-visible:outline-primary sm:py-2 sm:text-sm';
@@ -83,10 +72,6 @@ export default function SandboxPage() {
   const [toolName, setToolName] = useState('');
   const [argumentsText, setArgumentsText] = useState('{}');
   const [toolResult, setToolResult] = useState<SandboxResult | null>(null);
-  const [provider, setProvider] = useState<keyof typeof modelDefaults>('openai');
-  const [model, setModel] = useState<string>(modelDefaults.openai);
-  const [prompt, setPrompt] = useState('List the connected account data you can safely read.');
-  const [agentResult, setAgentResult] = useState<SandboxResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,11 +95,12 @@ export default function SandboxPage() {
         `/sandbox?externalUserId=${encodeURIComponent(normalizedExternalUserId)}`
       );
       setContext(data);
-      const firstService = data.services.find((service) => service.connected && service.tools.length);
+      const firstService = data.services.find(
+        (service) => service.connected && service.tools.length
+      );
       setServiceId(firstService?.serviceId ?? '');
       setToolName(firstService?.tools[0]?.name ?? '');
       setToolResult(null);
-      setAgentResult(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Failed to load the sandbox user.');
     } finally {
@@ -158,39 +144,6 @@ export default function SandboxPage() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  async function runAgent(messages?: unknown[]) {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await api.post<SandboxResult>('/sandbox/agent-runs', {
-        externalUserId: context?.externalUserId,
-        provider,
-        model,
-        ...(messages ? { messages } : { prompt }),
-      });
-      setAgentResult(data);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Agent execution failed.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function approveAgentRequests() {
-    if (!agentResult?.responseMessages || !agentResult.approvalRequests) return;
-    await runAgent([
-      ...agentResult.responseMessages,
-      {
-        role: 'tool',
-        content: agentResult.approvalRequests.map((request) => ({
-          type: 'tool-approval-response',
-          approvalId: request.approvalId,
-          approved: true,
-        })),
-      },
-    ]);
   }
 
   return (
@@ -269,10 +222,12 @@ export default function SandboxPage() {
           <section className="flex flex-col gap-6">
             <div className="overflow-x-auto border-b border-foreground/10">
               <div className="flex min-w-max gap-6" role="tablist" aria-label="Sandbox mode">
-                {([
-                  ['tool', 'Tool runner', CommandLineIcon],
-                  ['agent', 'AI agent', BoltIcon],
-                ] as const).map(([id, label, Icon]) => (
+                {(
+                  [
+                    ['tool', 'Tool runner', CommandLineIcon],
+                    ['agent', 'AI agent', BoltIcon],
+                  ] as const
+                ).map(([id, label, Icon]) => (
                   <button
                     key={id}
                     type="button"
@@ -364,7 +319,10 @@ export default function SandboxPage() {
                     {toolResult?.status === 'approval_required' ? (
                       <div className="flex flex-col gap-3 rounded-lg bg-amber-500/10 p-4 ring-1 ring-amber-600/20">
                         <div className="flex items-start gap-2">
-                          <ShieldCheckIcon className="size-4 shrink-0 fill-amber-700" aria-hidden="true" />
+                          <ShieldCheckIcon
+                            className="size-4 shrink-0 fill-amber-700"
+                            aria-hidden="true"
+                          />
                           <p className="text-pretty text-base text-amber-900 sm:text-sm dark:text-amber-200">
                             This operation can change provider data. Review the arguments before
                             approving it.
@@ -396,90 +354,10 @@ export default function SandboxPage() {
                 </div>
               </div>
             ) : (
-              <div className="@container">
-                <div className="grid gap-8 @4xl:grid-cols-[3fr_2fr]">
-                  <div className="flex min-w-0 flex-col gap-5">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="flex flex-col gap-2 font-medium" htmlFor="sandbox-provider">
-                        Provider
-                        <select
-                          id="sandbox-provider"
-                          name="provider"
-                          value={provider}
-                          onChange={(event) => {
-                            const next = event.target.value as keyof typeof modelDefaults;
-                            setProvider(next);
-                            setModel(modelDefaults[next]);
-                          }}
-                          className={inputClass}
-                        >
-                          <option value="openai">OpenAI</option>
-                          <option value="anthropic">Anthropic</option>
-                          <option value="google">Google</option>
-                        </select>
-                      </label>
-                      <label className="flex flex-col gap-2 font-medium" htmlFor="sandbox-model">
-                        Model
-                        <input
-                          id="sandbox-model"
-                          name="model"
-                          type="text"
-                          value={model}
-                          onChange={(event) => setModel(event.target.value)}
-                          className={inputClass}
-                        />
-                      </label>
-                    </div>
-                    <label className="flex flex-col gap-2 font-medium" htmlFor="sandbox-prompt">
-                      Prompt
-                      <textarea
-                        id="sandbox-prompt"
-                        name="prompt"
-                        rows={8}
-                        value={prompt}
-                        onChange={(event) => setPrompt(event.target.value)}
-                        className={inputClass}
-                      />
-                    </label>
-                    {agentResult?.status === 'approval_required' ? (
-                      <div className="flex flex-col gap-3 rounded-lg bg-amber-500/10 p-4 ring-1 ring-amber-600/20">
-                        <h2 className="font-medium">The agent is waiting for approval</h2>
-                        <ul className="divide-y divide-foreground/10" role="list">
-                          {agentResult.approvalRequests?.map((request) => (
-                            <li key={request.approvalId} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
-                              <div className="break-all font-mono text-sm font-medium">
-                                {request.toolCall.toolName}
-                              </div>
-                              <pre className="overflow-x-auto whitespace-pre-wrap break-all text-sm text-muted-foreground">
-                                {JSON.stringify(request.toolCall.input, null, 2)}
-                              </pre>
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          type="button"
-                          onClick={approveAgentRequests}
-                          disabled={isLoading}
-                          className={`${primaryButtonClass} self-start`}
-                        >
-                          Approve agent actions
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => runAgent()}
-                        disabled={isLoading || !prompt.trim() || !model.trim()}
-                        className={`${primaryButtonClass} self-start gap-2 pl-2 pr-3`}
-                      >
-                        <BoltIcon className="size-4 shrink-0 fill-current" aria-hidden="true" />
-                        Run agent
-                      </button>
-                    )}
-                  </div>
-                  <OutputPanel title="Agent output" value={agentResult} />
-                </div>
-              </div>
+              <SandboxAgentWorkspace
+                key={context.externalUserId}
+                externalUserId={context.externalUserId}
+              />
             )}
           </section>
         )}

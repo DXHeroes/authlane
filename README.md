@@ -211,6 +211,12 @@ Self-hosting defaults to `AUTHLANE_AUTH_MODE=email-password`. For passwordless a
 intended account-creation policy. Production magic-link startup fails closed without complete email
 delivery configuration.
 
+Organization owners and admins can validate a dedicated test identity in **Dashboard → Sandbox**.
+The direct runner uses the real SDK, credential lease, and provider-local adapter; the optional AI
+runner uses Vercel AI SDK with OpenAI, Anthropic, or Google. Configure the matching runtime key and
+follow the [Sandbox guide](https://authlane.io/docs/guides/sandbox). Prompts, arguments, and results
+remain ephemeral; only execution metadata is retained for audit.
+
 ## Develop Authlane
 
 ```bash

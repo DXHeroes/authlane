@@ -1,0 +1,70 @@
+---
+title: 'Test connections in Sandbox'
+description: 'Validate a dedicated test identity with the same SDK, credential leases, tools, and Vercel AI SDK adapter used in production.'
+---
+
+Authlane Sandbox gives organization owners and admins a production-like place to validate a
+connector before exposing it in their SaaS. It uses the real Authlane control-plane API,
+`@authlane/sdk`, credential leases, provider-direct integration adapter, and
+`@authlane/ai/vercel`. It is not a public tool-execution API or hosted MCP server.
+
+## Prepare a dedicated identity
+
+1. Create a test user in your SaaS whose external ID starts with `sandbox_`, for example
+   `sandbox_user_001`. Authlane rejects other IDs at the Sandbox boundary; never use a real end user.
+2. Create a normal connect session for that `externalUserId` and connect the services you need.
+3. In **Dashboard → Sandbox**, enter the exact external user ID and select **Load sandbox user**.
+
+The displayed services and tools come from the same capabilities hot read as your production
+backend. The tenant's `read_only` or `full` service policy is applied before tools reach Sandbox.
+
+## Run one tool
+
+Select a connected service and canonical tool, enter a JSON object matching its input schema, and
+choose **Run tool**. A read operation runs immediately. Write and destructive operations stop at an
+approval screen; review the arguments and explicitly choose **Approve and run**.
+
+Execution uses the same short-lived credential lease and local integration adapter as a SaaS
+runtime. The provider request goes directly from the Authlane application runtime only because an
+administrator explicitly initiated a Sandbox test. This narrow testing path does not change the
+normal product boundary: Authlane never proxies end-user provider traffic.
+
+## Run a Vercel AI SDK agent
+
+Configure at least one model provider key on the Authlane server:
+
+```bash
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=
+```
+
+Only the provider you select needs a key. In the **AI agent** tab, choose OpenAI, Anthropic, or
+Google, confirm the model ID, enter a test prompt, and run it. The server calls Vercel AI SDK
+`generateText` with tools from `vercelAI({ approval: 'write-and-destructive' })`. If a model selects
+a write or destructive tool, Sandbox returns the approval request before execution.
+
+Model IDs remain editable because availability can differ by account and region. The UI defaults
+to `gpt-5-mini`, `claude-sonnet-4-5`, and `gemini-2.5-flash`; use a model enabled for your account.
+
+## Data handling and audit
+
+Prompts, model messages, tool arguments, provider payloads, and tool results are held only for the
+active request and browser session. Authlane does not store them in `sandbox_runs`. Durable audit
+rows contain only tenant and actor IDs, the dedicated external user ID, mode, provider/model,
+service/tool, risk, outcome, duration, error code, and timestamp.
+
+Sandbox access requires a dashboard session and an `owner` or `admin` organization role. The
+server creates an internal two-minute scoped API key for each operation and deletes it in `finally`.
+No tenant API key or provider credential is exposed to the browser.
+
+## Troubleshooting
+
+- **No connected services:** connect the exact dedicated external user ID through hosted connect.
+- **Tool not available:** verify service policy, connection state, and the selected integration's
+  required OAuth scopes.
+- **Agent run failed:** configure the selected provider key and verify the editable model ID.
+- **Provider returned 401/403:** reconnect the service and confirm its app registration, consent,
+  scopes, and provider-side permissions.
+- **Approval keeps appearing:** expected for every write or destructive call; approvals are not
+  remembered between runs.

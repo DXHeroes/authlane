@@ -11,6 +11,12 @@ const publicOriginVariables = [
   'AUTHLANE_AUTH_MODE',
 ] as const;
 
+const sandboxModelVariables = [
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'GOOGLE_GENERATIVE_AI_API_KEY',
+] as const;
+
 describe('Coolify runtime configuration', () => {
   it('copies every documentation contract input before landing checks run', async () => {
     const dockerfile = await readFile(new URL('../apps/api/Dockerfile', import.meta.url), 'utf8');
@@ -40,6 +46,17 @@ describe('Coolify runtime configuration', () => {
       expect(compose).toMatch(new RegExp(`^  ${variable}:$`, 'm'));
     }
     expect(compose).not.toMatch(/export BETTER_AUTH_URL=/);
+  });
+
+  it('passes optional Sandbox model credentials directly to the app', async () => {
+    const compose = await readFile(
+      new URL('../docker-compose.coolify.yml', import.meta.url),
+      'utf8'
+    );
+
+    for (const variable of sandboxModelVariables) {
+      expect(compose).toMatch(new RegExp(`^  ${variable}:$`, 'm'));
+    }
   });
 
   it('keeps one control-plane runtime and no provider execution service', async () => {

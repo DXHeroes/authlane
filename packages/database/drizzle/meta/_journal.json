@@ -29,6 +29,20 @@
       "when": 1784543568645,
       "tag": "0003_lyrical_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784610000000,
+      "tag": "0004_microsoft_graph_reconnect",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784611514929,
+      "tag": "0005_adorable_wolfsbane",
+      "breakpoints": true
     }
   ]
 }

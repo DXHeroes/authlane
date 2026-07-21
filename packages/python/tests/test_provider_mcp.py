@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from authlane.executors import execute
+from authlane.provider_mcp import execute_preferred_provider_mcp
 
 
 def _mcp_response(
@@ -393,35 +394,12 @@ def test_prefers_official_pipedrive_mcp_for_compatible_crm_operations() -> None:
     assert len(direct_requests) == 1
 
 
-def test_confines_microsoft_work_iq_to_the_selected_workload() -> None:
-    calls: list[dict[str, Any]] = []
-
-    def mcp(request: httpx.Request) -> httpx.Response:
-        payload = json.loads(request.read())
-        if payload.get("method") == "tools/call":
-            calls.append(payload["params"])
-        return _mcp_response(request, ["fetch"])
-
-    credential = {
-        **_credential(),
-        "scopes": ["api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask"],
-    }
-    allowed = execute(
+def test_microsoft_graph_services_do_not_open_provider_mcp_sessions() -> None:
+    result = execute_preferred_provider_mcp(
         service_id="microsoft-mail",
-        tool_name="microsoft_mail_fetch",
-        arguments={"entityUrls": ["/me/messages"]},
-        credential=credential,
-        mcp_transport=httpx.MockTransport(mcp),
-    )
-    blocked = execute(
-        service_id="microsoft-mail",
-        tool_name="microsoft_mail_fetch",
-        arguments={"entityUrls": ["/sites/root"]},
-        credential=credential,
-        mcp_transport=httpx.MockTransport(mcp),
+        tool_name="microsoft_mail_list_messages",
+        arguments={"limit": 25},
+        credential={**_credential(), "scopes": ["User.Read", "Mail.Read"]},
     )
 
-    assert allowed.error is None
-    assert calls == [{"name": "fetch", "arguments": {"entityUrls": ["/me/messages"]}}]
-    assert blocked.data is None and blocked.error is not None
-    assert blocked.error.code == "PROVIDER_ERROR"
+    assert result.status == "fallback"

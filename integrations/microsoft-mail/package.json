@@ -5,16 +5,36 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-    "./tools": { "types": "./dist/tools.d.ts", "import": "./dist/tools.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.js"
+    }
   },
-  "files": ["dist", "config.yaml", "README.md", "LICENSE"],
-  "scripts": { "build": "tsc", "test": "vitest run --passWithNoTests", "type-check": "tsc --noEmit" },
+  "files": [
+    "dist",
+    "config.yaml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "type-check": "tsc --noEmit"
+  },
   "dependencies": {
     "@authlane/integration-contracts": "workspace:*",
     "@authlane/shared": "workspace:*"
   },
-  "devDependencies": { "@types/node": "^22.0.0", "vitest": "^4.1.10" },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vitest": "^4.1.10"
+  },
   "license": "MIT",
-  "publishConfig": { "access": "public" }
+  "publishConfig": {
+    "access": "public"
+  }
 }

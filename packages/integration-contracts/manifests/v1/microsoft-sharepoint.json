@@ -4,8 +4,8 @@
   "serviceId": "microsoft-sharepoint",
   "tools": [
     {
-      "name": "microsoft_sharepoint_fetch",
-      "description": "Read Microsoft sharepoint entities",
+      "name": "microsoft_sharepoint_search_sites",
+      "description": "Search SharePoint sites",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -15,78 +15,545 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "entityUrls": {
+          "query": {
+            "type": "string",
+            "description": "Site search query",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_get_site",
+      "description": "Get one SharePoint site",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "string",
+            "description": "Site ID",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "site_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_list_drives",
+      "description": "List drives in a SharePoint site",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "string",
+            "description": "Site ID",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "site_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_get_drive",
+      "description": "Get one Microsoft drive",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "drive_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_list_items",
+      "description": "List children of a Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "parent_item_id": {
+            "type": "string",
+            "description": "Parent item ID",
+            "default": "root"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum items to return",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque cursor returned by a previous call"
+          }
+        },
+        "required": [
+          "drive_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_get_item",
+      "description": "Get one Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "drive_id",
+          "item_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_download_file",
+      "description": "Download a small Microsoft drive file",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "drive_id",
+          "item_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_list_permissions",
+      "description": "List permissions for a Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "drive_id",
+          "item_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_create_folder",
+      "description": "Create a folder in a Microsoft drive",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "parent_item_id": {
+            "type": "string",
+            "description": "Parent item ID",
+            "default": "root"
+          },
+          "folder_name": {
+            "type": "string",
+            "description": "Folder name",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "conflict_behavior": {
+            "type": "string",
+            "description": "Name conflict behavior",
+            "enum": [
+              "fail",
+              "rename",
+              "replace"
+            ],
+            "default": "fail"
+          }
+        },
+        "required": [
+          "drive_id",
+          "folder_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_upload_file",
+      "description": "Upload a small file to a Microsoft drive",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "parent_item_id": {
+            "type": "string",
+            "description": "Parent item ID",
+            "default": "root"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "File name",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "content_base64": {
+            "type": "string",
+            "description": "Base64-encoded file content",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "drive_id",
+          "file_name",
+          "content_base64"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_update_item",
+      "description": "Rename a Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "New item name",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "drive_id",
+          "item_id",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_move_item",
+      "description": "Move a Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          },
+          "destination_parent_item_id": {
+            "type": "string",
+            "description": "Destination parent item ID",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Optional new item name",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "drive_id",
+          "item_id",
+          "destination_parent_item_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_copy_item",
+      "description": "Copy a Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          },
+          "destination_parent_item_id": {
+            "type": "string",
+            "description": "Destination parent item ID",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Optional copied item name",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "drive_id",
+          "item_id",
+          "destination_parent_item_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_create_sharing_link",
+      "description": "Create a sharing link for a Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          },
+          "link_type": {
+            "type": "string",
+            "description": "Sharing link type",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "description": "Sharing scope",
+            "enum": [
+              "anonymous",
+              "organization",
+              "users"
+            ]
+          }
+        },
+        "required": [
+          "drive_id",
+          "item_id",
+          "link_type",
+          "scope"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "microsoft_sharepoint_invite_users",
+      "description": "Grant users access to a Microsoft drive item",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          },
+          "recipients": {
             "type": "array",
+            "description": "Recipient email addresses",
             "items": {
               "type": "string"
             },
+            "maxItems": 100
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write"
+              ]
+            },
             "minItems": 1,
-            "maxItems": 20
-          }
-        },
-        "required": [
-          "entityUrls"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "microsoft_sharepoint_create_entity",
-      "description": "Create a Microsoft sharepoint entity",
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": true
-      },
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "parentUrl": {
-            "type": "string"
+            "maxItems": 2
           },
-          "jsonBody": {
+          "message": {
             "type": "string",
-            "description": "JSON-encoded request body"
-          }
-        },
-        "required": [
-          "parentUrl",
-          "jsonBody"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "microsoft_sharepoint_update_entity",
-      "description": "Update a Microsoft sharepoint entity",
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": true
-      },
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "entityUrl": {
-            "type": "string"
+            "description": "Optional invitation message",
+            "maxLength": 10000
           },
-          "jsonBody": {
-            "type": "string",
-            "description": "JSON-encoded request body"
+          "require_sign_in": {
+            "type": "boolean",
+            "description": "Require recipients to sign in"
+          },
+          "send_invitation": {
+            "type": "boolean",
+            "description": "Send invitation email"
           }
         },
         "required": [
-          "entityUrl",
-          "jsonBody"
+          "drive_id",
+          "item_id",
+          "recipients",
+          "roles"
         ],
         "additionalProperties": false
       }
     },
     {
-      "name": "microsoft_sharepoint_delete_entity",
-      "description": "Delete a Microsoft sharepoint entity",
+      "name": "microsoft_sharepoint_delete_item",
+      "description": "Delete a Microsoft drive item",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -96,96 +563,57 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "entityUrl": {
-            "type": "string"
+          "drive_id": {
+            "type": "string",
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
           }
         },
         "required": [
-          "entityUrl"
+          "drive_id",
+          "item_id"
         ],
         "additionalProperties": false
       }
     },
     {
-      "name": "microsoft_sharepoint_do_action",
-      "description": "Execute a Microsoft sharepoint action",
+      "name": "microsoft_sharepoint_delete_permission",
+      "description": "Delete a permission from a Microsoft drive item",
       "annotations": {
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": true
       },
       "inputSchema": {
         "type": "object",
         "properties": {
-          "actionUrl": {
-            "type": "string"
-          },
-          "jsonBody": {
+          "drive_id": {
             "type": "string",
-            "description": "Optional JSON-encoded request body"
+            "description": "Drive ID",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Drive item ID",
+            "minLength": 1
+          },
+          "permission_id": {
+            "type": "string",
+            "description": "Permission ID",
+            "minLength": 1
           }
         },
         "required": [
-          "actionUrl"
+          "drive_id",
+          "item_id",
+          "permission_id"
         ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "microsoft_sharepoint_call_function",
-      "description": "Call a Microsoft sharepoint function",
-      "annotations": {
-        "readOnlyHint": true,
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": true
-      },
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "functionUrl": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "functionUrl"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "microsoft_sharepoint_get_schema",
-      "description": "Get the Work IQ schema for a Microsoft sharepoint operation",
-      "annotations": {
-        "readOnlyHint": true,
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": true
-      },
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "path": { "type": "string", "description": "SharePoint or Drive path such as /me/drive" },
-          "operationType": { "type": "string", "enum": ["fetch", "create", "update"] },
-          "format": { "type": "string", "enum": ["jsonschema", "typescript"] }
-        },
-        "required": ["path", "operationType"],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "microsoft_sharepoint_search_paths",
-      "description": "Search Work IQ Microsoft sharepoint paths",
-      "annotations": {
-        "readOnlyHint": true,
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": true
-      },
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
         "additionalProperties": false
       }
     }

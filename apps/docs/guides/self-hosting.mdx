@@ -51,6 +51,21 @@ prevents a link from creating a new account.
 Never paste a production sending key into source control, build arguments, issue trackers, logs, or
 chat. If a key is disclosed, revoke it and create a replacement before deployment.
 
+## Configure the optional AI Sandbox
+
+The direct tool runner needs no model provider key. To use the production-like Vercel AI SDK agent,
+set one or more runtime-only provider keys:
+
+```bash
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=
+```
+
+Only organization owners and admins can use Sandbox. Keys stay server-side and the selected model
+provider receives the ephemeral prompt and any tool context according to its own data policy. See
+[Test connections in Sandbox](/docs/guides/sandbox) for the execution boundary and audit behavior.
+
 Optional local monitoring starts with:
 
 ```bash

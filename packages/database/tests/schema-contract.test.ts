@@ -7,6 +7,7 @@ import {
   credentialAccessLogs,
   outboxEvents,
   organizationServices,
+  sandboxRuns,
   secretRecords,
 } from '../src/schema/index.js';
 
@@ -70,6 +71,23 @@ describe('SaaS-only schema contract', () => {
     );
     expect(columnNames(outboxEvents)).toEqual(
       expect.arrayContaining(['organization_id', 'event_type', 'payload', 'status', 'attempts'])
+    );
+  });
+
+  it('audits sandbox metadata without persisting prompts, arguments, or provider results', () => {
+    const columns = columnNames(sandboxRuns);
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        'organization_id',
+        'actor_user_id',
+        'external_user_id',
+        'mode',
+        'status',
+        'duration_ms',
+      ])
+    );
+    expect(columns).not.toEqual(
+      expect.arrayContaining(['prompt', 'arguments', 'result', 'messages', 'credential'])
     );
   });
 

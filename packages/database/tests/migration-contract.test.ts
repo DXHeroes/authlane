@@ -14,6 +14,14 @@ const toolPolicyMigration = readFileSync(
   join(import.meta.dirname, '../drizzle/0003_lyrical_quasar.sql'),
   'utf8'
 );
+const microsoftGraphMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0004_microsoft_graph_reconnect.sql'),
+  'utf8'
+);
+const sandboxMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0005_adorable_wolfsbane.sql'),
+  'utf8'
+);
 const roles = readFileSync(join(import.meta.dirname, '../sql/roles.sql'), 'utf8');
 
 describe('control-plane migration', () => {
@@ -61,5 +69,22 @@ describe('control-plane migration', () => {
     );
     expect(toolPolicyMigration).toContain('SET "tool_access_policy" = \'full\'');
     expect(toolPolicyMigration).toContain("\"tool_access_policy\" in ('read_only', 'full')");
+  });
+
+  it('invalidates legacy Microsoft credentials before Graph-only execution is enabled', () => {
+    for (const serviceId of ['microsoft-mail', 'microsoft-calendar', 'microsoft-sharepoint']) {
+      expect(microsoftGraphMigration).toContain(`'${serviceId}'`);
+    }
+    expect(microsoftGraphMigration).toContain('microsoft_graph_reconnect_required');
+    expect(microsoftGraphMigration).toContain('"credential_secret_id" = NULL');
+    expect(microsoftGraphMigration).toContain('DELETE FROM "secret_records"');
+    expect(microsoftGraphMigration).toContain('sr."purpose" = \'connection_credentials\'');
+  });
+
+  it('keeps sandbox audit metadata inside tenant RLS', () => {
+    expect(sandboxMigration).toContain('CREATE TABLE "sandbox_runs"');
+    expect(sandboxMigration).toContain('ALTER TABLE "sandbox_runs" ENABLE ROW LEVEL SECURITY');
+    expect(sandboxMigration).toContain('ALTER TABLE "sandbox_runs" FORCE ROW LEVEL SECURITY');
+    expect(sandboxMigration).toContain('CREATE POLICY "sandbox_runs_tenant_isolation"');
   });
 });

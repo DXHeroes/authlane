@@ -31,10 +31,13 @@ const REQUIRED_OPERATION_IDS = [
   'authorizeConnection',
   'disconnectConnection',
   'oauthCallback',
+  'getSandboxContext',
+  'runSandboxTool',
+  'runSandboxAgent',
 ] as const;
 
 describe('Task 04 OpenAPI 3.1 contract', () => {
-  it('describes the complete public control-plane surface with stable operation IDs', () => {
+  it('describes the complete control-plane and protected dashboard surface with stable operation IDs', () => {
     expect(openApi).toMatch(/^openapi: 3\.1\.0$/m);
     expect(openApi).toContain('url: https://app.authlane.io');
     expect(openApi).toContain('url: http://localhost:3000');
@@ -46,7 +49,8 @@ describe('Task 04 OpenAPI 3.1 contract', () => {
     expect(openApi).toContain('/api/v1/connect/session:');
     expect(openApi).toContain('/api/v1/connect/{serviceId}:');
     expect(openApi).toContain('/api/v1/oauth/{serviceId}/callback:');
-    expect(openApi).not.toContain('/api/v1/dashboard');
+    expect(openApi).toContain('/api/v1/dashboard/sandbox:');
+    expect(openApi).toContain('DashboardSession:');
   });
 
   it('publishes the signed lifecycle webhook contract', () => {
@@ -130,7 +134,7 @@ describe('Task 04 OpenAPI 3.1 contract', () => {
       'return c.json({ data: { disconnected: Boolean(deleted) }, error: null });'
     );
 
-    const schema = section('    DisconnectResult:', '    WebhookEventName:');
+    const schema = section('    DisconnectResult:', '    SandboxToolDefinition:');
     expect(schema).toContain('required: [disconnected]');
     expect(schema).toContain('disconnected:');
     expect(schema).not.toContain("$ref: '#/components/schemas/Connection'");
@@ -192,7 +196,10 @@ describe('Task 04 OpenAPI 3.1 contract', () => {
     expect(authorize).toContain("'404':");
     expect(authorize).toContain("'409':");
 
-    const callback = section('  /api/v1/oauth/{serviceId}/callback:', 'webhooks:');
+    const callback = section(
+      '  /api/v1/oauth/{serviceId}/callback:',
+      '  /api/v1/dashboard/sandbox:'
+    );
     expect(callback).toContain("'409':");
 
     const hostedSession = section(

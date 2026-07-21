@@ -25,6 +25,47 @@ interface SourceConfig {
 const root = resolve(import.meta.dirname, '..');
 
 describe('runtime integration configuration', () => {
+  it('uses Microsoft Graph delegated scopes without a provider MCP transport', () => {
+    const expectations = {
+      'microsoft-mail': {
+        readOnly: ['offline_access', 'openid', 'profile', 'User.Read', 'Mail.Read'],
+        full: ['offline_access', 'openid', 'profile', 'User.Read', 'Mail.ReadWrite', 'Mail.Send'],
+      },
+      'microsoft-calendar': {
+        readOnly: ['offline_access', 'openid', 'profile', 'User.Read', 'Calendars.Read'],
+        full: ['offline_access', 'openid', 'profile', 'User.Read', 'Calendars.ReadWrite'],
+      },
+      'microsoft-sharepoint': {
+        readOnly: [
+          'offline_access',
+          'openid',
+          'profile',
+          'User.Read',
+          'Files.Read.All',
+          'Sites.Read.All',
+        ],
+        full: [
+          'offline_access',
+          'openid',
+          'profile',
+          'User.Read',
+          'Files.ReadWrite.All',
+          'Sites.ReadWrite.All',
+        ],
+      },
+    } as const;
+
+    for (const [id, expected] of Object.entries(expectations)) {
+      const source = YAML.parse(
+        readFileSync(resolve(root, 'integrations', id, 'config.yaml'), 'utf8')
+      ) as SourceConfig;
+      expect(source.config.read_only_scopes).toEqual(expected.readOnly);
+      expect(source.config.default_scopes).toEqual(expected.full);
+      expect(source.config.execution).toEqual({ preferred: 'direct_api' });
+      expect(getProviderMcpPolicy(id)).toBeUndefined();
+    }
+  });
+
   it.each(SUPPORTED_SERVICE_IDS)('%s keeps the database catalog aligned with config.yaml', (id) => {
     const source = YAML.parse(
       readFileSync(resolve(root, 'integrations', id, 'config.yaml'), 'utf8')

@@ -684,6 +684,78 @@ ID from model arguments. Provider execution stays in the SaaS runtime and bypass
 
 Choose a complete flow under [SDKs and frameworks](/docs/sdk/frameworks).
 
+Source: https://authlane.io/docs/guides/sandbox
+
+# Test connections in Sandbox
+
+Validate a dedicated test identity with the same SDK, credential leases, tools, and Vercel AI SDK adapter used in production.
+
+Authlane Sandbox gives organization owners and admins a production-like place to validate a
+connector before exposing it in their SaaS. It uses the real Authlane control-plane API,
+`@authlane/sdk`, credential leases, provider-direct integration adapter, and
+`@authlane/ai/vercel`. It is not a public tool-execution API or hosted MCP server.
+
+## Prepare a dedicated identity
+
+1. Create a test user in your SaaS whose external ID starts with `sandbox_`, for example
+   `sandbox_user_001`. Authlane rejects other IDs at the Sandbox boundary; never use a real end user.
+2. Create a normal connect session for that `externalUserId` and connect the services you need.
+3. In **Dashboard → Sandbox**, enter the exact external user ID and select **Load sandbox user**.
+
+The displayed services and tools come from the same capabilities hot read as your production
+backend. The tenant's `read_only` or `full` service policy is applied before tools reach Sandbox.
+
+## Run one tool
+
+Select a connected service and canonical tool, enter a JSON object matching its input schema, and
+choose **Run tool**. A read operation runs immediately. Write and destructive operations stop at an
+approval screen; review the arguments and explicitly choose **Approve and run**.
+
+Execution uses the same short-lived credential lease and local integration adapter as a SaaS
+runtime. The provider request goes directly from the Authlane application runtime only because an
+administrator explicitly initiated a Sandbox test. This narrow testing path does not change the
+normal product boundary: Authlane never proxies end-user provider traffic.
+
+## Run a Vercel AI SDK agent
+
+Configure at least one model provider key on the Authlane server:
+
+```bash
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=
+```
+
+Only the provider you select needs a key. In the **AI agent** tab, choose OpenAI, Anthropic, or
+Google, confirm the model ID, enter a test prompt, and run it. The server calls Vercel AI SDK
+`generateText` with tools from `vercelAI({ approval: 'write-and-destructive' })`. If a model selects
+a write or destructive tool, Sandbox returns the approval request before execution.
+
+Model IDs remain editable because availability can differ by account and region. The UI defaults
+to `gpt-5-mini`, `claude-sonnet-4-5`, and `gemini-2.5-flash`; use a model enabled for your account.
+
+## Data handling and audit
+
+Prompts, model messages, tool arguments, provider payloads, and tool results are held only for the
+active request and browser session. Authlane does not store them in `sandbox_runs`. Durable audit
+rows contain only tenant and actor IDs, the dedicated external user ID, mode, provider/model,
+service/tool, risk, outcome, duration, error code, and timestamp.
+
+Sandbox access requires a dashboard session and an `owner` or `admin` organization role. The
+server creates an internal two-minute scoped API key for each operation and deletes it in `finally`.
+No tenant API key or provider credential is exposed to the browser.
+
+## Troubleshooting
+
+- **No connected services:** connect the exact dedicated external user ID through hosted connect.
+- **Tool not available:** verify service policy, connection state, and the selected integration's
+  required OAuth scopes.
+- **Agent run failed:** configure the selected provider key and verify the editable model ID.
+- **Provider returned 401/403:** reconnect the service and confirm its app registration, consent,
+  scopes, and provider-side permissions.
+- **Approval keeps appearing:** expected for every write or destructive call; approvals are not
+  remembered between runs.
+
 Source: https://authlane.io/docs/guides/webhooks
 
 # Receive lifecycle webhooks
@@ -3074,59 +3146,94 @@ Connect Microsoft Mail and use its tools through the Authlane control plane.
 
 ## Prerequisites
 
-Confirm Work IQ availability for the Microsoft 365 tenant. Review the official
-[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
-[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
-and [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+Use a Microsoft Entra tenant and an account with permission to create an app registration. Review
+the official [Microsoft Graph mail API](https://learn.microsoft.com/graph/api/resources/mail-api-overview),
+[app registration guide](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app),
+and [Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+Choose **Accounts in any organizational directory** for a multi-tenant SaaS, or the single-tenant
+option for an internal installation.
 
 ## Self-hosted setup
 
-1. Create a multi-tenant Web app registration in Microsoft Entra ID.
-2. Add `https://<your-authlane-host>/api/v1/oauth/microsoft-mail/callback` as a Web redirect URI.
-3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
-4. Create a client secret and copy its value immediately.
+1. In **Microsoft Entra admin center → App registrations**, create or open a Web application.
+2. Under **Authentication**, add the exact Web redirect URI
+   `https://<your-authlane-host>/api/v1/oauth/microsoft-mail/callback`. Do not enable implicit grant.
+3. Under **API permissions**, add the delegated Microsoft Graph permissions listed below. Use
+   read-only or full access to match the service policy you will select in Authlane.
+4. Grant administrator consent when required by the tenant's consent policy.
+5. Under **Certificates & secrets**, create a client secret and copy its **Value** immediately.
+   Authlane needs the value, not the secret ID.
+
+One Entra app can serve all three Microsoft services when every exact Authlane callback URI and
+every required delegated Graph permission is registered.
 
 ## Configure authentication
 
-Open **Dashboard → Services → Microsoft Mail**. Save the Application Client ID and Client Secret,
-choose the tool policy, and enable the service. The Client Secret belongs only in Authlane's
-encrypted server-side configuration.
+Open **Dashboard → Services → Microsoft Mail**, enter the Entra **Application (client) ID** as the
+Client ID and the client secret **Value** as the Client Secret, select `read_only` or `full`, then
+enable the service. The secret stays encrypted on the Authlane server and must never be sent to a
+browser.
 
 ## Scopes
 
-- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
-- `offline_access` permits refresh tokens.
-- `openid` and `profile` identify the connected user.
+Full policy requests these delegated scopes:
+
+- `offline_access`
+- `openid`
+- `profile`
+- `User.Read`
+- `Mail.ReadWrite`
+- `Mail.Send`
+
+Read-only policy replaces `Mail.ReadWrite` and `Mail.Send` with `Mail.Read`. `offline_access`
+allows refresh tokens; `openid`, `profile`, and `User.Read` establish the connected identity.
+See the current [Microsoft Graph permissions reference](https://learn.microsoft.com/graph/permissions-reference)
+before granting consent.
 
 ## Execution path
 
-The SaaS runtime prioritizes Microsoft's official Work IQ MCP endpoint
-`https://workiq.svc.cloud.microsoft/mcp`. Authlane validates mail paths and issues a credential
-lease; provider traffic then flows directly between the SaaS runtime and Microsoft. Only
-`/me/messages`, `/me/mailFolders`, `/me/sendMail`, and `/me/outlook` families are accepted.
+Microsoft now lists a Mail server in the
+[Agent 365 MCP catalog](https://learn.microsoft.com/microsoft-agent-365/developer/tooling), but that
+Frontier path is not credential-compatible with a normal delegated Graph token: it requires an
+Agent 365 blueprint, a separate MCP audience and per-server permission, plus tenant-admin setup.
+Authlane must not send a Graph token to that endpoint. This generally available connection therefore
+emits canonical tools whose local adapter calls `https://graph.microsoft.com/v1.0` directly from the
+SaaS runtime. Normal mail inputs and responses never pass through Authlane; only the explicit
+administrator Sandbox can invoke the same adapter for testing.
 
 ## Available tools
 
-- `microsoft_mail_fetch`
-- `microsoft_mail_create_entity`
-- `microsoft_mail_update_entity`
-- `microsoft_mail_delete_entity`
-- `microsoft_mail_do_action`
-- `microsoft_mail_call_function`
-- `microsoft_mail_get_schema`
-- `microsoft_mail_search_paths`
+- `microsoft_mail_list_messages`
+- `microsoft_mail_search_messages`
+- `microsoft_mail_get_message`
+- `microsoft_mail_list_folders`
+- `microsoft_mail_list_attachments`
+- `microsoft_mail_get_attachment`
+- `microsoft_mail_create_draft`
+- `microsoft_mail_update_message`
+- `microsoft_mail_send_message`
+- `microsoft_mail_send_draft`
+- `microsoft_mail_reply_to_message`
+- `microsoft_mail_forward_message`
+- `microsoft_mail_move_message`
+- `microsoft_mail_delete_message`
+
+Read-only policy exposes only list, search, and get tools. Write and destructive tools carry MCP
+risk annotations so the SaaS runtime can require approval immediately before execution.
 
 ## Connection lifecycle
 
-Authlane encrypts the Work IQ OAuth credential and refreshes it before expiry when possible.
-Reconnect after tenant revocation or an `expired`/`error` state. A tool-policy change expires the
-old connection so the new consent and effective tool set stay aligned.
+Authlane encrypts OAuth credentials, refreshes access when possible, and reports the effective
+connection state. Upgrading from the former Microsoft connector expires its stored connection once;
+reconnect to obtain Microsoft Graph-scoped consent. Changing between read-only and full policy also
+requires reconnecting so consent and the issued tool set stay aligned.
 
 ## Troubleshooting
 
-- `AADSTS50011` means the Entra redirect URI differs from the Authlane callback.
-- Verify Work IQ tenant availability, delegated permission, and administrator consent.
-- Do not substitute a Microsoft Graph token; Work IQ validates its own token audience.
+- `AADSTS50011` means the redirect URI differs by scheme, host, port, path, or trailing slash.
+- Confirm you copied the client secret **Value** before it expired, not its identifier.
+- Verify the connected account has an Exchange Online mailbox and consent for the selected scopes.
+- If user consent is disabled, ask an Entra administrator to grant tenant-wide consent.
 
 Source: https://authlane.io/docs/integrations/microsoft-calendar
 
@@ -3136,59 +3243,87 @@ Connect Microsoft Calendar and use its tools through the Authlane control plane.
 
 ## Prerequisites
 
-Confirm Work IQ availability and review the official
-[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
-[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+Use a Microsoft Entra tenant and an account allowed to create app registrations. Review the official
+[Microsoft Graph calendar resource](https://learn.microsoft.com/graph/api/resources/calendar),
+[app registration guide](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app),
 and [Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+Use a multi-tenant account type for a SaaS serving multiple Microsoft organizations, or single
+tenant for an internal deployment.
 
 ## Self-hosted setup
 
-1. Create a multi-tenant Web app in Microsoft Entra ID.
-2. Register `https://<your-authlane-host>/api/v1/oauth/microsoft-calendar/callback`.
-3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
-4. Create a client secret. One Entra app may serve all Microsoft services when every exact callback
-   URI is registered.
+1. Create or open a Web app in **Microsoft Entra admin center → App registrations**.
+2. Under **Authentication**, register the exact Web callback
+   `https://<your-authlane-host>/api/v1/oauth/microsoft-calendar/callback`. Leave implicit grant off.
+3. Add the delegated Microsoft Graph permissions below under **API permissions**.
+4. Grant administrator consent if the target tenant requires it.
+5. Create a client secret under **Certificates & secrets** and copy its **Value** immediately.
+
+You may reuse the Microsoft app registered for Mail or SharePoint when you add this callback and
+the Calendar permissions to that same registration.
 
 ## Configure authentication
 
-Open **Dashboard → Services → Microsoft Calendar**. Enter the Application Client ID and Client
-Secret, select read-only or full tools, and enable the service. Never expose the Client Secret to a
-browser.
+Open **Dashboard → Services → Microsoft Calendar**. Enter the Entra **Application (client) ID** as
+Client ID, enter the client secret **Value** as Client Secret, choose `read_only` or `full`, and
+enable the service. Never expose the Client Secret in frontend code.
 
 ## Scopes
 
-- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
-- `offline_access` permits refresh tokens.
-- `openid` and `profile` identify the connected Microsoft user.
+Full policy requests:
+
+- `offline_access`
+- `openid`
+- `profile`
+- `User.Read`
+- `Calendars.ReadWrite`
+
+Read-only policy requests `Calendars.Read` instead of `Calendars.ReadWrite`. The shared identity
+scopes bind the connection and permit refresh. Check the current
+[Microsoft Graph permissions reference](https://learn.microsoft.com/graph/permissions-reference)
+when configuring tenant consent.
 
 ## Execution path
 
-The runtime prioritizes Microsoft's official MCP endpoint `https://workiq.svc.cloud.microsoft/mcp`.
-Authlane restricts calls to `/me/calendar`, `/me/calendars`, `/me/calendarView`, `/me/events`,
-`/me/findMeetingTimes`, and `/me/getSchedule`; the SaaS runtime then calls Microsoft directly.
+Microsoft lists a Calendar server in the
+[Agent 365 MCP catalog](https://learn.microsoft.com/microsoft-agent-365/developer/tooling), but the
+Frontier server is not credential-compatible with this standard delegated Graph connection. It
+requires an Agent 365 blueprint, separate MCP token audience and per-server permission, and tenant
+administration. Authlane therefore produces canonical tools whose SaaS-side adapter calls
+`https://graph.microsoft.com/v1.0` using the connected user's Graph token. Authlane is not in the
+normal calendar data path; the administrator Sandbox is the explicit testing exception.
 
 ## Available tools
 
-- `microsoft_calendar_fetch`
-- `microsoft_calendar_create_entity`
-- `microsoft_calendar_update_entity`
-- `microsoft_calendar_delete_entity`
-- `microsoft_calendar_do_action`
-- `microsoft_calendar_call_function`
-- `microsoft_calendar_get_schema`
-- `microsoft_calendar_search_paths`
+- `microsoft_calendar_list_calendars`
+- `microsoft_calendar_list_events`
+- `microsoft_calendar_get_event`
+- `microsoft_calendar_get_calendar_view`
+- `microsoft_calendar_get_schedule`
+- `microsoft_calendar_create_calendar`
+- `microsoft_calendar_update_calendar`
+- `microsoft_calendar_delete_calendar`
+- `microsoft_calendar_create_event`
+- `microsoft_calendar_update_event`
+- `microsoft_calendar_respond_to_event`
+- `microsoft_calendar_cancel_event`
+- `microsoft_calendar_delete_event`
+
+Read-only policy removes create, update, response, cancellation, and delete actions. The remaining
+write and destructive tools expose MCP annotations for runtime approval controls.
 
 ## Connection lifecycle
 
-Authlane encrypts and refreshes the OAuth credential and reports effective connection state.
-Reconnect an `expired` or `error` connection. A tool-policy change deliberately requires new
-consent so read-only and full scopes cannot drift.
+Authlane stores credentials encrypted, refreshes access tokens, and computes connected, expired, or
+error state. The Microsoft Graph upgrade intentionally expires the old Microsoft connection once;
+reconnect it to grant the correct delegated scopes. A later policy change also requires reconnecting.
 
 ## Troubleshooting
 
-- Use a Web redirect URI and match scheme, host, port, and path exactly.
-- Verify the returned token contains the Work IQ permission.
-- The connected user still needs access to the requested calendars.
+- For `AADSTS50011`, compare the registered redirect URI character-for-character with the callback.
+- Confirm the Client ID and the client secret **Value** came from the same app registration.
+- Verify the user can open the target calendar and has consented to the selected delegated scope.
+- Tenant consent policy may require an administrator to approve the Graph permissions.
 
 Source: https://authlane.io/docs/integrations/microsoft-sharepoint
 
@@ -3198,58 +3333,94 @@ Connect Microsoft Drive (SharePoint) and use its tools through the Authlane cont
 
 ## Prerequisites
 
-Confirm Work IQ availability and review the official
-[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
-[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+Use a Microsoft Entra tenant and an account able to register applications. Review the official
+[Microsoft Graph SharePoint resource](https://learn.microsoft.com/graph/api/resources/sharepoint),
+[app registration guide](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app),
 and [Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+Choose a multi-tenant account type for a public SaaS and single tenant for an internal deployment.
 
 ## Self-hosted setup
 
-1. Create a multi-tenant Web app in Microsoft Entra ID.
-2. Add `https://<your-authlane-host>/api/v1/oauth/microsoft-sharepoint/callback` as a redirect URI.
-3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
-4. Create a client secret and copy its value immediately.
+1. Create or open a Web app under **Microsoft Entra admin center → App registrations**.
+2. Add the exact Web redirect URI
+   `https://<your-authlane-host>/api/v1/oauth/microsoft-sharepoint/callback` under **Authentication**.
+3. Under **API permissions**, add the delegated Microsoft Graph permissions for the policy below.
+4. Grant administrator consent when required. SharePoint permissions are commonly restricted by
+   tenant policy even when Microsoft marks user consent as possible.
+5. Create a client secret and copy its **Value** immediately; the value is shown only once.
+
+The same Entra app may serve Mail, Calendar, and SharePoint if it contains all three exact callbacks
+and their union of delegated Graph permissions.
 
 ## Configure authentication
 
-Open **Dashboard → Services → Microsoft Drive (SharePoint)**. Save the Application Client ID and
-Client Secret, select the tool policy, and enable the service. Keep the Client Secret server-side.
+Open **Dashboard → Services → Microsoft Drive (SharePoint)**. Set Client ID to the Entra
+**Application (client) ID**, set Client Secret to the new secret **Value**, select `read_only` or
+`full`, and enable the service. Authlane encrypts the secret server-side.
 
 ## Scopes
 
-- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
-- `offline_access` permits refresh tokens.
-- `openid` and `profile` identify the connected Microsoft user.
+Full policy requests:
+
+- `offline_access`
+- `openid`
+- `profile`
+- `User.Read`
+- `Files.ReadWrite.All`
+- `Sites.ReadWrite.All`
+
+Read-only policy replaces the last two scopes with `Files.Read.All` and `Sites.Read.All`. These are
+delegated permissions: tools operate as the connected user and cannot exceed that user's access.
+Review the current [Microsoft Graph permissions reference](https://learn.microsoft.com/graph/permissions-reference)
+before granting consent.
 
 ## Execution path
 
-The SaaS runtime prioritizes Microsoft's official MCP endpoint
-`https://workiq.svc.cloud.microsoft/mcp`. Authlane accepts only `/me/drive`, `/drives`, `/sites`,
-and `/shares` resource families. The runtime calls Microsoft directly; Authlane never proxies files,
-tool inputs, or provider responses.
+Microsoft lists OneDrive/SharePoint servers in the
+[Agent 365 MCP catalog](https://learn.microsoft.com/microsoft-agent-365/developer/tooling), but those
+Frontier endpoints are not credential-compatible with an ordinary delegated Graph connection. They
+require an Agent 365 blueprint, separate MCP audience and per-server permission, plus tenant-admin
+setup. The local Authlane adapter therefore calls the GA `https://graph.microsoft.com/v1.0` sites,
+drives, items, permissions, and sharing APIs directly from the SaaS runtime. Normal file bytes, tool
+arguments, and Graph responses never pass through Authlane. Explicit administrator Sandbox runs use
+the identical local adapter for testing.
 
 ## Available tools
 
-- `microsoft_sharepoint_fetch`
-- `microsoft_sharepoint_create_entity`
-- `microsoft_sharepoint_update_entity`
-- `microsoft_sharepoint_delete_entity`
-- `microsoft_sharepoint_do_action`
-- `microsoft_sharepoint_call_function`
-- `microsoft_sharepoint_get_schema`
-- `microsoft_sharepoint_search_paths`
+- `microsoft_sharepoint_search_sites`
+- `microsoft_sharepoint_get_site`
+- `microsoft_sharepoint_list_drives`
+- `microsoft_sharepoint_get_drive`
+- `microsoft_sharepoint_list_items`
+- `microsoft_sharepoint_get_item`
+- `microsoft_sharepoint_download_file`
+- `microsoft_sharepoint_list_permissions`
+- `microsoft_sharepoint_create_folder`
+- `microsoft_sharepoint_upload_file`
+- `microsoft_sharepoint_update_item`
+- `microsoft_sharepoint_move_item`
+- `microsoft_sharepoint_copy_item`
+- `microsoft_sharepoint_create_sharing_link`
+- `microsoft_sharepoint_invite_users`
+- `microsoft_sharepoint_delete_item`
+- `microsoft_sharepoint_delete_permission`
+
+Read-only policy exposes discovery, metadata, download, and permission-list tools. Write and delete
+actions retain MCP risk metadata so the host can require human approval or disable them.
 
 ## Connection lifecycle
 
-Authlane stores the credential encrypted, refreshes it when possible, and exposes effective status.
-Reconnect after revocation or an `expired`/`error` state. Policy changes intentionally invalidate
-old credentials and require fresh consent.
+Authlane encrypts the OAuth credential, refreshes access when possible, and exposes effective
+status. The Microsoft Graph migration marks old Microsoft connections expired and removes their
+legacy credential so each user must reconnect once. Policy changes also require fresh consent.
 
 ## Troubleshooting
 
-- Verify the user can open the target site or drive in Microsoft 365.
-- Check redirect URI, Work IQ availability, delegated permission, and tenant consent.
-- A path outside the SharePoint/Drive allowlist is rejected before MCP execution.
+- `AADSTS50011` means the exact redirect URI is missing from the Entra Web platform.
+- Confirm the user can open the target SharePoint site or drive in Microsoft 365.
+- Check that Client ID and client secret **Value** belong to the same non-expired app credential.
+- If Graph returns `403`, verify both delegated scopes, tenant admin consent, and the user's own site
+  permissions.
 
 Source: https://authlane.io/docs/guides/custom-integrations
 
@@ -3498,6 +3669,21 @@ prevents a link from creating a new account.
 
 Never paste a production sending key into source control, build arguments, issue trackers, logs, or
 chat. If a key is disclosed, revoke it and create a replacement before deployment.
+
+## Configure the optional AI Sandbox
+
+The direct tool runner needs no model provider key. To use the production-like Vercel AI SDK agent,
+set one or more runtime-only provider keys:
+
+```bash
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=
+```
+
+Only organization owners and admins can use Sandbox. Keys stay server-side and the selected model
+provider receives the ephemeral prompt and any tool context according to its own data policy. See
+[Test connections in Sandbox](/docs/guides/sandbox) for the execution boundary and audit behavior.
 
 Optional local monitoring starts with:
 

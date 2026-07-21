@@ -655,11 +655,11 @@ describe('documentation asset generation', () => {
     );
   });
 
-  it('loads the exact shipped 18-service and 189-tool manifest inventory', () => {
+  it('loads the exact shipped 18-service and 209-tool manifest inventory', () => {
     const integrations = loadIntegrationConfigs(repositoryRoot);
 
     expect(integrations).toHaveLength(18);
-    expect(integrations.flatMap(({ toolNames }) => toolNames)).toHaveLength(189);
+    expect(integrations.flatMap(({ toolNames }) => toolNames)).toHaveLength(209);
   });
 
   it('validates the repository documentation source tree', () => {

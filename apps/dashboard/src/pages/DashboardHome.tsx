@@ -23,7 +23,7 @@ function StatCard({
 export default function DashboardHome() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
-    queryFn: () => api.get<DashboardStats>('/dashboard/stats'),
+    queryFn: () => api.get<DashboardStats>('/stats'),
   });
 
   const { data: recentConnections, isLoading: connectionsLoading } = useQuery({

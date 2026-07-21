@@ -37,6 +37,9 @@
     },
     {
       "name": "OAuth"
+    },
+    {
+      "name": "Sandbox"
     }
   ],
   "security": [
@@ -5272,6 +5275,1693 @@
           }
         }
       }
+    },
+    "/api/v1/dashboard/sandbox": {
+      "get": {
+        "tags": [
+          "Sandbox"
+        ],
+        "operationId": "getSandboxContext",
+        "summary": "Load production-like capabilities for a dedicated test identity",
+        "description": "Dashboard-only owner/admin surface. Uses the real Authlane SDK and capabilities hot read. Never use a real end-user identity for Sandbox testing.",
+        "security": [
+          {
+            "DashboardSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "externalUserId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^sandbox_"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connected services and policy-filtered tools for the test identity",
+            "headers": {
+              "Cache-Control": {
+                "description": "Sandbox payloads must not be retained by browser or intermediary caches.",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store, private"
+                }
+              },
+              "Pragma": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-cache"
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-referrer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "externalUserId",
+                        "format",
+                        "version",
+                        "services"
+                      ],
+                      "properties": {
+                        "externalUserId": {
+                          "type": "string"
+                        },
+                        "format": {
+                          "type": "string",
+                          "const": "mcp"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "services": {
+                          "type": "array",
+                          "items": {
+                            "allOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "serviceId",
+                                  "status",
+                                  "connected",
+                                  "expiresAt"
+                                ],
+                                "properties": {
+                                  "serviceId": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "disconnected",
+                                      "pending",
+                                      "connected",
+                                      "expired",
+                                      "error"
+                                    ]
+                                  },
+                                  "connected": {
+                                    "type": "boolean"
+                                  },
+                                  "expiresAt": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "format": "date-time"
+                                  },
+                                  "connectedAt": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "format": "date-time"
+                                  },
+                                  "lastCheckedAt": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "format": "date-time"
+                                  },
+                                  "errorCode": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "tools",
+                                  "toolAccessPolicy"
+                                ],
+                                "properties": {
+                                  "toolAccessPolicy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "read_only",
+                                      "full"
+                                    ],
+                                    "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+                                  },
+                                  "tools": {
+                                    "type": "array",
+                                    "items": {
+                                      "allOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "name",
+                                            "description",
+                                            "inputSchema",
+                                            "annotations"
+                                          ],
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            },
+                                            "inputSchema": {
+                                              "type": "object",
+                                              "additionalProperties": true
+                                            },
+                                            "annotations": {
+                                              "type": "object",
+                                              "required": [
+                                                "readOnlyHint",
+                                                "destructiveHint",
+                                                "idempotentHint",
+                                                "openWorldHint"
+                                              ],
+                                              "properties": {
+                                                "readOnlyHint": {
+                                                  "type": "boolean"
+                                                },
+                                                "destructiveHint": {
+                                                  "type": "boolean"
+                                                },
+                                                "idempotentHint": {
+                                                  "type": "boolean"
+                                                },
+                                                "openWorldHint": {
+                                                  "type": "boolean"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "risk"
+                                          ],
+                                          "properties": {
+                                            "risk": {
+                                              "type": "string",
+                                              "enum": [
+                                                "read",
+                                                "write",
+                                                "destructive"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Rate limit exceeded",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Rate limit exceeded",
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "hint": "Maximum 100 requests per 60 seconds",
+                        "docUrl": "https://authlane.io/docs/api-reference/authentication",
+                        "statusCode": 429
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/sandbox/tool-runs": {
+      "post": {
+        "tags": [
+          "Sandbox"
+        ],
+        "operationId": "runSandboxTool",
+        "summary": "Execute one provider-direct tool after applying approval policy",
+        "description": "Runs only after an explicit owner/admin request. Read tools execute immediately; write and destructive tools return approval_required until the same request is repeated with approved=true. Arguments and results are not stored in the audit table.",
+        "security": [
+          {
+            "DashboardSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "externalUserId",
+                  "serviceId",
+                  "toolName",
+                  "arguments"
+                ],
+                "properties": {
+                  "externalUserId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^sandbox_"
+                  },
+                  "serviceId": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "toolName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "arguments": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "approved": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Execution result or an approval requirement",
+            "headers": {
+              "Cache-Control": {
+                "description": "Sandbox payloads must not be retained by browser or intermediary caches.",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store, private"
+                }
+              },
+              "Pragma": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-cache"
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-referrer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "status"
+                      ],
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "succeeded",
+                            "failed",
+                            "approval_required"
+                          ]
+                        },
+                        "risk": {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "write",
+                            "destructive"
+                          ]
+                        },
+                        "serviceId": {
+                          "type": "string"
+                        },
+                        "toolName": {
+                          "type": "string"
+                        },
+                        "arguments": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "result": {},
+                        "text": {
+                          "type": "string"
+                        },
+                        "finishReason": {
+                          "type": "string"
+                        },
+                        "approvalRequests": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
+                        "responseMessages": {
+                          "type": "array",
+                          "items": {}
+                        },
+                        "usage": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "error": {
+                          "type": "object",
+                          "required": [
+                            "message",
+                            "code"
+                          ],
+                          "properties": {
+                            "message": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "hint": {
+                              "type": "string"
+                            },
+                            "docUrl": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "statusCode": {
+                              "type": "integer",
+                              "minimum": 100,
+                              "maximum": 599
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Rate limit exceeded",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Rate limit exceeded",
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "hint": "Maximum 100 requests per 60 seconds",
+                        "docUrl": "https://authlane.io/docs/api-reference/authentication",
+                        "statusCode": 429
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/sandbox/agent-runs": {
+      "post": {
+        "tags": [
+          "Sandbox"
+        ],
+        "operationId": "runSandboxAgent",
+        "summary": "Run a Vercel AI SDK agent with the test identity's tools",
+        "description": "Uses the configured OpenAI, Anthropic, or Google server key and the same @authlane/ai Vercel adapter as a production SaaS runtime. Prompts, messages, arguments, and provider results are ephemeral. Write and destructive calls stop for explicit approval.",
+        "security": [
+          {
+            "DashboardSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "externalUserId",
+                  "provider",
+                  "model"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "prompt"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "messages"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "externalUserId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^sandbox_"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "openai",
+                      "anthropic",
+                      "google"
+                    ]
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9._:/-]+$"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  },
+                  "messages": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 40,
+                    "items": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent output, tool approval request, or sanitized failure",
+            "headers": {
+              "Cache-Control": {
+                "description": "Sandbox payloads must not be retained by browser or intermediary caches.",
+                "schema": {
+                  "type": "string",
+                  "const": "no-store, private"
+                }
+              },
+              "Pragma": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-cache"
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-referrer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "status"
+                      ],
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "succeeded",
+                            "failed",
+                            "approval_required"
+                          ]
+                        },
+                        "risk": {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "write",
+                            "destructive"
+                          ]
+                        },
+                        "serviceId": {
+                          "type": "string"
+                        },
+                        "toolName": {
+                          "type": "string"
+                        },
+                        "arguments": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "result": {},
+                        "text": {
+                          "type": "string"
+                        },
+                        "finishReason": {
+                          "type": "string"
+                        },
+                        "approvalRequests": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
+                        "responseMessages": {
+                          "type": "array",
+                          "items": {}
+                        },
+                        "usage": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "error": {
+                          "type": "object",
+                          "required": [
+                            "message",
+                            "code"
+                          ],
+                          "properties": {
+                            "message": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "hint": {
+                              "type": "string"
+                            },
+                            "docUrl": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "statusCode": {
+                              "type": "integer",
+                              "minimum": 100,
+                              "maximum": 599
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authlane request error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "error": {
+                    "summary": "Supabase-style request error",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Invalid external user ID",
+                        "code": "VALIDATION_ERROR",
+                        "hint": "Use the external user ID from your authenticated SaaS session.",
+                        "docUrl": "https://authlane.io/docs/api-reference",
+                        "statusCode": 400
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp when the current window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "message",
+                        "code"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "docUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "statusCode": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Rate limit exceeded",
+                    "value": {
+                      "data": null,
+                      "error": {
+                        "message": "Rate limit exceeded",
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "hint": "Maximum 100 requests per 60 seconds",
+                        "docUrl": "https://authlane.io/docs/api-reference/authentication",
+                        "statusCode": 429
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {
@@ -5426,6 +7116,12 @@
         "in": "header",
         "name": "Authorization",
         "description": "Use `ConnectSession <opaque-token>` from the hosted browser handoff."
+      },
+      "DashboardSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "Better Auth dashboard session cookie. Production deployments can use the __Secure- prefix. Mutating Sandbox calls also require a trusted same-origin request and recent step-up; in email-password mode the actor must have TOTP enabled."
       }
     },
     "parameters": {
@@ -5479,6 +7175,25 @@
         "description": "Unix timestamp when the current window resets.",
         "schema": {
           "type": "integer"
+        }
+      },
+      "SandboxNoStoreCacheControl": {
+        "description": "Sandbox payloads must not be retained by browser or intermediary caches.",
+        "schema": {
+          "type": "string",
+          "const": "no-store, private"
+        }
+      },
+      "NoCachePragma": {
+        "schema": {
+          "type": "string",
+          "const": "no-cache"
+        }
+      },
+      "NoReferrerPolicy": {
+        "schema": {
+          "type": "string",
+          "const": "no-referrer"
         }
       }
     },
@@ -7335,6 +9050,574 @@
             "properties": {
               "disconnected": {
                 "type": "boolean"
+              }
+            }
+          },
+          "error": {
+            "type": "null"
+          }
+        }
+      },
+      "SandboxToolDefinition": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "description",
+              "inputSchema",
+              "annotations"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "annotations": {
+                "type": "object",
+                "required": [
+                  "readOnlyHint",
+                  "destructiveHint",
+                  "idempotentHint",
+                  "openWorldHint"
+                ],
+                "properties": {
+                  "readOnlyHint": {
+                    "type": "boolean"
+                  },
+                  "destructiveHint": {
+                    "type": "boolean"
+                  },
+                  "idempotentHint": {
+                    "type": "boolean"
+                  },
+                  "openWorldHint": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "risk"
+            ],
+            "properties": {
+              "risk": {
+                "type": "string",
+                "enum": [
+                  "read",
+                  "write",
+                  "destructive"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "SandboxCapabilityService": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "serviceId",
+              "status",
+              "connected",
+              "expiresAt"
+            ],
+            "properties": {
+              "serviceId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "disconnected",
+                  "pending",
+                  "connected",
+                  "expired",
+                  "error"
+                ]
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "expiresAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "connectedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "lastCheckedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "errorCode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "tools",
+              "toolAccessPolicy"
+            ],
+            "properties": {
+              "toolAccessPolicy": {
+                "type": "string",
+                "enum": [
+                  "read_only",
+                  "full"
+                ],
+                "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "allOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "description",
+                        "inputSchema",
+                        "annotations"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "inputSchema": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "annotations": {
+                          "type": "object",
+                          "required": [
+                            "readOnlyHint",
+                            "destructiveHint",
+                            "idempotentHint",
+                            "openWorldHint"
+                          ],
+                          "properties": {
+                            "readOnlyHint": {
+                              "type": "boolean"
+                            },
+                            "destructiveHint": {
+                              "type": "boolean"
+                            },
+                            "idempotentHint": {
+                              "type": "boolean"
+                            },
+                            "openWorldHint": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "risk"
+                      ],
+                      "properties": {
+                        "risk": {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "write",
+                            "destructive"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SandboxContextResult": {
+        "type": "object",
+        "required": [
+          "data",
+          "error"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "externalUserId",
+              "format",
+              "version",
+              "services"
+            ],
+            "properties": {
+              "externalUserId": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string",
+                "const": "mcp"
+              },
+              "version": {
+                "type": "string"
+              },
+              "services": {
+                "type": "array",
+                "items": {
+                  "allOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "serviceId",
+                        "status",
+                        "connected",
+                        "expiresAt"
+                      ],
+                      "properties": {
+                        "serviceId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "disconnected",
+                            "pending",
+                            "connected",
+                            "expired",
+                            "error"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "connectedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "lastCheckedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "errorCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "tools",
+                        "toolAccessPolicy"
+                      ],
+                      "properties": {
+                        "toolAccessPolicy": {
+                          "type": "string",
+                          "enum": [
+                            "read_only",
+                            "full"
+                          ],
+                          "description": "Per-service tenant policy. Read-only removes every write or destructive tool."
+                        },
+                        "tools": {
+                          "type": "array",
+                          "items": {
+                            "allOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "description",
+                                  "inputSchema",
+                                  "annotations"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "inputSchema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                  },
+                                  "annotations": {
+                                    "type": "object",
+                                    "required": [
+                                      "readOnlyHint",
+                                      "destructiveHint",
+                                      "idempotentHint",
+                                      "openWorldHint"
+                                    ],
+                                    "properties": {
+                                      "readOnlyHint": {
+                                        "type": "boolean"
+                                      },
+                                      "destructiveHint": {
+                                        "type": "boolean"
+                                      },
+                                      "idempotentHint": {
+                                        "type": "boolean"
+                                      },
+                                      "openWorldHint": {
+                                        "type": "boolean"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "risk"
+                                ],
+                                "properties": {
+                                  "risk": {
+                                    "type": "string",
+                                    "enum": [
+                                      "read",
+                                      "write",
+                                      "destructive"
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "null"
+          }
+        }
+      },
+      "SandboxToolRunRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "externalUserId",
+          "serviceId",
+          "toolName",
+          "arguments"
+        ],
+        "properties": {
+          "externalUserId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^sandbox_"
+          },
+          "serviceId": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "toolName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "arguments": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "approved": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "SandboxAgentRunRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "externalUserId",
+          "provider",
+          "model"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "prompt"
+            ]
+          },
+          {
+            "required": [
+              "messages"
+            ]
+          }
+        ],
+        "properties": {
+          "externalUserId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^sandbox_"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "google"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:/-]+$"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "messages": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {}
+          }
+        }
+      },
+      "SandboxRunResult": {
+        "type": "object",
+        "required": [
+          "data",
+          "error"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "succeeded",
+                  "failed",
+                  "approval_required"
+                ]
+              },
+              "risk": {
+                "type": "string",
+                "enum": [
+                  "read",
+                  "write",
+                  "destructive"
+                ]
+              },
+              "serviceId": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "result": {},
+              "text": {
+                "type": "string"
+              },
+              "finishReason": {
+                "type": "string"
+              },
+              "approvalRequests": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "responseMessages": {
+                "type": "array",
+                "items": {}
+              },
+              "usage": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "code"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "hint": {
+                    "type": "string"
+                  },
+                  "docUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "statusCode": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 599
+                  }
+                }
               }
             }
           },

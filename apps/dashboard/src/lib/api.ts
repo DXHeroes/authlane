@@ -12,12 +12,7 @@ export class DashboardApiError extends Error {
   readonly hint?: string;
   readonly docUrl?: string;
 
-  constructor(
-    message: string,
-    code: string,
-    hint?: string,
-    docUrl?: string
-  ) {
+  constructor(message: string, code: string, hint?: string, docUrl?: string) {
     super(message);
     this.name = 'DashboardApiError';
     this.code = code;

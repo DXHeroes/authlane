@@ -21,9 +21,9 @@ const expectedCounts = {
   hubspot: 4,
   jira: 6,
   linear: 5,
-  'microsoft-calendar': 8,
-  'microsoft-mail': 8,
-  'microsoft-sharepoint': 8,
+  'microsoft-calendar': 13,
+  'microsoft-mail': 14,
+  'microsoft-sharepoint': 17,
   notion: 15,
   pipedrive: 29,
   salesforce: 5,
@@ -72,13 +72,13 @@ function sortedDefinitions(manifests: IntegrationManifest[]) {
 }
 
 describe('canonical integration contracts', () => {
-  it('contains the exact 18-service and 189-tool inventory', () => {
+  it('contains the exact 18-service and 209-tool inventory', () => {
     const manifests = readManifests();
 
     expect(
       Object.fromEntries(manifests.map(({ serviceId, tools }) => [serviceId, tools.length]))
     ).toEqual(expectedCounts);
-    expect(manifests.flatMap(({ tools }) => tools)).toHaveLength(189);
+    expect(manifests.flatMap(({ tools }) => tools)).toHaveLength(209);
   });
 
   it('uses unique IDs and JSON object input schemas', () => {

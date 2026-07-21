@@ -36,6 +36,9 @@ JSON_PROVIDER_SERVICES = frozenset(
         "hubspot",
         "jira",
         "linear",
+        "microsoft-calendar",
+        "microsoft-mail",
+        "microsoft-sharepoint",
         "notion",
         "pipedrive",
         "salesforce",
@@ -52,10 +55,10 @@ def _provider_headers(service_id: str, tool_name: str) -> dict[str, str]:
         }
     if service_id == "stripe":
         return {"Content-Type": "application/x-www-form-urlencoded"}
-    if service_id == "google-drive" and tool_name in {
+    if (service_id == "google-drive" and tool_name in {
         "gdrive_download_file",
         "gdrive_export_file",
-    }:
+    }) or (service_id == "microsoft-sharepoint" and tool_name == "microsoft_sharepoint_download_file"):
         return {}
 
     headers = {"Content-Type": "application/json"} if service_id in JSON_PROVIDER_SERVICES else {}
@@ -1051,6 +1054,332 @@ def _stripe(tool: str, a: Mapping[str, Any]) -> RequestSpec:
     return RequestSpec("GET", root + kind, params=params)
 
 
+GRAPH_ROOT = "https://graph.microsoft.com/v1.0"
+GRAPH_MAX_FILE_BYTES = 4 * 1024 * 1024
+
+
+def _graph_id(value: Any) -> str:
+    return quote(str(value), safe="")
+
+
+def _graph_limit(value: Mapping[str, Any]) -> str:
+    return str(max(1, min(int(value.get("limit", 25)), 100)))
+
+
+def _graph_cursor(value: Mapping[str, Any], expected_path: str) -> str | None:
+    cursor = value.get("cursor")
+    if cursor is None:
+        return None
+    if not isinstance(cursor, str) or not 0 < len(cursor) <= 8_192:
+        raise ValueError("invalid cursor")
+    try:
+        padded = cursor + "=" * (-len(cursor) % 4)
+        decoded = base64.urlsafe_b64decode(padded).decode()
+        parsed = urlsplit(decoded)
+    except (ValueError, UnicodeDecodeError):
+        raise ValueError("invalid cursor") from None
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "graph.microsoft.com"
+        or parsed.port not in {None, 443}
+        or parsed.path != f"/v1.0{expected_path}"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+    ):
+        raise ValueError("invalid cursor")
+    return decoded
+
+
+def _graph_recipients(addresses: list[str]) -> list[dict[str, dict[str, str]]]:
+    return [{"emailAddress": {"address": address}} for address in addresses]
+
+
+def _microsoft_message(a: Mapping[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "subject": a["subject"],
+        "body": {
+            "contentType": "HTML" if a.get("body_type") == "html" else "Text",
+            "content": a["body"],
+        },
+        "toRecipients": _graph_recipients(cast(list[str], a["to"])),
+    }
+    if "cc" in a:
+        result["ccRecipients"] = _graph_recipients(cast(list[str], a["cc"]))
+    if "bcc" in a:
+        result["bccRecipients"] = _graph_recipients(cast(list[str], a["bcc"]))
+    return result
+
+
+def _microsoft_mail(tool: str, a: Mapping[str, Any]) -> RequestSpec:
+    if tool == "microsoft_mail_list_messages":
+        folder_id = _graph_id(a.get("folder_id", "inbox"))
+        path = f"/me/mailFolders/{folder_id}/messages"
+        cursor = _graph_cursor(a, path)
+        return RequestSpec("GET", cursor or GRAPH_ROOT + path, params=[] if cursor else [("$top", _graph_limit(a))])
+    if tool == "microsoft_mail_search_messages":
+        folder_id_value = a.get("folder_id")
+        path = (
+            f"/me/mailFolders/{_graph_id(folder_id_value)}/messages"
+            if folder_id_value
+            else "/me/messages"
+        )
+        cursor = _graph_cursor(a, path)
+        escaped = str(a["query"]).replace('"', '\\"')
+        return RequestSpec(
+            "GET",
+            cursor or GRAPH_ROOT + path,
+            params=[] if cursor else [("$search", f'"{escaped}"'), ("$top", _graph_limit(a))],
+        )
+    if tool == "microsoft_mail_get_message":
+        return RequestSpec("GET", f"{GRAPH_ROOT}/me/messages/{_graph_id(a['message_id'])}")
+    if tool == "microsoft_mail_list_folders":
+        parent = a.get("parent_folder_id")
+        path = f"/me/mailFolders/{_graph_id(parent)}/childFolders" if parent else "/me/mailFolders"
+        cursor = _graph_cursor(a, path)
+        return RequestSpec("GET", cursor or GRAPH_ROOT + path, params=[] if cursor else [("$top", _graph_limit(a))])
+    if tool == "microsoft_mail_list_attachments":
+        return RequestSpec("GET", f"{GRAPH_ROOT}/me/messages/{_graph_id(a['message_id'])}/attachments")
+    if tool == "microsoft_mail_get_attachment":
+        return RequestSpec(
+            "GET",
+            f"{GRAPH_ROOT}/me/messages/{_graph_id(a['message_id'])}/attachments/{_graph_id(a['attachment_id'])}",
+        )
+    if tool == "microsoft_mail_create_draft":
+        return RequestSpec("POST", f"{GRAPH_ROOT}/me/messages", json_body=_microsoft_message(a))
+    if tool == "microsoft_mail_update_message":
+        body: dict[str, Any] = {}
+        if "is_read" in a:
+            body["isRead"] = a["is_read"]
+        if "categories" in a:
+            body["categories"] = a["categories"]
+        if "subject" in a:
+            body["subject"] = a["subject"]
+        if "body" in a:
+            body["body"] = {
+                "contentType": "HTML" if a.get("body_type") == "html" else "Text",
+                "content": a["body"],
+            }
+        if not body:
+            raise ValueError("missing update")
+        return RequestSpec("PATCH", f"{GRAPH_ROOT}/me/messages/{_graph_id(a['message_id'])}", json_body=body)
+    if tool == "microsoft_mail_send_message":
+        return RequestSpec(
+            "POST",
+            f"{GRAPH_ROOT}/me/sendMail",
+            json_body={"message": _microsoft_message(a), "saveToSentItems": True},
+        )
+    message = _graph_id(a["message_id"])
+    if tool == "microsoft_mail_send_draft":
+        return RequestSpec("POST", f"{GRAPH_ROOT}/me/messages/{message}/send", json_body={})
+    if tool == "microsoft_mail_reply_to_message":
+        return RequestSpec("POST", f"{GRAPH_ROOT}/me/messages/{message}/reply", json_body={"comment": a["comment"]})
+    if tool == "microsoft_mail_forward_message":
+        return RequestSpec(
+            "POST",
+            f"{GRAPH_ROOT}/me/messages/{message}/forward",
+            json_body={
+                "comment": a.get("comment", ""),
+                "toRecipients": _graph_recipients(cast(list[str], a["to"])),
+            },
+        )
+    if tool == "microsoft_mail_move_message":
+        return RequestSpec(
+            "POST",
+            f"{GRAPH_ROOT}/me/messages/{message}/move",
+            json_body={"destinationId": a["destination_folder_id"]},
+        )
+    return RequestSpec("DELETE", f"{GRAPH_ROOT}/me/messages/{message}")
+
+
+def _calendar_collection(a: Mapping[str, Any], suffix: str) -> str:
+    calendar = a.get("calendar_id")
+    return f"/me/calendars/{_graph_id(calendar)}/{suffix}" if calendar else f"/me/{suffix}"
+
+
+def _microsoft_event(a: Mapping[str, Any], partial: bool = False) -> dict[str, Any]:
+    body: dict[str, Any] = {}
+    if not partial or "subject" in a:
+        body["subject"] = a["subject"]
+    if "body" in a:
+        body["body"] = {
+            "contentType": "HTML" if a.get("body_type") == "html" else "Text",
+            "content": a["body"],
+        }
+    timezone = a.get("timezone", "UTC")
+    if not partial or "start_time" in a:
+        body["start"] = {"dateTime": a["start_time"], "timeZone": timezone}
+    if not partial or "end_time" in a:
+        body["end"] = {"dateTime": a["end_time"], "timeZone": timezone}
+    if "location" in a:
+        body["location"] = {"displayName": a["location"]}
+    if "attendees" in a:
+        body["attendees"] = [
+            {"emailAddress": {"address": address}, "type": "required"}
+            for address in cast(list[str], a["attendees"])
+        ]
+    if "is_online_meeting" in a:
+        body["isOnlineMeeting"] = a["is_online_meeting"]
+        if a["is_online_meeting"]:
+            body["onlineMeetingProvider"] = "teamsForBusiness"
+    return body
+
+
+def _calendar_event_path(a: Mapping[str, Any]) -> str:
+    event = _graph_id(a["event_id"])
+    calendar = a.get("calendar_id")
+    return f"/me/calendars/{_graph_id(calendar)}/events/{event}" if calendar else f"/me/events/{event}"
+
+
+def _microsoft_calendar(tool: str, a: Mapping[str, Any]) -> RequestSpec:
+    if tool == "microsoft_calendar_list_calendars":
+        path = "/me/calendars"
+        cursor = _graph_cursor(a, path)
+        return RequestSpec("GET", cursor or GRAPH_ROOT + path, params=[] if cursor else [("$top", _graph_limit(a))])
+    if tool == "microsoft_calendar_list_events":
+        path = _calendar_collection(a, "events")
+        cursor = _graph_cursor(a, path)
+        return RequestSpec("GET", cursor or GRAPH_ROOT + path, params=[] if cursor else [("$top", _graph_limit(a))])
+    if tool == "microsoft_calendar_get_event":
+        return RequestSpec("GET", GRAPH_ROOT + _calendar_event_path(a))
+    if tool == "microsoft_calendar_get_calendar_view":
+        path = _calendar_collection(a, "calendarView")
+        cursor = _graph_cursor(a, path)
+        return RequestSpec(
+            "GET",
+            cursor or GRAPH_ROOT + path,
+            params=[] if cursor else [
+                ("startDateTime", str(a["start_time"])),
+                ("endDateTime", str(a["end_time"])),
+                ("$top", _graph_limit(a)),
+            ],
+        )
+    if tool == "microsoft_calendar_get_schedule":
+        return RequestSpec(
+            "POST",
+            f"{GRAPH_ROOT}/me/calendar/getSchedule",
+            json_body={
+                "schedules": a["schedules"],
+                "startTime": {"dateTime": a["start_time"], "timeZone": a.get("timezone", "UTC")},
+                "endTime": {"dateTime": a["end_time"], "timeZone": a.get("timezone", "UTC")},
+                "availabilityViewInterval": a.get("interval_minutes", 30),
+            },
+        )
+    if tool == "microsoft_calendar_create_calendar":
+        return RequestSpec("POST", f"{GRAPH_ROOT}/me/calendars", json_body={"name": a["name"]})
+    if tool == "microsoft_calendar_update_calendar":
+        body = _clean(a, "calendar_id")
+        if not body:
+            raise ValueError("missing update")
+        return RequestSpec("PATCH", f"{GRAPH_ROOT}/me/calendars/{_graph_id(a['calendar_id'])}", json_body=body)
+    if tool == "microsoft_calendar_delete_calendar":
+        return RequestSpec("DELETE", f"{GRAPH_ROOT}/me/calendars/{_graph_id(a['calendar_id'])}")
+    if tool == "microsoft_calendar_create_event":
+        return RequestSpec("POST", GRAPH_ROOT + _calendar_collection(a, "events"), json_body=_microsoft_event(a))
+    if tool == "microsoft_calendar_update_event":
+        body = _microsoft_event(a, True)
+        if not body:
+            raise ValueError("missing update")
+        return RequestSpec("PATCH", GRAPH_ROOT + _calendar_event_path(a), json_body=body)
+    event = _graph_id(a["event_id"])
+    if tool == "microsoft_calendar_respond_to_event":
+        response = str(a["response"])
+        if response not in {"accept", "tentativelyAccept", "decline"}:
+            raise ValueError("invalid response")
+        return RequestSpec(
+            "POST",
+            f"{GRAPH_ROOT}/me/events/{event}/{response}",
+            json_body={"comment": a.get("comment", ""), "sendResponse": a.get("send_response", True)},
+        )
+    if tool == "microsoft_calendar_cancel_event":
+        return RequestSpec("POST", f"{GRAPH_ROOT}/me/events/{event}/cancel", json_body={"comment": a.get("comment", "")})
+    return RequestSpec("DELETE", GRAPH_ROOT + _calendar_event_path(a))
+
+
+def _sharepoint_item(a: Mapping[str, Any]) -> str:
+    return f"/drives/{_graph_id(a['drive_id'])}/items/{_graph_id(a['item_id'])}"
+
+
+def _microsoft_sharepoint(tool: str, a: Mapping[str, Any]) -> RequestSpec:
+    if tool == "microsoft_sharepoint_search_sites":
+        return RequestSpec("GET", f"{GRAPH_ROOT}/sites", params=[("search", str(a["query"]))])
+    if tool == "microsoft_sharepoint_get_site":
+        return RequestSpec("GET", f"{GRAPH_ROOT}/sites/{_graph_id(a['site_id'])}")
+    if tool == "microsoft_sharepoint_list_drives":
+        return RequestSpec("GET", f"{GRAPH_ROOT}/sites/{_graph_id(a['site_id'])}/drives")
+    if tool == "microsoft_sharepoint_get_drive":
+        return RequestSpec("GET", f"{GRAPH_ROOT}/drives/{_graph_id(a['drive_id'])}")
+    if tool == "microsoft_sharepoint_list_items":
+        path = f"/drives/{_graph_id(a['drive_id'])}/items/{_graph_id(a.get('parent_item_id', 'root'))}/children"
+        cursor = _graph_cursor(a, path)
+        return RequestSpec("GET", cursor or GRAPH_ROOT + path, params=[] if cursor else [("$top", _graph_limit(a))])
+    if tool == "microsoft_sharepoint_get_item":
+        return RequestSpec("GET", GRAPH_ROOT + _sharepoint_item(a))
+    if tool == "microsoft_sharepoint_download_file":
+        return RequestSpec("GET", GRAPH_ROOT + _sharepoint_item(a) + "/content")
+    if tool == "microsoft_sharepoint_list_permissions":
+        return RequestSpec("GET", GRAPH_ROOT + _sharepoint_item(a) + "/permissions")
+    if tool == "microsoft_sharepoint_create_folder":
+        parent = _graph_id(a.get("parent_item_id", "root"))
+        behavior = a.get("conflict_behavior", "fail")
+        return RequestSpec(
+            "POST",
+            f"{GRAPH_ROOT}/drives/{_graph_id(a['drive_id'])}/items/{parent}/children",
+            json_body={
+                "name": a["folder_name"],
+                "folder": {},
+                "@microsoft.graph.conflictBehavior": behavior,
+            },
+        )
+    if tool == "microsoft_sharepoint_upload_file":
+        try:
+            content = base64.b64decode(str(a["content_base64"]), validate=True)
+        except ValueError:
+            raise ValueError("invalid file") from None
+        if not 0 < len(content) <= GRAPH_MAX_FILE_BYTES:
+            raise ValueError("invalid file")
+        parent = _graph_id(a.get("parent_item_id", "root"))
+        return RequestSpec(
+            "PUT",
+            f"{GRAPH_ROOT}/drives/{_graph_id(a['drive_id'])}/items/{parent}:/{_graph_id(a['file_name'])}:/content",
+            content=content,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+    if tool == "microsoft_sharepoint_update_item":
+        return RequestSpec("PATCH", GRAPH_ROOT + _sharepoint_item(a), json_body={"name": a["name"]})
+    if tool in {"microsoft_sharepoint_move_item", "microsoft_sharepoint_copy_item"}:
+        body = {"parentReference": {"id": a["destination_parent_item_id"]}}
+        if "name" in a:
+            body["name"] = a["name"]
+        suffix = "/copy" if tool == "microsoft_sharepoint_copy_item" else ""
+        method = "POST" if suffix else "PATCH"
+        return RequestSpec(method, GRAPH_ROOT + _sharepoint_item(a) + suffix, json_body=body)
+    if tool == "microsoft_sharepoint_create_sharing_link":
+        return RequestSpec(
+            "POST",
+            GRAPH_ROOT + _sharepoint_item(a) + "/createLink",
+            json_body={"type": a["link_type"], "scope": a["scope"]},
+        )
+    if tool == "microsoft_sharepoint_invite_users":
+        return RequestSpec(
+            "POST",
+            GRAPH_ROOT + _sharepoint_item(a) + "/invite",
+            json_body={
+                "recipients": [{"email": email} for email in cast(list[str], a["recipients"])],
+                "roles": a["roles"],
+                "message": a.get("message", ""),
+                "requireSignIn": a.get("require_sign_in", True),
+                "sendInvitation": a.get("send_invitation", True),
+            },
+        )
+    if tool == "microsoft_sharepoint_delete_permission":
+        return RequestSpec(
+            "DELETE",
+            GRAPH_ROOT + _sharepoint_item(a) + f"/permissions/{_graph_id(a['permission_id'])}",
+        )
+    return RequestSpec("DELETE", GRAPH_ROOT + _sharepoint_item(a))
+
+
 BUILDERS = {
     "airtable": _airtable,
     "discord": _discord,
@@ -1061,6 +1390,9 @@ BUILDERS = {
     "hubspot": _hubspot,
     "jira": _jira,
     "linear": _linear,
+    "microsoft-calendar": _microsoft_calendar,
+    "microsoft-mail": _microsoft_mail,
+    "microsoft-sharepoint": _microsoft_sharepoint,
     "notion": _notion,
     "pipedrive": _pipedrive,
     "salesforce": _salesforce,
@@ -1084,7 +1416,7 @@ DIRECT_PIPEDRIVE_TOOLS = frozenset(
 MCP_ONLY_TOOL_KEYS = frozenset(
     key
     for key in definition_index()
-    if key[0] in {"attio", "microsoft-calendar", "microsoft-mail", "microsoft-sharepoint"}
+    if key[0] == "attio"
     or (key[0] == "pipedrive" and key[1] not in DIRECT_PIPEDRIVE_TOOLS)
 )
 
@@ -1154,6 +1486,14 @@ def _parse_provider_response(
         return {"success": True}
     content_type = response.headers.get("content-type", "")
     if "json" not in content_type:
+        if service_id == "microsoft-sharepoint" and tool_name == "microsoft_sharepoint_download_file":
+            if len(response.content) > GRAPH_MAX_FILE_BYTES:
+                raise ValueError("provider file too large")
+            return {
+                "contentBase64": base64.b64encode(response.content).decode(),
+                "contentType": content_type or "application/octet-stream",
+                "size": len(response.content),
+            }
         if service_id == "google-drive" and tool_name in {
             "gdrive_download_file",
             "gdrive_export_file",
@@ -1170,6 +1510,12 @@ def _parse_provider_response(
             "mimeType": content_type or "application/octet-stream",
         }
     payload = response.json()
+    if service_id.startswith("microsoft-") and isinstance(payload, Mapping):
+        result = dict(payload)
+        next_link = result.pop("@odata.nextLink", None)
+        if isinstance(next_link, str):
+            result["nextCursor"] = base64.urlsafe_b64encode(next_link.encode()).decode().rstrip("=")
+        return result
     if service_id == "github" and tool_name == "github_get_file" and isinstance(payload, Mapping):
         content = payload.get("content")
         if isinstance(content, str):

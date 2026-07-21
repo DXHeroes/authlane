@@ -7,56 +7,84 @@ authType: oauth2
 
 ## Prerequisites
 
-Confirm Work IQ availability and review the official
-[Work IQ MCP overview](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/overview),
-[setup guide](https://learn.microsoft.com/microsoft-365/copilot/extensibility/work-iq/mcp/quickstart/foundry),
+Use a Microsoft Entra tenant and an account allowed to create app registrations. Review the official
+[Microsoft Graph calendar resource](https://learn.microsoft.com/graph/api/resources/calendar),
+[app registration guide](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app),
 and [Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+Use a multi-tenant account type for a SaaS serving multiple Microsoft organizations, or single
+tenant for an internal deployment.
 
 ## Self-hosted setup
 
-1. Create a multi-tenant Web app in Microsoft Entra ID.
-2. Register `https://<your-authlane-host>/api/v1/oauth/microsoft-calendar/callback`.
-3. Add delegated `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` and grant tenant consent.
-4. Create a client secret. One Entra app may serve all Microsoft services when every exact callback
-   URI is registered.
+1. Create or open a Web app in **Microsoft Entra admin center → App registrations**.
+2. Under **Authentication**, register the exact Web callback
+   `https://<your-authlane-host>/api/v1/oauth/microsoft-calendar/callback`. Leave implicit grant off.
+3. Add the delegated Microsoft Graph permissions below under **API permissions**.
+4. Grant administrator consent if the target tenant requires it.
+5. Create a client secret under **Certificates & secrets** and copy its **Value** immediately.
+
+You may reuse the Microsoft app registered for Mail or SharePoint when you add this callback and
+the Calendar permissions to that same registration.
 
 ## Configure authentication
 
-Open **Dashboard → Services → Microsoft Calendar**. Enter the Application Client ID and Client
-Secret, select read-only or full tools, and enable the service. Never expose the Client Secret to a
-browser.
+Open **Dashboard → Services → Microsoft Calendar**. Enter the Entra **Application (client) ID** as
+Client ID, enter the client secret **Value** as Client Secret, choose `read_only` or `full`, and
+enable the service. Never expose the Client Secret in frontend code.
 
 ## Scopes
 
-- `api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask` authorizes Work IQ MCP.
-- `offline_access` permits refresh tokens.
-- `openid` and `profile` identify the connected Microsoft user.
+Full policy requests:
+
+- `offline_access`
+- `openid`
+- `profile`
+- `User.Read`
+- `Calendars.ReadWrite`
+
+Read-only policy requests `Calendars.Read` instead of `Calendars.ReadWrite`. The shared identity
+scopes bind the connection and permit refresh. Check the current
+[Microsoft Graph permissions reference](https://learn.microsoft.com/graph/permissions-reference)
+when configuring tenant consent.
 
 ## Execution path
 
-The runtime prioritizes Microsoft's official MCP endpoint `https://workiq.svc.cloud.microsoft/mcp`.
-Authlane restricts calls to `/me/calendar`, `/me/calendars`, `/me/calendarView`, `/me/events`,
-`/me/findMeetingTimes`, and `/me/getSchedule`; the SaaS runtime then calls Microsoft directly.
+Microsoft lists a Calendar server in the
+[Agent 365 MCP catalog](https://learn.microsoft.com/microsoft-agent-365/developer/tooling), but the
+Frontier server is not credential-compatible with this standard delegated Graph connection. It
+requires an Agent 365 blueprint, separate MCP token audience and per-server permission, and tenant
+administration. Authlane therefore produces canonical tools whose SaaS-side adapter calls
+`https://graph.microsoft.com/v1.0` using the connected user's Graph token. Authlane is not in the
+normal calendar data path; the administrator Sandbox is the explicit testing exception.
 
 ## Available tools
 
-- `microsoft_calendar_fetch`
-- `microsoft_calendar_create_entity`
-- `microsoft_calendar_update_entity`
-- `microsoft_calendar_delete_entity`
-- `microsoft_calendar_do_action`
-- `microsoft_calendar_call_function`
-- `microsoft_calendar_get_schema`
-- `microsoft_calendar_search_paths`
+- `microsoft_calendar_list_calendars`
+- `microsoft_calendar_list_events`
+- `microsoft_calendar_get_event`
+- `microsoft_calendar_get_calendar_view`
+- `microsoft_calendar_get_schedule`
+- `microsoft_calendar_create_calendar`
+- `microsoft_calendar_update_calendar`
+- `microsoft_calendar_delete_calendar`
+- `microsoft_calendar_create_event`
+- `microsoft_calendar_update_event`
+- `microsoft_calendar_respond_to_event`
+- `microsoft_calendar_cancel_event`
+- `microsoft_calendar_delete_event`
+
+Read-only policy removes create, update, response, cancellation, and delete actions. The remaining
+write and destructive tools expose MCP annotations for runtime approval controls.
 
 ## Connection lifecycle
 
-Authlane encrypts and refreshes the OAuth credential and reports effective connection state.
-Reconnect an `expired` or `error` connection. A tool-policy change deliberately requires new
-consent so read-only and full scopes cannot drift.
+Authlane stores credentials encrypted, refreshes access tokens, and computes connected, expired, or
+error state. The Microsoft Graph upgrade intentionally expires the old Microsoft connection once;
+reconnect it to grant the correct delegated scopes. A later policy change also requires reconnecting.
 
 ## Troubleshooting
 
-- Use a Web redirect URI and match scheme, host, port, and path exactly.
-- Verify the returned token contains the Work IQ permission.
-- The connected user still needs access to the requested calendars.
+- For `AADSTS50011`, compare the registered redirect URI character-for-character with the callback.
+- Confirm the Client ID and the client secret **Value** came from the same app registration.
+- Verify the user can open the target calendar and has consented to the selected delegated scope.
+- Tenant consent policy may require an administrator to approve the Graph permissions.

@@ -435,7 +435,12 @@ export function createApp(
       options?.rateLimitStore ?? new MemoryRateLimitStore()
     )
   );
-  app.route('/api/v1', createApiRouter(db, cacheStore));
+  const internalFetch: typeof fetch = async (input, init) => app.fetch(new Request(input, init));
+  const internalAppHost = appHosts.map((host) => host.trim()).find(Boolean) ?? 'app.authlane.io';
+  app.route(
+    '/api/v1',
+    createApiRouter(db, cacheStore, undefined, internalFetch, `https://${internalAppHost}`)
+  );
 
   app.all('/api/*', (c) => c.json(errorResult(Errors.notFound('API route', c.req.path)), 404));
 

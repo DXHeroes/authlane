@@ -23,6 +23,9 @@ x-app-environment: &app-environment
   RATE_LIMIT_WINDOW_MS:
   RESEND_API_KEY:
   EMAIL_FROM:
+  OPENAI_API_KEY:
+  ANTHROPIC_API_KEY:
+  GOOGLE_GENERATIVE_AI_API_KEY:
 
 services:
   migrate:

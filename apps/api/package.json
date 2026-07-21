@@ -14,12 +14,18 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.16",
+    "@ai-sdk/google": "^4.0.19",
+    "@ai-sdk/openai": "^4.0.16",
+    "@authlane/ai": "workspace:*",
     "@authlane/crypto": "workspace:*",
     "@authlane/database": "workspace:*",
     "@authlane/email": "workspace:*",
     "@authlane/integration-contracts": "workspace:*",
+    "@authlane/sdk": "workspace:*",
     "@authlane/shared": "workspace:*",
     "@hono/node-server": "^1.19.14",
+    "ai": "^7.0.31",
     "better-auth": "^1.6.23",
     "bullmq": "^5.80.5",
     "drizzle-orm": "0.45.2",

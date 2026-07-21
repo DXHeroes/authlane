@@ -34,7 +34,7 @@ def test_typescript_fixture_covers_all_tools_defaults_and_optional_branches() ->
 
     assert PARITY_DOCUMENT["schemaVersion"] == 2
     assert PARITY_DOCUMENT["generator"]["source"] == ("integrations/*/tools.ts exported handlers")
-    assert len(canonical_tools) == 189
+    assert len(canonical_tools) == 209
     assert len(fixture_tools) == 108
     assert fixture_tools <= canonical_tools
     assert len(PARITY_CASES) >= 1000

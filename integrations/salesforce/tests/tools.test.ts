@@ -20,9 +20,7 @@ describe('salesforce Integration Tools', () => {
     await tools.salesforce_query.handler({ query: 'SELECT Id FROM Account' }, mockCredentials);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /^https:\/\/acme\.my\.salesforce\.com\/services\/data\/v58\.0\/query/
-      ),
+      expect.stringMatching(/^https:\/\/acme\.my\.salesforce\.com\/services\/data\/v58\.0\/query/),
       expect.any(Object)
     );
   });

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ def test_executor_registry_matches_all_canonical_tools_exactly() -> None:
         for tool in integration["tools"]
     }
 
-    assert len(expected) == 189
+    assert len(expected) == 209
     assert set(EXECUTOR_REGISTRY) == expected
     assert {service for service, _ in EXECUTOR_REGISTRY} == {
         "airtable",
@@ -72,6 +73,8 @@ def test_every_canonical_executor_builds_and_sends_a_native_provider_request() -
             arguments = _required_example(tool["inputSchema"])
             if tool["name"] == "jira_transition_issue":
                 arguments["transitionId"] = "transition-1"
+            if tool["name"] == "microsoft_sharepoint_upload_file":
+                arguments["content_base64"] = "eA=="
             credential: dict[str, Any] = {
                 "type": "oauth2",
                 "accessToken": "provider-secret",
@@ -91,6 +94,45 @@ def test_every_canonical_executor_builds_and_sends_a_native_provider_request() -
             executed.add(key)
 
     assert executed == set(EXECUTOR_REGISTRY) - MCP_ONLY_TOOL_KEYS
+
+
+def test_microsoft_mail_executes_directly_against_graph() -> None:
+    requests: list[httpx.Request] = []
+
+    def graph(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"value": []})
+
+    result = EXECUTOR_REGISTRY[("microsoft-mail", "microsoft_mail_list_messages")](
+        service_id="microsoft-mail",
+        tool_name="microsoft_mail_list_messages",
+        arguments={"folder_id": "inbox", "limit": 25},
+        credential={"type": "oauth2", "accessToken": "graph-secret"},
+        transport=httpx.MockTransport(graph),
+    )
+
+    assert result.error is None
+    assert len(requests) == 1
+    assert requests[0].url.host == "graph.microsoft.com"
+    assert requests[0].url.path == "/v1.0/me/mailFolders/inbox/messages"
+    assert requests[0].headers["authorization"] == "Bearer graph-secret"
+
+
+def test_microsoft_graph_cursor_cannot_leave_the_exact_collection_path() -> None:
+    cursor = base64.urlsafe_b64encode(
+        b"https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages/other-resource"
+    ).decode().rstrip("=")
+
+    result = EXECUTOR_REGISTRY[("microsoft-mail", "microsoft_mail_list_messages")](
+        service_id="microsoft-mail",
+        tool_name="microsoft_mail_list_messages",
+        arguments={"folder_id": "inbox", "cursor": cursor},
+        credential={"type": "oauth2", "accessToken": "graph-secret"},
+        transport=httpx.MockTransport(lambda _request: pytest.fail("provider must not be called")),
+    )
+
+    assert result.error is not None
+    assert result.error.code == "PROVIDER_ERROR"
 
 
 def test_generic_sync_tool_gets_fresh_lease_then_calls_provider_directly() -> None:
@@ -450,7 +492,18 @@ def _required_example(schema: dict[str, Any]) -> Any:
     schema_type = schema.get("type")
     if schema_type == "object":
         properties = schema.get("properties", {})
-        return {name: _required_example(properties[name]) for name in schema.get("required", [])}
+        result = {name: _required_example(properties[name]) for name in schema.get("required", [])}
+        minimum = schema.get("minProperties", 0)
+        for name in properties:
+            if len(result) >= minimum:
+                break
+            if name not in result:
+                result[name] = _required_example(properties[name])
+        alternatives = schema.get("anyOf", [])
+        if alternatives:
+            for name in alternatives[0].get("required", []):
+                result[name] = _required_example(properties[name])
+        return result
     if schema_type == "array":
         return [_required_example(schema.get("items", {}))]
     if schema_type == "number" or schema_type == "integer":

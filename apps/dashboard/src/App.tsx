@@ -14,6 +14,7 @@ import OrganizationPage from '@/pages/OrganizationPage';
 import ReauthPage from '@/pages/ReauthPage';
 import RegisterPage from '@/pages/RegisterPage';
 import SecurityPage from '@/pages/SecurityPage';
+import SandboxPage from '@/pages/SandboxPage';
 import ServiceDetailPage from '@/pages/ServiceDetailPage';
 import ServicesPage from '@/pages/ServicesPage';
 import SettingsPage from '@/pages/SettingsPage';
@@ -130,6 +131,7 @@ function AppRoutes() {
         <Route path="connections" element={<ConnectionsPage />} />
         <Route path="services" element={<ServicesPage />} />
         <Route path="services/:id" element={<ServiceDetailPage />} />
+        <Route path="sandbox" element={<SandboxPage />} />
         <Route path="api-keys" element={<ApiKeysPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="security" element={<SecurityPage />} />

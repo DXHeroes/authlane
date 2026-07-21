@@ -12,6 +12,7 @@
 - [Connect a user](https://authlane.io/docs/guides/connect-user): Create, render, expire, and safely retry an origin-bound hosted connect session.
 - [Connection lifecycle and status](https://authlane.io/docs/guides/connection-lifecycle): Interpret connection states and recover through refresh, reconnect, and disconnect flows.
 - [Load user-scoped tools](https://authlane.io/docs/guides/user-tools): Bind an authenticated external user, select an adapter, and run provider tools locally.
+- [Test connections in Sandbox](https://authlane.io/docs/guides/sandbox): Validate a dedicated test identity with the same SDK, credential leases, tools, and Vercel AI SDK adapter used in production.
 - [Receive lifecycle webhooks](https://authlane.io/docs/guides/webhooks): Verify signed connection lifecycle events and process retries idempotently.
 - [Production hardening](https://authlane.io/docs/guides/production-hardening): Protect authenticated AI routes with bounded input, exact origins, rate limits, and redacted logs.
 - [TypeScript SDK](https://authlane.io/docs/sdk/typescript): Use the server-only TypeScript SDK for catalog, connection, capability, and tool workflows.

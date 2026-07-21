@@ -3715,57 +3715,8 @@ export const integrationContractV1: IntegrationContractV1 = {
       "serviceId": "microsoft-calendar",
       "tools": [
         {
-          "name": "microsoft_calendar_call_function",
-          "description": "Call a Microsoft calendar function",
-          "annotations": {
-            "readOnlyHint": true,
-            "destructiveHint": false,
-            "idempotentHint": true,
-            "openWorldHint": true
-          },
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "functionUrl": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "functionUrl"
-            ],
-            "additionalProperties": false
-          }
-        },
-        {
-          "name": "microsoft_calendar_create_entity",
-          "description": "Create a Microsoft calendar entity",
-          "annotations": {
-            "readOnlyHint": false,
-            "destructiveHint": false,
-            "idempotentHint": false,
-            "openWorldHint": true
-          },
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "parentUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
-                "type": "string",
-                "description": "JSON-encoded request body"
-              }
-            },
-            "required": [
-              "parentUrl",
-              "jsonBody"
-            ],
-            "additionalProperties": false
-          }
-        },
-        {
-          "name": "microsoft_calendar_delete_entity",
-          "description": "Delete a Microsoft calendar entity",
+          "name": "microsoft_calendar_cancel_event",
+          "description": "Cancel an event and notify attendees",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": true,
@@ -3775,19 +3726,26 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrl": {
-                "type": "string"
+              "event_id": {
+                "type": "string",
+                "description": "Event ID",
+                "minLength": 1
+              },
+              "comment": {
+                "type": "string",
+                "description": "Cancellation comment",
+                "maxLength": 10000
               }
             },
             "required": [
-              "entityUrl"
+              "event_id"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_calendar_do_action",
-          "description": "Execute a Microsoft calendar action",
+          "name": "microsoft_calendar_create_calendar",
+          "description": "Create a Microsoft calendar",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": false,
@@ -3797,50 +3755,148 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "actionUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
+              "name": {
                 "type": "string",
-                "description": "Optional JSON-encoded request body"
+                "description": "Calendar name",
+                "minLength": 1,
+                "maxLength": 255
               }
             },
             "required": [
-              "actionUrl"
+              "name"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_calendar_fetch",
-          "description": "Read Microsoft calendar entities",
+          "name": "microsoft_calendar_create_event",
+          "description": "Create a Microsoft calendar event",
           "annotations": {
-            "readOnlyHint": true,
+            "readOnlyHint": false,
             "destructiveHint": false,
-            "idempotentHint": true,
+            "idempotentHint": false,
             "openWorldHint": true
           },
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrls": {
+              "calendar_id": {
+                "type": "string",
+                "description": "Calendar ID; omit for the default calendar"
+              },
+              "subject": {
+                "type": "string",
+                "description": "Event title",
+                "maxLength": 998
+              },
+              "body": {
+                "type": "string",
+                "description": "Event body",
+                "maxLength": 1000000
+              },
+              "body_type": {
+                "type": "string",
+                "description": "Event body format",
+                "enum": [
+                  "text",
+                  "html"
+                ],
+                "default": "text"
+              },
+              "start_time": {
+                "type": "string",
+                "description": "Event start date-time in ISO 8601 format"
+              },
+              "end_time": {
+                "type": "string",
+                "description": "Event end date-time in ISO 8601 format"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA or Microsoft time zone",
+                "default": "UTC"
+              },
+              "location": {
+                "type": "string",
+                "description": "Event location",
+                "maxLength": 1000
+              },
+              "attendees": {
                 "type": "array",
+                "description": "Attendee email addresses",
                 "items": {
                   "type": "string"
                 },
-                "minItems": 1,
-                "maxItems": 20
+                "maxItems": 100
+              },
+              "is_online_meeting": {
+                "type": "boolean",
+                "description": "Create or retain an online meeting"
               }
             },
             "required": [
-              "entityUrls"
+              "subject",
+              "start_time",
+              "end_time"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_calendar_get_schema",
-          "description": "Get the Work IQ schema for a Microsoft calendar operation",
+          "name": "microsoft_calendar_delete_calendar",
+          "description": "Delete a Microsoft calendar",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "calendar_id": {
+                "type": "string",
+                "description": "Calendar ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "calendar_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_delete_event",
+          "description": "Delete a Microsoft calendar event",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "description": "Event ID",
+                "minLength": 1
+              },
+              "calendar_id": {
+                "type": "string",
+                "description": "Calendar ID; omit for the default calendar"
+              }
+            },
+            "required": [
+              "event_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_get_calendar_view",
+          "description": "List events in a time range",
           "annotations": {
             "readOnlyHint": true,
             "destructiveHint": false,
@@ -3850,36 +3906,40 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "path": {
+              "start_time": {
                 "type": "string",
-                "description": "Calendar resource path such as /me/events"
+                "description": "Range start in ISO 8601 format"
               },
-              "operationType": {
+              "end_time": {
                 "type": "string",
-                "enum": [
-                  "fetch",
-                  "create",
-                  "update"
-                ]
+                "description": "Range end in ISO 8601 format"
               },
-              "format": {
+              "calendar_id": {
                 "type": "string",
-                "enum": [
-                  "jsonschema",
-                  "typescript"
-                ]
+                "description": "Calendar ID; omit for the default calendar"
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Maximum events to return",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor returned by a previous call"
               }
             },
             "required": [
-              "path",
-              "operationType"
+              "start_time",
+              "end_time"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_calendar_search_paths",
-          "description": "Search Work IQ Microsoft calendar paths",
+          "name": "microsoft_calendar_get_event",
+          "description": "Get one Microsoft calendar event",
           "annotations": {
             "readOnlyHint": true,
             "destructiveHint": false,
@@ -3888,13 +3948,134 @@ export const integrationContractV1: IntegrationContractV1 = {
           },
           "inputSchema": {
             "type": "object",
-            "properties": {},
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "description": "Event ID",
+                "minLength": 1
+              },
+              "calendar_id": {
+                "type": "string",
+                "description": "Calendar ID; omit for the default calendar"
+              }
+            },
+            "required": [
+              "event_id"
+            ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_calendar_update_entity",
-          "description": "Update a Microsoft calendar entity",
+          "name": "microsoft_calendar_get_schedule",
+          "description": "Get free/busy availability",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "schedules": {
+                "type": "array",
+                "description": "Mailbox addresses to check",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "start_time": {
+                "type": "string",
+                "description": "Range start in ISO 8601 format"
+              },
+              "end_time": {
+                "type": "string",
+                "description": "Range end in ISO 8601 format"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "Requested result time zone",
+                "default": "UTC"
+              },
+              "interval_minutes": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 1440,
+                "default": 30
+              }
+            },
+            "required": [
+              "schedules",
+              "start_time",
+              "end_time"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_list_calendars",
+          "description": "List Microsoft calendars",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "description": "Maximum calendars to return",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor returned by a previous call"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_list_events",
+          "description": "List events in a Microsoft calendar",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "calendar_id": {
+                "type": "string",
+                "description": "Calendar ID; omit for the default calendar"
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Maximum events to return",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor returned by a previous call"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_respond_to_event",
+          "description": "Accept, tentatively accept, or decline an event",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": false,
@@ -3904,17 +4085,220 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
+              "event_id": {
                 "type": "string",
-                "description": "JSON-encoded request body"
+                "description": "Event ID",
+                "minLength": 1
+              },
+              "response": {
+                "type": "string",
+                "description": "Response",
+                "enum": [
+                  "accept",
+                  "tentativelyAccept",
+                  "decline"
+                ]
+              },
+              "comment": {
+                "type": "string",
+                "description": "Optional response comment",
+                "maxLength": 10000
+              },
+              "send_response": {
+                "type": "boolean",
+                "description": "Send the response to the organizer"
               }
             },
             "required": [
-              "entityUrl",
-              "jsonBody"
+              "event_id",
+              "response"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_update_calendar",
+          "description": "Update a Microsoft calendar",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "calendar_id": {
+                "type": "string",
+                "description": "Calendar ID",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "description": "New calendar name",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "color": {
+                "type": "string",
+                "description": "Microsoft calendar color"
+              }
+            },
+            "required": [
+              "calendar_id"
+            ],
+            "anyOf": [
+              {
+                "properties": {
+                  "name": true
+                },
+                "required": [
+                  "name"
+                ]
+              },
+              {
+                "properties": {
+                  "color": true
+                },
+                "required": [
+                  "color"
+                ]
+              }
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_calendar_update_event",
+          "description": "Update a Microsoft calendar event",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "description": "Event ID",
+                "minLength": 1
+              },
+              "calendar_id": {
+                "type": "string",
+                "description": "Calendar ID; omit for the default calendar"
+              },
+              "subject": {
+                "type": "string",
+                "description": "Event title",
+                "maxLength": 998
+              },
+              "body": {
+                "type": "string",
+                "description": "Event body",
+                "maxLength": 1000000
+              },
+              "body_type": {
+                "type": "string",
+                "description": "Event body format",
+                "enum": [
+                  "text",
+                  "html"
+                ],
+                "default": "text"
+              },
+              "start_time": {
+                "type": "string",
+                "description": "Event start date-time in ISO 8601 format"
+              },
+              "end_time": {
+                "type": "string",
+                "description": "Event end date-time in ISO 8601 format"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA or Microsoft time zone",
+                "default": "UTC"
+              },
+              "location": {
+                "type": "string",
+                "description": "Event location",
+                "maxLength": 1000
+              },
+              "attendees": {
+                "type": "array",
+                "description": "Attendee email addresses",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "is_online_meeting": {
+                "type": "boolean",
+                "description": "Create or retain an online meeting"
+              }
+            },
+            "required": [
+              "event_id"
+            ],
+            "anyOf": [
+              {
+                "properties": {
+                  "subject": true
+                },
+                "required": [
+                  "subject"
+                ]
+              },
+              {
+                "properties": {
+                  "body": true
+                },
+                "required": [
+                  "body"
+                ]
+              },
+              {
+                "properties": {
+                  "start_time": true
+                },
+                "required": [
+                  "start_time"
+                ]
+              },
+              {
+                "properties": {
+                  "end_time": true
+                },
+                "required": [
+                  "end_time"
+                ]
+              },
+              {
+                "properties": {
+                  "location": true
+                },
+                "required": [
+                  "location"
+                ]
+              },
+              {
+                "properties": {
+                  "attendees": true
+                },
+                "required": [
+                  "attendees"
+                ]
+              },
+              {
+                "properties": {
+                  "is_online_meeting": true
+                },
+                "required": [
+                  "is_online_meeting"
+                ]
+              }
             ],
             "additionalProperties": false
           }
@@ -3926,30 +4310,8 @@ export const integrationContractV1: IntegrationContractV1 = {
       "serviceId": "microsoft-mail",
       "tools": [
         {
-          "name": "microsoft_mail_call_function",
-          "description": "Call a Microsoft mail function",
-          "annotations": {
-            "readOnlyHint": true,
-            "destructiveHint": false,
-            "idempotentHint": true,
-            "openWorldHint": true
-          },
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "functionUrl": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "functionUrl"
-            ],
-            "additionalProperties": false
-          }
-        },
-        {
-          "name": "microsoft_mail_create_entity",
-          "description": "Create a Microsoft mail entity",
+          "name": "microsoft_mail_create_draft",
+          "description": "Create a Microsoft mail draft",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": false,
@@ -3959,24 +4321,61 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "parentUrl": {
-                "type": "string"
+              "to": {
+                "type": "array",
+                "description": "Recipient email addresses",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
               },
-              "jsonBody": {
+              "cc": {
+                "type": "array",
+                "description": "CC recipient email addresses",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "bcc": {
+                "type": "array",
+                "description": "BCC recipient email addresses",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "subject": {
                 "type": "string",
-                "description": "JSON-encoded request body"
+                "description": "Message subject",
+                "maxLength": 998
+              },
+              "body": {
+                "type": "string",
+                "description": "Message body",
+                "maxLength": 1000000
+              },
+              "body_type": {
+                "type": "string",
+                "description": "Message body format",
+                "enum": [
+                  "text",
+                  "html"
+                ],
+                "default": "text"
               }
             },
             "required": [
-              "parentUrl",
-              "jsonBody"
+              "to",
+              "subject",
+              "body"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_mail_delete_entity",
-          "description": "Delete a Microsoft mail entity",
+          "name": "microsoft_mail_delete_message",
+          "description": "Delete a Microsoft mail message",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": true,
@@ -3986,19 +4385,21 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrl": {
-                "type": "string"
+              "message_id": {
+                "type": "string",
+                "description": "Message ID",
+                "minLength": 1
               }
             },
             "required": [
-              "entityUrl"
+              "message_id"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_mail_do_action",
-          "description": "Execute a Microsoft mail action",
+          "name": "microsoft_mail_forward_message",
+          "description": "Forward a Microsoft mail message",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": false,
@@ -4008,50 +4409,35 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "actionUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
+              "message_id": {
                 "type": "string",
-                "description": "Optional JSON-encoded request body"
-              }
-            },
-            "required": [
-              "actionUrl"
-            ],
-            "additionalProperties": false
-          }
-        },
-        {
-          "name": "microsoft_mail_fetch",
-          "description": "Read Microsoft mail entities",
-          "annotations": {
-            "readOnlyHint": true,
-            "destructiveHint": false,
-            "idempotentHint": true,
-            "openWorldHint": true
-          },
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "entityUrls": {
+                "description": "Message ID",
+                "minLength": 1
+              },
+              "to": {
                 "type": "array",
+                "description": "Recipient email addresses",
                 "items": {
                   "type": "string"
                 },
-                "minItems": 1,
-                "maxItems": 20
+                "maxItems": 100
+              },
+              "comment": {
+                "type": "string",
+                "description": "Optional forwarding comment",
+                "maxLength": 1000000
               }
             },
             "required": [
-              "entityUrls"
+              "message_id",
+              "to"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_mail_get_schema",
-          "description": "Get the Work IQ schema for a Microsoft mail operation",
+          "name": "microsoft_mail_get_attachment",
+          "description": "Get one Microsoft mail attachment",
           "annotations": {
             "readOnlyHint": true,
             "destructiveHint": false,
@@ -4061,36 +4447,27 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "path": {
+              "message_id": {
                 "type": "string",
-                "description": "Mail resource path such as /me/messages"
+                "description": "Message ID",
+                "minLength": 1
               },
-              "operationType": {
+              "attachment_id": {
                 "type": "string",
-                "enum": [
-                  "fetch",
-                  "create",
-                  "update"
-                ]
-              },
-              "format": {
-                "type": "string",
-                "enum": [
-                  "jsonschema",
-                  "typescript"
-                ]
+                "description": "Attachment ID",
+                "minLength": 1
               }
             },
             "required": [
-              "path",
-              "operationType"
+              "message_id",
+              "attachment_id"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_mail_search_paths",
-          "description": "Search Work IQ Microsoft mail paths",
+          "name": "microsoft_mail_get_message",
+          "description": "Get one Microsoft mail message",
           "annotations": {
             "readOnlyHint": true,
             "destructiveHint": false,
@@ -4099,13 +4476,111 @@ export const integrationContractV1: IntegrationContractV1 = {
           },
           "inputSchema": {
             "type": "object",
-            "properties": {},
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "description": "Message ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "message_id"
+            ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_mail_update_entity",
-          "description": "Update a Microsoft mail entity",
+          "name": "microsoft_mail_list_attachments",
+          "description": "List attachments for a Microsoft mail message",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "description": "Message ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "message_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_list_folders",
+          "description": "List Microsoft mail folders",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "parent_folder_id": {
+                "type": "string",
+                "description": "Optional parent folder ID"
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Maximum folders to return",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor returned by a previous call"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_list_messages",
+          "description": "List messages in a Microsoft mail folder",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "folder_id": {
+                "type": "string",
+                "description": "Mail folder ID",
+                "default": "inbox"
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Maximum messages to return",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor returned by a previous call"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_move_message",
+          "description": "Move a Microsoft mail message to another folder",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": false,
@@ -4115,17 +4590,268 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
+              "message_id": {
                 "type": "string",
-                "description": "JSON-encoded request body"
+                "description": "Message ID",
+                "minLength": 1
+              },
+              "destination_folder_id": {
+                "type": "string",
+                "description": "Destination mail folder ID",
+                "minLength": 1
               }
             },
             "required": [
-              "entityUrl",
-              "jsonBody"
+              "message_id",
+              "destination_folder_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_reply_to_message",
+          "description": "Reply to a Microsoft mail message",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "description": "Message ID",
+                "minLength": 1
+              },
+              "comment": {
+                "type": "string",
+                "description": "Reply body",
+                "minLength": 1,
+                "maxLength": 1000000
+              }
+            },
+            "required": [
+              "message_id",
+              "comment"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_search_messages",
+          "description": "Search Microsoft mail messages",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Microsoft mail search query",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "folder_id": {
+                "type": "string",
+                "description": "Optional mail folder ID"
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Maximum messages to return",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor returned by a previous call"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_send_draft",
+          "description": "Send an existing Microsoft mail draft",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "description": "Draft message ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "message_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_send_message",
+          "description": "Send a Microsoft mail message",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "array",
+                "description": "Recipient email addresses",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "cc": {
+                "type": "array",
+                "description": "CC recipient email addresses",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "bcc": {
+                "type": "array",
+                "description": "BCC recipient email addresses",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "subject": {
+                "type": "string",
+                "description": "Message subject",
+                "maxLength": 998
+              },
+              "body": {
+                "type": "string",
+                "description": "Message body",
+                "maxLength": 1000000
+              },
+              "body_type": {
+                "type": "string",
+                "description": "Message body format",
+                "enum": [
+                  "text",
+                  "html"
+                ],
+                "default": "text"
+              }
+            },
+            "required": [
+              "to",
+              "subject",
+              "body"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_mail_update_message",
+          "description": "Update safe mutable fields on a Microsoft message or draft",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "description": "Message ID",
+                "minLength": 1
+              },
+              "is_read": {
+                "type": "boolean",
+                "description": "Whether the message is marked as read"
+              },
+              "categories": {
+                "type": "array",
+                "description": "Outlook category names",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              },
+              "subject": {
+                "type": "string",
+                "description": "Draft subject",
+                "maxLength": 998
+              },
+              "body": {
+                "type": "string",
+                "description": "Draft body",
+                "maxLength": 1000000
+              },
+              "body_type": {
+                "type": "string",
+                "description": "Draft body format",
+                "enum": [
+                  "text",
+                  "html"
+                ],
+                "default": "text"
+              }
+            },
+            "required": [
+              "message_id"
+            ],
+            "anyOf": [
+              {
+                "properties": {
+                  "is_read": true
+                },
+                "required": [
+                  "is_read"
+                ]
+              },
+              {
+                "properties": {
+                  "categories": true
+                },
+                "required": [
+                  "categories"
+                ]
+              },
+              {
+                "properties": {
+                  "subject": true
+                },
+                "required": [
+                  "subject"
+                ]
+              },
+              {
+                "properties": {
+                  "body": true
+                },
+                "required": [
+                  "body"
+                ]
+              }
             ],
             "additionalProperties": false
           }
@@ -4137,30 +4863,8 @@ export const integrationContractV1: IntegrationContractV1 = {
       "serviceId": "microsoft-sharepoint",
       "tools": [
         {
-          "name": "microsoft_sharepoint_call_function",
-          "description": "Call a Microsoft sharepoint function",
-          "annotations": {
-            "readOnlyHint": true,
-            "destructiveHint": false,
-            "idempotentHint": true,
-            "openWorldHint": true
-          },
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "functionUrl": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "functionUrl"
-            ],
-            "additionalProperties": false
-          }
-        },
-        {
-          "name": "microsoft_sharepoint_create_entity",
-          "description": "Create a Microsoft sharepoint entity",
+          "name": "microsoft_sharepoint_copy_item",
+          "description": "Copy a Microsoft drive item",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": false,
@@ -4170,24 +4874,133 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "parentUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
+              "drive_id": {
                 "type": "string",
-                "description": "JSON-encoded request body"
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              },
+              "destination_parent_item_id": {
+                "type": "string",
+                "description": "Destination parent item ID",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "description": "Optional copied item name",
+                "maxLength": 255
               }
             },
             "required": [
-              "parentUrl",
-              "jsonBody"
+              "drive_id",
+              "item_id",
+              "destination_parent_item_id"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_sharepoint_delete_entity",
-          "description": "Delete a Microsoft sharepoint entity",
+          "name": "microsoft_sharepoint_create_folder",
+          "description": "Create a folder in a Microsoft drive",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "parent_item_id": {
+                "type": "string",
+                "description": "Parent item ID",
+                "default": "root"
+              },
+              "folder_name": {
+                "type": "string",
+                "description": "Folder name",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "conflict_behavior": {
+                "type": "string",
+                "description": "Name conflict behavior",
+                "enum": [
+                  "fail",
+                  "rename",
+                  "replace"
+                ],
+                "default": "fail"
+              }
+            },
+            "required": [
+              "drive_id",
+              "folder_name"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_create_sharing_link",
+          "description": "Create a sharing link for a Microsoft drive item",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              },
+              "link_type": {
+                "type": "string",
+                "description": "Sharing link type",
+                "enum": [
+                  "view",
+                  "edit"
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "description": "Sharing scope",
+                "enum": [
+                  "anonymous",
+                  "organization",
+                  "users"
+                ]
+              }
+            },
+            "required": [
+              "drive_id",
+              "item_id",
+              "link_type",
+              "scope"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_delete_item",
+          "description": "Delete a Microsoft drive item",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": true,
@@ -4197,45 +5010,63 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrl": {
-                "type": "string"
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
               }
             },
             "required": [
-              "entityUrl"
+              "drive_id",
+              "item_id"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_sharepoint_do_action",
-          "description": "Execute a Microsoft sharepoint action",
+          "name": "microsoft_sharepoint_delete_permission",
+          "description": "Delete a permission from a Microsoft drive item",
           "annotations": {
             "readOnlyHint": false,
-            "destructiveHint": false,
+            "destructiveHint": true,
             "idempotentHint": false,
             "openWorldHint": true
           },
           "inputSchema": {
             "type": "object",
             "properties": {
-              "actionUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
+              "drive_id": {
                 "type": "string",
-                "description": "Optional JSON-encoded request body"
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              },
+              "permission_id": {
+                "type": "string",
+                "description": "Permission ID",
+                "minLength": 1
               }
             },
             "required": [
-              "actionUrl"
+              "drive_id",
+              "item_id",
+              "permission_id"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_sharepoint_fetch",
-          "description": "Read Microsoft sharepoint entities",
+          "name": "microsoft_sharepoint_download_file",
+          "description": "Download a small Microsoft drive file",
           "annotations": {
             "readOnlyHint": true,
             "destructiveHint": false,
@@ -4245,24 +5076,170 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrls": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "drive_id",
+              "item_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_get_drive",
+          "description": "Get one Microsoft drive",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "drive_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_get_item",
+          "description": "Get one Microsoft drive item",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "drive_id",
+              "item_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_get_site",
+          "description": "Get one SharePoint site",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "site_id": {
+                "type": "string",
+                "description": "Site ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "site_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_invite_users",
+          "description": "Grant users access to a Microsoft drive item",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              },
+              "recipients": {
                 "type": "array",
+                "description": "Recipient email addresses",
                 "items": {
                   "type": "string"
                 },
+                "maxItems": 100
+              },
+              "roles": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "write"
+                  ]
+                },
                 "minItems": 1,
-                "maxItems": 20
+                "maxItems": 2
+              },
+              "message": {
+                "type": "string",
+                "description": "Optional invitation message",
+                "maxLength": 10000
+              },
+              "require_sign_in": {
+                "type": "boolean",
+                "description": "Require recipients to sign in"
+              },
+              "send_invitation": {
+                "type": "boolean",
+                "description": "Send invitation email"
               }
             },
             "required": [
-              "entityUrls"
+              "drive_id",
+              "item_id",
+              "recipients",
+              "roles"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_sharepoint_get_schema",
-          "description": "Get the Work IQ schema for a Microsoft sharepoint operation",
+          "name": "microsoft_sharepoint_list_drives",
+          "description": "List drives in a SharePoint site",
           "annotations": {
             "readOnlyHint": true,
             "destructiveHint": false,
@@ -4272,36 +5249,21 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "path": {
+              "site_id": {
                 "type": "string",
-                "description": "SharePoint or Drive path such as /me/drive"
-              },
-              "operationType": {
-                "type": "string",
-                "enum": [
-                  "fetch",
-                  "create",
-                  "update"
-                ]
-              },
-              "format": {
-                "type": "string",
-                "enum": [
-                  "jsonschema",
-                  "typescript"
-                ]
+                "description": "Site ID",
+                "minLength": 1
               }
             },
             "required": [
-              "path",
-              "operationType"
+              "site_id"
             ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_sharepoint_search_paths",
-          "description": "Search Work IQ Microsoft sharepoint paths",
+          "name": "microsoft_sharepoint_list_items",
+          "description": "List children of a Microsoft drive item",
           "annotations": {
             "readOnlyHint": true,
             "destructiveHint": false,
@@ -4310,13 +5272,68 @@ export const integrationContractV1: IntegrationContractV1 = {
           },
           "inputSchema": {
             "type": "object",
-            "properties": {},
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "parent_item_id": {
+                "type": "string",
+                "description": "Parent item ID",
+                "default": "root"
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Maximum items to return",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor returned by a previous call"
+              }
+            },
+            "required": [
+              "drive_id"
+            ],
             "additionalProperties": false
           }
         },
         {
-          "name": "microsoft_sharepoint_update_entity",
-          "description": "Update a Microsoft sharepoint entity",
+          "name": "microsoft_sharepoint_list_permissions",
+          "description": "List permissions for a Microsoft drive item",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "drive_id",
+              "item_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_move_item",
+          "description": "Move a Microsoft drive item",
           "annotations": {
             "readOnlyHint": false,
             "destructiveHint": false,
@@ -4326,17 +5343,135 @@ export const integrationContractV1: IntegrationContractV1 = {
           "inputSchema": {
             "type": "object",
             "properties": {
-              "entityUrl": {
-                "type": "string"
-              },
-              "jsonBody": {
+              "drive_id": {
                 "type": "string",
-                "description": "JSON-encoded request body"
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              },
+              "destination_parent_item_id": {
+                "type": "string",
+                "description": "Destination parent item ID",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "description": "Optional new item name",
+                "maxLength": 255
               }
             },
             "required": [
-              "entityUrl",
-              "jsonBody"
+              "drive_id",
+              "item_id",
+              "destination_parent_item_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_search_sites",
+          "description": "Search SharePoint sites",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Site search query",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_update_item",
+          "description": "Rename a Microsoft drive item",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "item_id": {
+                "type": "string",
+                "description": "Drive item ID",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "description": "New item name",
+                "minLength": 1,
+                "maxLength": 255
+              }
+            },
+            "required": [
+              "drive_id",
+              "item_id",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "microsoft_sharepoint_upload_file",
+          "description": "Upload a small file to a Microsoft drive",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "type": "string",
+                "description": "Drive ID",
+                "minLength": 1
+              },
+              "parent_item_id": {
+                "type": "string",
+                "description": "Parent item ID",
+                "default": "root"
+              },
+              "file_name": {
+                "type": "string",
+                "description": "File name",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "content_base64": {
+                "type": "string",
+                "description": "Base64-encoded file content",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "drive_id",
+              "file_name",
+              "content_base64"
             ],
             "additionalProperties": false
           }

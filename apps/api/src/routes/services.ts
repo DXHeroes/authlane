@@ -21,9 +21,7 @@ export function createServicesRouter(db: Database) {
       const allServices = await db
         .select()
         .from(services)
-        .where(
-          and(eq(services.enabled, true), inArray(services.id, [...SUPPORTED_SERVICE_IDS]))
-        );
+        .where(and(eq(services.enabled, true), inArray(services.id, [...SUPPORTED_SERVICE_IDS])));
 
       return c.json({
         data: allServices,

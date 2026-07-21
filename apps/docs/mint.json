@@ -58,6 +58,7 @@
         "guides/connect-user",
         "guides/connection-lifecycle",
         "guides/user-tools",
+        "guides/sandbox",
         "guides/webhooks",
         "guides/production-hardening"
       ]

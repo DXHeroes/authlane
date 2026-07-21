@@ -732,7 +732,7 @@ export function validateIntegrationPages(model, integrationConfigs) {
         ? /credential-compatible|does not accept an Authlane bearer|not credential-compatible/i.test(
             executionSection
           )
-        : /no official provider MCP server/i.test(executionSection);
+        : /no official provider MCP server|not credential-compatible/i.test(executionSection);
       if (!explainsDirectExecution) {
         violations.push(`${slug}: execution path must explain why direct API execution is used`);
       }

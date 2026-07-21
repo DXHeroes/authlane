@@ -63,7 +63,7 @@ describe('DashboardLayout', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Authlane')).toBeInTheDocument();
+      expect(screen.getAllByText('Authlane')).toHaveLength(2);
       expect(screen.getByTestId('organization-selector')).toBeInTheDocument();
     });
 
@@ -77,6 +77,7 @@ describe('DashboardLayout', () => {
       expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Connections/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Services/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Sandbox/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /API Keys/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Members/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /^Organization$/i })).toBeInTheDocument();
@@ -128,6 +129,10 @@ describe('DashboardLayout', () => {
         'href',
         '/dashboard/api-keys'
       );
+      expect(screen.getByRole('link', { name: /Sandbox/i })).toHaveAttribute(
+        'href',
+        '/dashboard/sandbox'
+      );
       expect(screen.getByRole('link', { name: /Members/i })).toHaveAttribute(
         'href',
         '/dashboard/members'
@@ -150,7 +155,7 @@ describe('DashboardLayout', () => {
       );
 
       const connectionsLink = screen.getByRole('link', { name: /Connections/i });
-      expect(connectionsLink).toHaveClass('bg-primary', 'text-primary-foreground');
+      expect(connectionsLink).toHaveClass('bg-muted', 'text-foreground');
     });
 
     it('applies inactive styles to non-active routes', () => {
@@ -161,8 +166,8 @@ describe('DashboardLayout', () => {
       );
 
       const connectionsLink = screen.getByRole('link', { name: /Connections/i });
-      expect(connectionsLink).not.toHaveClass('bg-primary');
-      expect(connectionsLink).toHaveClass('text-foreground');
+      expect(connectionsLink).not.toHaveClass('bg-muted');
+      expect(connectionsLink).toHaveClass('text-muted-foreground');
     });
   });
 
@@ -301,6 +306,20 @@ describe('DashboardLayout', () => {
   });
 
   describe('Accessibility', () => {
+    it('keeps the mobile close control above the navigation overlay', async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <DashboardLayout />
+        </MemoryRouter>
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Open navigation' }));
+
+      expect(screen.getByRole('button', { name: 'Close navigation' })).toHaveClass('z-50');
+      expect(screen.getByRole('button', { name: 'Close navigation overlay' })).toHaveClass('z-30');
+    });
+
     it('has proper navigation structure with nav element', () => {
       const { container } = render(
         <MemoryRouter>

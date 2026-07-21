@@ -331,9 +331,9 @@ export function SandboxAgentWorkspace({ externalUserId }: { externalUserId: stri
   }
 
   return (
-    <div className="@container">
+    <div>
       <section className="flex flex-col gap-6" aria-labelledby="sandbox-ai-chat-title">
-        <div className="flex flex-col gap-4 border-b border-foreground/10 pb-5 @3xl:flex-row @3xl:items-end @3xl:justify-between">
+        <div className="flex flex-col gap-4 border-b border-foreground/10 pb-5 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 id="sandbox-ai-chat-title" className="text-balance text-xl font-semibold">
@@ -351,7 +351,7 @@ export function SandboxAgentWorkspace({ externalUserId }: { externalUserId: stri
             type="button"
             onClick={resetChat}
             disabled={state.runs.length === 0 && state.draft.length === 0}
-            className={`${secondaryButtonClass} self-start gap-1.5 pl-2 pr-3 @3xl:self-auto`}
+            className={`${secondaryButtonClass} self-start gap-1.5 pl-2 pr-3 md:self-auto`}
           >
             <ArrowPathIcon className="size-4 shrink-0 fill-current" aria-hidden="true" />
             New chat
@@ -359,7 +359,7 @@ export function SandboxAgentWorkspace({ externalUserId }: { externalUserId: stri
           </button>
         </div>
 
-        <div className="grid gap-4 @3xl:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <label
             className="flex min-w-0 flex-col gap-2 font-medium"
             htmlFor="sandbox-agent-provider"
@@ -402,7 +402,7 @@ export function SandboxAgentWorkspace({ externalUserId }: { externalUserId: stri
           </label>
         </div>
 
-        <div className="grid min-w-0 gap-6 @5xl:grid-cols-[3fr_2fr] @5xl:items-start">
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[3fr_2fr] xl:items-start">
           <div className="min-w-0 overflow-hidden rounded-lg bg-background ring-1 ring-foreground/10">
             <div
               className="flex min-h-[28rem] max-h-[38rem] flex-col gap-5 overflow-y-auto p-4 sm:p-5"

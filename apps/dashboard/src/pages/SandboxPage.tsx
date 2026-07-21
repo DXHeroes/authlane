@@ -248,8 +248,8 @@ export default function SandboxPage() {
             </div>
 
             {activeTab === 'tool' ? (
-              <div className="@container">
-                <div className="grid gap-8 @4xl:grid-cols-[3fr_2fr]">
+              <div>
+                <div className="grid gap-8 xl:grid-cols-[3fr_2fr]">
                   <div className="flex min-w-0 flex-col gap-5">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <label className="flex flex-col gap-2 font-medium" htmlFor="sandbox-service">

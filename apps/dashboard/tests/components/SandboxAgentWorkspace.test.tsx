@@ -13,6 +13,15 @@ vi.mock('@/lib/api', async () => {
 describe('SandboxAgentWorkspace', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('uses viewport breakpoints emitted by the dashboard Tailwind configuration', () => {
+    render(<SandboxAgentWorkspace externalUserId="sandbox_user" />);
+
+    const conversation = screen.getByRole('log', { name: 'Conversation' });
+    const splitWorkspace = conversation.parentElement?.parentElement;
+    expect(splitWorkspace).toHaveClass('xl:grid-cols-[3fr_2fr]', 'xl:items-start');
+    expect(screen.getByRole('complementary')).toHaveClass('xl:sticky', 'xl:top-6');
+  });
+
   it('sends a multi-turn canonical thread and locks the model until reset', async () => {
     vi.mocked(apiModule.api.post)
       .mockResolvedValueOnce({

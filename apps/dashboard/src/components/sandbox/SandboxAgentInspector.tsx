@@ -52,7 +52,7 @@ export function SandboxAgentInspector({ snapshot }: { snapshot: AgentRunSnapshot
   const active = tabs[activeIndex] ?? tabs[0];
 
   return (
-    <aside className="min-w-0 self-start overflow-hidden rounded-lg bg-neutral-950 text-neutral-100 ring-1 ring-black/10 dark:ring-white/10 @5xl:sticky @5xl:top-6">
+    <aside className="min-w-0 self-start overflow-hidden rounded-lg bg-neutral-950 text-neutral-100 ring-1 ring-black/10 xl:sticky xl:top-6 dark:ring-white/10">
       <div className="flex items-center gap-2 border-b border-white/10 p-3">
         <CommandLineIcon className="size-4 shrink-0 fill-neutral-400" aria-hidden="true" />
         <h2 className="font-mono text-base font-medium sm:text-sm">Run JSON</h2>

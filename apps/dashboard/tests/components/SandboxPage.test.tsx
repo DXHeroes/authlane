@@ -42,6 +42,10 @@ describe('SandboxPage', () => {
     expect(await screen.findByRole('heading', { name: 'github_create_issue' })).toBeInTheDocument();
     expect(screen.getByText('Approval required')).toBeInTheDocument();
     expect(screen.getByText(/dedicated test identity/i)).toBeInTheDocument();
+    const toolSplit = screen
+      .getByRole('heading', { name: 'Tool output' })
+      .closest('aside')?.parentElement;
+    expect(toolSplit).toHaveClass('xl:grid-cols-[3fr_2fr]');
   });
 
   it('does not execute a write tool until the operator confirms approval', async () => {

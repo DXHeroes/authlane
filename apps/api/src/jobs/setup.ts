@@ -5,7 +5,7 @@
 
 import type { Database } from '@authlane/database';
 import { refreshToken, type TokenRefreshData } from '@authlane/database';
-import { Queue, UnrecoverableError, Worker } from 'bullmq';
+import { type JobsOptions, Queue, UnrecoverableError, Worker } from 'bullmq';
 import { logger } from '../lib/logger.js';
 import { markExpiredConnections, processOutboxBatch } from './outbox.js';
 
@@ -14,6 +14,13 @@ let tokenRefreshWorker: Worker<TokenRefreshData> | null = null;
 let outboxQueue: Queue<Record<string, never>> | null = null;
 let outboxWorker: Worker<Record<string, never>> | null = null;
 let redisConnectionFailed = false;
+
+export const outboxSweepJobOptions = {
+  repeat: { every: 1_000 },
+  jobId: 'webhook-outbox-sweep',
+  removeOnComplete: true,
+  removeOnFail: 100,
+} satisfies JobsOptions;
 
 export function bullMqConnectionOptions(redisUrl: string) {
   const url = new URL(redisUrl);
@@ -138,9 +145,7 @@ export function setupJobs(db: Database, redisUrl?: string) {
     );
     outboxQueue.on('error', handleRedisError);
     outboxWorker.on('error', handleRedisError);
-    void outboxQueue
-      .add('sweep', {}, { repeat: { every: 1_000 }, jobId: 'webhook-outbox-sweep' })
-      .catch(handleRedisError);
+    void outboxQueue.add('sweep', {}, outboxSweepJobOptions).catch(handleRedisError);
 
     logger.info('Token refresh and webhook outbox workers initialized');
   } catch (error) {

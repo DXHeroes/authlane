@@ -76,6 +76,17 @@ describe('Coolify runtime configuration', () => {
     expect(compose).toContain('exec node apps/api/dist/index.js');
   });
 
+  it('gives persisted Redis enough startup headroom for legacy queue data', async () => {
+    const compose = await readFile(
+      new URL('../docker-compose.coolify.yml', import.meta.url),
+      'utf8'
+    );
+    const redisService = compose.match(/^ {2}redis:\n([\s\S]*?)(?=^volumes:)/m)?.[1] ?? '';
+
+    expect(redisService).toContain('start_period: 30s');
+    expect(redisService).toContain('memory: 1G');
+  });
+
   it('documents safe production host and signup defaults', async () => {
     const exampleEnvironment = await readFile(new URL('../.env.example', import.meta.url), 'utf8');
     const values = new Map(

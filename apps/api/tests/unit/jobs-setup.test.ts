@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bullMqConnectionOptions } from '../../src/jobs/setup.js';
+import { bullMqConnectionOptions, outboxSweepJobOptions } from '../../src/jobs/setup.js';
 
 describe('BullMQ Redis configuration', () => {
   it('preserves authentication and database selection from the Redis URL', () => {
@@ -20,5 +20,14 @@ describe('BullMQ Redis configuration', () => {
       tls: {},
     });
     expect(() => bullMqConnectionOptions('https://redis.internal')).toThrow(/redis:\/\//);
+  });
+
+  it('does not retain completed outbox sweep jobs forever', () => {
+    expect(outboxSweepJobOptions).toMatchObject({
+      repeat: { every: 1_000 },
+      jobId: 'webhook-outbox-sweep',
+      removeOnComplete: true,
+      removeOnFail: 100,
+    });
   });
 });

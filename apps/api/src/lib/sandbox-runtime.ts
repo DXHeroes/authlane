@@ -4,8 +4,8 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { vercelAI } from '@authlane/ai/vercel';
 import { createApiKey, getLookupKeyring } from '@authlane/crypto';
 import { apiKeys, type Database, eq, sandboxRuns } from '@authlane/database';
-import { Authlane } from '@authlane/sdk';
 import type { CapabilitiesResponse, MCPTool, Result, ToolRisk } from '@authlane/sdk';
+import { Authlane } from '@authlane/sdk';
 import { getToolRisk } from '@authlane/shared';
 import {
   generateText,
@@ -28,7 +28,9 @@ interface SandboxControlPlane {
   };
   user(externalUserId: string): {
     tools: {
-      list(input: { adapter: ReturnType<typeof vercelAI> }): Promise<Result<Record<string, SandboxTool>>>;
+      list(input: {
+        adapter: ReturnType<typeof vercelAI>;
+      }): Promise<Result<Record<string, SandboxTool>>>;
     };
   };
 }
@@ -52,7 +54,7 @@ interface AgentGenerationInput {
   provider: SandboxProvider;
   model: string;
   prompt?: string;
-  messages?: unknown[];
+  messages?: ModelMessage[];
   tools: ToolSet;
 }
 
@@ -91,7 +93,7 @@ export interface SandboxAgentRunInput {
   provider: SandboxProvider;
   model: string;
   prompt?: string;
-  messages?: unknown[];
+  messages?: ModelMessage[];
 }
 
 function findTool(
@@ -168,9 +170,10 @@ export function createSandboxRuntime(dependencies: SandboxRuntimeDependencies) {
           return { status: 'succeeded', risk, result };
         });
       } catch (error) {
-        const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message)
-          ? error.message
-          : 'SANDBOX_TOOL_FAILED';
+        const code =
+          error instanceof Error && /^[A-Z0-9_]+$/.test(error.message)
+            ? error.message
+            : 'SANDBOX_TOOL_FAILED';
         response = { status: 'failed', error: { code, message: 'Sandbox tool execution failed.' } };
       }
 
@@ -268,7 +271,10 @@ export function createDatabaseSandboxRuntime(
   internalBaseUrl = 'https://app.authlane.io'
 ) {
   return createSandboxRuntime({
-    async withControlPlane<T>(organizationId: string, run: (client: SandboxControlPlane) => Promise<T>) {
+    async withControlPlane<T>(
+      organizationId: string,
+      run: (client: SandboxControlPlane) => Promise<T>
+    ) {
       const id = `sandbox_${crypto.randomUUID().replaceAll('-', '')}`;
       const issued = createApiKey(id, getLookupKeyring());
       await db.insert(apiKeys).values({
@@ -313,9 +319,7 @@ export function createDatabaseSandboxRuntime(
         model: languageModel(input.provider, input.model),
         system:
           'You are testing the connected tools for one dedicated Authlane sandbox identity. Use tools only when needed. Never invent provider data.',
-        ...(input.messages
-          ? { messages: input.messages as ModelMessage[] }
-          : { prompt: input.prompt ?? '' }),
+        ...(input.messages ? { messages: input.messages } : { prompt: input.prompt ?? '' }),
         tools: input.tools,
         stopWhen: stepCountIs(6),
       });

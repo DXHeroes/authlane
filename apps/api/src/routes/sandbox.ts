@@ -2,6 +2,7 @@ import { and, type Database, eq, member } from '@authlane/database';
 import { Errors, isSupportedServiceId, isValidServiceId, isValidUserId } from '@authlane/shared';
 import { type Context, Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
+import { parseSandboxMessages } from '../lib/sandbox-messages.js';
 import type { createSandboxRuntime } from '../lib/sandbox-runtime.js';
 
 type SandboxRuntime = ReturnType<typeof createSandboxRuntime>;
@@ -28,7 +29,9 @@ async function requireSandboxAdmin(c: Context, db: Database) {
   if (!membership || !['owner', 'admin'].includes(membership.role)) {
     return {
       error: c.json(
-        errorResult(Errors.insufficientScope('Only organization owners and admins can use Sandbox')),
+        errorResult(
+          Errors.insufficientScope('Only organization owners and admins can use Sandbox')
+        ),
         403
       ),
     };
@@ -122,16 +125,15 @@ export function createSandboxRouter(db: Database, runtime: SandboxRuntime) {
     const messages = body.messages;
     const validPrompt =
       typeof prompt === 'string' && prompt.trim().length > 0 && prompt.length <= 20_000;
-    const validMessages =
-      Array.isArray(messages) && messages.length > 0 && messages.length <= 40;
+    const parsedMessages = messages === undefined ? undefined : parseSandboxMessages(messages);
     if (
       !isSandboxExternalUserId(externalUserId) ||
       !['openai', 'anthropic', 'google'].includes(String(provider)) ||
       typeof model !== 'string' ||
       !/^[A-Za-z0-9._:/-]{1,128}$/.test(model) ||
-      (!validPrompt && !validMessages) ||
+      (!validPrompt && !parsedMessages) ||
       (prompt !== undefined && typeof prompt !== 'string') ||
-      (messages !== undefined && !Array.isArray(messages))
+      (messages !== undefined && !parsedMessages)
     ) {
       return c.json(errorResult(Errors.validationError('Invalid sandbox agent request')), 400);
     }
@@ -141,7 +143,7 @@ export function createSandboxRouter(db: Database, runtime: SandboxRuntime) {
       provider: provider as 'openai' | 'anthropic' | 'google',
       model,
       ...(validPrompt ? { prompt } : {}),
-      ...(validMessages ? { messages } : {}),
+      ...(parsedMessages ? { messages: parsedMessages } : {}),
     });
     return c.json({ data, error: null });
   });

@@ -123,4 +123,37 @@ describe('sandbox runtime', () => {
     expect(result.approvalRequests).toHaveLength(1);
     expect(JSON.stringify(audit.mock.calls)).not.toContain('Secret prompt content');
   });
+
+  it('forwards exact canonical history without writing content to audit metadata', async () => {
+    const audit = vi.fn(async () => undefined);
+    const generateAgent = vi.fn(async () => ({
+      text: 'Second response',
+      finishReason: 'stop',
+      content: [],
+      responseMessages: [{ role: 'assistant', content: 'Second response' }],
+      usage: { inputTokens: 12, outputTokens: 2, totalTokens: 14 },
+    }));
+    const runtime = createSandboxRuntime({
+      withControlPlane: async (_organizationId, run) => run(controlPlane(vi.fn()) as never),
+      audit,
+      generateAgent,
+    });
+    const messages = [
+      { role: 'user' as const, content: 'Secret first turn' },
+      { role: 'assistant' as const, content: 'First response' },
+      { role: 'user' as const, content: 'Secret second turn' },
+    ];
+
+    await runtime.runAgent({
+      organizationId: 'org_1',
+      actorUserId: 'owner_1',
+      externalUserId: 'sandbox_user',
+      provider: 'google',
+      model: 'gemini-2.5-flash',
+      messages,
+    });
+
+    expect(generateAgent).toHaveBeenCalledWith(expect.objectContaining({ messages }));
+    expect(JSON.stringify(audit.mock.calls)).not.toContain('Secret');
+  });
 });

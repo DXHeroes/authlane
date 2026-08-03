@@ -46,7 +46,22 @@ function hashDefinitions(value: unknown): string {
 export class IntegrationRegistry {
   private readonly entries = new Map<string, Promise<RegistryEntry>>();
 
-  constructor(private readonly loader: IntegrationModuleLoader) {}
+  /**
+   * @param scope Confines the cache to one tenant.
+   *
+   * A built-in service id such as `github` is the same string for every organization, but its tool
+   * list is not: a provider MCP catalogue is discovered per organization. Without a scope, the first
+   * organization to list its tools would fill the cache for all of them.
+   */
+  constructor(
+    private readonly loader: IntegrationModuleLoader,
+    private readonly scope?: string
+  ) {}
+
+  private cacheKey(serviceId: string): string {
+    // A NUL separator cannot occur in either half, so no pair of values can collide.
+    return this.scope ? `${this.scope}\u0000${serviceId}` : serviceId;
+  }
 
   async warm(serviceIds: string[]): Promise<void> {
     await Promise.all([...new Set(serviceIds)].map((serviceId) => this.loadEntry(serviceId)));
@@ -60,7 +75,7 @@ export class IntegrationRegistry {
    * this the registry would serve the contract captured at boot forever.
    */
   invalidate(serviceId: string): void {
-    this.entries.delete(serviceId);
+    this.entries.delete(this.cacheKey(serviceId));
   }
 
   async getTools(
@@ -103,7 +118,8 @@ export class IntegrationRegistry {
   }
 
   private loadEntry(serviceId: string): Promise<RegistryEntry> {
-    const existing = this.entries.get(serviceId);
+    const key = this.cacheKey(serviceId);
+    const existing = this.entries.get(key);
     if (existing) {
       return existing;
     }
@@ -135,7 +151,7 @@ export class IntegrationRegistry {
         },
       };
     });
-    this.entries.set(serviceId, loading);
+    this.entries.set(key, loading);
     return loading;
   }
 }

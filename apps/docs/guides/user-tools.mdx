@@ -60,6 +60,30 @@ Adapter approval policies are separate from service filtering:
 | `'destructive'` | tools that delete or overwrite |
 | `'write-and-destructive'` | every tool that changes something |
 
+## Tools discovered from the provider
+
+Most services run an MCP server of their own, and Authlane already prefers it when a tool runs:
+GitHub calls go to `api.githubcopilot.com`, Attio's to `mcp.attio.com`. Those servers offer far more
+than Authlane hand-writes — GitHub declares eight tools in the catalog and the official endpoint
+exposes around a hundred — so Authlane asks each one for its full catalogue and offers the rest
+alongside the canonical tools.
+
+Two things follow from how that list is trusted.
+
+A tool Authlane declares keeps its reviewed annotations. The provider's own claim about the same tool
+does not override them, because a server that labelled a delete as read-only would otherwise reach a
+read-only connection.
+
+A tool only the provider offers counts as a mutation. It cannot be reviewed at discovery time, and
+trusting `readOnlyHint` from a third party is exactly the failure the reviewed annotations exist to
+prevent. **A read-only service therefore offers precisely the canonical tools it always did** —
+discovery adds nothing to it. Set the service to the full tool set to reach the wider surface.
+
+Discovery runs in the background, twice a day, and never on the path that lists tools: listing
+issues no credentials, and asking a provider requires an access token. A provider that is
+unreachable changes nothing — the last catalogue stands, and a service that has never been
+discovered simply offers the canonical tools.
+
 ## Expected result
 
 `tools` is native to the selected framework and permanently scoped to this user snapshot.
@@ -73,6 +97,10 @@ errors to the model instead of provider response bodies or credentials.
 
 Never serialize or share the executable toolset, cache it across users, or accept the external user
 ID from model arguments. Provider execution stays in the SaaS runtime and bypasses Authlane.
+
+Discovering a provider's catalogue sends that user's access token to the provider's own MCP endpoint,
+the same endpoint their tool calls already reach. Nothing else leaves Authlane, and a discovered
+catalogue is stored per organization, never shared between tenants.
 
 ## Next step
 

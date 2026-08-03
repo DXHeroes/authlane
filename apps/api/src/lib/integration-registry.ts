@@ -1,5 +1,6 @@
+import { getProviderMcpPolicy } from '@authlane/ai';
 import type { Database } from '@authlane/database';
-import { isMcpServerId, readMcpServerTools } from '@authlane/database';
+import { isMcpServerId, readMcpServerTools, readProviderTools } from '@authlane/database';
 import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
 import {
   DEMO_SERVICE_ID,
@@ -7,6 +8,7 @@ import {
   getToolRisk,
   IntegrationRegistry,
   type IntegrationTools,
+  mergeProviderTools,
 } from '@authlane/shared';
 
 type PublicToolDefinitions =
@@ -24,8 +26,16 @@ function resolveToolDefinitions(serviceId: string): PublicToolDefinitions {
   return publicToolDefinitionsByService[serviceId as keyof typeof publicToolDefinitionsByService];
 }
 
-function builtInIntegration(serviceId: string): IntegrationTools {
-  const definitions = resolveToolDefinitions(serviceId);
+type ToolDefinition = PublicToolDefinitions[number];
+
+function builtInIntegration(
+  serviceId: string,
+  discovered: readonly ToolDefinition[] = []
+): IntegrationTools {
+  const definitions = [
+    ...resolveToolDefinitions(serviceId),
+    ...discovered,
+  ] as PublicToolDefinitions;
   return {
     getTools(format) {
       if (format === 'mcp') {
@@ -65,11 +75,49 @@ export const integrationRegistry = new IntegrationRegistry(async (serviceId) =>
  * `invalidate(serverId)` after a refresh. Reads happen under the caller's tenant context, so RLS
  * keeps one organization's contract out of another's tool listing.
  */
-export function createIntegrationRegistry(db: Database): IntegrationRegistry {
+export function createIntegrationRegistry(
+  db: Database,
+  organizationId?: string
+): IntegrationRegistry {
   return new IntegrationRegistry(async (serviceId) => {
     if (isMcpServerId(serviceId)) {
       return discoveredToolsToIntegration(await readMcpServerTools(db, serviceId));
     }
-    return builtInIntegration(serviceId);
-  });
+    return builtInIntegration(serviceId, await providerAdditions(db, organizationId, serviceId));
+  }, organizationId);
+}
+
+/**
+ * Tools the provider's own MCP server offers beyond Authlane's contract.
+ *
+ * Read from the database, never from the provider: the listing path issues no credentials, and the
+ * worker keeps this table current. A service with no discovery yet, or one whose last discovery
+ * failed, simply contributes nothing and the contract stands on its own.
+ */
+async function providerAdditions(
+  db: Database,
+  organizationId: string | undefined,
+  serviceId: string
+): Promise<ToolDefinition[]> {
+  const policy = getProviderMcpPolicy(serviceId);
+  if (!organizationId || !policy) return [];
+
+  const discovered = await readProviderTools(db, organizationId, serviceId);
+  if (discovered.length === 0) return [];
+
+  const declared = resolveToolDefinitions(serviceId) as readonly ToolDefinition[];
+  const merged = mergeProviderTools(
+    declared.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema as Record<string, unknown>,
+      annotations: tool.annotations,
+    })),
+    discovered,
+    policy.prefixes
+  );
+
+  return merged
+    .slice(declared.length)
+    .map((tool) => ({ ...tool, serviceId }) as unknown as ToolDefinition);
 }

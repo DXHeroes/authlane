@@ -205,13 +205,23 @@ function connectionView(
   };
 }
 
+/**
+ * A registry, or a way to get the one that belongs to an organization.
+ *
+ * A built-in service's tool list is no longer the same for every tenant: a provider MCP catalogue is
+ * discovered per organization, so the registry that caches it has to be too.
+ */
+export type ToolRegistrySource = ToolRegistry | ((organizationId: string) => ToolRegistry);
+
 export function createControlPlaneRouter(
   repository: ControlPlaneRepository,
-  registry: ToolRegistry,
+  registrySource: ToolRegistrySource,
   secretStore: SecretStore,
   options: ControlPlaneRouterOptions = {}
 ) {
   const router = new Hono();
+  const registryFor = (organizationId: string): ToolRegistry =>
+    typeof registrySource === 'function' ? registrySource(organizationId) : registrySource;
   const now = options.now ?? (() => new Date());
   const createLeaseId = options.createLeaseId ?? (() => crypto.randomUUID());
 
@@ -273,6 +283,7 @@ export function createControlPlaneRouter(
       tenantServices.map((service) => [service.id, service.toolAccessPolicy])
     );
 
+    const registry = registryFor(principal.organizationId);
     const [version, servicesWithTools] = await Promise.all([
       registry.getVersion(connectedServiceIds, format, toolAccessPolicies),
       Promise.all(
@@ -341,8 +352,16 @@ export function createControlPlaneRouter(
       .filter((connection) => enabledServiceIds.has(connection.serviceId))
       .map((connection) => connection.serviceId);
     const [definitions, version] = await Promise.all([
-      registry.getTools(connectedServiceIds, format, toolAccessPolicies),
-      registry.getVersion(connectedServiceIds, format, toolAccessPolicies),
+      registryFor(principal.organizationId).getTools(
+        connectedServiceIds,
+        format,
+        toolAccessPolicies
+      ),
+      registryFor(principal.organizationId).getVersion(
+        connectedServiceIds,
+        format,
+        toolAccessPolicies
+      ),
     ]);
     return c.json({ data: { ...definitions, version }, error: null });
   });

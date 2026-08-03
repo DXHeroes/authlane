@@ -15,6 +15,7 @@ export * from './mcp-servers.js';
 export * from './oauth-transactions.js';
 export * from './organization-services.js';
 export * from './outbox-events.js';
+export * from './provider-tools.js';
 export * from './sandbox-runs.js';
 export * from './secret-records.js';
 export * from './services.js';

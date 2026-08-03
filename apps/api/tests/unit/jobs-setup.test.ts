@@ -3,6 +3,7 @@ import {
   bullMqConnectionOptions,
   mcpDiscoverySweepSchedule,
   outboxSweepSchedule,
+  providerToolsSweepSchedule,
 } from '../../src/jobs/setup.js';
 
 describe('BullMQ Redis configuration', () => {
@@ -31,6 +32,14 @@ describe('BullMQ Redis configuration', () => {
       id: 'webhook-outbox-sweep',
       repeat: { every: 1_000 },
       template: { opts: { removeOnComplete: true, removeOnFail: 100 } },
+    });
+  });
+
+  it('asks each provider for its catalogue twice a day', () => {
+    expect(providerToolsSweepSchedule).toMatchObject({
+      id: 'provider-tools-sweep',
+      repeat: { every: 12 * 60 * 60 * 1_000 },
+      template: { opts: { removeOnComplete: true, removeOnFail: 20 } },
     });
   });
 

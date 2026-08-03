@@ -64,6 +64,13 @@
       "when": 1785771000000,
       "tag": "0008_api_usage_daily",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785774000000,
+      "tag": "0009_provider_tool_discoveries",
+      "breakpoints": true
     }
   ]
 }

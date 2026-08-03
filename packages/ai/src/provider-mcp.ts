@@ -705,8 +705,24 @@ const PROVIDER_MCP_POLICIES: Readonly<Record<string, ProviderMcpPolicy>> = Objec
   },
 });
 
+/** A tool exactly as the provider's server describes it, before Authlane decides anything. */
+export interface ProviderMcpToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  /** What the server claims about itself. Never the basis for a risk decision. */
+  declaredAnnotations: Record<string, unknown> | null;
+}
+
 export interface ProviderMcpClient {
   listTools(): Promise<readonly string[]>;
+  /**
+   * The server's full catalogue.
+   *
+   * Separate from listTools because the execution path only needs to know whether a name exists,
+   * and paying for schemas on every tool call would be waste.
+   */
+  listToolDefinitions(): Promise<readonly ProviderMcpToolDefinition[]>;
   callTool(name: string, arguments_: Record<string, unknown>): Promise<unknown>;
   close(): Promise<void>;
 }
@@ -730,6 +746,15 @@ export const createProviderMcpClient: ProviderMcpClientFactory = async ({
     async listTools() {
       const result = await client.listTools();
       return result.tools.map((tool) => tool.name);
+    },
+    async listToolDefinitions() {
+      const result = await client.listTools();
+      return result.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description ?? '',
+        inputSchema: (tool.inputSchema ?? { type: 'object' }) as Record<string, unknown>,
+        declaredAnnotations: (tool.annotations ?? null) as Record<string, unknown> | null,
+      }));
     },
     callTool(name, arguments_) {
       return client.callTool({ name, arguments: arguments_ });
@@ -796,16 +821,28 @@ function extractAtlassianCloudId(value: unknown): string | undefined {
   return undefined;
 }
 
-export function getProviderMcpPolicy(
-  serviceId: string
-): { endpoint: string; requiredScope?: string; allowDirectFallback: boolean } | undefined {
+export function getProviderMcpPolicy(serviceId: string):
+  | {
+      endpoint: string;
+      requiredScope?: string;
+      allowDirectFallback: boolean;
+      /** Contract naming for this service, so a discovered tool is not offered twice. */
+      prefixes: readonly string[];
+    }
+  | undefined {
   const policy = PROVIDER_MCP_POLICIES[serviceId];
   if (!policy) return undefined;
   return {
     endpoint: policy.endpoint,
     ...(policy.requiredScope ? { requiredScope: policy.requiredScope } : {}),
     allowDirectFallback: policy.allowDirectFallback !== false,
+    prefixes: policy.prefixes,
   };
+}
+
+/** Every service Authlane can ask for a tool catalogue. Ordered, so callers are deterministic. */
+export function providerMcpServiceIds(): readonly string[] {
+  return Object.keys(PROVIDER_MCP_POLICIES).sort();
 }
 
 type ProviderMcpExecution =

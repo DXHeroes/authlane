@@ -3,8 +3,8 @@
  * Configures BullMQ for token refresh jobs
  */
 
-import type { Database } from '@authlane/database';
-import { refreshToken, type TokenRefreshData } from '@authlane/database';
+import type { Database, SecretStore } from '@authlane/database';
+import { createDatabaseSecretStore, refreshToken, type TokenRefreshData } from '@authlane/database';
 import {
   type JobSchedulerTemplateOptions,
   Queue,
@@ -17,6 +17,7 @@ import { logger } from '../lib/logger.js';
 import { createMcpDiscoveryDeps } from '../lib/mcp-discovery-deps.js';
 import { rediscoverStaleMcpServers } from './mcp-discovery.js';
 import { markExpiredConnections, processOutboxBatch } from './outbox.js';
+import { discoverProviderTools } from './provider-tool-discovery.js';
 
 let tokenRefreshQueue: Queue<TokenRefreshData> | null = null;
 let tokenRefreshWorker: Worker<TokenRefreshData> | null = null;
@@ -24,6 +25,8 @@ let outboxQueue: Queue<Record<string, never>> | null = null;
 let outboxWorker: Worker<Record<string, never>> | null = null;
 let mcpDiscoveryQueue: Queue<Record<string, never>> | null = null;
 let mcpDiscoveryWorker: Worker<Record<string, never>> | null = null;
+let providerToolsQueue: Queue<Record<string, never>> | null = null;
+let providerToolsWorker: Worker<Record<string, never>> | null = null;
 let redisConnectionFailed = false;
 
 interface JobSchedule {
@@ -86,7 +89,24 @@ function handleRedisError(_err: Error) {
 /**
  * Sets up the token refresh queue and worker
  */
-export function setupJobs(db: Database, redisUrl?: string, cache?: CacheStore) {
+/**
+ * Twice a day, against a catalogue that may be twelve hours old.
+ *
+ * Each run costs one request to each provider per organization, so the interval trades promptness
+ * for politeness towards someone else's API.
+ */
+export const providerToolsSweepSchedule = {
+  id: 'provider-tools-sweep',
+  repeat: { every: 12 * 60 * 60 * 1_000 },
+  template: { opts: { removeOnComplete: true, removeOnFail: 20 } },
+} satisfies JobSchedule;
+
+export function setupJobs(
+  db: Database,
+  redisUrl?: string,
+  cache?: CacheStore,
+  secretStore: SecretStore = createDatabaseSecretStore(db)
+) {
   if (!redisUrl) {
     logger.warn('Redis is not configured; background jobs are disabled');
     return;
@@ -202,7 +222,26 @@ export function setupJobs(db: Database, redisUrl?: string, cache?: CacheStore) {
       })
       .catch(handleRedisError);
 
-    logger.info('Token refresh, webhook outbox and MCP discovery workers initialized');
+    providerToolsQueue = new Queue<Record<string, never>>('provider-tools', {
+      connection: connectionOptions,
+    });
+    providerToolsWorker = new Worker<Record<string, never>>(
+      'provider-tools',
+      () => discoverProviderTools(db, secretStore, { cache }),
+      { connection: connectionOptions }
+    );
+    providerToolsQueue.on('error', handleRedisError);
+    providerToolsWorker.on('error', handleRedisError);
+    void providerToolsQueue
+      .upsertJobScheduler(providerToolsSweepSchedule.id, providerToolsSweepSchedule.repeat, {
+        name: 'sweep',
+        ...providerToolsSweepSchedule.template,
+      })
+      .catch(handleRedisError);
+
+    logger.info(
+      'Token refresh, webhook outbox, MCP discovery and provider tool workers initialized'
+    );
   } catch (error) {
     logger.error({ error }, 'Failed to initialize background jobs');
     if (process.env.NODE_ENV === 'production') throw error;
@@ -252,6 +291,14 @@ export async function scheduleTokenRefresh(
  * Closes job queues and workers
  */
 export async function closeJobs(): Promise<void> {
+  if (providerToolsWorker) {
+    await providerToolsWorker.close();
+    providerToolsWorker = null;
+  }
+  if (providerToolsQueue) {
+    await providerToolsQueue.close();
+    providerToolsQueue = null;
+  }
   if (mcpDiscoveryWorker) {
     await mcpDiscoveryWorker.close();
     mcpDiscoveryWorker = null;

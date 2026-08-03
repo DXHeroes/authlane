@@ -46,10 +46,20 @@ export function createApiRouter(
 
   router.use('/catalog/*', requirePrincipalKind('api_key'));
   router.use('/users/*', requirePrincipalKind('api_key'));
-  router.route(
-    '/',
-    createControlPlaneRouter(repository, createIntegrationRegistry(db), secretStore)
-  );
+  // One registry per organization, because a provider MCP catalogue is discovered per organization
+  // and a shared cache keyed on `github` would hand one tenant's catalogue to the next.
+  const registries = new Map<string, ReturnType<typeof createIntegrationRegistry>>();
+  const registryFor = (organizationId: string) => {
+    const existing = registries.get(organizationId);
+    if (existing) return existing;
+    // Bounded so a long-lived process cannot accumulate one registry per tenant that ever called.
+    if (registries.size >= 256) registries.clear();
+    const created = createIntegrationRegistry(db, organizationId);
+    registries.set(organizationId, created);
+    return created;
+  };
+
+  router.route('/', createControlPlaneRouter(repository, registryFor, secretStore));
   router.route('/', createOAuthRouter(db, secretStore));
 
   return router;

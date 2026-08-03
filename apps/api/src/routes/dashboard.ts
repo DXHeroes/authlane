@@ -744,13 +744,13 @@ export function createDashboardRouter(
         .limit(1);
 
       if (!orgService) {
-        // Return empty config if not yet configured
+        // Never configured, so it follows the platform default rather than being off.
         return c.json({
           data: {
             organizationId: org.id,
             serviceId,
-            enabled: false,
-            toolAccessPolicy: 'read_only',
+            enabled: isPlatformDefaultService(serviceId),
+            toolAccessPolicy: PLATFORM_DEFAULT_SERVICE_SETTINGS.toolAccessPolicy,
           },
           error: null,
         });

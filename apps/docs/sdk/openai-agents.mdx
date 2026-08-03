@@ -22,8 +22,8 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function answer(currentUser: { id: string }, prompt: string) {
-  const user = authlane.user(currentUser.id);
+export async function answer(userId: string, prompt: string) {
+  const user = authlane.user(userId);
   const { data: tools, error } = await user.tools.list({
     adapter: openAIAgents({ approval: 'write-and-destructive' }),
   });

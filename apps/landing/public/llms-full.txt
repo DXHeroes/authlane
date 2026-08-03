@@ -472,9 +472,9 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function createConnectUrl(currentUser: { id: string }) {
+export async function createConnectUrl(userId: string) {
   const { data, error } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     allowedServices: [],
     allowedOrigin: 'https://app.example.com',
     expiresInSeconds: 600,
@@ -533,8 +533,8 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
-export async function connectionStates(currentUser: { id: string }) {
-  const user = authlane.user(currentUser.id);
+export async function connectionStates(userId: string) {
+  const user = authlane.user(userId);
   const { data, error } = await user.connections.list();
   if (error) return { data: null, error };
   return { data, error: null };
@@ -1080,9 +1080,9 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
-export async function connectUrl(currentUser: { id: string }) {
+export async function connectUrl(userId: string) {
   const { data, error } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     allowedServices: [],
     allowedOrigin: 'https://app.example.com',
     expiresInSeconds: 600,
@@ -1266,7 +1266,7 @@ Load a user-scoped `ToolSet` and pass it directly to the Vercel AI SDK in your s
 pnpm add @authlane/sdk @authlane/ai ai zod
 ```
 
-Derive `currentUser.id` from your trusted SaaS session before calling this function.
+Derive `userId` from your trusted SaaS session before calling this function.
 
 ## Implement the workflow
 
@@ -1280,8 +1280,8 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
-  const user = authlane.user(currentUser.id);
+export async function answer(userId: string, messages: ModelMessage[]) {
+  const user = authlane.user(userId);
   const { data: tools, error } = await user.tools.list({
     adapter: vercelAI({ approval: 'write-and-destructive' }),
   });
@@ -1338,8 +1338,8 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function answer(currentUser: { id: string }, prompt: string) {
-  const user = authlane.user(currentUser.id);
+export async function answer(userId: string, prompt: string) {
+  const user = authlane.user(userId);
   const { data: tools, error } = await user.tools.list({
     adapter: openAIAgents({ approval: 'write-and-destructive' }),
   });
@@ -1400,8 +1400,8 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function answer(currentUser: { id: string }, prompt: string) {
-  const user = authlane.user(currentUser.id);
+export async function answer(userId: string, prompt: string) {
+  const user = authlane.user(userId);
   const { data: tools, error } = await user.tools.list({ adapter: mastraAI() });
   if (error) return { data: null, error };
 
@@ -1579,10 +1579,10 @@ const authlane = new Authlane({
 });
 
 export async function connectUserServer(
-  currentUser: { id: string },
+  userId: string,
   transport: Transport,
 ) {
-  const user = authlane.user(currentUser.id);
+  const user = authlane.user(userId);
   const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
   if (error) return { data: null, error };
   await server.connect(transport);
@@ -3518,9 +3518,9 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function listBoards(currentUser: { id: string }) {
+export async function listBoards(userId: string) {
   const { data: credentials, error } = await authlane.credentialLeases.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     serviceId: 'trello',
   });
   if (error) {
@@ -3530,7 +3530,7 @@ export async function listBoards(currentUser: { id: string }) {
 }
 ```
 
-For framework use, prefer an adapter override so `authlane.user(currentUser.id)` remains the
+For framework use, prefer an adapter override so `authlane.user(userId)` remains the
 identity boundary and the SDK obtains a fresh lease per invocation.
 
 ## Expected result
@@ -3814,9 +3814,9 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function connectGithub(currentUser: { id: string }) {
+export async function connectGithub(userId: string) {
   const { data, error } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     allowedServices: ['github'],
     allowedOrigin: 'https://app.example.com',
     expiresInSeconds: 600,

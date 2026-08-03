@@ -18,9 +18,9 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function createConnectUrl(currentUser: { id: string }) {
+export async function createConnectUrl(userId: string) {
   const { data, error } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     allowedServices: [],
     allowedOrigin: 'https://app.example.com',
     expiresInSeconds: 600,

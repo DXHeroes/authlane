@@ -29,9 +29,9 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function connectGithub(currentUser: { id: string }) {
+export async function connectGithub(userId: string) {
   const { data, error } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     allowedServices: ['github'],
     allowedOrigin: 'https://app.example.com',
     expiresInSeconds: 600,

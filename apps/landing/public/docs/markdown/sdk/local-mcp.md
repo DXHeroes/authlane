@@ -22,10 +22,10 @@ const authlane = new Authlane({
 });
 
 export async function connectUserServer(
-  currentUser: { id: string },
+  userId: string,
   transport: Transport,
 ) {
-  const user = authlane.user(currentUser.id);
+  const user = authlane.user(userId);
   const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
   if (error) return { data: null, error };
   await server.connect(transport);

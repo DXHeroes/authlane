@@ -15,8 +15,8 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
-export async function connectionStates(currentUser: { id: string }) {
-  const user = authlane.user(currentUser.id);
+export async function connectionStates(userId: string) {
+  const user = authlane.user(userId);
   const { data, error } = await user.connections.list();
   if (error) return { data: null, error };
   return { data, error: null };

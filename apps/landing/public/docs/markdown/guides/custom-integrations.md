@@ -49,9 +49,9 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function listBoards(currentUser: { id: string }) {
+export async function listBoards(userId: string) {
   const { data: credentials, error } = await authlane.credentialLeases.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     serviceId: 'trello',
   });
   if (error) {
@@ -61,7 +61,7 @@ export async function listBoards(currentUser: { id: string }) {
 }
 ```
 
-For framework use, prefer an adapter override so `authlane.user(currentUser.id)` remains the
+For framework use, prefer an adapter override so `authlane.user(userId)` remains the
 identity boundary and the SDK obtains a fresh lease per invocation.
 
 ## Expected result

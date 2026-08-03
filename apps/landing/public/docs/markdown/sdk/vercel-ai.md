@@ -10,7 +10,7 @@ Load a user-scoped `ToolSet` and pass it directly to the Vercel AI SDK in your s
 pnpm add @authlane/sdk @authlane/ai ai zod
 ```
 
-Derive `currentUser.id` from your trusted SaaS session before calling this function.
+Derive `userId` from your trusted SaaS session before calling this function.
 
 ## Implement the workflow
 
@@ -24,8 +24,8 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
-  const user = authlane.user(currentUser.id);
+export async function answer(userId: string, messages: ModelMessage[]) {
+  const user = authlane.user(userId);
   const { data: tools, error } = await user.tools.list({
     adapter: vercelAI({ approval: 'write-and-destructive' }),
   });

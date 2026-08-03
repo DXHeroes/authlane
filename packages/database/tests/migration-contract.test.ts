@@ -22,6 +22,10 @@ const sandboxMigration = readFileSync(
   join(import.meta.dirname, '../drizzle/0005_adorable_wolfsbane.sql'),
   'utf8'
 );
+const mcpServersMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0006_real_george_stacy.sql'),
+  'utf8'
+);
 const roles = readFileSync(join(import.meta.dirname, '../sql/roles.sql'), 'utf8');
 
 describe('control-plane migration', () => {
@@ -86,5 +90,52 @@ describe('control-plane migration', () => {
     expect(sandboxMigration).toContain('ALTER TABLE "sandbox_runs" ENABLE ROW LEVEL SECURITY');
     expect(sandboxMigration).toContain('ALTER TABLE "sandbox_runs" FORCE ROW LEVEL SECURITY');
     expect(sandboxMigration).toContain('CREATE POLICY "sandbox_runs_tenant_isolation"');
+  });
+});
+
+describe('tenant MCP server migration', () => {
+  it('isolates a tenant’s own servers', () => {
+    expect(mcpServersMigration).toContain('CREATE TABLE "mcp_servers"');
+    expect(mcpServersMigration).toContain(
+      'ALTER TABLE "mcp_servers" ENABLE ROW LEVEL SECURITY'
+    );
+    expect(mcpServersMigration).toContain('ALTER TABLE "mcp_servers" FORCE ROW LEVEL SECURITY');
+    expect(mcpServersMigration).toContain('CREATE POLICY "mcp_servers_tenant_isolation"');
+  });
+
+  it('isolates discovered tools through their server', () => {
+    // mcp_server_tools carries no organization_id of its own, so the policy has to reach the
+    // owning server. Without this, one tenant could read another tenant's tool contract.
+    expect(mcpServersMigration).toContain(
+      'ALTER TABLE "mcp_server_tools" FORCE ROW LEVEL SECURITY'
+    );
+    expect(mcpServersMigration).toContain('CREATE POLICY "mcp_server_tools_tenant_isolation"');
+    expect(mcpServersMigration).toContain('FROM "mcp_servers"');
+    expect(mcpServersMigration).toContain(
+      '"mcp_servers"."organization_id" = current_setting(\'authlane.organization_id\', true)'
+    );
+  });
+
+  it('keeps a discovered tool at write risk until a tenant lowers it', () => {
+    // A third-party server declares its own annotations. Defaulting to 'read' would let a
+    // destructive tool labelled read-only pass a tenant's read_only policy.
+    expect(mcpServersMigration).toContain('"risk" text DEFAULT \'write\' NOT NULL');
+    expect(mcpServersMigration).toContain('mcp_server_tools_risk_check');
+  });
+
+  it('refuses to enable a server before discovery succeeds', () => {
+    expect(mcpServersMigration).toContain('"enabled" boolean DEFAULT false NOT NULL');
+  });
+
+  it('pins the service-id prefix the OAuth and lease routes depend on', () => {
+    // isValidServiceId accepts only ^[a-z0-9-]+$, so the separator must be a hyphen.
+    expect(mcpServersMigration).toContain('mcp_servers_id_prefix_check');
+    expect(mcpServersMigration).toContain("like 'mcp-%'");
+  });
+
+  it('drops a server’s tools with the server', () => {
+    expect(mcpServersMigration).toContain(
+      'REFERENCES "public"."mcp_servers"("id") ON DELETE cascade'
+    );
   });
 });

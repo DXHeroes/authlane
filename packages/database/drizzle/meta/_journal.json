@@ -43,6 +43,13 @@
       "when": 1784611514929,
       "tag": "0005_adorable_wolfsbane",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785764930142,
+      "tag": "0006_real_george_stacy",
+      "breakpoints": true
     }
   ]
 }

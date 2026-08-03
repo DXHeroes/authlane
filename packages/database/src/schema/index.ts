@@ -10,6 +10,7 @@ export * from './auth.js';
 export * from './connect-sessions.js';
 // Application tables
 export * from './connections.js';
+export * from './mcp-servers.js';
 export * from './oauth-transactions.js';
 export * from './organization-services.js';
 export * from './outbox-events.js';

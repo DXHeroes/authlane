@@ -1,7 +1,6 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { organization } from './auth.js';
 import { secretRecords } from './secret-records.js';
-import { services } from './services.js';
 
 export const connections = pgTable(
   'connections',
@@ -13,9 +12,10 @@ export const connections = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
     externalUserId: text('external_user_id').notNull(),
-    serviceId: text('service_id')
-      .notNull()
-      .references(() => services.id, { onDelete: 'cascade' }),
+    // No foreign key: a service id is either a global catalog entry or one of the tenant's own
+    // MCP servers, which live in a different table. Validity is enforced by
+    // isConnectableServiceId before any write, and RLS confines rows to the owning organization.
+    serviceId: text('service_id').notNull(),
     status: text('status', {
       enum: ['pending', 'connected', 'expired', 'error'],
     })

@@ -365,7 +365,15 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         );
       }
 
-      const keyBytes = Buffer.from(apiKey, 'utf8');
+      // Stored in the same envelope shape a credential lease reads. `placement` tells the
+      // consuming runtime how to present the key; MCP servers take a bearer Authorization header.
+      const keyBytes = Buffer.from(
+        JSON.stringify({
+          api_key: apiKey,
+          placement: { type: 'header', name: 'Authorization', prefix: 'Bearer ' },
+        }),
+        'utf8'
+      );
       let credentialSecretId: string;
       try {
         credentialSecretId = await secretStore.put({

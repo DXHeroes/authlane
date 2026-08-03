@@ -1,7 +1,6 @@
 import { index, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { apiKeys } from './api-keys.js';
 import { organization } from './auth.js';
-import { services } from './services.js';
 
 export const credentialAccessLogs = pgTable(
   'credential_access_logs',
@@ -13,9 +12,9 @@ export const credentialAccessLogs = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
     externalUserId: text('external_user_id').notNull(),
-    serviceId: text('service_id')
-      .notNull()
-      .references(() => services.id, { onDelete: 'restrict' }),
+    // See connections: a service id may name a tenant MCP server, which is not in `services`.
+    // The audit row must survive anyway, so it never referenced its subject for lifetime.
+    serviceId: text('service_id').notNull(),
     apiKeyId: text('api_key_id').references(() => apiKeys.id, { onDelete: 'set null' }),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),

@@ -5,9 +5,12 @@ import {
   credentialAccessLogs,
   eq,
   inArray,
+  like,
+  or,
   organizationServices,
   services,
 } from '@authlane/database';
+import { MCP_SERVER_ID_PREFIX, listEnabledMcpServers } from '@authlane/database';
 import { getAllowedServiceIds } from '@authlane/shared';
 import type {
   ControlPlaneConnection,
@@ -40,11 +43,28 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
           inArray(services.id, getAllowedServiceIds())
         )
       );
-    return rows.map((row) => ({
+    const builtIn = rows.map((row) => ({
       ...row,
       toolAccessPolicy:
         row.toolAccessPolicy === 'full' ? ('full' as const) : ('read_only' as const),
     }));
+
+    // Servers the tenant registered itself. They are not in `services`, which is a global catalog,
+    // so without this the SDK would never surface them and no user could be offered one.
+    const tenantServers = await listEnabledMcpServers(this.db, organizationId);
+    return [
+      ...builtIn,
+      ...tenantServers.map((server) => ({
+        id: server.id,
+        name: server.name,
+        authType: server.authType,
+        enabled: true,
+        // Per-tool risk is stored on the contract, so the service-level policy stays permissive
+        // and the read_only decision is made per tool when they are issued.
+        toolAccessPolicy: 'full' as const,
+        config: {},
+      })),
+    ];
   }
 
   async listConnections(organizationId: string, externalUserId: string) {
@@ -64,7 +84,12 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         and(
           eq(connections.organizationId, organizationId),
           eq(connections.externalUserId, externalUserId),
-          inArray(connections.serviceId, getAllowedServiceIds())
+          // Built-in ids come from a fixed list; a tenant server's id is generated, so it is
+          // matched by prefix. RLS still confines the rows to this organization.
+          or(
+            inArray(connections.serviceId, getAllowedServiceIds()),
+            like(connections.serviceId, `${MCP_SERVER_ID_PREFIX}%`)
+          )
         )
       );
   }

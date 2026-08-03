@@ -50,6 +50,13 @@
       "when": 1785764930142,
       "tag": "0006_real_george_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785768000000,
+      "tag": "0007_tenant_service_ids",
+      "breakpoints": true
     }
   ]
 }

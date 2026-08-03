@@ -3,7 +3,6 @@ import { organization } from './auth.js';
 import { connectSessions } from './connect-sessions.js';
 import { connections } from './connections.js';
 import { secretRecords } from './secret-records.js';
-import { services } from './services.js';
 
 export const oauthTransactions = pgTable(
   'oauth_transactions',
@@ -20,9 +19,8 @@ export const oauthTransactions = pgTable(
     connectSessionId: text('connect_session_id')
       .notNull()
       .references(() => connectSessions.id, { onDelete: 'cascade' }),
-    serviceId: text('service_id')
-      .notNull()
-      .references(() => services.id, { onDelete: 'cascade' }),
+    // See connections: a service id may name a tenant MCP server, which is not in `services`.
+    serviceId: text('service_id').notNull(),
     stateHash: text('state_hash').notNull(),
     pkceSecretId: text('pkce_secret_id')
       .notNull()

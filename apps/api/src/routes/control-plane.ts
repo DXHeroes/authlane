@@ -10,7 +10,7 @@ import type {
 import {
   Errors,
   getEffectiveConnectionStatus,
-  isSupportedServiceId,
+  isConnectableServiceId,
   isValidServiceId,
   isValidUserId,
   validateOAuthProviderContext,
@@ -356,7 +356,7 @@ export function createControlPlaneRouter(
       if (
         !isValidUserId(externalUserId) ||
         !isValidServiceId(serviceId) ||
-        !isSupportedServiceId(serviceId)
+        !isConnectableServiceId(serviceId)
       ) {
         return c.json(
           errorResult(Errors.validationError('Invalid external user ID or service ID')),

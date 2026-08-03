@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { authClient } from '@/lib/auth-client';
 
 type State = { status: 'working' } | { status: 'failed'; message: string };

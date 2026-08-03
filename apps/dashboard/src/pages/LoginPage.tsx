@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { magicLinkErrorMessage } from '@/lib/auth-helpers';
 

@@ -5,7 +5,13 @@
 
 import type { Database } from '@authlane/database';
 import { refreshToken, type TokenRefreshData } from '@authlane/database';
-import { type JobsOptions, Queue, UnrecoverableError, Worker } from 'bullmq';
+import {
+  type JobSchedulerTemplateOptions,
+  Queue,
+  type RepeatOptions,
+  UnrecoverableError,
+  Worker,
+} from 'bullmq';
 import type { CacheStore } from '../lib/cache.js';
 import { logger } from '../lib/logger.js';
 import { createMcpDiscoveryDeps } from '../lib/mcp-discovery-deps.js';
@@ -20,12 +26,21 @@ let mcpDiscoveryQueue: Queue<Record<string, never>> | null = null;
 let mcpDiscoveryWorker: Worker<Record<string, never>> | null = null;
 let redisConnectionFailed = false;
 
-export const outboxSweepJobOptions = {
+interface JobSchedule {
+  id: string;
+  repeat: Omit<RepeatOptions, 'key'>;
+  template: { opts: JobSchedulerTemplateOptions };
+}
+
+/**
+ * BullMQ 6 removed `repeat` from job options; a recurring job is now a named scheduler that owns
+ * its own template. The scheduler id replaces the fixed jobId that used to deduplicate the repeat.
+ */
+export const outboxSweepSchedule = {
+  id: 'webhook-outbox-sweep',
   repeat: { every: 1_000 },
-  jobId: 'webhook-outbox-sweep',
-  removeOnComplete: true,
-  removeOnFail: 100,
-} satisfies JobsOptions;
+  template: { opts: { removeOnComplete: true, removeOnFail: 100 } },
+} satisfies JobSchedule;
 
 /**
  * Hourly, against a contract that may be a day old.
@@ -33,12 +48,11 @@ export const outboxSweepJobOptions = {
  * The sweep only picks up servers past that age, so the interval decides how promptly a stale
  * contract is noticed, not how often a server is contacted.
  */
-export const mcpDiscoverySweepJobOptions = {
+export const mcpDiscoverySweepSchedule = {
+  id: 'mcp-discovery-sweep',
   repeat: { every: 60 * 60 * 1_000 },
-  jobId: 'mcp-discovery-sweep',
-  removeOnComplete: true,
-  removeOnFail: 20,
-} satisfies JobsOptions;
+  template: { opts: { removeOnComplete: true, removeOnFail: 20 } },
+} satisfies JobSchedule;
 
 export function bullMqConnectionOptions(redisUrl: string) {
   const url = new URL(redisUrl);
@@ -163,7 +177,12 @@ export function setupJobs(db: Database, redisUrl?: string, cache?: CacheStore) {
     );
     outboxQueue.on('error', handleRedisError);
     outboxWorker.on('error', handleRedisError);
-    void outboxQueue.add('sweep', {}, outboxSweepJobOptions).catch(handleRedisError);
+    void outboxQueue
+      .upsertJobScheduler(outboxSweepSchedule.id, outboxSweepSchedule.repeat, {
+        name: 'sweep',
+        ...outboxSweepSchedule.template,
+      })
+      .catch(handleRedisError);
 
     const discoveryDeps = createMcpDiscoveryDeps();
     mcpDiscoveryQueue = new Queue<Record<string, never>>('mcp-discovery', {
@@ -176,7 +195,12 @@ export function setupJobs(db: Database, redisUrl?: string, cache?: CacheStore) {
     );
     mcpDiscoveryQueue.on('error', handleRedisError);
     mcpDiscoveryWorker.on('error', handleRedisError);
-    void mcpDiscoveryQueue.add('sweep', {}, mcpDiscoverySweepJobOptions).catch(handleRedisError);
+    void mcpDiscoveryQueue
+      .upsertJobScheduler(mcpDiscoverySweepSchedule.id, mcpDiscoverySweepSchedule.repeat, {
+        name: 'sweep',
+        ...mcpDiscoverySweepSchedule.template,
+      })
+      .catch(handleRedisError);
 
     logger.info('Token refresh, webhook outbox and MCP discovery workers initialized');
   } catch (error) {

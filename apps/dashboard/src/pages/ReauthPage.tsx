@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { safeDashboardReturnPath } from '@/lib/auth-helpers';
 

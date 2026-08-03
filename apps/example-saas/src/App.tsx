@@ -1,4 +1,4 @@
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Route, Routes, useLocation } from 'react-router';
 import DemoProviderPage from './pages/DemoProviderPage';
 import GitHubPage from './pages/GitHubPage';
 import HomePage from './pages/HomePage';

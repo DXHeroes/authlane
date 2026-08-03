@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import ErrorNotice from '@/components/ErrorNotice';
 import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';

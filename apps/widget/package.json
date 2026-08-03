@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@authlane/sdk": "workspace:*",
-    "lucide-react": "^0.447.0",
+    "lucide-react": "^1.28.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },

@@ -14,7 +14,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/16/solid';
 import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import CreateOrganizationModal from './CreateOrganizationModal';
 import OrganizationSelector from './OrganizationSelector';

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { bullMqConnectionOptions, outboxSweepJobOptions } from '../../src/jobs/setup.js';
+import {
+  bullMqConnectionOptions,
+  mcpDiscoverySweepSchedule,
+  outboxSweepSchedule,
+} from '../../src/jobs/setup.js';
 
 describe('BullMQ Redis configuration', () => {
   it('preserves authentication and database selection from the Redis URL', () => {
@@ -23,11 +27,18 @@ describe('BullMQ Redis configuration', () => {
   });
 
   it('does not retain completed outbox sweep jobs forever', () => {
-    expect(outboxSweepJobOptions).toMatchObject({
+    expect(outboxSweepSchedule).toMatchObject({
+      id: 'webhook-outbox-sweep',
       repeat: { every: 1_000 },
-      jobId: 'webhook-outbox-sweep',
-      removeOnComplete: true,
-      removeOnFail: 100,
+      template: { opts: { removeOnComplete: true, removeOnFail: 100 } },
+    });
+  });
+
+  it('checks tenant MCP contracts hourly and keeps only a few failures', () => {
+    expect(mcpDiscoverySweepSchedule).toMatchObject({
+      id: 'mcp-discovery-sweep',
+      repeat: { every: 60 * 60 * 1_000 },
+      template: { opts: { removeOnComplete: true, removeOnFail: 20 } },
     });
   });
 });

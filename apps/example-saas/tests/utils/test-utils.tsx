@@ -1,6 +1,6 @@
 import { type RenderOptions, render } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 
 // Custom render that includes Router
 export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {

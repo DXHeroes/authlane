@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import DashboardLayout from '@/components/DashboardLayout';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import AcceptInvitationPage from '@/pages/AcceptInvitationPage';

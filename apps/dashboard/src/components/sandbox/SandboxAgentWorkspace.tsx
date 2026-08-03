@@ -76,7 +76,7 @@ function ApprovalEntry({
   entry: Extract<ChatEntry, { kind: 'approval' }>;
   isSubmitting: boolean;
   onDecision: (approved: boolean) => void;
-  approveButtonRef: React.RefObject<HTMLButtonElement>;
+  approveButtonRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   const decided = entry.decision !== undefined;
   return (
@@ -153,7 +153,7 @@ function ConversationEntry({
   onSelectRun: (id: string) => void;
   onRetry: (id: string) => void;
   onDecision: (approved: boolean) => void;
-  approveButtonRef: React.RefObject<HTMLButtonElement>;
+  approveButtonRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   if (entry.kind === 'progress') {
     return (

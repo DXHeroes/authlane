@@ -93,14 +93,19 @@ export async function refreshToken(
         .where(
           and(
             eq(organizationServices.organizationId, data.organizationId),
-            eq(organizationServices.serviceId, data.serviceId),
-            eq(organizationServices.enabled, true)
+            eq(organizationServices.serviceId, data.serviceId)
           )
         )
         .limit(1),
     ]);
+    // A service Authlane holds credentials for is available to every organization without a row
+    // (see service-enablement in the API). Requiring one here would let such a connection be made
+    // and then refuse to refresh it, killing it about an hour later.
+    const serviceEnabled = organizationService
+      ? organizationService.enabled
+      : getPlatformOAuthCredentials(data.serviceId) !== null;
     const config = service?.config as { token_url?: string } | undefined;
-    if (!service || !organizationService || !config?.token_url) {
+    if (!service || !serviceEnabled || !config?.token_url) {
       return await failPermanently('OAuth provider is not configured', 'TOKEN_URL_MISSING');
     }
 
@@ -138,12 +143,12 @@ export async function refreshToken(
     // connection died permanently with OAUTH_REFRESH_REJECTED about an hour
     // after the user connected it. Connecting worked, staying connected did not.
     const platformCredentials = getPlatformOAuthCredentials(data.serviceId);
-    const clientId = organizationService.oauthClientId ?? platformCredentials?.clientId ?? null;
+    const clientId = organizationService?.oauthClientId ?? platformCredentials?.clientId ?? null;
     let clientSecret = '';
     if (clientId) {
       tokenBody.set('client_id', clientId);
     }
-    if (organizationService.oauthClientSecretId) {
+    if (organizationService?.oauthClientSecretId) {
       const clientSecretBuffer = await secretStore.read(
         organizationService.oauthClientSecretId,
         connection.organizationId,
@@ -154,7 +159,7 @@ export async function refreshToken(
       } finally {
         clientSecretBuffer.fill(0);
       }
-    } else if (!organizationService.oauthClientId) {
+    } else if (!organizationService?.oauthClientId) {
       // Only reach for the platform secret when the tenant has no application
       // of its own — pairing a tenant client_id with the platform secret would
       // be worse than sending neither.

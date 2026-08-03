@@ -11,7 +11,7 @@ interface FakeDatabaseOptions {
 
 function thenableQuery(result: unknown[]) {
   const query: Record<string, unknown> = {};
-  for (const method of ['from', 'innerJoin', 'where', 'orderBy', 'limit']) {
+  for (const method of ['from', 'innerJoin', 'leftJoin', 'where', 'orderBy', 'limit']) {
     query[method] = vi.fn(() => query);
   }
   // biome-ignore lint/suspicious/noThenProperty: Drizzle query builders are PromiseLike.
@@ -287,7 +287,17 @@ describe('connect-session service availability after snapshot creation', () => {
             config: { authorization_url: 'https://github.com/login/oauth/authorize' },
           },
         ],
-        [{ oauthClientId: null }],
+        // The organization enabled the service but registered no application of its own, and the
+        // platform has no credentials in the test environment either.
+        [
+          {
+            enabled: true,
+            toolAccessPolicy: 'read_only',
+            oauthClientId: null,
+            oauthClientSecretId: null,
+            customScopes: null,
+          },
+        ],
       ],
     });
 

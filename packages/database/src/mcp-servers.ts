@@ -1,8 +1,8 @@
 import type { DiscoveredTool, DiscoveredToolRisk } from '@authlane/shared';
-import { MCP_SERVER_ID_PREFIX, isMcpServerId } from '@authlane/shared';
+import { isMcpServerId, MCP_SERVER_ID_PREFIX } from '@authlane/shared';
 import { and, asc, eq } from 'drizzle-orm';
 import type { Database } from './client.js';
-import { mcpServerTools, mcpServers } from './schema/mcp-servers.js';
+import { mcpServers, mcpServerTools } from './schema/mcp-servers.js';
 
 export { MCP_SERVER_ID_PREFIX, isMcpServerId };
 
@@ -50,6 +50,50 @@ export async function readMcpServerTools(
   }));
 }
 
+export interface McpServerToolRow {
+  name: string;
+  description: string;
+  risk: DiscoveredToolRisk;
+  approved: boolean;
+  declaredAnnotations: Record<string, unknown> | null;
+  lastSeenAt: Date;
+}
+
+/**
+ * A server's full tool list for the tenant to review.
+ *
+ * Unlike {@link readMcpServerTools} this keeps the tools the tenant switched off. Hiding them would
+ * make the decision irreversible: a disapproved tool would vanish from the only screen that can
+ * approve it again.
+ */
+export async function listMcpServerToolsForReview(
+  db: Database,
+  serverId: string
+): Promise<McpServerToolRow[]> {
+  const rows = await db
+    .select({
+      name: mcpServerTools.name,
+      description: mcpServerTools.description,
+      declaredAnnotations: mcpServerTools.declaredAnnotations,
+      risk: mcpServerTools.risk,
+      approved: mcpServerTools.approved,
+      lastSeenAt: mcpServerTools.lastSeenAt,
+    })
+    .from(mcpServerTools)
+    .innerJoin(mcpServers, eq(mcpServers.id, mcpServerTools.serverId))
+    .where(eq(mcpServerTools.serverId, serverId))
+    .orderBy(asc(mcpServerTools.name));
+
+  return rows.map((row) => ({
+    name: row.name,
+    description: row.description ?? '',
+    risk: toRisk(row.risk),
+    approved: row.approved,
+    declaredAnnotations: (row.declaredAnnotations ?? null) as Record<string, unknown> | null,
+    lastSeenAt: row.lastSeenAt,
+  }));
+}
+
 /** Enabled MCP servers the organization owns, for catalog and connect-session listings. */
 export async function listEnabledMcpServers(db: Database, organizationId: string) {
   return db
@@ -61,6 +105,31 @@ export async function listEnabledMcpServers(db: Database, organizationId: string
     })
     .from(mcpServers)
     .where(and(eq(mcpServers.organizationId, organizationId), eq(mcpServers.enabled, true)))
+    .orderBy(asc(mcpServers.name));
+}
+
+/**
+ * Every server the organization registered, including the ones discovery never reached.
+ *
+ * The dashboard needs those too: a server whose first discovery failed is disabled, and if the list
+ * hid it the tenant could neither retry nor remove it — the id would only ever have existed in the
+ * response to the request that created it.
+ */
+export async function listMcpServersForOrganization(db: Database, organizationId: string) {
+  return db
+    .select({
+      id: mcpServers.id,
+      name: mcpServers.name,
+      authType: mcpServers.authType,
+      serverUrl: mcpServers.serverUrl,
+      enabled: mcpServers.enabled,
+      discoveredAt: mcpServers.discoveredAt,
+      discoveryError: mcpServers.discoveryError,
+      oauthClientId: mcpServers.oauthClientId,
+      createdAt: mcpServers.createdAt,
+    })
+    .from(mcpServers)
+    .where(eq(mcpServers.organizationId, organizationId))
     .orderBy(asc(mcpServers.name));
 }
 

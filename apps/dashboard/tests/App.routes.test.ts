@@ -11,6 +11,10 @@ describe('dashboard routes', () => {
     expect(source).toContain('accept-invitation/:invitationId');
   });
 
+  it('registers the MCP servers page the sidebar links to', () => {
+    expect(source).toContain('path="mcp-servers"');
+  });
+
   it('keeps invitation acceptance outside the organization gate', () => {
     // An invited user has no organization yet. ProtectedRoute redirects anyone with none to
     // /onboarding, so putting this route inside it would make every invitation link dead.

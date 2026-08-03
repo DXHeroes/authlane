@@ -11,29 +11,51 @@ import {
   createMcpServer,
   type Database,
   deleteMcpServer,
-  listEnabledMcpServers,
+  listMcpServersForOrganization,
+  listMcpServerToolsForReview,
   MCP_SERVER_ID_PREFIX,
-  readMcpServerTools,
   saveDiscoveryFailure,
   saveDiscoverySuccess,
   updateMcpServerTool,
 } from '@authlane/database';
 import { Errors } from '@authlane/shared';
 import { Hono } from 'hono';
-import { type McpDiscoveryDeps, discoverMcpServer } from '../lib/mcp-discovery-run.js';
+import type { CacheStore } from '../lib/cache.js';
 import { logger } from '../lib/logger.js';
+import { discoverMcpServer, type McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
 import { parseMcpServerRegistration, parseMcpToolUpdate } from '../lib/mcp-server-input.js';
 
-export function createMcpServersRouter(db: Database, discoveryDeps: McpDiscoveryDeps) {
+export function createMcpServersRouter(
+  db: Database,
+  discoveryDeps: McpDiscoveryDeps,
+  cache?: CacheStore
+) {
   const router = new Hono();
 
-  /** Every server the organization has registered, with its discovered contract. */
+  /**
+   * Drops the cached service catalog for an organization.
+   *
+   * listTenantServices is cached for five minutes, so without this a newly registered server
+   * stays invisible to the SDK for up to that long and looks broken to whoever just added it.
+   */
+  async function invalidateCatalog(organizationId: string): Promise<void> {
+    await cache?.delete(`control-plane:tenant-services:${organizationId}`);
+  }
+
+  /** Every server the organization has registered, including ones discovery has not reached. */
   router.get('/organization/mcp-servers', async (c) => {
     const org = c.get('organization');
     if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
 
-    const servers = await listEnabledMcpServers(db, org.id);
-    return c.json({ data: servers, error: null });
+    const servers = await listMcpServersForOrganization(db, org.id);
+    return c.json({
+      data: servers.map((server) => ({
+        ...server,
+        discoveredAt: server.discoveredAt?.toISOString() ?? null,
+        createdAt: server.createdAt.toISOString(),
+      })),
+      error: null,
+    });
   });
 
   router.post('/organization/mcp-servers', async (c) => {
@@ -66,13 +88,20 @@ export function createMcpServersRouter(db: Database, discoveryDeps: McpDiscovery
     if (!result.ok) {
       await saveDiscoveryFailure(db, serverId, result.message);
       return c.json(
-        { data: { id: serverId, enabled: false }, error: { code: result.code, message: result.message } },
+        {
+          data: { id: serverId, enabled: false },
+          error: { code: result.code, message: result.message },
+        },
         201
       );
     }
 
     await saveDiscoverySuccess(db, serverId, result);
-    return c.json({ data: { id: serverId, enabled: true, tools: result.tools.length }, error: null }, 201);
+    await invalidateCatalog(org.id);
+    return c.json(
+      { data: { id: serverId, enabled: true, tools: result.tools.length }, error: null },
+      201
+    );
   });
 
   /** Re-runs discovery. The host check runs again, so a server cannot turn private after the fact. */
@@ -81,7 +110,9 @@ export function createMcpServersRouter(db: Database, discoveryDeps: McpDiscovery
     if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
 
     const serverId = c.req.param('serverId');
-    const [server] = await listEnabledMcpServers(db, org.id).then((rows) =>
+    // Deliberately not restricted to enabled servers: retrying is exactly what a server whose
+    // first discovery failed needs.
+    const [server] = await listMcpServersForOrganization(db, org.id).then((rows) =>
       rows.filter((row) => row.id === serverId)
     );
     if (!server) return c.json(Errors.notFound('MCP server', serverId), 404);
@@ -93,6 +124,7 @@ export function createMcpServersRouter(db: Database, discoveryDeps: McpDiscovery
     }
 
     await saveDiscoverySuccess(db, serverId, result);
+    await invalidateCatalog(org.id);
     logger.info({ serverId, tools: result.tools.length }, 'Rediscovered tenant MCP server');
     return c.json({ data: { id: serverId, tools: result.tools.length }, error: null });
   });
@@ -101,14 +133,16 @@ export function createMcpServersRouter(db: Database, discoveryDeps: McpDiscovery
     const org = c.get('organization');
     if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
 
-    const tools = await readMcpServerTools(db, c.req.param('serverId'));
+    const tools = await listMcpServerToolsForReview(db, c.req.param('serverId'));
     return c.json({
       data: tools.map((tool) => ({
         name: tool.name,
         description: tool.description,
         risk: tool.risk,
+        approved: tool.approved,
         // Shown so a tenant can see what the server claims, next to what Authlane enforces.
         declaredAnnotations: tool.declaredAnnotations,
+        lastSeenAt: tool.lastSeenAt.toISOString(),
       })),
       error: null,
     });
@@ -134,6 +168,7 @@ export function createMcpServersRouter(db: Database, discoveryDeps: McpDiscovery
     }
 
     await updateMcpServerTool(db, c.req.param('serverId'), c.req.param('toolName'), update);
+    await invalidateCatalog(org.id);
     return c.json({ data: { updated: true }, error: null });
   });
 
@@ -142,6 +177,7 @@ export function createMcpServersRouter(db: Database, discoveryDeps: McpDiscovery
     if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
 
     await deleteMcpServer(db, c.req.param('serverId'));
+    await invalidateCatalog(org.id);
     return c.json({ data: { deleted: true }, error: null });
   });
 

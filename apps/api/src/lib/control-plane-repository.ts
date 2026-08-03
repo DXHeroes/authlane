@@ -6,11 +6,12 @@ import {
   eq,
   inArray,
   like,
+  listEnabledMcpServers,
+  MCP_SERVER_ID_PREFIX,
   or,
   organizationServices,
   services,
 } from '@authlane/database';
-import { MCP_SERVER_ID_PREFIX, listEnabledMcpServers } from '@authlane/database';
 import { getAllowedServiceIds } from '@authlane/shared';
 import type {
   ControlPlaneConnection,
@@ -19,6 +20,7 @@ import type {
 } from '../routes/control-plane.js';
 import type { CacheStore } from './cache.js';
 import { recordCacheHit, recordCacheMiss } from './metrics.js';
+import { serviceEnabledForOrganization, tenantServiceJoin } from './service-enablement.js';
 
 export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
   constructor(private readonly db: Database) {}
@@ -33,18 +35,18 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         toolAccessPolicy: organizationServices.toolAccessPolicy,
         config: services.config,
       })
-      .from(organizationServices)
-      .innerJoin(services, eq(services.id, organizationServices.serviceId))
+      .from(services)
+      .leftJoin(organizationServices, tenantServiceJoin(organizationId))
       .where(
         and(
-          eq(organizationServices.organizationId, organizationId),
-          eq(organizationServices.enabled, true),
           eq(services.enabled, true),
-          inArray(services.id, getAllowedServiceIds())
+          inArray(services.id, getAllowedServiceIds()),
+          serviceEnabledForOrganization()
         )
       );
     const builtIn = rows.map((row) => ({
       ...row,
+      enabled: true,
       toolAccessPolicy:
         row.toolAccessPolicy === 'full' ? ('full' as const) : ('read_only' as const),
     }));

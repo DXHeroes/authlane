@@ -16,7 +16,9 @@ provider scopes.
    `{serviceId}` with a shipped ID such as `github`.
 2. For local development, use `http://localhost:3000/api/v1/oauth/{serviceId}/callback`.
 3. Enable the service in the Authlane dashboard and store its client ID, encrypted client secret,
-   and approved custom scopes.
+   and approved custom scopes. Services the platform already holds credentials for are available in
+   every workspace without this step; registering your own application replaces the platform one,
+   and switching a service off in the dashboard keeps it off.
 4. Create a short-lived session from your authenticated SaaS backend:
 
 ```typescript

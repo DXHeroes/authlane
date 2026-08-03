@@ -40,6 +40,13 @@ import type { CacheStore } from '../lib/cache.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
 import { logger } from '../lib/logger.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
+import {
+  isPlatformDefaultService,
+  PLATFORM_DEFAULT_SERVICE_SETTINGS,
+  platformDefaultServiceIds,
+  serviceEnabledForOrganization,
+  tenantServiceJoin,
+} from '../lib/service-enablement.js';
 import { validateWebhookUrl } from '../lib/webhook-http.js';
 
 // Types for settings stored in organization.metadata JSONB
@@ -99,12 +106,13 @@ export function createDashboardRouter(
       if (orgId) {
         const [count_] = await db
           .select({ count: count() })
-          .from(organizationServices)
+          .from(services)
+          .leftJoin(organizationServices, tenantServiceJoin(orgId))
           .where(
             and(
-              eq(organizationServices.organizationId, orgId),
-              eq(organizationServices.enabled, true),
-              inArray(organizationServices.serviceId, getAllowedServiceIds())
+              eq(services.enabled, true),
+              inArray(services.id, getAllowedServiceIds()),
+              serviceEnabledForOrganization()
             )
           );
         enabledServicesCount = count_ || { count: 0 };
@@ -636,19 +644,36 @@ export function createDashboardRouter(
             inArray(organizationServices.serviceId, getAllowedServiceIds())
           )
         );
+      const configured = new Set(orgServicesList.map((os) => os.serviceId));
 
       return c.json({
-        data: orgServicesList.map((os) => ({
-          organizationId: os.organizationId,
-          serviceId: os.serviceId,
-          enabled: os.enabled,
-          toolAccessPolicy: os.toolAccessPolicy,
-          customClientId: os.oauthClientId,
-          // Never return secrets
-          apiKey: os.apiKeySecretId ? '********' : undefined,
-          createdAt: os.createdAt?.toISOString(),
-          updatedAt: os.updatedAt?.toISOString(),
-        })),
+        data: [
+          ...orgServicesList.map((os) => ({
+            organizationId: os.organizationId,
+            serviceId: os.serviceId,
+            enabled: os.enabled,
+            toolAccessPolicy: os.toolAccessPolicy,
+            customClientId: os.oauthClientId,
+            // Never return secrets
+            apiKey: os.apiKeySecretId ? '********' : undefined,
+            createdAt: os.createdAt?.toISOString(),
+            updatedAt: os.updatedAt?.toISOString(),
+          })),
+          // Services Authlane can authorize on its own credentials are already usable, so the
+          // dashboard has to show them as on even though this organization has no row for them.
+          ...platformDefaultServiceIds()
+            .filter((serviceId) => !configured.has(serviceId))
+            .map((serviceId) => ({
+              organizationId: org.id,
+              serviceId,
+              enabled: true,
+              toolAccessPolicy: PLATFORM_DEFAULT_SERVICE_SETTINGS.toolAccessPolicy,
+              customClientId: null,
+              apiKey: undefined,
+              createdAt: undefined,
+              updatedAt: undefined,
+            })),
+        ],
         error: null,
       });
     } catch (error) {
@@ -796,11 +821,16 @@ export function createDashboardRouter(
           )
         )
         .limit(1);
-      const effectiveEnabled = enabled ?? existing?.enabled ?? false;
-      const effectiveToolAccessPolicy =
-        toolAccessPolicy ?? existing?.toolAccessPolicy ?? 'read_only';
-      const policyChanged =
-        existing !== undefined && existing.toolAccessPolicy !== effectiveToolAccessPolicy;
+      // With no row the service follows the platform default, so changing only the tool policy
+      // must not silently switch off a service the organization was already using.
+      const currentEnabled = existing?.enabled ?? isPlatformDefaultService(serviceId);
+      const currentToolAccessPolicy =
+        existing?.toolAccessPolicy ?? PLATFORM_DEFAULT_SERVICE_SETTINGS.toolAccessPolicy;
+      const effectiveEnabled = enabled ?? currentEnabled;
+      const effectiveToolAccessPolicy = toolAccessPolicy ?? currentToolAccessPolicy;
+      // Widening the policy has to force reauthorization even for a service that had no row —
+      // its existing connections were authorized under the narrower default.
+      const policyChanged = currentToolAccessPolicy !== effectiveToolAccessPolicy;
 
       await db
         .insert(organizationServices)

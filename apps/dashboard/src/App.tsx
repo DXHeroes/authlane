@@ -9,6 +9,7 @@ import ApiKeysPage from '@/pages/ApiKeysPage';
 import ConnectionsPage from '@/pages/ConnectionsPage';
 import DashboardHome from '@/pages/DashboardHome';
 import LoginPage from '@/pages/LoginPage';
+import McpServersPage from '@/pages/McpServersPage';
 import MembersPage from '@/pages/MembersPage';
 import OnboardingPage from '@/pages/OnboardingPage';
 import OrganizationPage from '@/pages/OrganizationPage';
@@ -142,6 +143,7 @@ function AppRoutes() {
         <Route path="connections" element={<ConnectionsPage />} />
         <Route path="services" element={<ServicesPage />} />
         <Route path="services/:id" element={<ServiceDetailPage />} />
+        <Route path="mcp-servers" element={<McpServersPage />} />
         <Route path="sandbox" element={<SandboxPage />} />
         <Route path="api-keys" element={<ApiKeysPage />} />
         <Route path="settings" element={<SettingsPage />} />

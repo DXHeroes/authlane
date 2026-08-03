@@ -9,10 +9,10 @@ import {
   inArray,
   isNull,
   listEnabledMcpServers,
-  readMcpServerConnectConfig,
   oauthTransactions,
   organizationServices,
   outboxEvents,
+  readMcpServerConnectConfig,
   services,
   sql,
   withSecurityLookupContext,
@@ -46,6 +46,11 @@ import {
 } from '../lib/connect-session.js';
 import { resolveMcpAuthorization } from '../lib/oauth-provider-resolution.js';
 import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
+import {
+  readTenantServiceSettings,
+  serviceEnabledForOrganization,
+  tenantServiceJoin,
+} from '../lib/service-enablement.js';
 import { requireScope } from '../middleware/scope.js';
 
 interface ConnectSessionBody {
@@ -135,18 +140,17 @@ function publicApiBase(requestUrl: string): string {
 
 async function listEnabledServiceIds(db: Database, organizationId: string): Promise<string[]> {
   const rows = await db
-    .select({ serviceId: organizationServices.serviceId })
-    .from(organizationServices)
-    .innerJoin(services, eq(services.id, organizationServices.serviceId))
+    .select({ serviceId: services.id })
+    .from(services)
+    .leftJoin(organizationServices, tenantServiceJoin(organizationId))
     .where(
       and(
-        eq(organizationServices.organizationId, organizationId),
-        eq(organizationServices.enabled, true),
         eq(services.enabled, true),
-        inArray(services.id, getAllowedServiceIds())
+        inArray(services.id, getAllowedServiceIds()),
+        serviceEnabledForOrganization()
       )
     )
-    .orderBy(asc(organizationServices.serviceId));
+    .orderBy(asc(services.id));
 
   // A tenant's own MCP servers are connectable alongside the built-in catalog. They live in their
   // own table because `services` is global, so they are unioned here rather than joined.
@@ -360,7 +364,9 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       }
       if (server.authType !== 'api_key') {
         return c.json(
-          errorResult(Errors.validationError('This service is connected with OAuth, not an API key')),
+          errorResult(
+            Errors.validationError('This service is connected with OAuth, not an API key')
+          ),
           400
         );
       }
@@ -433,18 +439,17 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     return withTenantContext(db, session.organizationId, async () => {
       const allowedServiceRows = await db
         .select({ id: services.id, name: services.name, authType: services.authType })
-        .from(organizationServices)
-        .innerJoin(services, eq(services.id, organizationServices.serviceId))
+        .from(services)
+        .leftJoin(organizationServices, tenantServiceJoin(session.organizationId))
         .where(
           and(
-            eq(organizationServices.organizationId, session.organizationId),
-            eq(organizationServices.enabled, true),
             eq(services.enabled, true),
             inArray(services.id, getAllowedServiceIds()),
-            inArray(organizationServices.serviceId, session.allowedServices)
+            inArray(services.id, session.allowedServices),
+            serviceEnabledForOrganization()
           )
         )
-        .orderBy(asc(organizationServices.serviceId));
+        .orderBy(asc(services.id));
       const visibleServiceIds = filterCurrentlyEnabledServices(
         session.allowedServices,
         allowedServiceRows.map((service) => service.id)
@@ -553,23 +558,13 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         return c.json({ data: { authorizationUrl }, error: null });
       }
 
-      const [[service], [tenantService]] = await Promise.all([
+      const [[service], tenantService] = await Promise.all([
         db
           .select()
           .from(services)
           .where(and(eq(services.id, serviceId), eq(services.enabled, true)))
           .limit(1),
-        db
-          .select()
-          .from(organizationServices)
-          .where(
-            and(
-              eq(organizationServices.organizationId, session.organizationId),
-              eq(organizationServices.serviceId, serviceId),
-              eq(organizationServices.enabled, true)
-            )
-          )
-          .limit(1),
+        readTenantServiceSettings(db, session.organizationId, serviceId),
       ]);
       if (!service || !tenantService) {
         return c.json(errorResult(Errors.notFound('Enabled service', serviceId)), 404);
@@ -611,7 +606,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           : (config.default_scopes ?? config.scopes ?? [])
       );
       if (!configuredScopes) {
-        return c.json(errorResult(Errors.oauthError('OAuth scopes are not configured safely')), 409);
+        return c.json(
+          errorResult(Errors.oauthError('OAuth scopes are not configured safely')),
+          409
+        );
       }
       const requestedScopes = tenantService.customScopes ?? configuredScopes;
 
@@ -677,7 +675,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
 
     return withTenantContext(db, oauthTransaction.organizationId, async () => {
-      const [[connection], [service], [tenantService]] = await Promise.all([
+      const [[connection], [service], tenantService] = await Promise.all([
         db
           .select()
           .from(connections)
@@ -690,17 +688,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           )
           .limit(1),
         db.select().from(services).where(eq(services.id, serviceId)).limit(1),
-        db
-          .select()
-          .from(organizationServices)
-          .where(
-            and(
-              eq(organizationServices.organizationId, oauthTransaction.organizationId),
-              eq(organizationServices.serviceId, serviceId),
-              eq(organizationServices.enabled, true)
-            )
-          )
-          .limit(1),
+        readTenantServiceSettings(db, oauthTransaction.organizationId, serviceId),
       ]);
       // A tenant server carries its own token endpoint and client; a built-in one mirrors the
       // authorize step, where a tenant application wins over the platform application.
@@ -721,7 +709,11 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         ? (mcpServer?.oauthClientSecretId ?? null)
         : (tenantService?.oauthClientSecretId ?? null);
 
-      if (!connection || !oauthClientId || (!isMcpServerId(serviceId) && (!service || !tenantService))) {
+      if (
+        !connection ||
+        !oauthClientId ||
+        (!isMcpServerId(serviceId) && (!service || !tenantService))
+      ) {
         return c.json(
           errorResult(Errors.oauthError('OAuth provider is no longer configured')),
           409

@@ -36,13 +36,25 @@ function fakeDb(rows: unknown[] = []) {
   return db as unknown as Parameters<typeof createMcpServersRouter>[0] & { calls: string[] };
 }
 
-function appWith(db: ReturnType<typeof fakeDb>, deps: McpDiscoveryDeps = DISCOVERY_OK) {
+function fakeCache() {
+  return {
+    get: async () => undefined,
+    set: async () => undefined,
+    delete: vi.fn(async () => undefined),
+  };
+}
+
+function appWith(
+  db: ReturnType<typeof fakeDb>,
+  deps: McpDiscoveryDeps = DISCOVERY_OK,
+  cache?: ReturnType<typeof fakeCache>
+) {
   const app = new Hono();
   app.use('*', async (c, next) => {
     c.set('organization', { id: 'org_1' } as never);
     await next();
   });
-  app.route('/', createMcpServersRouter(db, deps));
+  app.route('/', createMcpServersRouter(db, deps, cache));
   return app;
 }
 
@@ -147,5 +159,47 @@ describe('MCP routes without an organization', () => {
       const response = await app.request(path, { method });
       expect(response.status, `${method} ${path}`).toBe(401);
     }
+  });
+});
+
+describe('service catalog cache', () => {
+  it('drops the cached catalog after a registration, so the server is visible at once', async () => {
+    const cache = fakeCache();
+    const response = await post(
+      appWith(fakeDb(), DISCOVERY_OK, cache),
+      '/organization/mcp-servers',
+      { name: 'Support desk', serverUrl: 'https://mcp.example.com', authType: 'oauth2' }
+    );
+
+    expect(response.status).toBe(201);
+    expect(cache.delete).toHaveBeenCalledWith('control-plane:tenant-services:org_1');
+  });
+
+  it('drops it again on delete, so a removed server stops being offered', async () => {
+    const cache = fakeCache();
+    const app = appWith(fakeDb(), DISCOVERY_OK, cache);
+
+    const response = await app.request('/organization/mcp-servers/mcp-1', { method: 'DELETE' });
+
+    expect(response.status).toBe(200);
+    expect(cache.delete).toHaveBeenCalledWith('control-plane:tenant-services:org_1');
+  });
+
+  it('leaves a failed discovery alone — nothing became visible to invalidate', async () => {
+    const cache = fakeCache();
+    const response = await post(
+      appWith(
+        fakeDb(),
+        { resolveHost: async () => ['127.0.0.1'], fetchJson: async () => ({}) },
+        cache
+      ),
+      '/organization/mcp-servers',
+      { name: 'Support desk', serverUrl: 'https://mcp.example.com', authType: 'oauth2' }
+    );
+
+    // The row exists but stays disabled, so nothing became visible to invalidate.
+    const payload = (await response.json()) as { data: { enabled: boolean } };
+    expect(payload.data.enabled).toBe(false);
+    expect(cache.delete).not.toHaveBeenCalled();
   });
 });

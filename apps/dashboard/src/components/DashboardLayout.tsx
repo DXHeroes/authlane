@@ -61,7 +61,7 @@ export default function DashboardLayout() {
         to={to}
         end={end}
         onClick={() => setMobileNavigationOpen(false)}
-        className={({ isActive }) => navLinkClass(isActive)}
+        className={({ isActive }: { isActive: boolean }) => navLinkClass(isActive)}
       >
         <Icon className="size-4 shrink-0 fill-current" aria-hidden="true" />
         <span className="min-w-0 truncate">{label}</span>

@@ -1,7 +1,7 @@
 import { SUPPORTED_SERVICE_IDS } from '@authlane/shared';
 import { describe, expect, it, vi } from 'vitest';
-import { SUPPORTED_SERVICE_CATALOG, seedServiceCatalog } from '../src/service-catalog.js';
 import { productionServices } from '../src/seed.js';
+import { SUPPORTED_SERVICE_CATALOG, seedServiceCatalog } from '../src/service-catalog.js';
 
 describe('production service catalog', () => {
   it('contains exactly the installed integrations', () => {

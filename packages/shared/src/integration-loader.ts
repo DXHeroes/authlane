@@ -1,5 +1,5 @@
-import type { ToolAccessPolicy, ToolFormat } from './types.js';
 import { getToolRisk } from './tool-safety.js';
+import type { ToolAccessPolicy, ToolFormat } from './types.js';
 
 export interface IntegrationTools {
   getTools?: (format: ToolFormat) => {

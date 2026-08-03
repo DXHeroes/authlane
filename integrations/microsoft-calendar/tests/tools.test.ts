@@ -29,7 +29,9 @@ describe('Microsoft Calendar Graph tools', () => {
       ])
     );
     expect(tools.microsoft_calendar_list_events!.definition.annotations.readOnlyHint).toBe(true);
-    expect(tools.microsoft_calendar_delete_event!.definition.annotations.destructiveHint).toBe(true);
+    expect(tools.microsoft_calendar_delete_event!.definition.annotations.destructiveHint).toBe(
+      true
+    );
   });
 
   it('reads a calendar view from a fixed Graph endpoint', async () => {

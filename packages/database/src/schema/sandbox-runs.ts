@@ -25,10 +25,7 @@ export const sandboxRuns = pgTable(
   },
   (table) => [
     index('sandbox_runs_org_created_at_idx').on(table.organizationId, table.createdAt),
-    index('sandbox_runs_org_external_user_idx').on(
-      table.organizationId,
-      table.externalUserId
-    ),
+    index('sandbox_runs_org_external_user_idx').on(table.organizationId, table.externalUserId),
   ]
 );
 

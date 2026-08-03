@@ -3,8 +3,8 @@
  * Populates initial data with production-ready service configurations
  */
 
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { SUPPORTED_SERVICE_IDS, type SupportedServiceId } from '@authlane/shared';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { CANONICAL_INTEGRATION_CONFIGS } from './integration-configs.js';
 import { services } from './schema/index.js';

@@ -1,5 +1,5 @@
 import { SUPPORTED_SERVICE_IDS } from '@authlane/shared';
-import { productionServices, type ProductionService } from './seed.js';
+import { type ProductionService, productionServices } from './seed.js';
 
 export type SupportedServiceCatalogEntry = ProductionService;
 

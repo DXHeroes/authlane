@@ -5,8 +5,8 @@ import {
   connections,
   connectSessions,
   credentialAccessLogs,
-  outboxEvents,
   organizationServices,
+  outboxEvents,
   sandboxRuns,
   secretRecords,
 } from '../src/schema/index.js';

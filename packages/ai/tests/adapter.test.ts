@@ -737,7 +737,8 @@ describe('createBuiltInAdapter', () => {
     });
   });
 
-  it('lazily resolves every supported built-in integration', async () => {
+  // Dynamically importing all built-in integrations exceeds the default 5s case timeout.
+  it('lazily resolves every supported built-in integration', { timeout: 30_000 }, async () => {
     const adapter = createBuiltInAdapter(({ tools }) => tools);
 
     for (const serviceId of SUPPORTED_SERVICE_IDS) {

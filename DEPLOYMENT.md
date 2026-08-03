@@ -23,7 +23,7 @@ curl --fail https://authlane.example.com/health
 Only the application port is exposed. PostgreSQL and Redis stay on an internal network. Terminate TLS
 at a maintained reverse proxy or load balancer; the Compose stack does not terminate TLS.
 
-The migrator image owns schema changes, the idempotent 15-integration production catalog seed, and
+The migrator image owns schema changes, the idempotent 18-integration production catalog seed, and
 role provisioning. It never creates users, organizations, accounts, or sample credentials. The API
 runs as `authlane_app`; BullMQ jobs use `authlane_job`. The runtime image is non-root, read-only,
 capability-free, and cannot migrate.

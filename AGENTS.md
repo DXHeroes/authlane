@@ -293,12 +293,14 @@ async method(params: Params): Promise<Result<Data, Error>> {
 4. **Date Formats**: Always use ISO 8601 (UTC)
 5. **API Versioning**: Use `/api/v1/` prefix for all endpoints
 
-## MVP Integrations (14 services)
+## Integrations (18 services)
+
+Source of truth: `packages/shared/src/supported-services.ts`.
 
 **Developer Tools (3):** GitHub, Linear, Jira
 **Communication (3):** Slack, Discord, Gmail
-**Productivity (3):** Notion, Google Drive, Google Calendar
-**CRM (3):** HubSpot, Salesforce, Pipedrive
+**Productivity (6):** Notion, Google Drive, Google Calendar, Microsoft Mail, Microsoft Calendar, Microsoft SharePoint
+**CRM (4):** HubSpot, Salesforce, Pipedrive, Attio
 **Other (2):** Stripe, Airtable
 
 ## License

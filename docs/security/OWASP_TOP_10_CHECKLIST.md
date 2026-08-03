@@ -44,7 +44,7 @@ Authlane has been reviewed against the OWASP Top 10 2021 security risks. The app
 ### Verification Tests:
 - ✅ `apps/api/tests/unit/auth.test.ts` - 22 tests covering authentication
 - ✅ `apps/api/tests/integration/connections.test.ts` - Multi-tenancy isolation tests
-- ✅ `packages/database/tests/migrations.test.ts` - RLS policy tests
+- ✅ `packages/database/tests/migration-contract.test.ts` - RLS policy tests, asserted against the committed migrations
 
 ### Recommendations:
 - ✅ Current implementation is secure

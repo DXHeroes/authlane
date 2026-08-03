@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ConnectionsResource` with methods:
   - `list()` - List all connections for a user
   - `get()` - Get a specific connection
-  - `getCredentials()` - Get decrypted credentials
   - `health()` - Check connection health
   - `delete()` - Delete a connection
 - `ServicesResource` with methods:

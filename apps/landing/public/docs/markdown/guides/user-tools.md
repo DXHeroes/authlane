@@ -18,17 +18,19 @@ import { streamText, type ModelMessage } from 'ai';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
-export async function runForUser(currentUser: { id: string }, messages: ModelMessage[]) {
-  const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({
+export async function runForUser(userId: string, messages: ModelMessage[]) {
+  const { data: tools, error } = await authlane.user(userId).tools.list({
+    // The framework asks the user before running anything that changes data.
     adapter: vercelAI({ approval: 'write-and-destructive' }),
   });
   if (error) return { data: null, error };
-  return { data: streamText({ model: 'openai/gpt-5-mini', messages, tools }), error: null };
+
+  const stream = streamText({ model: 'openai/gpt-5-mini', messages, tools });
+  return { data: stream, error: null };
 }
 ```
 
-Binding `authlane.user(currentUser.id)` comes before adapter selection. The capability read builds
+Binding `authlane.user(userId)` comes before adapter selection. The capability read builds
 only definitions and callbacks. Each callback requests a fresh lease when it is invoked.
 
 ## Tool safety metadata
@@ -51,11 +53,11 @@ set.
 
 Adapter approval policies are separate from service filtering:
 
-```typescript
-vercelAI({ approval: 'none' });                  // never request framework approval
-vercelAI({ approval: 'destructive' });           // approval for destructive tools
-vercelAI({ approval: 'write-and-destructive' }); // approval for every mutation
-```
+| `approval` | The framework asks the user before running |
+| --- | --- |
+| `'none'` | nothing |
+| `'destructive'` | tools that delete or overwrite |
+| `'write-and-destructive'` | every tool that changes something |
 
 ## Expected result
 

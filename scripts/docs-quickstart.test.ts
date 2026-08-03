@@ -20,7 +20,7 @@ describe('task-oriented documentation content', () => {
     expect(quickstart).toContain("import { Authlane } from '@authlane/sdk'");
     expect(quickstart).toContain('const authlane = new Authlane({');
     expect(quickstart).toContain('allowedServices: []');
-    expect(quickstart).toContain('authlane.user(currentUser.id)');
+    expect(quickstart).toContain('.user(userId)');
     expect(quickstart).not.toContain('const MAX_CHAT_REQUEST_BYTES');
 
     const headings = [
@@ -44,10 +44,12 @@ describe('task-oriented documentation content', () => {
       quickstart.indexOf('## 3. Create a connect session for the signed-in user')
     );
 
+    // The example must show the non-throwing shape: the error is returned, never swallowed.
     expect(listSection).toContain('export async function listServices() {');
-    expect(listSection).toContain('  return Response.json({ services });\n}');
-    expect(listSection.indexOf('export async function listServices() {')).toBeLessThan(
-      listSection.indexOf('return Response.json({ services });')
+    expect(listSection).toContain('if (error) return { data: null, error };');
+    expect(listSection).toContain('  return { data: services, error: null };\n}');
+    expect(listSection.indexOf('if (error) return')).toBeLessThan(
+      listSection.indexOf('return { data: services, error: null };')
     );
   });
 
@@ -72,13 +74,12 @@ describe('task-oriented documentation content', () => {
   it('keeps TypeScript SDK examples on explicit data and error bindings', async () => {
     const sdk = await readFile(typescriptSdkUrl, 'utf8');
 
-    expect(sdk).toContain('const { data: capabilities, error: capabilitiesError } =');
     expect(sdk).toContain('const { data: connections, error: connectionsError } =');
     expect(sdk).toContain('const { data: definitions, error: definitionsError } =');
     expect(sdk).toContain('const { data: customTools, error: customToolsError } =');
     expect(sdk).toContain('const { data: session, error: sessionError } =');
     expect(sdk).toContain('const { data: services, error: servicesError } =');
-    expect(sdk).toContain('const { data: rawDefinitions, error: definitionsError } =');
+    // A result must never be bound without its error being named alongside it.
     expect(sdk).not.toMatch(
       /const (?:capabilities|connections|definitions|result|session) = await (?:authlane|user\.)/
     );

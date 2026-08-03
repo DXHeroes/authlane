@@ -32,18 +32,26 @@ Point the SDKs at your deployment. Both default to the hosted control plane at
 `https://app.authlane.io`, so this is the one place the option is needed:
 
 ```typescript
+import { Authlane } from '@authlane/sdk';
+
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: process.env.AUTHLANE_BASE_URL!,
+  // Only a self-hosted deployment needs this; the default is https://app.authlane.io.
+  baseUrl: process.env.AUTHLANE_BASE_URL,
 });
 ```
 
 ```python
+import os
+
+from authlane import Authlane
+
 with Authlane(
     api_key=os.environ["AUTHLANE_API_KEY"],
+    # Only a self-hosted deployment needs this; the default is https://app.authlane.io.
     base_url=os.environ["AUTHLANE_BASE_URL"],
 ) as authlane:
-    ...
+    services = authlane.services.list()
 ```
 
 ## Choose an authentication mode

@@ -41,11 +41,14 @@ Nothing changes in your application code. The server appears in the catalog unde
 which starts with `mcp-`:
 
 ```typescript
-const { data } = await authlane.connectSessions.create({
-  externalUserId: currentUser.id,
-  allowedServices: ['mcp-2f1c…'],
-  allowedOrigin: 'https://app.example.com',
-});
+export async function connectMcpServer(userId: string) {
+  // The generated id is shown on the server card in the dashboard.
+  return authlane.connectSessions.create({
+    externalUserId: userId,
+    allowedServices: ['mcp-2f1c4a90-0f1e-4a3b-9d2e-7c5b1a08d4f6'],
+    allowedOrigin: 'https://app.example.com',
+  });
+}
 ```
 
 For a server that uses per-user API keys, the widget collects the key from the user instead of

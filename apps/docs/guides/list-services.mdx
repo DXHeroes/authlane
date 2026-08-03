@@ -20,13 +20,10 @@ const authlane = new Authlane({
 
 export async function GET() {
   const { data: services, error } = await authlane.services.list();
-  if (error) {
-    return Response.json({ error }, { status: error.statusCode ?? 400 });
-  }
-  return Response.json({
-    services,
-    emptyMessage: services.length === 0 ? 'No integrations are enabled yet.' : null,
-  });
+  if (error) return Response.json({ error }, { status: error.statusCode ?? 400 });
+
+  // An empty list is a valid answer: this tenant has nothing enabled yet.
+  return Response.json({ services });
 }
 ```
 

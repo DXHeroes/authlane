@@ -25,22 +25,32 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function loadUser(currentUser: { id: string }) {
-  const user = authlane.user(currentUser.id);
-  const { data: capabilities, error: capabilitiesError } =
-    await user.capabilities.get({ format: 'mcp' });
-  const { data: connections, error: connectionsError } = await user.connections.list();
-  const { data: definitions, error: definitionsError } =
-    await user.tools.list({ format: 'openai' });
-
-  const error = capabilitiesError ?? connectionsError ?? definitionsError;
-  if (error) return { data: null, error };
-  return { data: { capabilities, connections, definitions }, error: null };
+export async function loadUser(userId: string) {
+  // One call: connection status and tool definitions for this user.
+  return authlane.user(userId).capabilities.get({ format: 'mcp' });
 }
 ```
 
-`user.capabilities.get()` is the hot read for status plus definitions. Bind the user before choosing
-an executable adapter; see [load user-scoped tools](/docs/guides/user-tools).
+`user.capabilities.get()` is the hot read: it answers "what can this user do right now" in a single
+request. The pieces are also available separately when you need only one of them:
+
+```typescript
+export async function loadPieces(userId: string) {
+  const user = authlane.user(userId);
+
+  const { data: connections, error: connectionsError } = await user.connections.list();
+  if (connectionsError) return { data: null, error: connectionsError };
+
+  const { data: definitions, error: definitionsError } =
+    await user.tools.list({ format: 'openai' });
+  if (definitionsError) return { data: null, error: definitionsError };
+
+  return { data: { connections, definitions }, error: null };
+}
+```
+
+Bind the user before choosing an executable adapter; see
+[load user-scoped tools](/docs/guides/user-tools).
 
 Custom application adapters can override a built-in handler for the same service while the
 capability snapshot remains authoritative:
@@ -48,26 +58,23 @@ capability snapshot remains authoritative:
 ```typescript
 import type { FrameworkAdapterOptions } from '@authlane/ai';
 import { vercelAI } from '@authlane/ai/vercel';
-import { Authlane } from '@authlane/sdk';
 import { executeGithubInsideOurBackend } from './github.js';
 
-const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 type IntegrationAdapter = NonNullable<FrameworkAdapterOptions['integrations']>[number];
 
+// Replaces the built-in GitHub handler. The credential still comes from Authlane.
 const customGithub: IntegrationAdapter = {
   serviceId: 'github',
   definitions: [],
-  async execute(toolName, input, credential) {
-    return executeGithubInsideOurBackend(toolName, input, credential);
-  },
+  execute: executeGithubInsideOurBackend,
 };
 
-export async function loadCustomTools(currentUser: { id: string }) {
-  const { data: customTools, error: customToolsError } =
-    await authlane.user(currentUser.id).tools.list({
-      adapter: vercelAI({ integrations: [customGithub] }),
-    });
+export async function loadCustomTools(userId: string) {
+  const { data: customTools, error: customToolsError } = await authlane
+    .user(userId)
+    .tools.list({ adapter: vercelAI({ integrations: [customGithub] }) });
   if (customToolsError) return { data: null, error: customToolsError };
+
   return { data: customTools, error: null };
 }
 ```
@@ -75,26 +82,18 @@ export async function loadCustomTools(currentUser: { id: string }) {
 Connect sessions, catalog reads, and raw definitions are also typed:
 
 ```typescript
-import { Authlane } from '@authlane/sdk';
-
-const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
-
-export async function loadSetup(currentUser: { id: string }) {
+export async function loadSetup(userId: string) {
   const { data: session, error: sessionError } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     allowedServices: [],
     allowedOrigin: 'https://app.example.com',
-    expiresInSeconds: 600,
   });
   if (sessionError) return { data: null, error: sessionError };
 
   const { data: services, error: servicesError } = await authlane.services.list();
   if (servicesError) return { data: null, error: servicesError };
 
-  const { data: rawDefinitions, error: definitionsError } =
-    await authlane.user(currentUser.id).tools.list({ format: 'openai' });
-  if (definitionsError) return { data: null, error: definitionsError };
-  return { data: { session, services, rawDefinitions }, error: null };
+  return { data: { session, services }, error: null };
 }
 ```
 

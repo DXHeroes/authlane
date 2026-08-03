@@ -15,7 +15,9 @@ credentials, connect tokens, OAuth codes, prompts, or provider bodies.
 import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
-const { data, error } = await authlane.user('user_123').capabilities.get({ format: 'mcp' });
+
+const user = authlane.user('user_123');
+const { data, error } = await user.capabilities.get({ format: 'mcp' });
 
 if (error) {
   switch (error.code) {

@@ -19,29 +19,41 @@ import { z } from 'zod';
 import { requireUser } from './session.js';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
-const requestSchema = z.object({
-  messages: z.array(z.object({
-    role: z.enum(['system', 'user', 'assistant']),
-    content: z.string().trim().min(1).max(8_000),
-  }).strict()).min(1).max(50),
+
+const messageSchema = z.object({
+  role: z.enum(['system', 'user', 'assistant']),
+  content: z.string().trim().min(1).max(8_000),
 }).strict();
+
+const requestSchema = z.object({
+  messages: z.array(messageSchema).min(1).max(50),
+}).strict();
+
+const badRequest = () =>
+  Response.json({ error: { code: 'INVALID_CHAT_REQUEST' } }, { status: 400 });
 
 export async function POST(request: Request) {
   const currentUser = await requireUser(request);
-  const declaredBytes = Number(request.headers.get('content-length') ?? 0);
-  if (!Number.isSafeInteger(declaredBytes) || declaredBytes < 1 || declaredBytes > 65_536) {
-    return Response.json({ error: { code: 'INVALID_CHAT_REQUEST' } }, { status: 400 });
-  }
+
+  // Refuse an oversized body before reading it.
+  const bytes = Number(request.headers.get('content-length') ?? 0);
+  if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > 65_536) return badRequest();
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return Response.json({ error: { code: 'INVALID_CHAT_REQUEST' } }, { status: 400 });
-  }
+  if (!parsed.success) return badRequest();
 
-  const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  // Tools are bound to the authenticated user, never to the request body.
+  const { data: tools, error } = await authlane
+    .user(currentUser.id)
+    .tools.list({ adapter: vercelAI() });
+  // Report the code only. An Authlane error message is not for your end user.
   if (error) return Response.json({ error: { code: error.code } }, { status: 502 });
-  const result = streamText({ model: 'openai/gpt-5-mini', messages: parsed.data.messages, tools });
+
+  const result = streamText({
+    model: 'openai/gpt-5-mini',
+    messages: parsed.data.messages,
+    tools,
+  });
   return createTextStreamResponse({ stream: toTextStream({ stream: result.stream }) });
 }
 ```

@@ -17,7 +17,8 @@ Derive `currentUser.id` from your trusted SaaS session before calling this funct
 ```typescript
 import { vercelAI } from '@authlane/ai/vercel';
 import { Authlane } from '@authlane/sdk';
-import { createTextStreamResponse, streamText, toTextStream, type ModelMessage } from 'ai';
+import type { ModelMessage } from 'ai';
+import { createTextStreamResponse, streamText, toTextStream } from 'ai';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,

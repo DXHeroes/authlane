@@ -74,22 +74,12 @@ Keep `AUTHLANE_API_KEY` in a trusted server environment. The API-key SDK rejects
 ## 2. List the services your tenant enabled
 
 ```typescript
-import { Authlane } from '@authlane/sdk';
-
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-});
-
 export async function listServices() {
   const { data: services, error } = await authlane.services.list();
-  if (error) {
-    return Response.json(
-      { error: { code: error.code, message: error.message } },
-      { status: error.statusCode ?? 400 },
-    );
-  }
+  // Expected failures arrive as values. Nothing here throws.
+  if (error) return { data: null, error };
 
-  return Response.json({ services });
+  return { data: services, error: null };
 }
 ```
 
@@ -99,21 +89,16 @@ connect action.
 ## 3. Create a connect session for the signed-in user
 
 ```typescript
-import { Authlane } from '@authlane/sdk';
-
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-});
-
-export async function createConnectSession(currentUser: { id: string }) {
+export async function createConnectSession(userId: string) {
   const { data, error } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
-    allowedServices: [],
+    externalUserId: userId,
+    allowedServices: [], // every service enabled right now
     allowedOrigin: 'https://app.example.com',
     expiresInSeconds: 600,
   });
-
   if (error) return { data: null, error };
+
+  // Only the URL goes to the browser. It carries no API key.
   return { data: { connectUrl: data.url }, error: null };
 }
 ```
@@ -186,16 +171,14 @@ the adapter.
 
 ```typescript
 import { vercelAI } from '@authlane/ai/vercel';
-import { Authlane } from '@authlane/sdk';
-import { createTextStreamResponse, streamText, toTextStream, type ModelMessage } from 'ai';
+import type { ModelMessage } from 'ai';
+import { createTextStreamResponse, streamText, toTextStream } from 'ai';
 
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-});
-
-export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
-  const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+export async function answer(userId: string, messages: ModelMessage[]) {
+  // Tools are bound to this user, so the model only ever sees what they connected.
+  const { data: tools, error } = await authlane
+    .user(userId)
+    .tools.list({ adapter: vercelAI() });
   if (error) return Response.json({ error }, { status: error.statusCode ?? 400 });
 
   const result = streamText({ model: 'openai/gpt-5-mini', messages, tools });
@@ -207,19 +190,19 @@ export async function answer(currentUser: { id: string }, messages: ModelMessage
 
 ```typescript
 import { openAIAgents } from '@authlane/ai/openai';
-import { Authlane } from '@authlane/sdk';
 import { Agent, run } from '@openai/agents';
 
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-});
-
-export async function answer(currentUser: { id: string }, prompt: string) {
-  const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: openAIAgents() });
+export async function answer(userId: string, prompt: string) {
+  const { data: tools, error } = await authlane
+    .user(userId)
+    .tools.list({ adapter: openAIAgents() });
   if (error) return { data: null, error };
 
-  const agent = new Agent({ name: 'Assistant', instructions: 'Use connected tools.', tools });
+  const agent = new Agent({
+    name: 'Assistant',
+    instructions: 'Use connected tools.',
+    tools,
+  });
   const result = await run(agent, prompt);
   return { data: result.finalOutput, error: null };
 }
@@ -229,16 +212,12 @@ export async function answer(currentUser: { id: string }, prompt: string) {
 
 ```typescript
 import { mastraAI } from '@authlane/ai/mastra';
-import { Authlane } from '@authlane/sdk';
 import { Agent } from '@mastra/core/agent';
 
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-});
-
-export async function answer(currentUser: { id: string }, prompt: string) {
-  const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: mastraAI() });
+export async function answer(userId: string, prompt: string) {
+  const { data: tools, error } = await authlane
+    .user(userId)
+    .tools.list({ adapter: mastraAI() });
   if (error) return { data: null, error };
 
   const agent = new Agent({
@@ -306,17 +285,14 @@ def answer(current_user: CurrentUser, prompt: str, model: BaseChatModel):
 
 ```typescript
 import { mcpServer } from '@authlane/ai/mcp';
-import { Authlane } from '@authlane/sdk';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
-const authlane = new Authlane({
-  apiKey: process.env.AUTHLANE_API_KEY!,
-});
-
-export async function connectMcp(currentUser: { id: string }, transport: Transport) {
-  const user = authlane.user(currentUser.id);
-  const { data: server, error } = await user.tools.list({ adapter: mcpServer() });
+export async function connectMcp(userId: string, transport: Transport) {
+  const { data: server, error } = await authlane
+    .user(userId)
+    .tools.list({ adapter: mcpServer() });
   if (error) return { data: null, error };
+
   await server.connect(transport);
   return { data: server, error: null };
 }
@@ -446,13 +422,10 @@ const authlane = new Authlane({
 
 export async function GET() {
   const { data: services, error } = await authlane.services.list();
-  if (error) {
-    return Response.json({ error }, { status: error.statusCode ?? 400 });
-  }
-  return Response.json({
-    services,
-    emptyMessage: services.length === 0 ? 'No integrations are enabled yet.' : null,
-  });
+  if (error) return Response.json({ error }, { status: error.statusCode ?? 400 });
+
+  // An empty list is a valid answer: this tenant has nothing enabled yet.
+  return Response.json({ services });
 }
 ```
 
@@ -618,17 +591,19 @@ import { streamText, type ModelMessage } from 'ai';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 
-export async function runForUser(currentUser: { id: string }, messages: ModelMessage[]) {
-  const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({
+export async function runForUser(userId: string, messages: ModelMessage[]) {
+  const { data: tools, error } = await authlane.user(userId).tools.list({
+    // The framework asks the user before running anything that changes data.
     adapter: vercelAI({ approval: 'write-and-destructive' }),
   });
   if (error) return { data: null, error };
-  return { data: streamText({ model: 'openai/gpt-5-mini', messages, tools }), error: null };
+
+  const stream = streamText({ model: 'openai/gpt-5-mini', messages, tools });
+  return { data: stream, error: null };
 }
 ```
 
-Binding `authlane.user(currentUser.id)` comes before adapter selection. The capability read builds
+Binding `authlane.user(userId)` comes before adapter selection. The capability read builds
 only definitions and callbacks. Each callback requests a fresh lease when it is invoked.
 
 ## Tool safety metadata
@@ -651,11 +626,11 @@ set.
 
 Adapter approval policies are separate from service filtering:
 
-```typescript
-vercelAI({ approval: 'none' });                  // never request framework approval
-vercelAI({ approval: 'destructive' });           // approval for destructive tools
-vercelAI({ approval: 'write-and-destructive' }); // approval for every mutation
-```
+| `approval` | The framework asks the user before running |
+| --- | --- |
+| `'none'` | nothing |
+| `'destructive'` | tools that delete or overwrite |
+| `'write-and-destructive'` | every tool that changes something |
 
 ## Expected result
 
@@ -720,11 +695,14 @@ Nothing changes in your application code. The server appears in the catalog unde
 which starts with `mcp-`:
 
 ```typescript
-const { data } = await authlane.connectSessions.create({
-  externalUserId: currentUser.id,
-  allowedServices: ['mcp-2f1c…'],
-  allowedOrigin: 'https://app.example.com',
-});
+export async function connectMcpServer(userId: string) {
+  // The generated id is shown on the server card in the dashboard.
+  return authlane.connectSessions.create({
+    externalUserId: userId,
+    allowedServices: ['mcp-2f1c4a90-0f1e-4a3b-9d2e-7c5b1a08d4f6'],
+    allowedOrigin: 'https://app.example.com',
+  });
+}
 ```
 
 For a server that uses per-user API keys, the widget collects the key from the user instead of
@@ -896,29 +874,41 @@ import { z } from 'zod';
 import { requireUser } from './session.js';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
-const requestSchema = z.object({
-  messages: z.array(z.object({
-    role: z.enum(['system', 'user', 'assistant']),
-    content: z.string().trim().min(1).max(8_000),
-  }).strict()).min(1).max(50),
+
+const messageSchema = z.object({
+  role: z.enum(['system', 'user', 'assistant']),
+  content: z.string().trim().min(1).max(8_000),
 }).strict();
+
+const requestSchema = z.object({
+  messages: z.array(messageSchema).min(1).max(50),
+}).strict();
+
+const badRequest = () =>
+  Response.json({ error: { code: 'INVALID_CHAT_REQUEST' } }, { status: 400 });
 
 export async function POST(request: Request) {
   const currentUser = await requireUser(request);
-  const declaredBytes = Number(request.headers.get('content-length') ?? 0);
-  if (!Number.isSafeInteger(declaredBytes) || declaredBytes < 1 || declaredBytes > 65_536) {
-    return Response.json({ error: { code: 'INVALID_CHAT_REQUEST' } }, { status: 400 });
-  }
+
+  // Refuse an oversized body before reading it.
+  const bytes = Number(request.headers.get('content-length') ?? 0);
+  if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > 65_536) return badRequest();
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return Response.json({ error: { code: 'INVALID_CHAT_REQUEST' } }, { status: 400 });
-  }
+  if (!parsed.success) return badRequest();
 
-  const user = authlane.user(currentUser.id);
-  const { data: tools, error } = await user.tools.list({ adapter: vercelAI() });
+  // Tools are bound to the authenticated user, never to the request body.
+  const { data: tools, error } = await authlane
+    .user(currentUser.id)
+    .tools.list({ adapter: vercelAI() });
+  // Report the code only. An Authlane error message is not for your end user.
   if (error) return Response.json({ error: { code: error.code } }, { status: 502 });
-  const result = streamText({ model: 'openai/gpt-5-mini', messages: parsed.data.messages, tools });
+
+  const result = streamText({
+    model: 'openai/gpt-5-mini',
+    messages: parsed.data.messages,
+    tools,
+  });
   return createTextStreamResponse({ stream: toTextStream({ stream: result.stream }) });
 }
 ```
@@ -976,22 +966,32 @@ const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
 });
 
-export async function loadUser(currentUser: { id: string }) {
-  const user = authlane.user(currentUser.id);
-  const { data: capabilities, error: capabilitiesError } =
-    await user.capabilities.get({ format: 'mcp' });
-  const { data: connections, error: connectionsError } = await user.connections.list();
-  const { data: definitions, error: definitionsError } =
-    await user.tools.list({ format: 'openai' });
-
-  const error = capabilitiesError ?? connectionsError ?? definitionsError;
-  if (error) return { data: null, error };
-  return { data: { capabilities, connections, definitions }, error: null };
+export async function loadUser(userId: string) {
+  // One call: connection status and tool definitions for this user.
+  return authlane.user(userId).capabilities.get({ format: 'mcp' });
 }
 ```
 
-`user.capabilities.get()` is the hot read for status plus definitions. Bind the user before choosing
-an executable adapter; see [load user-scoped tools](/docs/guides/user-tools).
+`user.capabilities.get()` is the hot read: it answers "what can this user do right now" in a single
+request. The pieces are also available separately when you need only one of them:
+
+```typescript
+export async function loadPieces(userId: string) {
+  const user = authlane.user(userId);
+
+  const { data: connections, error: connectionsError } = await user.connections.list();
+  if (connectionsError) return { data: null, error: connectionsError };
+
+  const { data: definitions, error: definitionsError } =
+    await user.tools.list({ format: 'openai' });
+  if (definitionsError) return { data: null, error: definitionsError };
+
+  return { data: { connections, definitions }, error: null };
+}
+```
+
+Bind the user before choosing an executable adapter; see
+[load user-scoped tools](/docs/guides/user-tools).
 
 Custom application adapters can override a built-in handler for the same service while the
 capability snapshot remains authoritative:
@@ -999,26 +999,23 @@ capability snapshot remains authoritative:
 ```typescript
 import type { FrameworkAdapterOptions } from '@authlane/ai';
 import { vercelAI } from '@authlane/ai/vercel';
-import { Authlane } from '@authlane/sdk';
 import { executeGithubInsideOurBackend } from './github.js';
 
-const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
 type IntegrationAdapter = NonNullable<FrameworkAdapterOptions['integrations']>[number];
 
+// Replaces the built-in GitHub handler. The credential still comes from Authlane.
 const customGithub: IntegrationAdapter = {
   serviceId: 'github',
   definitions: [],
-  async execute(toolName, input, credential) {
-    return executeGithubInsideOurBackend(toolName, input, credential);
-  },
+  execute: executeGithubInsideOurBackend,
 };
 
-export async function loadCustomTools(currentUser: { id: string }) {
-  const { data: customTools, error: customToolsError } =
-    await authlane.user(currentUser.id).tools.list({
-      adapter: vercelAI({ integrations: [customGithub] }),
-    });
+export async function loadCustomTools(userId: string) {
+  const { data: customTools, error: customToolsError } = await authlane
+    .user(userId)
+    .tools.list({ adapter: vercelAI({ integrations: [customGithub] }) });
   if (customToolsError) return { data: null, error: customToolsError };
+
   return { data: customTools, error: null };
 }
 ```
@@ -1026,26 +1023,18 @@ export async function loadCustomTools(currentUser: { id: string }) {
 Connect sessions, catalog reads, and raw definitions are also typed:
 
 ```typescript
-import { Authlane } from '@authlane/sdk';
-
-const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
-
-export async function loadSetup(currentUser: { id: string }) {
+export async function loadSetup(userId: string) {
   const { data: session, error: sessionError } = await authlane.connectSessions.create({
-    externalUserId: currentUser.id,
+    externalUserId: userId,
     allowedServices: [],
     allowedOrigin: 'https://app.example.com',
-    expiresInSeconds: 600,
   });
   if (sessionError) return { data: null, error: sessionError };
 
   const { data: services, error: servicesError } = await authlane.services.list();
   if (servicesError) return { data: null, error: servicesError };
 
-  const { data: rawDefinitions, error: definitionsError } =
-    await authlane.user(currentUser.id).tools.list({ format: 'openai' });
-  if (definitionsError) return { data: null, error: definitionsError };
-  return { data: { session, services, rawDefinitions }, error: null };
+  return { data: { session, services }, error: null };
 }
 ```
 
@@ -1284,7 +1273,8 @@ Derive `currentUser.id` from your trusted SaaS session before calling this funct
 ```typescript
 import { vercelAI } from '@authlane/ai/vercel';
 import { Authlane } from '@authlane/sdk';
-import { createTextStreamResponse, streamText, toTextStream, type ModelMessage } from 'ai';
+import type { ModelMessage } from 'ai';
+import { createTextStreamResponse, streamText, toTextStream } from 'ai';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
@@ -3703,18 +3693,26 @@ Point the SDKs at your deployment. Both default to the hosted control plane at
 `https://app.authlane.io`, so this is the one place the option is needed:
 
 ```typescript
+import { Authlane } from '@authlane/sdk';
+
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: process.env.AUTHLANE_BASE_URL!,
+  // Only a self-hosted deployment needs this; the default is https://app.authlane.io.
+  baseUrl: process.env.AUTHLANE_BASE_URL,
 });
 ```
 
 ```python
+import os
+
+from authlane import Authlane
+
 with Authlane(
     api_key=os.environ["AUTHLANE_API_KEY"],
+    # Only a self-hosted deployment needs this; the default is https://app.authlane.io.
     base_url=os.environ["AUTHLANE_BASE_URL"],
 ) as authlane:
-    ...
+    services = authlane.services.list()
 ```
 
 ## Choose an authentication mode
@@ -4020,7 +4018,9 @@ credentials, connect tokens, OAuth codes, prompts, or provider bodies.
 import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({ apiKey: process.env.AUTHLANE_API_KEY! });
-const { data, error } = await authlane.user('user_123').capabilities.get({ format: 'mcp' });
+
+const user = authlane.user('user_123');
+const { data, error } = await user.capabilities.get({ format: 'mcp' });
 
 if (error) {
   switch (error.code) {

@@ -171,3 +171,56 @@ export async function updateMcpServerTool(
     .set(changes)
     .where(and(eq(mcpServerTools.serverId, serverId), eq(mcpServerTools.name, name)));
 }
+
+export interface McpServerConnectConfig {
+  id: string;
+  authType: string;
+  enabled: boolean;
+  oauthClientId: string | null;
+  oauthClientSecretId: string | null;
+  authorizationEndpoint: string | null;
+  tokenEndpoint: string | null;
+}
+
+/**
+ * Everything the connect flow needs about one tenant server.
+ *
+ * The OAuth endpoints come from the metadata stored at discovery, which was already checked to be
+ * https and on the registered domain. They are not re-read from the server at connect time, so a
+ * server cannot swap its token endpoint between discovery and a user connecting.
+ */
+export async function readMcpServerConnectConfig(
+  db: Database,
+  serverId: string
+): Promise<McpServerConnectConfig | null> {
+  const [row] = await db
+    .select({
+      id: mcpServers.id,
+      authType: mcpServers.authType,
+      enabled: mcpServers.enabled,
+      oauthClientId: mcpServers.oauthClientId,
+      oauthClientSecretId: mcpServers.oauthClientSecretId,
+      oauthMetadata: mcpServers.oauthMetadata,
+    })
+    .from(mcpServers)
+    .where(eq(mcpServers.id, serverId))
+    .limit(1);
+
+  if (!row) return null;
+
+  const metadata = (row.oauthMetadata ?? null) as {
+    authorizationEndpoint?: unknown;
+    tokenEndpoint?: unknown;
+  } | null;
+
+  return {
+    id: row.id,
+    authType: row.authType,
+    enabled: row.enabled,
+    oauthClientId: row.oauthClientId,
+    oauthClientSecretId: row.oauthClientSecretId,
+    authorizationEndpoint:
+      typeof metadata?.authorizationEndpoint === 'string' ? metadata.authorizationEndpoint : null,
+    tokenEndpoint: typeof metadata?.tokenEndpoint === 'string' ? metadata.tokenEndpoint : null,
+  };
+}

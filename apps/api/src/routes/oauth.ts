@@ -21,15 +21,16 @@ import {
   Errors,
   generatePKCE,
   generateState,
+  getAllowedServiceIds,
   getEffectiveConnectionStatus,
   getOAuthAuthorizationParameters,
+  getPlatformOAuthCredentials,
   hashApiKey,
   isSupportedServiceId,
   isValidServiceId,
   isValidUserId,
   normalizeOAuthScopeNames,
   parseOAuthProviderContext,
-  SUPPORTED_SERVICE_IDS,
 } from '@authlane/shared';
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
@@ -138,7 +139,7 @@ async function listEnabledServiceIds(db: Database, organizationId: string): Prom
         eq(organizationServices.organizationId, organizationId),
         eq(organizationServices.enabled, true),
         eq(services.enabled, true),
-        inArray(services.id, [...SUPPORTED_SERVICE_IDS])
+        inArray(services.id, getAllowedServiceIds())
       )
     )
     .orderBy(asc(organizationServices.serviceId));
@@ -246,7 +247,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
             eq(organizationServices.organizationId, session.organizationId),
             eq(organizationServices.enabled, true),
             eq(services.enabled, true),
-            inArray(services.id, [...SUPPORTED_SERVICE_IDS]),
+            inArray(services.id, getAllowedServiceIds()),
             inArray(organizationServices.serviceId, session.allowedServices)
           )
         )
@@ -360,7 +361,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         default_scopes?: unknown;
         read_only_scopes?: unknown;
       };
-      if (!config.authorization_url || !tenantService.oauthClientId) {
+      // A tenant application wins; otherwise fall back to the platform-wide Authlane application.
+      const platformCredentials = getPlatformOAuthCredentials(serviceId);
+      const oauthClientId = tenantService.oauthClientId ?? platformCredentials?.clientId ?? null;
+      if (!config.authorization_url || !oauthClientId) {
         return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);
       }
 
@@ -439,7 +443,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       }
 
       const authorizationUrl = new URL(authorizationEndpoint);
-      authorizationUrl.searchParams.set('client_id', tenantService.oauthClientId);
+      authorizationUrl.searchParams.set('client_id', oauthClientId);
       authorizationUrl.searchParams.set('redirect_uri', callbackUrl);
       authorizationUrl.searchParams.set('response_type', 'code');
       const configuredScopes = normalizeOAuthScopeNames(
@@ -536,7 +540,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           )
           .limit(1),
       ]);
-      if (!connection || !service || !tenantService?.oauthClientId) {
+      // Mirror the authorize step: a tenant application wins, otherwise the platform application.
+      const platformCredentials = getPlatformOAuthCredentials(serviceId);
+      const oauthClientId = tenantService?.oauthClientId ?? platformCredentials?.clientId ?? null;
+      if (!connection || !service || !tenantService || !oauthClientId) {
         return c.json(
           errorResult(Errors.oauthError('OAuth provider is no longer configured')),
           409
@@ -576,12 +583,15 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         } finally {
           clientSecretBuffer.fill(0);
         }
+      } else if (!tenantService.oauthClientId) {
+        // Only pair the platform secret with the platform client id, never with a tenant's.
+        clientSecret = platformCredentials?.clientSecret ?? '';
       }
       const tokenBody = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
         redirect_uri: oauthTransaction.callbackUrl,
-        client_id: tenantService.oauthClientId,
+        client_id: oauthClientId,
         code_verifier: codeVerifier,
       });
       if (clientSecret) tokenBody.set('client_secret', clientSecret);
@@ -589,7 +599,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       let tokenResult: Awaited<ReturnType<typeof fetchOAuthToken>>;
       try {
         tokenResult = await fetchOAuthToken(serviceId, config.token_url, tokenBody, {
-          clientId: tenantService.oauthClientId,
+          clientId: oauthClientId,
           clientSecret,
         });
       } catch {

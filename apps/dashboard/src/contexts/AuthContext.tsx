@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { organizationSlug } from '@/lib/auth-helpers';
@@ -65,12 +66,25 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<AuthMode>('email-password');
   const [signUpEnabled, setSignUpEnabled] = useState(false);
+
+  /**
+   * Throws away everything the cache holds for the organization we are leaving.
+   *
+   * Query keys carry no organization id and queries stay fresh for five minutes, so without this
+   * every screen keeps rendering the previous workspace's connections, services and keys after a
+   * switch. Removing rather than invalidating matters: an invalidated query still shows its cached
+   * data while it refetches, which is exactly the data that must not be on screen.
+   */
+  const discardOrganizationScopedCache = () => {
+    queryClient.removeQueries();
+  };
 
   // Load all organizations
   const refreshOrganizations = async () => {
@@ -196,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setOrganization(null);
     setOrganizations([]);
+    discardOrganizationScopedCache();
   };
 
   const switchOrganization = async (organizationId: string) => {
@@ -206,6 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (result.error) {
       throw new Error(result.error.message || 'Failed to switch organization');
     }
+
+    discardOrganizationScopedCache();
 
     // Reload organization
     const orgResult = await authClient.organization.getFullOrganization();
@@ -267,6 +284,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (activeResult.error) {
       throw new Error(activeResult.error.message || 'Could not activate your workspace');
     }
+
+    discardOrganizationScopedCache();
 
     const organizationsResult = await authClient.organization.list();
     const refreshedOrganizations =

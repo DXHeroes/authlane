@@ -1,6 +1,7 @@
 {
   "name": "@authlane/integration-microsoft-mail",
   "version": "0.1.0",
+  "description": "Microsoft Mail integration for Authlane.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -32,6 +33,15 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "vitest": "^4.1.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dxheroes/authlane.git",
+    "directory": "integrations/microsoft-mail"
+  },
+  "homepage": "https://authlane.io/docs",
+  "bugs": {
+    "url": "https://github.com/dxheroes/authlane/issues"
   },
   "license": "MIT",
   "publishConfig": {

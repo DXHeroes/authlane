@@ -11,12 +11,14 @@ import {
   DrizzleControlPlaneRepository,
 } from '../lib/control-plane-repository.js';
 import { createIntegrationRegistry } from '../lib/integration-registry.js';
+import { createMcpDiscoveryDeps } from '../lib/mcp-discovery-deps.js';
 import { createDatabaseSandboxRuntime } from '../lib/sandbox-runtime.js';
 import { requirePrincipalKind } from '../middleware/principal-kind.js';
 import { createControlPlaneRouter } from './control-plane.js';
 import { createDashboardRouter } from './dashboard.js';
 import { createOAuthRouter } from './oauth.js';
 import { createSandboxRouter } from './sandbox.js';
+import { createMcpServersRouter } from './mcp-servers.js';
 import { createServicesRouter } from './services.js';
 
 export function createApiRouter(
@@ -33,6 +35,7 @@ export function createApiRouter(
   dashboard.use('*', requirePrincipalKind('session'));
   dashboard.route('/services', createServicesRouter(db));
   dashboard.route('/', createDashboardRouter(db, cache, secretStore));
+  dashboard.route('/', createMcpServersRouter(db, createMcpDiscoveryDeps()));
   if (internalFetch) {
     dashboard.route(
       '/',

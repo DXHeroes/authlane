@@ -136,6 +136,17 @@ async function waitForUrl(url, timeoutMs = 60_000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+/**
+ * Builds the libraries the migrate and seed scripts import.
+ *
+ * They run through tsx, which resolves `@authlane/shared` to its built `dist`. On a machine that
+ * has built before, that directory already exists and the ordering never shows; on a clean
+ * checkout the seed fails with a module-not-found before any of this works.
+ */
+async function buildLibraries() {
+  await command('pnpm', ['exec', 'turbo', 'run', 'build', '--filter=@authlane/database...']);
+}
+
 async function provisionInfrastructure(runtime) {
   const urls = databaseUrls(runtime);
   await compose(['up', '-d', '--wait'], runtime);
@@ -304,6 +315,7 @@ async function runDemo({ test = false } = {}) {
   const runtime = await runtimeEnvironment();
   let children;
   try {
+    await buildLibraries();
     const urls = await provisionInfrastructure(runtime);
     await buildApplications();
     const { access, githubEnabled } = await bootstrap(runtime, urls);

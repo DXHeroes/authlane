@@ -19,6 +19,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import Redis from 'ioredis';
 import { setupJobs } from './jobs/setup.js';
 import { errorResult } from './lib/api-response.js';
+import { type ApiUsageRecorder, createApiUsageRecorder } from './lib/api-usage-recorder.js';
 import { createAuth } from './lib/auth.js';
 import {
   type AuthSecondaryStorage,
@@ -100,6 +101,7 @@ export function createApp(
     authMode?: AuthMode;
     signUpEnabled?: boolean;
     sendMagicLinkEmail?: (email: string, url: string) => Promise<EmailResult>;
+    apiUsageRecorder?: ApiUsageRecorder;
   }
 ) {
   const app = new Hono();
@@ -415,7 +417,7 @@ export function createApp(
   const cacheStore = options?.cacheStore ?? new MemoryCacheStore();
 
   // API routes (require authentication and rate limiting)
-  app.use('/api/v1/*', authMiddleware(db, auth));
+  app.use('/api/v1/*', authMiddleware(db, auth, { usage: options?.apiUsageRecorder }));
   app.use(
     '/api/v1/dashboard/*',
     dashboardSessionSecurity({
@@ -481,6 +483,13 @@ export function createApp(
 
 // Only run server if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.once(signal, () => {
+      // Write the counts buffered since the last flush before the process goes away.
+      void apiUsageRecorder.stop().finally(() => process.exit(0));
+    });
+  }
+
   process.on('uncaughtException', (error) => {
     logger.fatal({ error }, 'Uncaught exception');
     process.exit(1);
@@ -509,14 +518,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
 
-  // Setup job queues (token refresh)
-  const workerDb = env.SYSTEM_DATABASE_URL ? createDatabaseClient(env.SYSTEM_DATABASE_URL) : db;
-  if (env.REDIS_URL) {
-    setupJobs(workerDb, env.REDIS_URL);
-  } else {
-    logger.warn('REDIS_URL is not set; background jobs are disabled');
-  }
-
   let cacheStore: CacheStore = new MemoryCacheStore();
   let rateLimitStore: RateLimitStore = new MemoryRateLimitStore();
   let authSecondaryStorage: AuthSecondaryStorage | undefined;
@@ -528,6 +529,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     cacheStore = new RedisCacheStore(redis);
     rateLimitStore = new RedisRateLimitStore(redis);
     authSecondaryStorage = createEncryptedRedisSecondaryStorage(redis);
+  }
+
+  // Jobs come after the cache: the MCP discovery sweep drops the catalog entry for a server whose
+  // contract it just changed, and it has to be the same store the request path reads.
+  const workerDb = env.SYSTEM_DATABASE_URL ? createDatabaseClient(env.SYSTEM_DATABASE_URL) : db;
+  if (env.REDIS_URL) {
+    setupJobs(workerDb, env.REDIS_URL, cacheStore);
+  } else {
+    logger.warn('REDIS_URL is not set; background jobs are disabled');
   }
 
   // Create app
@@ -542,7 +552,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       ...(env.NODE_ENV === 'production' ? [] : ['http://localhost:3000', 'http://localhost:5173']),
     ]),
   ];
+  const apiUsageRecorder = createApiUsageRecorder(db);
   const app = createApp(db, {
+    apiUsageRecorder,
     corsOrigin: corsOrigins,
     rateLimitMaxRequests: env.RATE_LIMIT_MAX_REQUESTS,
     rateLimitWindowMs: env.RATE_LIMIT_WINDOW_MS,

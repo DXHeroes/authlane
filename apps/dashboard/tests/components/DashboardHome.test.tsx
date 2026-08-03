@@ -33,3 +33,16 @@ describe('DashboardHome', () => {
     expect(apiModule.api.get).not.toHaveBeenCalledWith('/dashboard/stats');
   });
 });
+
+describe('first run', () => {
+  it('sends a workspace with no connections to the sandbox', async () => {
+    render(<DashboardHome />);
+
+    const sandbox = await screen.findByRole('link', { name: 'Sandbox' });
+    expect(sandbox).toHaveAttribute('href', '/dashboard/sandbox');
+    expect(screen.getByRole('link', { name: 'services' })).toHaveAttribute(
+      'href',
+      '/dashboard/services'
+    );
+  });
+});

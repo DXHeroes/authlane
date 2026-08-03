@@ -1,6 +1,6 @@
 import type { DiscoveredTool, DiscoveredToolRisk } from '@authlane/shared';
 import { isMcpServerId, MCP_SERVER_ID_PREFIX } from '@authlane/shared';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, lt } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { mcpServers, mcpServerTools } from './schema/mcp-servers.js';
 
@@ -131,6 +131,29 @@ export async function listMcpServersForOrganization(db: Database, organizationId
     .from(mcpServers)
     .where(eq(mcpServers.organizationId, organizationId))
     .orderBy(asc(mcpServers.name));
+}
+
+/**
+ * Servers whose contract has gone stale, oldest first.
+ *
+ * A server that has never been discovered is not here: it is disabled, and the tenant is looking
+ * at the failure on its card. This is for the ones that work and may have quietly changed.
+ */
+export async function listMcpServersDueForDiscovery(
+  db: Database,
+  discoveredBefore: Date,
+  limit: number
+) {
+  return db
+    .select({
+      id: mcpServers.id,
+      organizationId: mcpServers.organizationId,
+      serverUrl: mcpServers.serverUrl,
+    })
+    .from(mcpServers)
+    .where(and(eq(mcpServers.enabled, true), lt(mcpServers.discoveredAt, discoveredBefore)))
+    .orderBy(asc(mcpServers.discoveredAt))
+    .limit(limit);
 }
 
 export interface McpServerDraft {

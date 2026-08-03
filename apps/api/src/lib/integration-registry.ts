@@ -1,12 +1,12 @@
-import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
 import type { Database } from '@authlane/database';
 import { isMcpServerId, readMcpServerTools } from '@authlane/database';
+import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
 import {
   DEMO_SERVICE_ID,
   discoveredToolsToIntegration,
   getToolRisk,
-  type IntegrationTools,
   IntegrationRegistry,
+  type IntegrationTools,
 } from '@authlane/shared';
 
 type PublicToolDefinitions =

@@ -1,6 +1,9 @@
 import { DEMO_SERVICE_ID, SUPPORTED_SERVICE_IDS } from '@authlane/shared';
 import { describe, expect, it } from 'vitest';
-import { createIntegrationRegistry, integrationRegistry } from '../../src/lib/integration-registry.js';
+import {
+  createIntegrationRegistry,
+  integrationRegistry,
+} from '../../src/lib/integration-registry.js';
 
 describe('API integration registry', () => {
   it('loads an installed integration from the API package boundary', async () => {

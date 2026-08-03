@@ -17,7 +17,6 @@ describe('ConnectionDetailModal', () => {
   const mockConnection: Connection = {
     id: 'conn-123',
     scope: 'user',
-    userId: 'user-456',
     organizationId: 'org-789',
     serviceId: 'github',
     externalUserId: 'ext-user-123',
@@ -37,7 +36,7 @@ describe('ConnectionDetailModal', () => {
 
       expect(screen.getByRole('heading', { name: /Connection Details/i })).toBeInTheDocument();
       expect(screen.getByText('conn-123')).toBeInTheDocument();
-      expect(screen.getByText('user-456')).toBeInTheDocument();
+      expect(screen.getByText('ext-user-123')).toBeInTheDocument();
       expect(screen.getByText('github')).toBeInTheDocument();
     });
 

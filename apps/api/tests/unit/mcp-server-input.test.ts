@@ -9,7 +9,11 @@ describe('parseMcpServerRegistration', () => {
         serverUrl: 'https://mcp.example.com/mcp/',
         authType: 'oauth2',
       })
-    ).toEqual({ name: 'Support desk', serverUrl: 'https://mcp.example.com/mcp', authType: 'oauth2' });
+    ).toEqual({
+      name: 'Support desk',
+      serverUrl: 'https://mcp.example.com/mcp',
+      authType: 'oauth2',
+    });
   });
 
   it('rejects a plaintext URL', () => {

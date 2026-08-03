@@ -17,6 +17,8 @@ import type { Auth } from '../lib/auth.js';
 
 interface AuthMiddlewareOptions {
   now?: () => Date;
+  /** Counts requests made with a tenant API key. Dashboard sessions are not API usage. */
+  usage?: { record(organizationId: string, at?: Date): void };
 }
 
 function extractApiKey(c: Context): string | null {
@@ -122,6 +124,8 @@ export function authMiddleware(db: Database, auth?: Auth, options: AuthMiddlewar
     c.set('organization', { id: principal.organizationId } as Organization);
     c.set('apiKey', rawApiKey);
     c.set('principal', principal);
+    // Counted once the key is known to be valid, so a rejected request is not billed as usage.
+    options.usage?.record(principal.organizationId, now());
     await withTenantContext(db, principal.organizationId, next);
   };
 }

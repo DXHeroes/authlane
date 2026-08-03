@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type McpDiscoveryDeps, discoverMcpServer } from '../../src/lib/mcp-discovery-run.js';
+import { discoverMcpServer, type McpDiscoveryDeps } from '../../src/lib/mcp-discovery-run.js';
 
 function deps(overrides: Partial<McpDiscoveryDeps> = {}): McpDiscoveryDeps {
   return {

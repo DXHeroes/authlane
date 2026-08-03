@@ -76,7 +76,10 @@ export async function discoverMcpServer(
 ): Promise<McpDiscoveryResult> {
   const parsed = parseServerUrl(serverUrl);
   if (!parsed) {
-    return failure('MCP_DISCOVERY_INVALID_URL', 'The server URL must be https and carry no credentials');
+    return failure(
+      'MCP_DISCOVERY_INVALID_URL',
+      'The server URL must be https and carry no credentials'
+    );
   }
 
   // Resolved before any request, and again before each later refresh, so a host cannot answer
@@ -97,9 +100,7 @@ export async function discoverMcpServer(
   // Absent metadata is normal: a server may authenticate with an API key instead.
   let oauthMetadata: McpOAuthMetadata | null = null;
   try {
-    const payload = await deps.fetchJson(
-      `${parsed.url}/.well-known/oauth-authorization-server`
-    );
+    const payload = await deps.fetchJson(`${parsed.url}/.well-known/oauth-authorization-server`);
     const parsedMetadata = readOAuthMetadata(parsed.host, payload);
     if (parsedMetadata === 'untrusted') {
       return failure(

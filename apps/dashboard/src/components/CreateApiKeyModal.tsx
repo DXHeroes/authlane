@@ -1,6 +1,7 @@
 import { API_SCOPES, type ApiScope, DEFAULT_API_SCOPES } from '@authlane/shared/api-scopes';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
+import ErrorNotice from '@/components/ErrorNotice';
 import { api } from '@/lib/api';
 import type { ApiKeyWithSecret } from '@/types';
 
@@ -258,19 +259,23 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
                   );
                 })}
               </div>
-              {scopes.includes('credentials:issue') && (
+              {scopes.includes('credentials:issue') ? (
                 <p className="mt-2 rounded-md border border-yellow-500 bg-yellow-50 p-2 text-xs text-yellow-800">
                   This key can retrieve short-lived credentials. Treat it as a high-privilege
                   secret.
                 </p>
+              ) : (
+                // Without this scope every tool call fails at run time, long after the key looked
+                // fine: listing tools succeeds, and only the model's first invocation gets a 403.
+                <p className="mt-2 rounded-md border border-border bg-muted p-2 text-xs text-muted-foreground">
+                  Without <strong>Issue credential leases</strong> this key can read the catalog and
+                  start connections, but no tool will run: the first call an agent makes returns
+                  403. A key's permissions are fixed once created.
+                </p>
               )}
             </fieldset>
 
-            {createMutation.isError && (
-              <div className="rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700">
-                Failed to create API key. Please try again.
-              </div>
-            )}
+            {createMutation.isError && <ErrorNotice error={createMutation.error} />}
 
             <div className="flex justify-end gap-3 pt-4">
               <button

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ErrorNotice from '@/components/ErrorNotice';
 import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';
 
@@ -25,7 +26,7 @@ export default function OrganizationPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function OrganizationPage() {
       // Refresh the organization data
       await switchOrganization(organization.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update organization');
+      setError(err ?? new Error('Failed to update organization'));
     } finally {
       setIsUpdating(false);
     }
@@ -104,7 +105,7 @@ export default function OrganizationPage() {
       // Force page reload to clear state
       window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete organization');
+      setError(err ?? new Error('Failed to delete organization'));
       setIsDeleting(false);
     }
   };
@@ -174,11 +175,7 @@ export default function OrganizationPage() {
             </p>
           </div>
 
-          {error && (
-            <div className="rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+          {error ? <ErrorNotice error={error} /> : null}
 
           {success && (
             <div className="rounded-md border border-green-500 bg-green-50 p-3 text-sm text-green-700">

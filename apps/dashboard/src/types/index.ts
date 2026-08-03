@@ -87,9 +87,9 @@ export interface ServiceTool {
 export interface Connection {
   id: string;
   scope: 'user' | 'organization';
-  userId?: string;
   organizationId?: string;
   serviceId: string;
+  /** The id of the end user in the tenant's own system. The API calls it this; so do we. */
   externalUserId?: string;
   status: 'active' | 'expired' | 'error';
   createdAt: string;

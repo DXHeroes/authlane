@@ -6,13 +6,18 @@
 import type { Database } from '@authlane/database';
 import { refreshToken, type TokenRefreshData } from '@authlane/database';
 import { type JobsOptions, Queue, UnrecoverableError, Worker } from 'bullmq';
+import type { CacheStore } from '../lib/cache.js';
 import { logger } from '../lib/logger.js';
+import { createMcpDiscoveryDeps } from '../lib/mcp-discovery-deps.js';
+import { rediscoverStaleMcpServers } from './mcp-discovery.js';
 import { markExpiredConnections, processOutboxBatch } from './outbox.js';
 
 let tokenRefreshQueue: Queue<TokenRefreshData> | null = null;
 let tokenRefreshWorker: Worker<TokenRefreshData> | null = null;
 let outboxQueue: Queue<Record<string, never>> | null = null;
 let outboxWorker: Worker<Record<string, never>> | null = null;
+let mcpDiscoveryQueue: Queue<Record<string, never>> | null = null;
+let mcpDiscoveryWorker: Worker<Record<string, never>> | null = null;
 let redisConnectionFailed = false;
 
 export const outboxSweepJobOptions = {
@@ -20,6 +25,19 @@ export const outboxSweepJobOptions = {
   jobId: 'webhook-outbox-sweep',
   removeOnComplete: true,
   removeOnFail: 100,
+} satisfies JobsOptions;
+
+/**
+ * Hourly, against a contract that may be a day old.
+ *
+ * The sweep only picks up servers past that age, so the interval decides how promptly a stale
+ * contract is noticed, not how often a server is contacted.
+ */
+export const mcpDiscoverySweepJobOptions = {
+  repeat: { every: 60 * 60 * 1_000 },
+  jobId: 'mcp-discovery-sweep',
+  removeOnComplete: true,
+  removeOnFail: 20,
 } satisfies JobsOptions;
 
 export function bullMqConnectionOptions(redisUrl: string) {
@@ -54,7 +72,7 @@ function handleRedisError(_err: Error) {
 /**
  * Sets up the token refresh queue and worker
  */
-export function setupJobs(db: Database, redisUrl?: string) {
+export function setupJobs(db: Database, redisUrl?: string, cache?: CacheStore) {
   if (!redisUrl) {
     logger.warn('Redis is not configured; background jobs are disabled');
     return;
@@ -147,7 +165,20 @@ export function setupJobs(db: Database, redisUrl?: string) {
     outboxWorker.on('error', handleRedisError);
     void outboxQueue.add('sweep', {}, outboxSweepJobOptions).catch(handleRedisError);
 
-    logger.info('Token refresh and webhook outbox workers initialized');
+    const discoveryDeps = createMcpDiscoveryDeps();
+    mcpDiscoveryQueue = new Queue<Record<string, never>>('mcp-discovery', {
+      connection: connectionOptions,
+    });
+    mcpDiscoveryWorker = new Worker<Record<string, never>>(
+      'mcp-discovery',
+      () => rediscoverStaleMcpServers(db, discoveryDeps, { cache }),
+      { connection: connectionOptions }
+    );
+    mcpDiscoveryQueue.on('error', handleRedisError);
+    mcpDiscoveryWorker.on('error', handleRedisError);
+    void mcpDiscoveryQueue.add('sweep', {}, mcpDiscoverySweepJobOptions).catch(handleRedisError);
+
+    logger.info('Token refresh, webhook outbox and MCP discovery workers initialized');
   } catch (error) {
     logger.error({ error }, 'Failed to initialize background jobs');
     if (process.env.NODE_ENV === 'production') throw error;
@@ -197,6 +228,14 @@ export async function scheduleTokenRefresh(
  * Closes job queues and workers
  */
 export async function closeJobs(): Promise<void> {
+  if (mcpDiscoveryWorker) {
+    await mcpDiscoveryWorker.close();
+    mcpDiscoveryWorker = null;
+  }
+  if (mcpDiscoveryQueue) {
+    await mcpDiscoveryQueue.close();
+    mcpDiscoveryQueue = null;
+  }
   if (outboxWorker) {
     await outboxWorker.close();
     outboxWorker = null;

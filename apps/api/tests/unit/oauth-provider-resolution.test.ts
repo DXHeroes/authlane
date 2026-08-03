@@ -73,11 +73,10 @@ describe('authorize wiring for tenant MCP servers', () => {
   it('routes an mcp- id away from the built-in catalog', () => {
     // The authorize handler branches on this before it queries `services`, which has no row for
     // a tenant server. If the branch were removed the request would 404 instead.
-    const source = readFileSync(
-      new URL('../../src/routes/oauth.ts', import.meta.url),
-      'utf8'
+    const source = readFileSync(new URL('../../src/routes/oauth.ts', import.meta.url), 'utf8');
+    const authorizeBlock = source.slice(
+      source.indexOf("router.post('/connect/:serviceId/authorize'")
     );
-    const authorizeBlock = source.slice(source.indexOf("router.post('/connect/:serviceId/authorize'"));
     const mcpBranch = authorizeBlock.indexOf('isMcpServerId(serviceId)');
     const catalogQuery = authorizeBlock.indexOf('.from(services)');
 

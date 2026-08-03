@@ -16,9 +16,9 @@ import { createDatabaseSandboxRuntime } from '../lib/sandbox-runtime.js';
 import { requirePrincipalKind } from '../middleware/principal-kind.js';
 import { createControlPlaneRouter } from './control-plane.js';
 import { createDashboardRouter } from './dashboard.js';
+import { createMcpServersRouter } from './mcp-servers.js';
 import { createOAuthRouter } from './oauth.js';
 import { createSandboxRouter } from './sandbox.js';
-import { createMcpServersRouter } from './mcp-servers.js';
 import { createServicesRouter } from './services.js';
 
 export function createApiRouter(
@@ -46,7 +46,10 @@ export function createApiRouter(
 
   router.use('/catalog/*', requirePrincipalKind('api_key'));
   router.use('/users/*', requirePrincipalKind('api_key'));
-  router.route('/', createControlPlaneRouter(repository, createIntegrationRegistry(db), secretStore));
+  router.route(
+    '/',
+    createControlPlaneRouter(repository, createIntegrationRegistry(db), secretStore)
+  );
   router.route('/', createOAuthRouter(db, secretStore));
 
   return router;

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import type { Connection, DashboardStats } from '@/types';
 
@@ -90,7 +91,9 @@ export default function DashboardHome() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{connection.serviceId}</p>
-                        <p className="text-sm text-muted-foreground">User: {connection.userId}</p>
+                        <p className="text-sm text-muted-foreground">
+                          User: {connection.externalUserId}
+                        </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span
@@ -108,7 +111,22 @@ export default function DashboardHome() {
               })}
             </div>
           ) : (
-            <div className="p-8 text-center text-muted-foreground">No connections yet</div>
+            // A first-run workspace lands here. Naming the next step matters more than the
+            // empty table does.
+            <div className="p-8 text-center">
+              <p className="text-muted-foreground">No connections yet</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Connect an account in the{' '}
+                <Link to="/dashboard/sandbox" className="text-primary hover:underline">
+                  Sandbox
+                </Link>{' '}
+                to see the whole flow without writing any code, or review which{' '}
+                <Link to="/dashboard/services" className="text-primary hover:underline">
+                  services
+                </Link>{' '}
+                your workspace offers.
+              </p>
+            </div>
           )}
         </div>
       </div>

@@ -69,7 +69,7 @@ export default function ConnectionDetailModal({ connection, onClose }: Connectio
           <div className="grid grid-cols-2 gap-4">
             <div>
               <span className="text-sm font-medium text-muted-foreground">User ID</span>
-              <p className="mt-1 font-mono text-sm">{connection.userId}</p>
+              <p className="mt-1 font-mono text-sm">{connection.externalUserId}</p>
             </div>
 
             <div>

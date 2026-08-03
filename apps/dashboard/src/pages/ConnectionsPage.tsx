@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import ConnectionDetailModal from '@/components/ConnectionDetailModal';
 import { api } from '@/lib/api';
 import type { Connection, Service } from '@/types';
@@ -132,7 +133,7 @@ export default function ConnectionsPage() {
                 <tbody className="divide-y divide-border">
                   {connections.map((connection) => (
                     <tr key={connection.id} className="hover:bg-accent/50">
-                      <td className="px-6 py-4 text-sm font-mono">{connection.userId}</td>
+                      <td className="px-6 py-4 text-sm font-mono">{connection.externalUserId}</td>
                       <td className="px-6 py-4 text-sm">
                         {services?.find((s) => s.id === connection.serviceId)?.name ||
                           connection.serviceId}
@@ -167,10 +168,21 @@ export default function ConnectionsPage() {
               </table>
             </div>
           ) : (
-            <div className="p-12 text-center text-muted-foreground">
-              {searchQuery || serviceFilter || statusFilter
-                ? 'No connections found matching your filters'
-                : 'No connections yet'}
+            <div className="p-12 text-center">
+              {searchQuery || serviceFilter || statusFilter ? (
+                <p className="text-muted-foreground">No connections found matching your filters</p>
+              ) : (
+                <>
+                  <p className="text-muted-foreground">No connections yet</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Connect one yourself in the{' '}
+                    <Link to="/dashboard/sandbox" className="text-primary hover:underline">
+                      Sandbox
+                    </Link>{' '}
+                    to check the flow end to end.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>

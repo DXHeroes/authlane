@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import ErrorNotice from '@/components/ErrorNotice';
 import InviteMemberModal from '@/components/InviteMemberModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';
@@ -23,7 +24,7 @@ export default function MembersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const loadMembers = useCallback(async () => {
@@ -47,7 +48,7 @@ export default function MembersPage() {
       }
     } catch (err) {
       console.error('Failed to load members:', err);
-      setError('Failed to load members');
+      setError(new Error('Failed to load members'));
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +73,7 @@ export default function MembersPage() {
       });
       await loadMembers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update role');
+      setError(err ?? new Error('Failed to update role'));
     } finally {
       setActionLoading(null);
     }
@@ -89,7 +90,7 @@ export default function MembersPage() {
       });
       await loadMembers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove member');
+      setError(err ?? new Error('Failed to remove member'));
     } finally {
       setActionLoading(null);
     }
@@ -139,18 +140,18 @@ export default function MembersPage() {
         )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+      {error ? (
+        <div className="mb-4">
+          <ErrorNotice error={error} />
           <button
             type="button"
             onClick={() => setError(null)}
-            className="ml-2 font-medium underline"
+            className="mt-2 text-sm font-medium text-red-700 underline"
           >
             Dismiss
           </button>
         </div>
-      )}
+      ) : null}
 
       {/* Role Legend */}
       <div className="mb-4 flex gap-4 text-sm text-muted-foreground">

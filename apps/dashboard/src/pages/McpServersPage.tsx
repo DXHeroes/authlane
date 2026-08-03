@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, DashboardApiError } from '@/lib/api';
+import ErrorNotice from '@/components/ErrorNotice';
+import { api } from '@/lib/api';
 
 interface McpServer {
   id: string;
@@ -30,12 +31,6 @@ const RISK_STYLES: Record<McpServerTool['risk'], string> = {
   write: 'bg-amber-100 text-amber-700',
   destructive: 'bg-red-100 text-red-700',
 };
-
-function errorMessage(error: unknown): string {
-  return error instanceof DashboardApiError || error instanceof Error
-    ? error.message
-    : 'Something went wrong';
-}
 
 /**
  * What a server claims about a tool, next to what Authlane enforces.
@@ -221,7 +216,7 @@ function RegisterForm({ onDone }: { onDone: () => void }) {
         never relays a tool call: your runtime reaches the server directly with a leased credential.
       </p>
 
-      {register.error && <p className="text-sm text-red-600">{errorMessage(register.error)}</p>}
+      {register.error && <ErrorNotice error={register.error} />}
 
       <button
         type="submit"
@@ -283,9 +278,7 @@ export default function McpServersPage() {
       <RegisterForm onDone={refreshAll} />
 
       {(rediscover.error || remove.error) && (
-        <p className="mb-4 text-sm text-red-600">
-          {errorMessage(rediscover.error ?? remove.error)}
-        </p>
+        <ErrorNotice className="mb-4" error={rediscover.error ?? remove.error} />
       )}
 
       {isLoading && <p className="text-muted-foreground">Loading...</p>}

@@ -25,6 +25,7 @@ export {
   or,
   sql,
 } from 'drizzle-orm';
+export * from './api-usage.js';
 export * from './client.js';
 export * from './demo-bootstrap.js';
 export * from './jobs/token-refresh.js';

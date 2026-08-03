@@ -10,6 +10,7 @@ import {
   apiKeys,
   connections,
   count,
+  countApiUsageSince,
   countDistinct,
   createDatabaseSecretStore,
   type Database,
@@ -23,6 +24,7 @@ import {
   type SecretStore,
   services,
   sql,
+  usageDay,
   user,
 } from '@authlane/database';
 import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
@@ -124,11 +126,15 @@ export function createDashboardRouter(
         .from(services)
         .where(and(eq(services.enabled, true), inArray(services.id, getAllowedServiceIds())));
 
+      // Seven days inclusive of today, matching the tile's label.
+      const since = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+      const apiCalls7Days = await countApiUsageSince(db, orgId, usageDay(since));
+
       return c.json({
         data: {
           totalConnections: connectionsCount?.count ?? 0,
           activeUsers: usersCount?.count ?? 0,
-          apiCalls7Days: 0, // TODO: Implement API call tracking
+          apiCalls7Days,
           services: {
             enabled: enabledServicesCount?.count ?? 0,
             total: totalServicesCount?.count ?? 0,
@@ -164,6 +170,9 @@ export function createDashboardRouter(
       // Parse filter parameters
       const statusFilter = c.req.query('status'); // connected, expired, error
       const serviceIdFilter = c.req.query('serviceId'); // e.g., github, slack
+      // The dashboard's "Search by User ID" box has always sent this; nothing read it, so the
+      // search silently returned every connection.
+      const userIdFilter = c.req.query('userId')?.trim();
 
       // Validate status filter if provided
       const validStatuses = ['connected', 'expired', 'error', 'pending'] as const;
@@ -195,6 +204,10 @@ export function createDashboardRouter(
 
       if (serviceIdFilter) {
         filters.push(eq(connections.serviceId, serviceIdFilter));
+      }
+
+      if (userIdFilter) {
+        filters.push(eq(connections.externalUserId, userIdFilter));
       }
 
       const whereClause = filters.length > 1 ? and(...filters) : filters[0];

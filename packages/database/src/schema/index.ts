@@ -4,6 +4,7 @@
  */
 
 export * from './api-keys.js';
+export * from './api-usage.js';
 export * from './audit-logs.js';
 // Better Auth tables (user, session, account, organization, member, invitation)
 export * from './auth.js';

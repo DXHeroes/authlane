@@ -140,7 +140,9 @@ describe('canonical integration contracts', () => {
     } finally {
       writeFileSync(generatedJsonPath, before);
     }
-  });
+    // Three generator subprocesses. The default five seconds is a logic-test budget, and this
+    // test timed out whenever the suite ran alongside anything CPU-bound.
+  }, 60_000);
 
   it('rejects malformed tool JSON Schemas with service and tool context', () => {
     const manifestPath = join(manifestDirectory, 'airtable.json');

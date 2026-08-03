@@ -9,6 +9,8 @@ vi.mock('@/lib/api', () => ({
   api: {
     post: vi.fn(),
   },
+  // ErrorNotice narrows on this class, so the mock has to provide it.
+  DashboardApiError: class extends Error {},
 }));
 
 describe('CreateApiKeyModal', () => {
@@ -116,8 +118,9 @@ describe('CreateApiKeyModal', () => {
       const submitButton = screen.getByRole('button', { name: /^Create API Key$/i });
       await user.click(submitButton);
 
+      // The real failure is shown, not a generic "try again".
       await waitFor(() => {
-        expect(screen.getByText(/Failed to create API key/i)).toBeInTheDocument();
+        expect(screen.getByText('API Error')).toBeInTheDocument();
       });
     });
 
@@ -208,5 +211,23 @@ describe('CreateApiKeyModal', () => {
       expect(nameInput).toHaveAttribute('id', 'key-name');
       expect(expiresInput).toHaveAttribute('id', 'expires-in');
     });
+  });
+});
+
+describe('credential-issuing scope', () => {
+  it('warns that a key without it cannot run any tool', () => {
+    render(<CreateApiKeyModal onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+    // credentials:issue is not in DEFAULT_API_SCOPES, so this is what a user sees by default.
+    expect(screen.getByText(/no tool will run/)).toBeInTheDocument();
+  });
+
+  it('replaces it with the privilege warning once the scope is selected', async () => {
+    render(<CreateApiKeyModal onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Issue credential leases/i }));
+
+    expect(screen.queryByText(/no tool will run/)).not.toBeInTheDocument();
+    expect(screen.getByText(/high-privilege/)).toBeInTheDocument();
   });
 });

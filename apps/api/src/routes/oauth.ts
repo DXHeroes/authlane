@@ -323,6 +323,89 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     );
   });
 
+  /**
+   * Connects a tenant MCP server that authenticates with an API key.
+   *
+   * The key belongs to the end user, not the workspace: it is stored per connection, so revoking
+   * one person's access does not disturb anyone else's, and the audit trail stays per user. The
+   * key is written straight to the secret store and never echoed back, not even masked.
+   */
+  router.post('/connect/:serviceId/api-key', async (c) => {
+    const serviceId = c.req.param('serviceId');
+    let body: ConnectActionBody & { apiKey?: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json(errorResult(Errors.validationError('Request body must be valid JSON')), 400);
+    }
+
+    const token = connectTokenFromRequest(c.req.header('authorization'));
+    if (!token || !body.parentOrigin || !isValidServiceId(serviceId) || !isMcpServerId(serviceId)) {
+      return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
+    }
+    const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : '';
+    if (!apiKey || apiKey.length > 4096) {
+      return c.json(errorResult(Errors.validationError('An API key is required')), 400);
+    }
+
+    const session = await loadConnectSession(db, token, serviceId, body.parentOrigin);
+    if (!session) {
+      return c.json(errorResult(Errors.unauthorized('Connect session is invalid or expired')), 401);
+    }
+
+    return withTenantContext(db, session.organizationId, async () => {
+      const server = await readMcpServerConnectConfig(db, serviceId);
+      if (!server || !server.enabled) {
+        return c.json(errorResult(Errors.notFound('Enabled service', serviceId)), 404);
+      }
+      if (server.authType !== 'api_key') {
+        return c.json(
+          errorResult(Errors.validationError('This service is connected with OAuth, not an API key')),
+          400
+        );
+      }
+
+      const keyBytes = Buffer.from(apiKey, 'utf8');
+      let credentialSecretId: string;
+      try {
+        credentialSecretId = await secretStore.put({
+          organizationId: session.organizationId,
+          purpose: 'connection_credentials',
+          plaintext: keyBytes,
+        });
+      } finally {
+        keyBytes.fill(0);
+      }
+
+      await db
+        .insert(connections)
+        .values({
+          id: crypto.randomUUID(),
+          organizationId: session.organizationId,
+          externalUserId: session.externalUserId,
+          serviceId,
+          status: 'connected',
+          credentialSecretId,
+          connectedAt: new Date(),
+          expiresAt: null,
+          lastErrorCode: null,
+          metadata: {},
+        })
+        .onConflictDoUpdate({
+          target: [connections.organizationId, connections.externalUserId, connections.serviceId],
+          set: {
+            status: 'connected',
+            credentialSecretId,
+            connectedAt: new Date(),
+            lastErrorCode: null,
+            updatedAt: new Date(),
+          },
+        });
+
+      return c.json({ data: { serviceId, status: 'connected' }, error: null });
+    });
+  });
+
   router.post('/connect/session', async (c) => {
     let body: ConnectActionBody;
     try {

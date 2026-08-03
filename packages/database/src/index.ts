@@ -27,5 +27,6 @@ export {
 export * from './client.js';
 export * from './demo-bootstrap.js';
 export * from './jobs/token-refresh.js';
+export * from './mcp-servers.js';
 export * from './schema/index.js';
 export * from './secret-store.js';

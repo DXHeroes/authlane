@@ -10,7 +10,7 @@ import {
   CachedControlPlaneRepository,
   DrizzleControlPlaneRepository,
 } from '../lib/control-plane-repository.js';
-import { integrationRegistry } from '../lib/integration-registry.js';
+import { createIntegrationRegistry } from '../lib/integration-registry.js';
 import { createDatabaseSandboxRuntime } from '../lib/sandbox-runtime.js';
 import { requirePrincipalKind } from '../middleware/principal-kind.js';
 import { createControlPlaneRouter } from './control-plane.js';
@@ -43,7 +43,7 @@ export function createApiRouter(
 
   router.use('/catalog/*', requirePrincipalKind('api_key'));
   router.use('/users/*', requirePrincipalKind('api_key'));
-  router.route('/', createControlPlaneRouter(repository, integrationRegistry, secretStore));
+  router.route('/', createControlPlaneRouter(repository, createIntegrationRegistry(db), secretStore));
   router.route('/', createOAuthRouter(db, secretStore));
 
   return router;

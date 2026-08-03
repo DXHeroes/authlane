@@ -17,22 +17,22 @@
   "dependencies": {
     "@authlane/sdk": "workspace:*",
     "lucide-react": "^0.447.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
     "eslint": "^8.57.1",
-    "happy-dom": "^20.10.6",
-    "msw": "^2.12.4",
-    "typescript": "^5.6.3",
+    "happy-dom": "^20.11.1",
+    "msw": "^2.15.0",
+    "typescript": "^5.9.3",
     "vite": "^6.4.3",
     "vitest": "^4.1.10"
   }

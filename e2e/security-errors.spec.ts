@@ -454,7 +454,7 @@ test.describe('Security and Error Handling', () => {
       expect(isSecure).toBeTruthy();
     });
 
-    test('API keys are properly hashed', async ({ page, request }) => {
+    test('API keys are properly hashed', async ({ page }) => {
       const user = generateTestUser();
 
       await page.goto(`${URLS.dashboard}/register`);
@@ -527,7 +527,7 @@ test.describe('Security and Error Handling', () => {
       // Then verify redirect to login
     });
 
-    test('sessions are invalidated on logout', async ({ page, request }) => {
+    test('sessions are invalidated on logout', async ({ page }) => {
       const user = generateTestUser();
 
       await page.goto(`${URLS.dashboard}/register`);

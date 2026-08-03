@@ -2,7 +2,7 @@
  * Hono context type extensions
  */
 
-import type { User, Organization } from '@authlane/database';
+import type { Organization, User } from '@authlane/database';
 import type { ApiPrincipal } from '../lib/api-principal.js';
 import type { PublicSurface } from '../lib/public-surface.js';
 

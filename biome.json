@@ -1,6 +1,12 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -85,5 +91,20 @@
       "!**/index.css",
       "!**/globals.css"
     ]
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "e2e/**",
+        "scripts/**"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUndeclaredEnvVars": "off"
+          }
+        }
+      }
+    }
+  ]
 }

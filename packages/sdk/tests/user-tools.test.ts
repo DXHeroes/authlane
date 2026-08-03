@@ -755,29 +755,32 @@ describe('user tool adapter contract', () => {
         };
       },
     ],
-  ])('rejects an inherited %s from a polluted prototype', async (_case, property, inheritedValue, createFixture) => {
-    Object.defineProperty(Object.prototype, property, {
-      configurable: true,
-      enumerable: true,
-      value: inheritedValue,
-      writable: true,
-    });
-    try {
-      const { adapter, buildContexts, execute } = createAdapter();
-      const fetchFn = vi.fn(async () => rawResponse(createFixture()));
+  ])(
+    'rejects an inherited %s from a polluted prototype',
+    async (_case, property, inheritedValue, createFixture) => {
+      Object.defineProperty(Object.prototype, property, {
+        configurable: true,
+        enumerable: true,
+        value: inheritedValue,
+        writable: true,
+      });
+      try {
+        const { adapter, buildContexts, execute } = createAdapter();
+        const fetchFn = vi.fn(async () => rawResponse(createFixture()));
 
-      const result = await createClient(fetchFn as typeof fetch)
-        .user('user_123')
-        .tools.list({ adapter });
+        const result = await createClient(fetchFn as typeof fetch)
+          .user('user_123')
+          .tools.list({ adapter });
 
-      expect(result.data).toBeNull();
-      expect(result.error).toMatchObject({ code: 'INVALID_RESPONSE' });
-      expect(buildContexts).toHaveLength(0);
-      expect(execute).not.toHaveBeenCalled();
-    } finally {
-      Reflect.deleteProperty(Object.prototype, property);
+        expect(result.data).toBeNull();
+        expect(result.error).toMatchObject({ code: 'INVALID_RESPONSE' });
+        expect(buildContexts).toHaveLength(0);
+        expect(execute).not.toHaveBeenCalled();
+      } finally {
+        Reflect.deleteProperty(Object.prototype, property);
+      }
     }
-  });
+  );
 
   it.each([
     [
@@ -817,41 +820,41 @@ describe('user tool adapter contract', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it.each([
-    'adapter',
-    'format',
-  ] as const)('rejects an own %s accessor without invoking it', async (property) => {
-    let accessorCalls = 0;
-    const { adapter } = createAdapter();
-    const options = {};
-    Object.defineProperty(options, property, {
-      enumerable: true,
-      get: () => {
-        accessorCalls += 1;
-        return property === 'adapter' ? adapter : 'mcp';
-      },
-    });
-    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith('/tools?format=mcp')) {
-        return response({ tools: [githubTool], version: 'version-1' });
-      }
-      if (url.endsWith('/capabilities?format=mcp')) {
-        return response(capabilities);
-      }
-      throw new Error(`Unexpected request: ${url}`);
-    });
-    const runtimeTools = createClient(fetchFn as typeof fetch).user('user_123')
-      .tools as unknown as {
-      list(options: unknown): Promise<Result<unknown>>;
-    };
+  it.each(['adapter', 'format'] as const)(
+    'rejects an own %s accessor without invoking it',
+    async (property) => {
+      let accessorCalls = 0;
+      const { adapter } = createAdapter();
+      const options = {};
+      Object.defineProperty(options, property, {
+        enumerable: true,
+        get: () => {
+          accessorCalls += 1;
+          return property === 'adapter' ? adapter : 'mcp';
+        },
+      });
+      const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/tools?format=mcp')) {
+          return response({ tools: [githubTool], version: 'version-1' });
+        }
+        if (url.endsWith('/capabilities?format=mcp')) {
+          return response(capabilities);
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      });
+      const runtimeTools = createClient(fetchFn as typeof fetch).user('user_123')
+        .tools as unknown as {
+        list(options: unknown): Promise<Result<unknown>>;
+      };
 
-    const result = await runtimeTools.list(options);
+      const result = await runtimeTools.list(options);
 
-    expect(result).toMatchObject({ data: null, error: { code: 'ADAPTER_ERROR' } });
-    expect(accessorCalls).toBe(0);
-    expect(fetchFn).not.toHaveBeenCalled();
-  });
+      expect(result).toMatchObject({ data: null, error: { code: 'ADAPTER_ERROR' } });
+      expect(accessorCalls).toBe(0);
+      expect(fetchFn).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([
     ['a null payload', null],
@@ -1123,11 +1126,9 @@ describe('user tool adapter contract', () => {
     expect(Object.isFrozen(listed.data?.definitions)).toBe(true);
     expect(Object.isFrozen(listed.data?.definitions[0])).toBe(true);
     expect(Object.isFrozen(listed.data?.definitions[0].inputSchema)).toBe(true);
-    expect(
-      Object.isFrozen(
-        (listed.data?.definitions[0].inputSchema.properties as Record<string, unknown>).title
-      )
-    ).toBe(true);
+    const [definition] = listed.data?.definitions ?? [];
+    const properties = definition?.inputSchema.properties as Record<string, unknown> | undefined;
+    expect(Object.isFrozen(properties?.title)).toBe(true);
     expect(execution).toEqual({ ok: true });
     expect(execute).toHaveBeenCalledWith(
       expect.objectContaining({ serviceId: 'github', toolName: 'github_create_issue' })
@@ -1220,42 +1221,45 @@ describe('user tool adapter contract', () => {
   it.each([
     ['no own format', undefined, 'mcp'],
     ['an own format', 'openai', 'openai'],
-  ] as const)('ignores an inherited adapter and inherited format with %s', async (_case, ownFormat, expectedFormat) => {
-    const definitions = { tools: [githubTool], version: 'version-1' };
-    const { adapter, buildContexts, execute } = createAdapter();
-    const options = Object.create({ adapter, format: 'openai' }) as Record<string, unknown>;
-    if (ownFormat !== undefined) {
-      Object.defineProperty(options, 'format', {
-        configurable: true,
-        enumerable: true,
-        value: ownFormat,
-        writable: true,
+  ] as const)(
+    'ignores an inherited adapter and inherited format with %s',
+    async (_case, ownFormat, expectedFormat) => {
+      const definitions = { tools: [githubTool], version: 'version-1' };
+      const { adapter, buildContexts, execute } = createAdapter();
+      const options = Object.create({ adapter, format: 'openai' }) as Record<string, unknown>;
+      if (ownFormat !== undefined) {
+        Object.defineProperty(options, 'format', {
+          configurable: true,
+          enumerable: true,
+          value: ownFormat,
+          writable: true,
+        });
+      }
+      const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/tools?format=mcp') || url.endsWith('/tools?format=openai')) {
+          return response(definitions);
+        }
+        if (url.endsWith('/capabilities?format=mcp')) {
+          return response(capabilities);
+        }
+        throw new Error(`Unexpected request: ${url}`);
       });
+      const runtimeTools = createClient(fetchFn as typeof fetch).user('user_123')
+        .tools as unknown as {
+        list(options: unknown): Promise<Result<unknown>>;
+      };
+
+      const result = await runtimeTools.list(options);
+
+      expect(result).toEqual({ data: definitions, error: null });
+      expect(fetchFn.mock.calls.map(([url]) => String(url))).toEqual([
+        `https://authlane.test/api/v1/users/user_123/tools?format=${expectedFormat}`,
+      ]);
+      expect(buildContexts).toHaveLength(0);
+      expect(execute).not.toHaveBeenCalled();
     }
-    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith('/tools?format=mcp') || url.endsWith('/tools?format=openai')) {
-        return response(definitions);
-      }
-      if (url.endsWith('/capabilities?format=mcp')) {
-        return response(capabilities);
-      }
-      throw new Error(`Unexpected request: ${url}`);
-    });
-    const runtimeTools = createClient(fetchFn as typeof fetch).user('user_123')
-      .tools as unknown as {
-      list(options: unknown): Promise<Result<unknown>>;
-    };
-
-    const result = await runtimeTools.list(options);
-
-    expect(result).toEqual({ data: definitions, error: null });
-    expect(fetchFn.mock.calls.map(([url]) => String(url))).toEqual([
-      `https://authlane.test/api/v1/users/user_123/tools?format=${expectedFormat}`,
-    ]);
-    expect(buildContexts).toHaveLength(0);
-    expect(execute).not.toHaveBeenCalled();
-  });
+  );
 
   it('accepts adapter methods defined on a class prototype', async () => {
     class ClassAdapter implements UserToolAdapter<{ ready: true }> {
@@ -1375,32 +1379,35 @@ describe('user tool adapter contract', () => {
     ['unknown service', 'not-github', 'github_create_issue'],
     ['unknown tool', 'github', 'github_delete_repository'],
     ['tampered cross-service pair', 'slack', 'github_create_issue'],
-  ])('rejects an %s pair from the capability snapshot before leasing', async (_case, serviceId, toolName) => {
-    let invokeTampered: (() => Promise<unknown>) | undefined;
-    const execute = vi.fn(async (): Promise<Result<unknown>> => ({ data: {}, error: null }));
-    const adapter: UserToolAdapter<{ invoke: () => Promise<unknown> }> = {
-      format: 'mcp',
-      build: ({ execute: guardedExecute }) => {
-        invokeTampered = () => guardedExecute(serviceId, toolName, { tampered: true });
-        return { invoke: () => invokeTampered?.() };
-      },
-      execute,
-    };
-    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith('/capabilities?format=mcp')) return response(capabilities);
-      throw new Error(`Unexpected request: ${url}`);
-    });
-    const listed = await createClient(fetchFn as typeof fetch)
-      .user('user_123')
-      .tools.list({ adapter });
+  ])(
+    'rejects an %s pair from the capability snapshot before leasing',
+    async (_case, serviceId, toolName) => {
+      let invokeTampered: (() => Promise<unknown>) | undefined;
+      const execute = vi.fn(async (): Promise<Result<unknown>> => ({ data: {}, error: null }));
+      const adapter: UserToolAdapter<{ invoke: () => Promise<unknown> }> = {
+        format: 'mcp',
+        build: ({ execute: guardedExecute }) => {
+          invokeTampered = () => guardedExecute(serviceId, toolName, { tampered: true });
+          return { invoke: () => invokeTampered?.() };
+        },
+        execute,
+      };
+      const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/capabilities?format=mcp')) return response(capabilities);
+        throw new Error(`Unexpected request: ${url}`);
+      });
+      const listed = await createClient(fetchFn as typeof fetch)
+        .user('user_123')
+        .tools.list({ adapter });
 
-    expect(await listed.data?.invoke()).toEqual({
-      error: { code: 'TOOL_NOT_AVAILABLE', message: 'Tool is not available for this user.' },
-    });
-    expect(fetchFn).toHaveBeenCalledTimes(1);
-    expect(execute).not.toHaveBeenCalled();
-  });
+      expect(await listed.data?.invoke()).toEqual({
+        error: { code: 'TOOL_NOT_AVAILABLE', message: 'Tool is not available for this user.' },
+      });
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(execute).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([
     [
@@ -1469,40 +1476,40 @@ describe('user tool adapter contract', () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    'throw',
-    'returned error',
-  ] as const)('turns an adapter execute %s into a redacted non-throwing tool error', async (failureMode) => {
-    const { adapter } = createAdapter();
-    adapter.execute = vi.fn(async (): Promise<Result<unknown>> => {
-      if (failureMode === 'throw') {
-        throw new Error('provider-access-token-secret in stack');
-      }
-      const error: AuthlaneError = {
-        code: 'PROVIDER_ERROR_WITH_SECRET',
-        message: 'Provider returned provider-access-token-secret',
-        hint: 'Authorization: Bearer provider-access-token-secret',
-        docUrl: 'https://secret.invalid/provider-body',
-      };
-      return { data: null, error };
-    });
-    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith('/capabilities?format=mcp')) return response(capabilities);
-      if (url.endsWith('/credential-leases')) return response(credential);
-      throw new Error(`Unexpected request: ${url}`);
-    });
-    const listed = await createClient(fetchFn as typeof fetch)
-      .user('user_123')
-      .tools.list({ adapter });
+  it.each(['throw', 'returned error'] as const)(
+    'turns an adapter execute %s into a redacted non-throwing tool error',
+    async (failureMode) => {
+      const { adapter } = createAdapter();
+      adapter.execute = vi.fn(async (): Promise<Result<unknown>> => {
+        if (failureMode === 'throw') {
+          throw new Error('provider-access-token-secret in stack');
+        }
+        const error: AuthlaneError = {
+          code: 'PROVIDER_ERROR_WITH_SECRET',
+          message: 'Provider returned provider-access-token-secret',
+          hint: 'Authorization: Bearer provider-access-token-secret',
+          docUrl: 'https://secret.invalid/provider-body',
+        };
+        return { data: null, error };
+      });
+      const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/capabilities?format=mcp')) return response(capabilities);
+        if (url.endsWith('/credential-leases')) return response(credential);
+        throw new Error(`Unexpected request: ${url}`);
+      });
+      const listed = await createClient(fetchFn as typeof fetch)
+        .user('user_123')
+        .tools.list({ adapter });
 
-    const execution = await listed.data?.github_create_issue({ title: 'safe' });
+      const execution = await listed.data?.github_create_issue({ title: 'safe' });
 
-    expect(execution).toEqual({
-      error: { code: 'ADAPTER_ERROR', message: 'Tool execution failed.' },
-    });
-    expect(JSON.stringify(execution)).not.toMatch(/secret|hint|docUrl|stack|body/i);
-  });
+      expect(execution).toEqual({
+        error: { code: 'ADAPTER_ERROR', message: 'Tool execution failed.' },
+      });
+      expect(JSON.stringify(execution)).not.toMatch(/secret|hint|docUrl|stack|body/i);
+    }
+  );
 
   it('short-circuits an invalid user scope before capabilities, build, or lease work', async () => {
     const fetchFn = vi.fn();

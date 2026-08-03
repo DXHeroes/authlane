@@ -53,33 +53,30 @@ describe('per-record envelope secret vault', () => {
     await expect(vault.open(sealed, context)).resolves.toEqual(Buffer.from('refresh-secret'));
   });
 
-  it.each([
-    'organizationId',
-    'id',
-    'purpose',
-  ] as const)('rejects AAD substitution of %s', async (field) => {
-    const vault = new EnvelopeSecretVault(keyring());
-    const sealed = await vault.seal({ ...context, plaintext: Buffer.from('access-secret') });
-    const substituted = { ...context, [field]: `${context[field]}_other` };
+  it.each(['organizationId', 'id', 'purpose'] as const)(
+    'rejects AAD substitution of %s',
+    async (field) => {
+      const vault = new EnvelopeSecretVault(keyring());
+      const sealed = await vault.seal({ ...context, plaintext: Buffer.from('access-secret') });
+      const substituted = { ...context, [field]: `${context[field]}_other` };
 
-    await expect(vault.open(sealed, substituted)).rejects.toThrow();
-  });
+      await expect(vault.open(sealed, substituted)).rejects.toThrow();
+    }
+  );
 
-  it.each([
-    'ciphertext',
-    'payloadTag',
-    'wrappedDek',
-    'wrappedDekTag',
-  ] as const)('rejects tampering with %s', async (field) => {
-    const vault = new EnvelopeSecretVault(keyring());
-    const sealed = await vault.seal({ ...context, plaintext: Buffer.from('access-secret') });
-    const tampered: SealedSecret = {
-      ...sealed,
-      [field]: `${sealed[field].slice(0, -2)}AA`,
-    };
+  it.each(['ciphertext', 'payloadTag', 'wrappedDek', 'wrappedDekTag'] as const)(
+    'rejects tampering with %s',
+    async (field) => {
+      const vault = new EnvelopeSecretVault(keyring());
+      const sealed = await vault.seal({ ...context, plaintext: Buffer.from('access-secret') });
+      const tampered: SealedSecret = {
+        ...sealed,
+        [field]: `${sealed[field].slice(0, -2)}AA`,
+      };
 
-    await expect(vault.open(tampered, context)).rejects.toThrow();
-  });
+      await expect(vault.open(tampered, context)).rejects.toThrow();
+    }
+  );
 
   it('rewraps only the DEK under the current KEK during rotation', async () => {
     const oldVault = new EnvelopeSecretVault(keyring('kek-2026-07'));

@@ -96,9 +96,7 @@ describe('control-plane migration', () => {
 describe('tenant MCP server migration', () => {
   it('isolates a tenant’s own servers', () => {
     expect(mcpServersMigration).toContain('CREATE TABLE "mcp_servers"');
-    expect(mcpServersMigration).toContain(
-      'ALTER TABLE "mcp_servers" ENABLE ROW LEVEL SECURITY'
-    );
+    expect(mcpServersMigration).toContain('ALTER TABLE "mcp_servers" ENABLE ROW LEVEL SECURITY');
     expect(mcpServersMigration).toContain('ALTER TABLE "mcp_servers" FORCE ROW LEVEL SECURITY');
     expect(mcpServersMigration).toContain('CREATE POLICY "mcp_servers_tenant_isolation"');
   });

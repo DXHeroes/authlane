@@ -34,8 +34,7 @@ function isExecutorError(value: unknown): boolean {
     }
     const errorDescriptor = Object.getOwnPropertyDescriptor(value, 'error');
     if (
-      !errorDescriptor ||
-      !errorDescriptor.enumerable ||
+      !errorDescriptor?.enumerable ||
       !('value' in errorDescriptor) ||
       typeof errorDescriptor.value !== 'object' ||
       errorDescriptor.value === null ||
@@ -56,12 +55,10 @@ function isExecutorError(value: unknown): boolean {
     const codeDescriptor = Object.getOwnPropertyDescriptor(error, 'code');
     const messageDescriptor = Object.getOwnPropertyDescriptor(error, 'message');
     if (
-      !codeDescriptor ||
-      !codeDescriptor.enumerable ||
+      !codeDescriptor?.enumerable ||
       !('value' in codeDescriptor) ||
       typeof codeDescriptor.value !== 'string' ||
-      !messageDescriptor ||
-      !messageDescriptor.enumerable ||
+      !messageDescriptor?.enumerable ||
       !('value' in messageDescriptor) ||
       typeof messageDescriptor.value !== 'string'
     ) {
@@ -180,7 +177,7 @@ function cloneJsonValue(
       const clone: JsonValue[] = [];
       for (let index = 0; index < length; index += 1) {
         const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-        if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+        if (!descriptor?.enumerable || !('value' in descriptor)) {
           return invalidJsonClone;
         }
         const item = cloneJsonValue(descriptor.value, state, depth + 1);
@@ -212,7 +209,7 @@ function cloneJsonValue(
     const clone = Object.create(null) as { [key: string]: JsonValue };
     for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+      if (!descriptor?.enumerable || !('value' in descriptor)) {
         return invalidJsonClone;
       }
       const property = cloneJsonValue(descriptor.value, state, depth + 1);

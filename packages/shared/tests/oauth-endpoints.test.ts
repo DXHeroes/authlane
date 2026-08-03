@@ -122,9 +122,9 @@ describe('validateOAuthEndpoint for tenant MCP servers', () => {
   const server = { registeredHost: 'mcp.example.com' };
 
   it('accepts an endpoint on the registered host', () => {
-    expect(
-      validateOAuthEndpoint('mcp-1', 'token', 'https://mcp.example.com/token', server)
-    ).toBe('https://mcp.example.com/token');
+    expect(validateOAuthEndpoint('mcp-1', 'token', 'https://mcp.example.com/token', server)).toBe(
+      'https://mcp.example.com/token'
+    );
   });
 
   it('accepts a subdomain of the registered host', () => {

@@ -359,7 +359,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
 
     return withTenantContext(db, session.organizationId, async () => {
       const server = await readMcpServerConnectConfig(db, serviceId);
-      if (!server || !server.enabled) {
+      if (!server?.enabled) {
         return c.json(errorResult(Errors.notFound('Enabled service', serviceId)), 404);
       }
       if (server.authType !== 'api_key') {

@@ -1146,7 +1146,7 @@ export function createDashboardRouter(
         .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
         .limit(1);
 
-      if (!currentMember || currentMember.role !== 'owner') {
+      if (currentMember?.role !== 'owner') {
         return c.json(Errors.unauthorized('Only owners can update member roles'), 403);
       }
 
@@ -1423,7 +1423,7 @@ export function createDashboardRouter(
         .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
         .limit(1);
 
-      if (!currentMember || currentMember.role !== 'owner') {
+      if (currentMember?.role !== 'owner') {
         return c.json(Errors.unauthorized('Only owners can delete organization'), 403);
       }
 

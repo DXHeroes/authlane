@@ -270,7 +270,7 @@ const cloneJsonValue = (
     const clone: unknown[] = [];
     for (let index = 0; index < length; index += 1) {
       const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-      if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+      if (!descriptor?.enumerable || !('value' in descriptor)) {
         return invalidJsonClone;
       }
       const item = cloneJsonValue(descriptor.value, state, depth + 1);
@@ -296,7 +296,7 @@ const cloneJsonValue = (
       return invalidJsonClone;
     }
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+    if (!descriptor?.enumerable || !('value' in descriptor)) {
       return invalidJsonClone;
     }
     const property = cloneJsonValue(descriptor.value, state, depth + 1);
@@ -376,7 +376,7 @@ const deepFreezeJsonValue = (value: unknown): boolean => {
         continue;
       }
       const descriptor = Object.getOwnPropertyDescriptor(current.value, key);
-      if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+      if (!descriptor?.enumerable || !('value' in descriptor)) {
         return false;
       }
       if (typeof descriptor.value === 'object' && descriptor.value !== null) {

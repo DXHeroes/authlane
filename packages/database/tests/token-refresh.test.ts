@@ -48,7 +48,12 @@ function databaseFor(organizationService: Record<string, unknown>) {
       where: vi.fn(() => ({
         limit: vi.fn().mockResolvedValue(
           table === services
-            ? [{ id: DATA.serviceId, config: { token_url: 'https://oauth2.googleapis.com/token' } }]
+            ? [
+                {
+                  id: DATA.serviceId,
+                  config: { token_url: 'https://oauth2.googleapis.com/token' },
+                },
+              ]
             : table === organizationServices
               ? [organizationService]
               : []

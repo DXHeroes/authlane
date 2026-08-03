@@ -4,7 +4,7 @@ import { and, asc, eq, lt } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { mcpServers, mcpServerTools } from './schema/mcp-servers.js';
 
-export { MCP_SERVER_ID_PREFIX, isMcpServerId };
+export { isMcpServerId, MCP_SERVER_ID_PREFIX };
 
 function toRisk(value: string): DiscoveredToolRisk {
   return value === 'read' || value === 'destructive' ? value : 'write';

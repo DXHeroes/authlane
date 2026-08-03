@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { IntegrationRegistry } from '../src/integration-loader.js';
-import { discoveredToolsToIntegration } from '../src/mcp-discovery.js';
 import type { DiscoveredTool } from '../src/mcp-discovery.js';
+import { discoveredToolsToIntegration } from '../src/mcp-discovery.js';
 
 function tool(overrides: Partial<DiscoveredTool> = {}): DiscoveredTool {
   return {
@@ -97,12 +97,12 @@ describe('IntegrationRegistry.invalidate', () => {
     const registry = new IntegrationRegistry(loader);
 
     const first = await registry.getTools(['mcp-1'], 'mcp');
-    expect((first.tools?.[0] as { name: string }).name).toBe('before');
+    expect(first.tools?.[0]).toMatchObject({ name: 'before' });
 
     registry.invalidate('mcp-1');
 
     const second = await registry.getTools(['mcp-1'], 'mcp');
-    expect((second.tools?.[0] as { name: string }).name).toBe('after');
+    expect(second.tools?.[0]).toMatchObject({ name: 'after' });
     expect(loader).toHaveBeenCalledTimes(2);
   });
 

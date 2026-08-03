@@ -518,7 +518,7 @@ test.describe('API Keys Management', () => {
   });
 
   test.describe('API Key Usage', () => {
-    test('can authenticate with valid API key', async ({ page, request }) => {
+    test('can authenticate with valid API key', async ({ request }) => {
       // Use existing API key from .env or create one via UI
       const apiKey = process.env.TEST_API_KEY || 'test_api_key_dev';
 

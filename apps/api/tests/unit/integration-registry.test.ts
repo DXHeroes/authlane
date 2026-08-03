@@ -57,7 +57,7 @@ describe('tenant MCP servers in the registry', () => {
     const issued = await registry.getTools(['mcp-abc'], 'mcp');
 
     expect(issued.tools).toHaveLength(1);
-    expect((issued.tools?.[0] as { name: string }).name).toBe('search_tickets');
+    expect(issued.tools?.[0]).toMatchObject({ name: 'search_tickets' });
   });
 
   it('still serves built-in integrations from the compiled catalog', async () => {

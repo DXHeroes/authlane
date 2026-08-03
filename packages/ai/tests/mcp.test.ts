@@ -253,7 +253,8 @@ describe('mcpServer', () => {
       expect(JSON.parse(result.content[0]?.type === 'text' ? result.content[0].text : '')).toEqual(
         result.structuredContent
       );
-      expect(Object.is((result.structuredContent?.values as number[])[0], -0)).toBe(false);
+      const values = result.structuredContent?.values as number[] | undefined;
+      expect(Object.is(values?.[0], -0)).toBe(false);
     } finally {
       await connection.close();
     }

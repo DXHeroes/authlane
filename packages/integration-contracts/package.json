@@ -35,8 +35,8 @@
     "@authlane/shared": "workspace:*"
   },
   "devDependencies": {
-    "ajv": "^8.17.1",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.13.3",
+    "ajv": "^8.20.0",
     "typescript": "^5.9.3"
   },
   "repository": {

@@ -10,6 +10,7 @@ export * from './errors.js';
 export * from './hash.js';
 export * from './integration-adapter.js';
 export * from './integration-loader.js';
+export * from './mcp-discovery.js';
 export * from './oauth.js';
 export * from './oauth-endpoints.js';
 export * from './platform-oauth.js';

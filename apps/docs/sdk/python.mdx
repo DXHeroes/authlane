@@ -16,6 +16,9 @@ Python 3.11 or newer is required.
 
 ## Initialize the client
 
+The client talks to `https://app.authlane.io` unless you say otherwise, so only a self-hosted
+deployment needs `base_url`.
+
 ```python
 import os
 
@@ -23,7 +26,6 @@ from authlane import Authlane
 
 with Authlane(
     api_key=os.environ["AUTHLANE_API_KEY"],
-    base_url="https://app.authlane.io",
 ) as authlane:
     result = authlane.services.list()
     if result.error is not None:

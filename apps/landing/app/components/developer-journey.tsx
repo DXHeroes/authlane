@@ -12,7 +12,6 @@ const catalogSamples = {
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 const { data: services, error } = await authlane.services.list();

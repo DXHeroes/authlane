@@ -13,6 +13,9 @@ pnpm add @authlane/sdk
 
 Keep the tenant API key in a trusted Node.js server environment.
 
+The client talks to `https://app.authlane.io` unless you say otherwise, so only a self-hosted
+deployment needs `baseUrl`.
+
 ## Implement the workflow
 
 ```typescript
@@ -20,7 +23,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function loadUser(currentUser: { id: string }) {

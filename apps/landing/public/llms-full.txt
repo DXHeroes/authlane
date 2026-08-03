@@ -66,7 +66,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 ```
 
@@ -79,7 +78,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function listServices() {
@@ -105,7 +103,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function createConnectSession(currentUser: { id: string }) {
@@ -194,7 +191,6 @@ import { createTextStreamResponse, streamText, toTextStream, type ModelMessage }
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
@@ -216,7 +212,6 @@ import { Agent, run } from '@openai/agents';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, prompt: string) {
@@ -239,7 +234,6 @@ import { Agent } from '@mastra/core/agent';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, prompt: string) {
@@ -317,7 +311,6 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function connectMcp(currentUser: { id: string }, transport: Transport) {
@@ -449,7 +442,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function GET() {
@@ -505,7 +497,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function createConnectUrl(currentUser: { id: string }) {
@@ -973,6 +964,9 @@ pnpm add @authlane/sdk
 
 Keep the tenant API key in a trusted Node.js server environment.
 
+The client talks to `https://app.authlane.io` unless you say otherwise, so only a self-hosted
+deployment needs `baseUrl`.
+
 ## Implement the workflow
 
 ```typescript
@@ -980,7 +974,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function loadUser(currentUser: { id: string }) {
@@ -1166,6 +1159,9 @@ Python 3.11 or newer is required.
 
 ## Initialize the client
 
+The client talks to `https://app.authlane.io` unless you say otherwise, so only a self-hosted
+deployment needs `base_url`.
+
 ```python
 import os
 
@@ -1173,7 +1169,6 @@ from authlane import Authlane
 
 with Authlane(
     api_key=os.environ["AUTHLANE_API_KEY"],
-    base_url="https://app.authlane.io",
 ) as authlane:
     result = authlane.services.list()
     if result.error is not None:
@@ -1293,7 +1288,6 @@ import { createTextStreamResponse, streamText, toTextStream, type ModelMessage }
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
@@ -1352,7 +1346,6 @@ import { Agent, run } from '@openai/agents';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, prompt: string) {
@@ -1415,7 +1408,6 @@ import { Agent } from '@mastra/core/agent';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, prompt: string) {
@@ -1483,7 +1475,6 @@ class CurrentUser:
 def answer(current_user: CurrentUser, prompt: str):
     with Authlane(
         api_key=os.environ["AUTHLANE_API_KEY"],
-        base_url="https://app.authlane.io",
     ) as authlane:
         user = authlane.user(current_user.id)
         result = user.tools.list(adapter=agno())
@@ -1544,7 +1535,6 @@ class CurrentUser:
 def answer(current_user: CurrentUser, prompt: str, model: BaseChatModel):
     with Authlane(
         api_key=os.environ["AUTHLANE_API_KEY"],
-        base_url="https://app.authlane.io",
     ) as authlane:
         user = authlane.user(current_user.id)
         result = user.tools.list(adapter=langchain())
@@ -1596,7 +1586,6 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function connectUserServer(
@@ -3537,7 +3526,6 @@ import trello from './trello.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function listBoards(currentUser: { id: string }) {
@@ -3711,6 +3699,24 @@ Use `DATABASE_URL` for the NOBYPASSRLS application role and `SYSTEM_DATABASE_URL
 granted worker. Keep PostgreSQL and Redis on private networks and require TLS when traffic leaves a
 private host.
 
+Point the SDKs at your deployment. Both default to the hosted control plane at
+`https://app.authlane.io`, so this is the one place the option is needed:
+
+```typescript
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: process.env.AUTHLANE_BASE_URL!,
+});
+```
+
+```python
+with Authlane(
+    api_key=os.environ["AUTHLANE_API_KEY"],
+    base_url=os.environ["AUTHLANE_BASE_URL"],
+) as authlane:
+    ...
+```
+
 ## Choose an authentication mode
 
 Authlane defaults to `AUTHLANE_AUTH_MODE=email-password` for backwards-compatible self-hosting and
@@ -3808,7 +3814,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function connectGithub(currentUser: { id: string }) {

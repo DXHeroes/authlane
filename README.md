@@ -31,7 +31,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 const { data: services, error } = await authlane.services.list();
@@ -108,7 +107,6 @@ from authlane.adapters import langchain
 
 with Authlane(
     api_key=os.environ["AUTHLANE_API_KEY"],
-    base_url="https://app.authlane.io",
 ) as authlane:
     result = authlane.user("user_123").tools.list(adapter=langchain())
 

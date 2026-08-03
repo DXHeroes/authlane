@@ -16,7 +16,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function createConnectUrl(currentUser: { id: string }) {

@@ -33,7 +33,6 @@ import { createTextStreamResponse, streamText, toTextStream } from 'ai';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 const currentUser = await requireUser(request);
@@ -73,7 +72,6 @@ import { Agent, run } from '@openai/agents';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 const currentUser = await requireUser(request);
 const { data: tools, error } = await authlane
@@ -112,7 +110,6 @@ import { Agent } from '@mastra/core/agent';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 const currentUser = await requireUser(request);
 const { data: tools, error } = await authlane
@@ -159,7 +156,6 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function connectUserMcpServer(

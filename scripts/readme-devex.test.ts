@@ -15,7 +15,8 @@ describe('README developer experience', () => {
 
   it('contains initialized TypeScript and Python paths with empty allowlist semantics', () => {
     expect(readme).toContain("import { Authlane } from '@authlane/sdk';");
-    expect(readme).toContain("baseUrl: 'https://app.authlane.io'");
+    // The SDKs default to the hosted control plane, so the quickstart must not teach a baseUrl.
+    expect(readme).not.toContain("baseUrl: 'https://app.authlane.io'");
     expect(readme).toContain('allowedServices: []');
     expect(readme).toContain('snapshots every service currently enabled for the tenant');
     expect(readme).toContain('from authlane import Authlane');

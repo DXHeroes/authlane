@@ -27,7 +27,6 @@ class CurrentUser:
 def answer(current_user: CurrentUser, prompt: str):
     with Authlane(
         api_key=os.environ["AUTHLANE_API_KEY"],
-        base_url="https://app.authlane.io",
     ) as authlane:
         user = authlane.user(current_user.id)
         result = user.tools.list(adapter=agno())

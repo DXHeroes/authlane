@@ -17,7 +17,6 @@ from authlane import Authlane
 
 authlane = Authlane(
     api_key=os.environ["AUTHLANE_TOOLS_KEY"],
-    base_url="https://app.authlane.io",
 )
 ```
 

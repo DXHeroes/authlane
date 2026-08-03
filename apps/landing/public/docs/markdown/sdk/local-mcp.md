@@ -19,7 +19,6 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function connectUserServer(

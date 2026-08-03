@@ -22,15 +22,12 @@ import { Authlane } from '@authlane/sdk';
 
 export const catalogAuthlane = new Authlane({
   apiKey: process.env.AUTHLANE_CATALOG_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 export const connectAuthlane = new Authlane({
   apiKey: process.env.AUTHLANE_CONNECT_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 export const toolsAuthlane = new Authlane({
   apiKey: process.env.AUTHLANE_TOOLS_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 ```
 

@@ -22,7 +22,6 @@ import { createTextStreamResponse, streamText, toTextStream, type ModelMessage }
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {

@@ -48,7 +48,6 @@ import trello from './trello.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function listBoards(currentUser: { id: string }) {

@@ -27,6 +27,24 @@ Use `DATABASE_URL` for the NOBYPASSRLS application role and `SYSTEM_DATABASE_URL
 granted worker. Keep PostgreSQL and Redis on private networks and require TLS when traffic leaves a
 private host.
 
+Point the SDKs at your deployment. Both default to the hosted control plane at
+`https://app.authlane.io`, so this is the one place the option is needed:
+
+```typescript
+const authlane = new Authlane({
+  apiKey: process.env.AUTHLANE_API_KEY!,
+  baseUrl: process.env.AUTHLANE_BASE_URL!,
+});
+```
+
+```python
+with Authlane(
+    api_key=os.environ["AUTHLANE_API_KEY"],
+    base_url=os.environ["AUTHLANE_BASE_URL"],
+) as authlane:
+    ...
+```
+
 ## Choose an authentication mode
 
 Authlane defaults to `AUTHLANE_AUTH_MODE=email-password` for backwards-compatible self-hosting and

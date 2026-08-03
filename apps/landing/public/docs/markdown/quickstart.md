@@ -17,7 +17,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 ```
 
@@ -30,7 +29,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function listServices() {
@@ -56,7 +54,6 @@ import { Authlane } from '@authlane/sdk';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function createConnectSession(currentUser: { id: string }) {
@@ -145,7 +142,6 @@ import { createTextStreamResponse, streamText, toTextStream, type ModelMessage }
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, messages: ModelMessage[]) {
@@ -167,7 +163,6 @@ import { Agent, run } from '@openai/agents';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, prompt: string) {
@@ -190,7 +185,6 @@ import { Agent } from '@mastra/core/agent';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function answer(currentUser: { id: string }, prompt: string) {
@@ -268,7 +262,6 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 const authlane = new Authlane({
   apiKey: process.env.AUTHLANE_API_KEY!,
-  baseUrl: 'https://app.authlane.io',
 });
 
 export async function connectMcp(currentUser: { id: string }, transport: Transport) {

@@ -1,4 +1,8 @@
-import { fetchOAuthToken, parseOAuthProviderContext } from '@authlane/shared';
+import {
+  fetchOAuthToken,
+  getPlatformOAuthCredentials,
+  parseOAuthProviderContext,
+} from '@authlane/shared';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import type { Database } from '../client.js';
 import { connections, organizationServices, outboxEvents, services } from '../schema/index.js';
@@ -126,9 +130,18 @@ export async function refreshToken(
       grant_type: 'refresh_token',
       refresh_token: credentials.refresh_token,
     });
+
+    // Mirror the authorize and callback steps: a tenant application wins,
+    // otherwise the platform application. Without this fallback a tenant on the
+    // platform OAuth app sent a refresh_token grant carrying NO client
+    // credentials at all — providers answer 400, which is not retryable, so the
+    // connection died permanently with OAUTH_REFRESH_REJECTED about an hour
+    // after the user connected it. Connecting worked, staying connected did not.
+    const platformCredentials = getPlatformOAuthCredentials(data.serviceId);
+    const clientId = organizationService.oauthClientId ?? platformCredentials?.clientId ?? null;
     let clientSecret = '';
-    if (organizationService.oauthClientId) {
-      tokenBody.set('client_id', organizationService.oauthClientId);
+    if (clientId) {
+      tokenBody.set('client_id', clientId);
     }
     if (organizationService.oauthClientSecretId) {
       const clientSecretBuffer = await secretStore.read(
@@ -138,16 +151,23 @@ export async function refreshToken(
       );
       try {
         clientSecret = clientSecretBuffer.toString('utf8');
-        tokenBody.set('client_secret', clientSecret);
       } finally {
         clientSecretBuffer.fill(0);
       }
+    } else if (!organizationService.oauthClientId) {
+      // Only reach for the platform secret when the tenant has no application
+      // of its own — pairing a tenant client_id with the platform secret would
+      // be worse than sending neither.
+      clientSecret = platformCredentials?.clientSecret ?? '';
+    }
+    if (clientSecret) {
+      tokenBody.set('client_secret', clientSecret);
     }
 
     let tokenResult: Awaited<ReturnType<typeof fetchOAuthToken>>;
     try {
       tokenResult = await fetchOAuthToken(data.serviceId, config.token_url, tokenBody, {
-        clientId: organizationService.oauthClientId ?? undefined,
+        clientId: clientId ?? undefined,
         clientSecret,
       });
     } catch {

@@ -6,6 +6,8 @@
  * without a socket.
  */
 
+import type { IntegrationTools } from './integration-loader.js';
+
 /** Risk assigned to every tool discovered from a third-party server. */
 export type DiscoveredToolRisk = 'read' | 'write' | 'destructive';
 
@@ -138,4 +140,36 @@ export function normalizeDiscoveredTools(serverId: string, payload: unknown): Di
   }
 
   return tools;
+}
+
+/**
+ * Turns a stored contract into the shape the tool registry consumes.
+ *
+ * Annotations are built from the stored `risk`, never copied from `declaredAnnotations`. The
+ * read-only filter that enforces a tenant's `read_only` policy reads annotations, so passing the
+ * server's own claim through would let it label a destructive tool read-only and walk straight
+ * past the policy. The declared values stay on the row for the tenant to inspect.
+ */
+export function discoveredToolsToIntegration(tools: readonly DiscoveredTool[]): IntegrationTools {
+  return {
+    tools: Object.fromEntries(
+      tools.map((tool) => [
+        tool.name,
+        {
+          definition: {
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            annotations: {
+              readOnlyHint: tool.risk === 'read',
+              destructiveHint: tool.risk === 'destructive',
+              idempotentHint: false,
+              // A tenant server reaches systems Authlane knows nothing about.
+              openWorldHint: true,
+            },
+          },
+        },
+      ])
+    ),
+  };
 }

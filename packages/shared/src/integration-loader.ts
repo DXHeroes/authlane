@@ -52,6 +52,17 @@ export class IntegrationRegistry {
     await Promise.all([...new Set(serviceIds)].map((serviceId) => this.loadEntry(serviceId)));
   }
 
+  /**
+   * Forgets a cached contract so the next read reloads it.
+   *
+   * Built-in integrations are compiled in and never change at runtime, which is why the cache is
+   * otherwise permanent. A tenant's MCP server rediscovers its tools on a schedule, so without
+   * this the registry would serve the contract captured at boot forever.
+   */
+  invalidate(serviceId: string): void {
+    this.entries.delete(serviceId);
+  }
+
   async getTools(
     serviceIds: string[],
     format: ToolFormat,

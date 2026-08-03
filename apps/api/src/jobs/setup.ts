@@ -198,7 +198,9 @@ export function setupJobs(
     outboxQueue.on('error', handleRedisError);
     outboxWorker.on('error', handleRedisError);
     outboxWorker.on('failed', (_job, err) => {
-      logger.error({ error: err }, 'Webhook outbox sweep failed');
+      // pino serializes an Error to its type alone, which told me a sweep was failing without
+      // saying why. The message and stack are the whole point of the report.
+      logger.error({ error: err?.message, stack: err?.stack }, 'Webhook outbox sweep failed');
     });
     void outboxQueue
       .upsertJobScheduler(outboxSweepSchedule.id, outboxSweepSchedule.repeat, {
@@ -219,7 +221,9 @@ export function setupJobs(
     mcpDiscoveryQueue.on('error', handleRedisError);
     mcpDiscoveryWorker.on('error', handleRedisError);
     mcpDiscoveryWorker.on('failed', (_job, err) => {
-      logger.error({ error: err }, 'Tenant MCP discovery sweep failed');
+      // pino serializes an Error to its type alone, which told me a sweep was failing without
+      // saying why. The message and stack are the whole point of the report.
+      logger.error({ error: err?.message, stack: err?.stack }, 'Tenant MCP discovery sweep failed');
     });
     void mcpDiscoveryQueue
       .upsertJobScheduler(mcpDiscoverySweepSchedule.id, mcpDiscoverySweepSchedule.repeat, {
@@ -239,7 +243,12 @@ export function setupJobs(
     providerToolsQueue.on('error', handleRedisError);
     providerToolsWorker.on('error', handleRedisError);
     providerToolsWorker.on('failed', (_job, err) => {
-      logger.error({ error: err }, 'Provider MCP tool discovery sweep failed');
+      // pino serializes an Error to its type alone, which told me a sweep was failing without
+      // saying why. The message and stack are the whole point of the report.
+      logger.error(
+        { error: err?.message, stack: err?.stack },
+        'Provider MCP tool discovery sweep failed'
+      );
     });
     // Reported even when it found nothing: silence used to be indistinguishable from a sweep that
     // threw on every run, which is what sent me looking through logs for an answer that was not

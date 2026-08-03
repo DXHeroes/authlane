@@ -22,6 +22,12 @@ GRANT SELECT ON organization, services, organization_services TO authlane_worker
 GRANT SELECT, UPDATE ON connections TO authlane_worker;
 GRANT SELECT, INSERT, UPDATE ON outbox_events TO authlane_worker;
 GRANT SELECT, INSERT, UPDATE, DELETE ON secret_records TO authlane_worker;
+-- The scheduled sweeps. This role's grants are enumerated on purpose, so a table a job needs has
+-- to be added here: it is not covered by ALL TABLES or by default privileges, and the failure is a
+-- permission error inside a background job rather than anything a request would surface.
+GRANT SELECT, UPDATE ON mcp_servers TO authlane_worker;
+GRANT SELECT, INSERT, UPDATE ON mcp_server_tools TO authlane_worker;
+GRANT SELECT, INSERT, UPDATE ON provider_tool_discoveries TO authlane_worker;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authlane_worker;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public

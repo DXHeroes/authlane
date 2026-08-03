@@ -1,14 +1,10 @@
 import type { DiscoveredTool, DiscoveredToolRisk } from '@authlane/shared';
+import { MCP_SERVER_ID_PREFIX, isMcpServerId } from '@authlane/shared';
 import { and, asc, eq } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { mcpServerTools, mcpServers } from './schema/mcp-servers.js';
 
-/** Prefix every tenant-registered MCP server carries, so it can stand in for a service id. */
-export const MCP_SERVER_ID_PREFIX = 'mcp-';
-
-export function isMcpServerId(serviceId: string): boolean {
-  return serviceId.startsWith(MCP_SERVER_ID_PREFIX);
-}
+export { MCP_SERVER_ID_PREFIX, isMcpServerId };
 
 function toRisk(value: string): DiscoveredToolRisk {
   return value === 'read' || value === 'destructive' ? value : 'write';

@@ -8,6 +8,7 @@ import {
   gt,
   inArray,
   isNull,
+  listEnabledMcpServers,
   oauthTransactions,
   organizationServices,
   outboxEvents,
@@ -26,7 +27,7 @@ import {
   getOAuthAuthorizationParameters,
   getPlatformOAuthCredentials,
   hashApiKey,
-  isSupportedServiceId,
+  isConnectableServiceId,
   isValidServiceId,
   isValidUserId,
   normalizeOAuthScopeNames,
@@ -143,7 +144,12 @@ async function listEnabledServiceIds(db: Database, organizationId: string): Prom
       )
     )
     .orderBy(asc(organizationServices.serviceId));
-  return rows.map((row) => row.serviceId);
+
+  // A tenant's own MCP servers are connectable alongside the built-in catalog. They live in their
+  // own table because `services` is global, so they are unioned here rather than joined.
+  const tenantServers = await listEnabledMcpServers(db, organizationId);
+
+  return [...rows.map((row) => row.serviceId), ...tenantServers.map((server) => server.id)];
 }
 
 export function createOAuthRouter(db: Database, secretStore: SecretStore) {
@@ -320,7 +326,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       !token ||
       !body.parentOrigin ||
       !isValidServiceId(serviceId) ||
-      !isSupportedServiceId(serviceId)
+      !isConnectableServiceId(serviceId)
     ) {
       return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
     }
@@ -482,7 +488,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       !state ||
       state.length > 512 ||
       !isValidServiceId(serviceId) ||
-      !isSupportedServiceId(serviceId)
+      !isConnectableServiceId(serviceId)
     ) {
       return c.json(errorResult(Errors.oauthError('Missing OAuth code or state')), 400);
     }
@@ -755,7 +761,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       !token ||
       !body.parentOrigin ||
       !isValidServiceId(serviceId) ||
-      !isSupportedServiceId(serviceId)
+      !isConnectableServiceId(serviceId)
     ) {
       return c.json(errorResult(Errors.unauthorized('A valid connect session is required')), 401);
     }

@@ -3,6 +3,7 @@ import {
   DEMO_SERVICE_ID,
   getAllowedServiceIds,
   isBuiltInIntegrationId,
+  isConnectableServiceId,
   isSupportedServiceId,
   SUPPORTED_SERVICE_IDS,
 } from '../src/supported-services.js';
@@ -74,5 +75,26 @@ describe('demo provider gating', () => {
     setDemoMode(true);
     expect(isBuiltInIntegrationId(DEMO_SERVICE_ID)).toBe(false);
     expect(isBuiltInIntegrationId('github')).toBe(true);
+  });
+});
+
+describe('connectable service ids', () => {
+  it('admits a tenant MCP server alongside the built-in catalog', () => {
+    expect(isConnectableServiceId('github')).toBe(true);
+    expect(isConnectableServiceId('mcp-6f1c2b3a-0000-4000-8000-000000000000')).toBe(true);
+  });
+
+  it('rejects anything else', () => {
+    expect(isConnectableServiceId('openai')).toBe(false);
+    expect(isConnectableServiceId('mcp')).toBe(false);
+    expect(isConnectableServiceId('')).toBe(false);
+    expect(isConnectableServiceId(null)).toBe(false);
+  });
+
+  it('keeps tenant ids out of the built-in union', () => {
+    // isSupportedServiceId narrows to SupportedServiceId, which indexes compiled tool contracts.
+    // A dynamic tenant id must never reach those lookups.
+    expect(isSupportedServiceId('mcp-6f1c2b3a')).toBe(false);
+    expect(isBuiltInIntegrationId('mcp-6f1c2b3a')).toBe(false);
   });
 });

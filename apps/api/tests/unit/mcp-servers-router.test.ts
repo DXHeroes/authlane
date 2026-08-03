@@ -20,15 +20,14 @@ function fakeDb(rows: unknown[] = []) {
         where: () => ({ orderBy: async () => rows }),
       }),
     }),
-    // Drizzle's insert builder is thenable and also exposes onConflictDoUpdate, so the fake has
-    // to be both to match how saveDiscoverySuccess chains onto it.
+    // Drizzle's insert builder is awaitable and also exposes onConflictDoUpdate, so the fake is a
+    // real promise carrying that method rather than a hand-rolled thenable.
     insert: () => ({
       values: () => {
         calls.push('insert');
-        return {
+        return Object.assign(Promise.resolve(), {
           onConflictDoUpdate: async () => undefined,
-          then: (resolve: (value: unknown) => unknown) => resolve(undefined),
-        };
+        });
       },
     }),
     update: () => ({ set: () => ({ where: async () => calls.push('update') }) }),

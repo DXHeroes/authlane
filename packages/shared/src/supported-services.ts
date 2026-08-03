@@ -55,3 +55,21 @@ export function getAllowedServiceIds(): AllowedServiceId[] {
     ? [...SUPPORTED_SERVICE_IDS, DEMO_SERVICE_ID]
     : [...SUPPORTED_SERVICE_IDS];
 }
+
+/** Prefix every tenant-registered MCP server carries so it can stand in for a service id. */
+export const MCP_SERVER_ID_PREFIX = 'mcp-';
+
+export function isMcpServerId(value: unknown): value is string {
+  return typeof value === 'string' && value.startsWith(MCP_SERVER_ID_PREFIX);
+}
+
+/**
+ * Service ids a connect session may name: the built-in catalog plus a tenant's own MCP servers.
+ *
+ * Deliberately returns a plain boolean rather than narrowing. A tenant server id is not a member
+ * of SupportedServiceId, and widening that union would let a dynamic id reach the places that
+ * index compiled tool contracts.
+ */
+export function isConnectableServiceId(value: unknown): boolean {
+  return isSupportedServiceId(value) || isMcpServerId(value);
+}

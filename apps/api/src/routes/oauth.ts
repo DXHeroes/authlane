@@ -611,17 +611,32 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           )
           .limit(1),
       ]);
-      // Mirror the authorize step: a tenant application wins, otherwise the platform application.
-      const platformCredentials = getPlatformOAuthCredentials(serviceId);
-      const oauthClientId = tenantService?.oauthClientId ?? platformCredentials?.clientId ?? null;
-      if (!connection || !service || !tenantService || !oauthClientId) {
+      // A tenant server carries its own token endpoint and client; a built-in one mirrors the
+      // authorize step, where a tenant application wins over the platform application.
+      const mcpServer = isMcpServerId(serviceId)
+        ? await readMcpServerConnectConfig(db, serviceId)
+        : null;
+      const platformCredentials = isMcpServerId(serviceId)
+        ? null
+        : getPlatformOAuthCredentials(serviceId);
+      const oauthClientId = isMcpServerId(serviceId)
+        ? (mcpServer?.oauthClientId ?? null)
+        : (tenantService?.oauthClientId ?? platformCredentials?.clientId ?? null);
+      const tokenUrl = isMcpServerId(serviceId)
+        ? (mcpServer?.tokenEndpoint ?? null)
+        : ((service?.config as { token_url?: string } | undefined)?.token_url ?? null);
+      const registeredHost = mcpServer ? new URL(mcpServer.serverUrl).hostname : undefined;
+      const clientSecretId = isMcpServerId(serviceId)
+        ? (mcpServer?.oauthClientSecretId ?? null)
+        : (tenantService?.oauthClientSecretId ?? null);
+
+      if (!connection || !oauthClientId || (!isMcpServerId(serviceId) && (!service || !tenantService))) {
         return c.json(
           errorResult(Errors.oauthError('OAuth provider is no longer configured')),
           409
         );
       }
-      const config = service.config as { token_url?: string };
-      if (!config.token_url) {
+      if (!tokenUrl) {
         return c.json(errorResult(Errors.oauthError('OAuth flow metadata is incomplete')), 400);
       }
 
@@ -643,9 +658,9 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
       }
 
       let clientSecret = '';
-      if (tenantService.oauthClientSecretId) {
+      if (clientSecretId) {
         const clientSecretBuffer = await secretStore.read(
-          tenantService.oauthClientSecretId,
+          clientSecretId,
           connection.organizationId,
           'oauth_client_secret'
         );
@@ -654,7 +669,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         } finally {
           clientSecretBuffer.fill(0);
         }
-      } else if (!tenantService.oauthClientId) {
+      } else if (!isMcpServerId(serviceId) && !tenantService?.oauthClientId) {
         // Only pair the platform secret with the platform client id, never with a tenant's.
         clientSecret = platformCredentials?.clientSecret ?? '';
       }
@@ -669,9 +684,10 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
 
       let tokenResult: Awaited<ReturnType<typeof fetchOAuthToken>>;
       try {
-        tokenResult = await fetchOAuthToken(serviceId, config.token_url, tokenBody, {
+        tokenResult = await fetchOAuthToken(serviceId, tokenUrl, tokenBody, {
           clientId: oauthClientId,
           clientSecret,
+          registeredHost,
         });
       } catch {
         await db

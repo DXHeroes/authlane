@@ -174,6 +174,8 @@ export async function updateMcpServerTool(
 
 export interface McpServerConnectConfig {
   id: string;
+  /** The URL the tenant registered. Endpoints are re-checked against its host at use time. */
+  serverUrl: string;
   authType: string;
   enabled: boolean;
   oauthClientId: string | null;
@@ -196,6 +198,7 @@ export async function readMcpServerConnectConfig(
   const [row] = await db
     .select({
       id: mcpServers.id,
+      serverUrl: mcpServers.serverUrl,
       authType: mcpServers.authType,
       enabled: mcpServers.enabled,
       oauthClientId: mcpServers.oauthClientId,
@@ -215,6 +218,7 @@ export async function readMcpServerConnectConfig(
 
   return {
     id: row.id,
+    serverUrl: row.serverUrl,
     authType: row.authType,
     enabled: row.enabled,
     oauthClientId: row.oauthClientId,

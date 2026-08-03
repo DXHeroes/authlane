@@ -1,3 +1,6 @@
+import { isSameRegistrableDomain } from './mcp-discovery.js';
+import { isMcpServerId } from './supported-services.js';
+
 import type { OAuthProviderContext } from './types.js';
 
 const OAUTH_ENDPOINTS: Record<
@@ -107,6 +110,8 @@ export interface FetchOAuthTokenOptions {
   clientId?: string;
   clientSecret?: string;
   fetchImpl?: (input: string, init: RequestInit) => Promise<Response>;
+  /** Registered host for a tenant MCP server; ignored for built-in providers. */
+  registeredHost?: string;
 }
 
 const PROVIDER_CONTEXT_FIELDS: Record<
@@ -208,10 +213,19 @@ export function getOAuthAuthorizationParameters(
   return parameters;
 }
 
+export interface OAuthEndpointOptions {
+  /**
+   * Host a tenant registered for an MCP server. A built-in provider ignores this and stays pinned
+   * to its static allowlist, so passing one can never loosen a known provider.
+   */
+  registeredHost?: string;
+}
+
 export function validateOAuthEndpoint(
   serviceId: string,
   kind: 'authorization' | 'token',
-  value: string
+  value: string,
+  options: OAuthEndpointOptions = {}
 ): string {
   let normalized: string;
   try {
@@ -219,6 +233,17 @@ export function validateOAuthEndpoint(
   } catch {
     throw new Error(`OAuth ${kind} endpoint is not a valid URL`);
   }
+
+  // A tenant server has no static allowlist; its guarantee is that the endpoint stays on the
+  // domain the tenant registered. That is checked here, at use time, rather than trusted because
+  // discovery wrote it: a directly edited row must not be enough to redirect a token exchange.
+  if (isMcpServerId(serviceId)) {
+    if (!options.registeredHost || !isSameRegistrableDomain(options.registeredHost, normalized)) {
+      throw new Error(`OAuth ${kind} endpoint is not allowlisted for ${serviceId}`);
+    }
+    return normalized;
+  }
+
   const allowlist =
     serviceId === 'authlane-demo' && isLocalDemoEndpointEnabled()
       ? DEMO_OAUTH_ENDPOINTS[kind]
@@ -267,7 +292,9 @@ export async function fetchOAuthToken(
   body: URLSearchParams,
   options: FetchOAuthTokenOptions = {}
 ): Promise<{ response: Response; body: Record<string, unknown> }> {
-  const endpoint = validateOAuthEndpoint(serviceId, 'token', tokenUrl);
+  const endpoint = validateOAuthEndpoint(serviceId, 'token', tokenUrl, {
+    registeredHost: options.registeredHost,
+  });
   const fetchImpl = options.fetchImpl ?? fetch;
   const requestBody = new URLSearchParams(body);
   const headers: Record<string, string> = { Accept: 'application/json' };

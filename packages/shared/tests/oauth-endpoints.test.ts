@@ -117,3 +117,46 @@ describe('provider OAuth endpoint allowlist', () => {
     expect(parseOAuthProviderContext('github', {})).toBeUndefined();
   });
 });
+
+describe('validateOAuthEndpoint for tenant MCP servers', () => {
+  const server = { registeredHost: 'mcp.example.com' };
+
+  it('accepts an endpoint on the registered host', () => {
+    expect(
+      validateOAuthEndpoint('mcp-1', 'token', 'https://mcp.example.com/token', server)
+    ).toBe('https://mcp.example.com/token');
+  });
+
+  it('accepts a subdomain of the registered host', () => {
+    expect(
+      validateOAuthEndpoint('mcp-1', 'token', 'https://auth.mcp.example.com/token', server)
+    ).toBe('https://auth.mcp.example.com/token');
+  });
+
+  it('refuses another domain even though the value came from our own storage', () => {
+    // Re-checked at use time rather than trusted because it was written by discovery: a row edited
+    // directly, or a discovery bug, must not be enough to redirect a token exchange.
+    expect(() =>
+      validateOAuthEndpoint('mcp-1', 'token', 'https://evil.example.net/token', server)
+    ).toThrow(/not allowlisted/);
+  });
+
+  it('refuses plaintext', () => {
+    expect(() =>
+      validateOAuthEndpoint('mcp-1', 'token', 'http://mcp.example.com/token', server)
+    ).toThrow(/not allowlisted/);
+  });
+
+  it('refuses a tenant id with no registered host supplied', () => {
+    expect(() => validateOAuthEndpoint('mcp-1', 'token', 'https://mcp.example.com/token')).toThrow(
+      /not allowlisted/
+    );
+  });
+
+  it('does not let a registered host loosen a built-in provider', () => {
+    // github's endpoints stay pinned to the static allowlist regardless of what is passed here.
+    expect(() =>
+      validateOAuthEndpoint('github', 'token', 'https://mcp.example.com/token', server)
+    ).toThrow(/not allowlisted/);
+  });
+});

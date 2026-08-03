@@ -5,9 +5,10 @@
 
 import crypto from 'node:crypto';
 import type { Database } from '@authlane/database';
-import { and, eq, invitation, member } from '@authlane/database';
+import { and, eq, invitation, member, user } from '@authlane/database';
 import { sendOrganizationInvitation } from '@authlane/email';
 import { Errors, type Result } from '@authlane/shared';
+import { buildInvitationLink, getAppUrl } from './app-url.js';
 import { logger } from './logger.js';
 
 export interface InvitationContext {
@@ -62,6 +63,24 @@ async function isAlreadyMemberOrInvited(
  * @param db - Database instance
  * @returns Invitation context
  */
+interface InviterRecord {
+  name: string | null;
+  email: string;
+}
+
+/** Resolves a display name for the invitation email, degrading rather than failing. */
+export async function resolveInviterName(
+  lookup: () => Promise<InviterRecord | undefined>
+): Promise<string> {
+  try {
+    const inviter = await lookup();
+    if (!inviter) return 'A team member';
+    return inviter.name?.trim() || inviter.email;
+  } catch {
+    return 'A team member';
+  }
+}
+
 export async function createInvitation(
   email: string,
   role: string,
@@ -134,11 +153,16 @@ export async function createInvitation(
 
     // Send invitation email
     try {
-      // TODO: Get the inviter's name from the database
-      const inviterName = 'A team member';
+      const inviterName = await resolveInviterName(async () => {
+        const [record] = await db
+          .select({ name: user.name, email: user.email })
+          .from(user)
+          .where(eq(user.id, invitedBy))
+          .limit(1);
+        return record;
+      });
 
-      // TODO: Build the invite link with the actual dashboard URL
-      const inviteLink = `${process.env.DASHBOARD_URL || 'https://app.authlane.dev'}/accept-invitation/${invitationId}`;
+      const inviteLink = buildInvitationLink(getAppUrl(), invitationId);
 
       await sendOrganizationInvitation(email, {
         inviterName,

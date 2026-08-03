@@ -16,6 +16,7 @@ import { hashUserPassword, verifyUserPassword } from '@authlane/shared';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { magicLink, organization, twoFactor } from 'better-auth/plugins';
+import { buildInvitationLink, getAppUrl } from './app-url.js';
 import { requireEmailDelivery } from './auth-email-delivery.js';
 import {
   type AuthSecondaryStorage,
@@ -58,13 +59,6 @@ export interface Auth {
       };
     } | null>;
   };
-}
-
-/**
- * Gets the application URL from environment
- */
-function getAppUrl(): string {
-  return process.env.APP_URL || 'http://localhost:5173';
 }
 
 /**
@@ -226,7 +220,7 @@ export function createAuth(
         // Send invitation email when member is invited
         sendInvitationEmail: emailEnabled
           ? async (data) => {
-              const inviteLink = `${appUrl}/accept-invitation/${data.id}`;
+              const inviteLink = buildInvitationLink(appUrl, data.id);
               requireEmailDelivery(
                 await sendOrganizationInvitation(data.email, {
                   inviterName: data.inviter.user.name || data.inviter.user.email,

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import AcceptInvitationPage from '@/pages/AcceptInvitationPage';
 import ApiKeysPage from '@/pages/ApiKeysPage';
 import ConnectionsPage from '@/pages/ConnectionsPage';
 import DashboardHome from '@/pages/DashboardHome';
@@ -118,6 +119,16 @@ function AppRoutes() {
       <Route
         path="/reauth"
         element={isAuthenticated ? <ReauthPage /> : <Navigate to="/login" replace />}
+      />
+      {/*
+        Accepting an invitation must sit outside ProtectedRoute: an invited user has no
+        organization yet, and ProtectedRoute sends anyone with none to /onboarding. Accepting is
+        what gives them their first organization, so the gate would make the link unusable for
+        exactly the people it is sent to.
+      */}
+      <Route
+        path="/dashboard/accept-invitation/:invitationId"
+        element={isAuthenticated ? <AcceptInvitationPage /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/dashboard"

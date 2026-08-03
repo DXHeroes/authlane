@@ -197,6 +197,9 @@ export function setupJobs(
     );
     outboxQueue.on('error', handleRedisError);
     outboxWorker.on('error', handleRedisError);
+    outboxWorker.on('failed', (_job, err) => {
+      logger.error({ error: err }, 'Webhook outbox sweep failed');
+    });
     void outboxQueue
       .upsertJobScheduler(outboxSweepSchedule.id, outboxSweepSchedule.repeat, {
         name: 'sweep',
@@ -215,6 +218,9 @@ export function setupJobs(
     );
     mcpDiscoveryQueue.on('error', handleRedisError);
     mcpDiscoveryWorker.on('error', handleRedisError);
+    mcpDiscoveryWorker.on('failed', (_job, err) => {
+      logger.error({ error: err }, 'Tenant MCP discovery sweep failed');
+    });
     void mcpDiscoveryQueue
       .upsertJobScheduler(mcpDiscoverySweepSchedule.id, mcpDiscoverySweepSchedule.repeat, {
         name: 'sweep',
@@ -232,11 +238,31 @@ export function setupJobs(
     );
     providerToolsQueue.on('error', handleRedisError);
     providerToolsWorker.on('error', handleRedisError);
+    providerToolsWorker.on('failed', (_job, err) => {
+      logger.error({ error: err }, 'Provider MCP tool discovery sweep failed');
+    });
+    // Reported even when it found nothing: silence used to be indistinguishable from a sweep that
+    // threw on every run, which is what sent me looking through logs for an answer that was not
+    // there.
+    providerToolsWorker.on('completed', (_job, result) => {
+      logger.info({ result }, 'Provider MCP tool discovery sweep completed');
+    });
     void providerToolsQueue
       .upsertJobScheduler(providerToolsSweepSchedule.id, providerToolsSweepSchedule.repeat, {
         name: 'sweep',
         ...providerToolsSweepSchedule.template,
       })
+      .catch(handleRedisError);
+    // A scheduler's first run is one interval away, which would leave a fresh deployment offering
+    // only the static contracts for twelve hours. This asks once at boot instead. The sweep's own
+    // staleness filter makes it nearly free: a catalogue checked recently is skipped, so repeated
+    // deploys do not repeatedly call someone else's API.
+    void providerToolsQueue
+      .add(
+        'sweep',
+        {},
+        { ...providerToolsSweepSchedule.template.opts, jobId: 'provider-tools-boot' }
+      )
       .catch(handleRedisError);
 
     logger.info(

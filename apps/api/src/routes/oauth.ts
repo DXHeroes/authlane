@@ -9,6 +9,7 @@ import {
   inArray,
   isNull,
   listEnabledMcpServers,
+  readMcpServerConnectConfig,
   oauthTransactions,
   organizationServices,
   outboxEvents,
@@ -28,6 +29,7 @@ import {
   getPlatformOAuthCredentials,
   hashApiKey,
   isConnectableServiceId,
+  isMcpServerId,
   isValidServiceId,
   isValidUserId,
   normalizeOAuthScopeNames,
@@ -42,6 +44,7 @@ import {
   isUsableConnectSession,
   resolveAllowedServiceSnapshot,
 } from '../lib/connect-session.js';
+import { resolveMcpAuthorization } from '../lib/oauth-provider-resolution.js';
 import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
 import { requireScope } from '../middleware/scope.js';
 
@@ -150,6 +153,99 @@ async function listEnabledServiceIds(db: Database, organizationId: string): Prom
   const tenantServers = await listEnabledMcpServers(db, organizationId);
 
   return [...rows.map((row) => row.serviceId), ...tenantServers.map((server) => server.id)];
+}
+
+interface AuthorizationRedirect {
+  authorizationEndpoint: string;
+  oauthClientId: string;
+  /** Provider-specific query parameters, including scope. Empty for a tenant MCP server. */
+  providerParameters: Iterable<readonly [string, string]>;
+}
+
+/**
+ * Mints PKCE, records the pending connection and builds the authorization URL.
+ *
+ * Both a built-in provider and a tenant MCP server run through this, so there is one
+ * implementation of the parts that matter: the verifier never outlives the request in plaintext,
+ * the connection and the transaction are written atomically, and a failure removes the stored
+ * verifier rather than leaving it behind.
+ */
+async function issueAuthorizationRedirect(
+  db: Database,
+  secretStore: SecretStore,
+  requestUrl: string,
+  session: ConnectSession,
+  serviceId: string,
+  redirect: AuthorizationRedirect
+): Promise<string> {
+  const { codeVerifier, codeChallenge } = generatePKCE();
+  const state = generateState();
+  const callbackUrl = new URL(
+    `/api/v1/oauth/${serviceId}/callback`,
+    publicApiBase(requestUrl)
+  ).toString();
+  const connectionId = crypto.randomUUID();
+  const verifierBytes = Buffer.from(codeVerifier, 'utf8');
+  let pkceSecretId: string;
+  try {
+    pkceSecretId = await secretStore.put({
+      organizationId: session.organizationId,
+      purpose: 'oauth_pkce_verifier',
+      plaintext: verifierBytes,
+    });
+  } finally {
+    verifierBytes.fill(0);
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      const [connection] = await tx
+        .insert(connections)
+        .values({
+          id: connectionId,
+          organizationId: session.organizationId,
+          externalUserId: session.externalUserId,
+          serviceId,
+          status: 'pending',
+          credentialSecretId: null,
+          expiresAt: null,
+          lastErrorCode: null,
+          metadata: {},
+        })
+        .onConflictDoUpdate({
+          target: [connections.organizationId, connections.externalUserId, connections.serviceId],
+          set: { lastErrorCode: null, updatedAt: new Date() },
+        })
+        .returning({ id: connections.id });
+      if (!connection) throw new Error('Connection transaction did not return a record');
+      await tx.insert(oauthTransactions).values({
+        organizationId: session.organizationId,
+        connectionId: connection.id,
+        connectSessionId: session.id,
+        serviceId,
+        stateHash: hashApiKey(state),
+        pkceSecretId,
+        callbackUrl,
+        allowedOrigin: session.allowedOrigin,
+        expiresAt: new Date(Math.min(session.expiresAt.getTime(), Date.now() + 10 * 60_000)),
+      });
+    });
+  } catch (error) {
+    await secretStore.delete?.(pkceSecretId, session.organizationId, 'oauth_pkce_verifier');
+    throw error;
+  }
+
+  const authorizationUrl = new URL(redirect.authorizationEndpoint);
+  authorizationUrl.searchParams.set('client_id', redirect.oauthClientId);
+  authorizationUrl.searchParams.set('redirect_uri', callbackUrl);
+  authorizationUrl.searchParams.set('response_type', 'code');
+  for (const [name, value] of redirect.providerParameters) {
+    authorizationUrl.searchParams.set(name, value);
+  }
+  authorizationUrl.searchParams.set('state', state);
+  authorizationUrl.searchParams.set('code_challenge', codeChallenge);
+  authorizationUrl.searchParams.set('code_challenge_method', 'S256');
+  return authorizationUrl.toString();
 }
 
 export function createOAuthRouter(db: Database, secretStore: SecretStore) {
@@ -336,6 +432,36 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
 
     return withTenantContext(db, session.organizationId, async () => {
+      // A tenant's own server resolves from the metadata captured at discovery; the global
+      // catalog has no row for it. Everything after this point is the same shared redirect.
+      if (isMcpServerId(serviceId)) {
+        const resolution = resolveMcpAuthorization(await readMcpServerConnectConfig(db, serviceId));
+        if (!resolution.ok) {
+          if (resolution.reason === 'not_found') {
+            return c.json(errorResult(Errors.notFound('Enabled service', serviceId)), 404);
+          }
+          if (resolution.reason === 'not_oauth') {
+            return c.json(errorResult(Errors.oauthError('This service does not use OAuth2')), 400);
+          }
+          return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);
+        }
+
+        const authorizationUrl = await issueAuthorizationRedirect(
+          db,
+          secretStore,
+          c.req.url,
+          session,
+          serviceId,
+          {
+            authorizationEndpoint: resolution.authorizationEndpoint,
+            oauthClientId: resolution.oauthClientId,
+            // MCP servers advertise capability through their tool list, not static scopes.
+            providerParameters: [],
+          }
+        );
+        return c.json({ data: { authorizationUrl }, error: null });
+      }
+
       const [[service], [tenantService]] = await Promise.all([
         db
           .select()
@@ -388,90 +514,29 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         );
       }
 
-      const { codeVerifier, codeChallenge } = generatePKCE();
-      const state = generateState();
-      const callbackUrl = new URL(
-        `/api/v1/oauth/${serviceId}/callback`,
-        publicApiBase(c.req.url)
-      ).toString();
-      const connectionId = crypto.randomUUID();
-      const verifierBytes = Buffer.from(codeVerifier, 'utf8');
-      let pkceSecretId: string;
-      try {
-        pkceSecretId = await secretStore.put({
-          organizationId: session.organizationId,
-          purpose: 'oauth_pkce_verifier',
-          plaintext: verifierBytes,
-        });
-      } finally {
-        verifierBytes.fill(0);
-      }
-      try {
-        await db.transaction(async (tx) => {
-          const [connection] = await tx
-            .insert(connections)
-            .values({
-              id: connectionId,
-              organizationId: session.organizationId,
-              externalUserId: session.externalUserId,
-              serviceId,
-              status: 'pending',
-              credentialSecretId: null,
-              expiresAt: null,
-              lastErrorCode: null,
-              metadata: {},
-            })
-            .onConflictDoUpdate({
-              target: [
-                connections.organizationId,
-                connections.externalUserId,
-                connections.serviceId,
-              ],
-              set: { lastErrorCode: null, updatedAt: new Date() },
-            })
-            .returning({ id: connections.id });
-          if (!connection) throw new Error('Connection transaction did not return a record');
-          await tx.insert(oauthTransactions).values({
-            organizationId: session.organizationId,
-            connectionId: connection.id,
-            connectSessionId: session.id,
-            serviceId,
-            stateHash: hashApiKey(state),
-            pkceSecretId,
-            callbackUrl,
-            allowedOrigin: session.allowedOrigin,
-            expiresAt: new Date(Math.min(session.expiresAt.getTime(), Date.now() + 10 * 60_000)),
-          });
-        });
-      } catch (error) {
-        await secretStore.delete?.(pkceSecretId, session.organizationId, 'oauth_pkce_verifier');
-        throw error;
-      }
-
-      const authorizationUrl = new URL(authorizationEndpoint);
-      authorizationUrl.searchParams.set('client_id', oauthClientId);
-      authorizationUrl.searchParams.set('redirect_uri', callbackUrl);
-      authorizationUrl.searchParams.set('response_type', 'code');
       const configuredScopes = normalizeOAuthScopeNames(
         tenantService.toolAccessPolicy === 'read_only'
           ? (config.read_only_scopes ?? config.default_scopes ?? config.scopes ?? [])
           : (config.default_scopes ?? config.scopes ?? [])
       );
       if (!configuredScopes) {
-        return c.json(
-          errorResult(Errors.oauthError('OAuth scopes are not configured safely')),
-          409
-        );
+        return c.json(errorResult(Errors.oauthError('OAuth scopes are not configured safely')), 409);
       }
       const requestedScopes = tenantService.customScopes ?? configuredScopes;
-      for (const [name, value] of getOAuthAuthorizationParameters(serviceId, requestedScopes)) {
-        authorizationUrl.searchParams.set(name, value);
-      }
-      authorizationUrl.searchParams.set('state', state);
-      authorizationUrl.searchParams.set('code_challenge', codeChallenge);
-      authorizationUrl.searchParams.set('code_challenge_method', 'S256');
 
-      return c.json({ data: { authorizationUrl: authorizationUrl.toString() }, error: null });
+      const authorizationUrl = await issueAuthorizationRedirect(
+        db,
+        secretStore,
+        c.req.url,
+        session,
+        serviceId,
+        {
+          authorizationEndpoint,
+          oauthClientId,
+          providerParameters: getOAuthAuthorizationParameters(serviceId, requestedScopes),
+        }
+      );
+      return c.json({ data: { authorizationUrl }, error: null });
     });
   });
 

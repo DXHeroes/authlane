@@ -5,7 +5,6 @@
 
 import { randomBytes } from 'node:crypto';
 import { createApiKey, getLookupKeyring } from '@authlane/crypto';
-import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
 import {
   and,
   apiKeys,
@@ -16,8 +15,8 @@ import {
   type Database,
   desc,
   eq,
-  invitation,
   inArray,
+  invitation,
   member,
   organization,
   organizationServices,
@@ -26,12 +25,14 @@ import {
   sql,
   user,
 } from '@authlane/database';
+import { publicToolDefinitionsByService } from '@authlane/integration-contracts';
 import {
   Errors,
+  getAllowedServiceIds,
   getToolRisk,
+  isBuiltInIntegrationId,
   isSupportedServiceId,
   isToolAllowed,
-  SUPPORTED_SERVICE_IDS,
 } from '@authlane/shared';
 import { Hono } from 'hono';
 import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
@@ -103,7 +104,7 @@ export function createDashboardRouter(
             and(
               eq(organizationServices.organizationId, orgId),
               eq(organizationServices.enabled, true),
-              inArray(organizationServices.serviceId, [...SUPPORTED_SERVICE_IDS])
+              inArray(organizationServices.serviceId, getAllowedServiceIds())
             )
           );
         enabledServicesCount = count_ || { count: 0 };
@@ -113,7 +114,7 @@ export function createDashboardRouter(
       const [totalServicesCount] = await db
         .select({ count: count() })
         .from(services)
-        .where(and(eq(services.enabled, true), inArray(services.id, [...SUPPORTED_SERVICE_IDS])));
+        .where(and(eq(services.enabled, true), inArray(services.id, getAllowedServiceIds())));
 
       return c.json({
         data: {
@@ -632,7 +633,7 @@ export function createDashboardRouter(
         .where(
           and(
             eq(organizationServices.organizationId, org.id),
-            inArray(organizationServices.serviceId, [...SUPPORTED_SERVICE_IDS])
+            inArray(organizationServices.serviceId, getAllowedServiceIds())
           )
         );
 
@@ -662,7 +663,7 @@ export function createDashboardRouter(
       return c.json(Errors.unauthorized('Organization context required'), 401);
     }
     const serviceId = c.req.param('serviceId');
-    if (!isSupportedServiceId(serviceId)) {
+    if (!isBuiltInIntegrationId(serviceId)) {
       return c.json(Errors.notFound('Service', serviceId), 404);
     }
     const [orgService] = await db

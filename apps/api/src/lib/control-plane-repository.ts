@@ -8,7 +8,7 @@ import {
   organizationServices,
   services,
 } from '@authlane/database';
-import { SUPPORTED_SERVICE_IDS } from '@authlane/shared';
+import { getAllowedServiceIds } from '@authlane/shared';
 import type {
   ControlPlaneConnection,
   ControlPlaneRepository,
@@ -37,7 +37,7 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
           eq(organizationServices.organizationId, organizationId),
           eq(organizationServices.enabled, true),
           eq(services.enabled, true),
-          inArray(services.id, [...SUPPORTED_SERVICE_IDS])
+          inArray(services.id, getAllowedServiceIds())
         )
       );
     return rows.map((row) => ({
@@ -64,7 +64,7 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         and(
           eq(connections.organizationId, organizationId),
           eq(connections.externalUserId, externalUserId),
-          inArray(connections.serviceId, [...SUPPORTED_SERVICE_IDS])
+          inArray(connections.serviceId, getAllowedServiceIds())
         )
       );
   }

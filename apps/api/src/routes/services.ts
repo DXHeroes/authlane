@@ -4,7 +4,7 @@
 
 import type { Database } from '@authlane/database';
 import { and, eq, inArray, services } from '@authlane/database';
-import { Errors, isSupportedServiceId, SUPPORTED_SERVICE_IDS } from '@authlane/shared';
+import { Errors, getAllowedServiceIds, isSupportedServiceId } from '@authlane/shared';
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
 import { logger } from '../lib/logger.js';
@@ -21,7 +21,7 @@ export function createServicesRouter(db: Database) {
       const allServices = await db
         .select()
         .from(services)
-        .where(and(eq(services.enabled, true), inArray(services.id, [...SUPPORTED_SERVICE_IDS])));
+        .where(and(eq(services.enabled, true), inArray(services.id, getAllowedServiceIds())));
 
       return c.json({
         data: allServices,

@@ -67,3 +67,111 @@ export async function listEnabledMcpServers(db: Database, organizationId: string
     .where(and(eq(mcpServers.organizationId, organizationId), eq(mcpServers.enabled, true)))
     .orderBy(asc(mcpServers.name));
 }
+
+export interface McpServerDraft {
+  organizationId: string;
+  name: string;
+  serverUrl: string;
+  authType: 'oauth2' | 'api_key';
+}
+
+/** Creates a server in the disabled state. Discovery is what turns it on. */
+export async function createMcpServer(
+  db: Database,
+  id: string,
+  draft: McpServerDraft
+): Promise<void> {
+  await db.insert(mcpServers).values({
+    id,
+    organizationId: draft.organizationId,
+    name: draft.name,
+    serverUrl: draft.serverUrl,
+    authType: draft.authType,
+    enabled: false,
+  });
+}
+
+export interface DiscoverySnapshot {
+  serverUrl: string;
+  oauthMetadata: unknown;
+  tools: readonly DiscoveredTool[];
+}
+
+/**
+ * Records a successful discovery.
+ *
+ * Tools that vanished are left in place: their rows carry audit history, and a server briefly
+ * omitting a tool should not erase the record that it once existed. They stop being issued because
+ * `last_seen_at` no longer advances, not because the row is gone.
+ */
+export async function saveDiscoverySuccess(
+  db: Database,
+  serverId: string,
+  snapshot: DiscoverySnapshot
+): Promise<void> {
+  const now = new Date();
+
+  await db
+    .update(mcpServers)
+    .set({
+      serverUrl: snapshot.serverUrl,
+      oauthMetadata: snapshot.oauthMetadata ?? null,
+      discoveredAt: now,
+      discoveryError: null,
+      enabled: true,
+      updatedAt: now,
+    })
+    .where(eq(mcpServers.id, serverId));
+
+  for (const tool of snapshot.tools) {
+    await db
+      .insert(mcpServerTools)
+      .values({
+        serverId,
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        declaredAnnotations: tool.declaredAnnotations,
+        lastSeenAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [mcpServerTools.serverId, mcpServerTools.name],
+        // risk and approved are the tenant's decisions and survive a refresh.
+        set: {
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+          declaredAnnotations: tool.declaredAnnotations,
+          lastSeenAt: now,
+        },
+      });
+  }
+}
+
+/** Records a failed discovery without disturbing the last known good contract. */
+export async function saveDiscoveryFailure(
+  db: Database,
+  serverId: string,
+  message: string
+): Promise<void> {
+  await db
+    .update(mcpServers)
+    .set({ discoveryError: message, updatedAt: new Date() })
+    .where(eq(mcpServers.id, serverId));
+}
+
+export async function deleteMcpServer(db: Database, serverId: string): Promise<void> {
+  await db.delete(mcpServers).where(eq(mcpServers.id, serverId));
+}
+
+/** Applies the tenant's judgement to one discovered tool. */
+export async function updateMcpServerTool(
+  db: Database,
+  serverId: string,
+  name: string,
+  changes: { risk?: DiscoveredToolRisk; approved?: boolean }
+): Promise<void> {
+  await db
+    .update(mcpServerTools)
+    .set(changes)
+    .where(and(eq(mcpServerTools.serverId, serverId), eq(mcpServerTools.name, name)));
+}

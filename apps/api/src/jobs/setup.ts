@@ -266,12 +266,12 @@ export function setupJobs(
     // only the static contracts for twelve hours. This asks once at boot instead. The sweep's own
     // staleness filter makes it nearly free: a catalogue checked recently is skipped, so repeated
     // deploys do not repeatedly call someone else's API.
+    // No fixed job id. `removeOnFail` retains a failed job and BullMQ deduplicates by id, so a
+    // fixed one meant the first failure silenced every boot after it — which is exactly what
+    // happened: the sweep never ran again after its first permission error and the queue looked
+    // idle. Deploys are rare and the sweep filters by staleness, so an extra enqueue costs nothing.
     void providerToolsQueue
-      .add(
-        'sweep',
-        {},
-        { ...providerToolsSweepSchedule.template.opts, jobId: 'provider-tools-boot' }
-      )
+      .add('sweep', {}, providerToolsSweepSchedule.template.opts)
       .catch(handleRedisError);
 
     logger.info(

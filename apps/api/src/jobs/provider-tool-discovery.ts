@@ -2,9 +2,9 @@
  * Asks each provider's own MCP server what tools it actually offers.
  *
  * Authlane's static contract covers a fraction of a real server — GitHub declares eight tools where
- * the official endpoint exposes around a hundred — and execution has always preferred the provider's
- * MCP server anyway. This closes the gap on the listing side, so a model is offered the whole
- * surface rather than the part Authlane happened to hand-write.
+ * its official endpoint reported 47 the first time this ran in production — and execution has always
+ * preferred the provider's MCP server anyway. This closes the gap on the listing side, so a model is
+ * offered the whole surface rather than the part Authlane happened to hand-write.
  *
  * It runs in the worker, not on the listing path, for one reason that matters: `tools.list` does not
  * issue credentials, and that is a documented property of the product. Discovery needs an access
@@ -46,6 +46,22 @@ interface StoredCredentials {
   access_token?: string;
   token_type?: string;
   scope?: string;
+}
+
+/**
+ * Describes a discovery failure so the record is diagnosable.
+ *
+ * The MCP SDK throws `StreamableHTTPError` for any non-2xx response, and puts the HTTP status on
+ * `code` rather than in the message. Recording the message alone produced entries that quoted a
+ * response body without saying what status carried it — which is the one fact needed to tell an
+ * expired token from a rejected scope from a server-side quirk. The status goes first, so a
+ * truncated column still shows it.
+ */
+function describeDiscoveryFailure(error: unknown): string {
+  if (!(error instanceof Error)) return 'Provider MCP discovery failed';
+
+  const status = (error as { code?: unknown }).code;
+  return typeof status === 'number' ? `HTTP ${status}: ${error.message}` : error.message;
 }
 
 function readAccessToken(raw: Buffer): StoredCredentials {
@@ -151,7 +167,7 @@ export async function discoverProviderTools(
     } catch (error) {
       // A provider that is unreachable, rate limiting, or refusing the token must not take away the
       // catalogue Authlane already has. The failure is recorded and the last good list stands.
-      const message = error instanceof Error ? error.message : 'Provider MCP discovery failed';
+      const message = describeDiscoveryFailure(error);
       await withTenantContext(db, candidate.organizationId, () =>
         saveProviderToolsFailure(db, candidate.organizationId, candidate.serviceId, message)
       ).catch(() => undefined);

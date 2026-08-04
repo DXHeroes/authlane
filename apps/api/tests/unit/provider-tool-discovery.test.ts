@@ -123,3 +123,34 @@ describe('provider tool discovery', () => {
     expect(db.writes).toEqual([]);
   });
 });
+
+describe('recording why discovery failed', () => {
+  it('puts the HTTP status first, so a truncated record still names it', async () => {
+    const db = fakeDb([CANDIDATE]);
+    // Shape of the MCP SDK's StreamableHTTPError: status on `code`, not in the message.
+    const transportError = Object.assign(
+      new Error('Streamable HTTP error: Error POSTing to endpoint: {"jsonrpc":"2.0"}'),
+      { code: 403 }
+    );
+
+    await discoverProviderTools(db, fakeSecretStore({ access_token: 'x' }), {
+      clientFactory: async () => {
+        throw transportError;
+      },
+    });
+
+    expect(db.writes[0]?.error).toMatch(/^HTTP 403: /);
+  });
+
+  it('falls back to the message when there is no status', async () => {
+    const db = fakeDb([CANDIDATE]);
+
+    await discoverProviderTools(db, fakeSecretStore({ access_token: 'x' }), {
+      clientFactory: async () => {
+        throw new Error('getaddrinfo ENOTFOUND mcp.example.com');
+      },
+    });
+
+    expect(db.writes[0]?.error).toBe('getaddrinfo ENOTFOUND mcp.example.com');
+  });
+});

@@ -2,7 +2,7 @@
  * Combines Authlane's audited tool contract with what a provider's own MCP server offers.
  *
  * The static contract covers a fraction of a real server: GitHub declares eight tools where the
- * official endpoint exposes around a hundred. Discovery closes that gap, but it must not weaken
+ * official endpoint reported 47. Discovery closes that gap, but it must not weaken
  * what the contract already guarantees, so the merge follows two rules.
  *
  * A tool Authlane declares keeps its declared annotations. Those were reviewed, and the provider's

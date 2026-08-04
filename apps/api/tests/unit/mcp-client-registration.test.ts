@@ -62,8 +62,9 @@ async function startServer(
     });
   });
 
-  await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve));
-  const { port } = server?.address() as AddressInfo;
+  const listening = server;
+  await new Promise<void>((resolve) => listening.listen(0, '127.0.0.1', resolve));
+  const { port } = listening.address() as AddressInfo;
   return { url: `http://127.0.0.1:${port}/register`, requests };
 }
 

@@ -154,3 +154,75 @@ describe('recording why discovery failed', () => {
     expect(db.writes[0]?.error).toBe('getaddrinfo ENOTFOUND mcp.example.com');
   });
 });
+
+describe('asking without a credential first', () => {
+  it('takes the catalogue from an open endpoint and never sends the token', async () => {
+    const db = fakeDb([CANDIDATE]);
+    const tokensSeen: string[] = [];
+
+    const result = await discoverProviderTools(db, fakeSecretStore({ access_token: 'gho_secret' }), {
+      clientFactory: async ({ accessToken }) => {
+        tokensSeen.push(accessToken);
+        return {
+          listTools: async () => ['search_code'],
+          listToolDefinitions: async () => [
+            { name: 'search_code', description: 'Search', inputSchema: {}, declaredAnnotations: null },
+          ],
+          callTool: async () => undefined,
+          close: async () => undefined,
+        };
+      },
+    });
+
+    expect(result.updated).toBe(1);
+    // One attempt, with no token. Google answers tools/list openly, so a user's token would only
+    // widen where it has travelled.
+    expect(tokensSeen).toEqual(['']);
+  });
+
+  it('falls back to the credential when the endpoint demands one', async () => {
+    const db = fakeDb([CANDIDATE]);
+    const tokensSeen: string[] = [];
+
+    const result = await discoverProviderTools(db, fakeSecretStore({ access_token: 'gho_secret' }), {
+      clientFactory: async ({ accessToken }) => {
+        tokensSeen.push(accessToken);
+        return {
+          listTools: async () => [],
+          listToolDefinitions: async () => {
+            if (!accessToken) throw new Error('HTTP 401');
+            return [
+              { name: 'list_repos', description: 'List', inputSchema: {}, declaredAnnotations: null },
+            ];
+          },
+          callTool: async () => undefined,
+          close: async () => undefined,
+        };
+      },
+    });
+
+    expect(result.updated).toBe(1);
+    expect(tokensSeen).toEqual(['', 'gho_secret']);
+  });
+
+  it('reports the authenticated failure, not the anonymous one', async () => {
+    const db = fakeDb([CANDIDATE]);
+
+    await discoverProviderTools(db, fakeSecretStore({ access_token: 'gho_secret' }), {
+      clientFactory: async ({ accessToken }) => ({
+        listTools: async () => [],
+        listToolDefinitions: async () => {
+          throw Object.assign(new Error(accessToken ? 'token rejected' : 'anonymous refused'), {
+            code: accessToken ? 403 : 401,
+          });
+        },
+        callTool: async () => undefined,
+        close: async () => undefined,
+      }),
+    });
+
+    // The anonymous 401 is expected for most providers and says nothing useful; the token's
+    // rejection is the diagnosis worth keeping.
+    expect(db.writes[0]?.error).toBe('HTTP 403: token rejected');
+  });
+});

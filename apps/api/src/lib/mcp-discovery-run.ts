@@ -16,6 +16,18 @@ export interface McpDiscoveryDeps {
   /** Resolves a hostname to every address it answers with. */
   resolveHost: (host: string) => Promise<string[]>;
   fetchJson: (url: string, init?: { method?: string; body?: string }) => Promise<unknown>;
+  /**
+   * Reads a header from a request that is expected to fail, without throwing.
+   *
+   * Needed for RFC 9728: the pointer to a server's metadata arrives in the `WWW-Authenticate` header
+   * of an unauthorized `tools/list`, and `fetchJson` throws on any non-2xx by design. Optional so an
+   * older set of deps still works, falling back to the constructed path.
+   */
+  readHeader?: (
+    url: string,
+    header: string,
+    init?: { method?: string; body?: string }
+  ) => Promise<string | null>;
 }
 
 export interface McpOAuthMetadata {
@@ -69,6 +81,59 @@ function readOAuthMetadata(host: string, payload: unknown): McpOAuthMetadata | '
   };
 }
 
+/**
+ * Fetches a server's RFC 8414 metadata, preferring the pointer it publishes over a guessed path.
+ *
+ * `${url}/.well-known/oauth-authorization-server` happens to work for most servers, but not all:
+ * some keep the document at a path-specific location, and some publish it on a separate
+ * authorization server. Following the `resource_metadata` pointer from an unauthorized `tools/list`
+ * is what the specification asks for; the constructed path stays as a fallback because it works
+ * today and a regression there would be worse than a missing entry.
+ */
+async function readMetadataDocument(url: string, deps: McpDiscoveryDeps): Promise<unknown> {
+  const pointer = await resolveMetadataPointer(url, deps);
+  if (pointer) {
+    try {
+      return await deps.fetchJson(pointer);
+    } catch {
+      // Fall through: a published pointer that does not answer is no worse than none.
+    }
+  }
+  return deps.fetchJson(`${url}/.well-known/oauth-authorization-server`);
+}
+
+/** The authorization server metadata URL a server points at, if it publishes one. */
+async function resolveMetadataPointer(
+  url: string,
+  deps: McpDiscoveryDeps
+): Promise<string | null> {
+  if (!deps.readHeader) return null;
+
+  let challenge: string | null;
+  try {
+    challenge = await deps.readHeader(url, 'www-authenticate', {
+      method: 'POST',
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    });
+  } catch {
+    return null;
+  }
+  const resourceMetadata = challenge?.match(/resource_metadata="?([^",\s]+)"?/)?.[1];
+  if (!resourceMetadata) return null;
+
+  let resource: unknown;
+  try {
+    resource = await deps.fetchJson(resourceMetadata);
+  } catch {
+    return null;
+  }
+  if (!isRecord(resource) || !Array.isArray(resource.authorization_servers)) return null;
+
+  const [issuer] = resource.authorization_servers;
+  if (typeof issuer !== 'string' || !issuer.startsWith('https://')) return null;
+  return `${issuer.replace(/\/$/, '')}/.well-known/oauth-authorization-server`;
+}
+
 export async function discoverMcpServer(
   serverId: string,
   serverUrl: string,
@@ -100,7 +165,7 @@ export async function discoverMcpServer(
   // Absent metadata is normal: a server may authenticate with an API key instead.
   let oauthMetadata: McpOAuthMetadata | null = null;
   try {
-    const payload = await deps.fetchJson(`${parsed.url}/.well-known/oauth-authorization-server`);
+    const payload = await readMetadataDocument(parsed.url, deps);
     const parsedMetadata = readOAuthMetadata(parsed.host, payload);
     if (parsedMetadata === 'untrusted') {
       return failure(

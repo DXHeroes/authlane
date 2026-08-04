@@ -15,6 +15,7 @@
 import {
   createProviderMcpClient,
   getProviderMcpPolicy,
+  type ProviderMcpClient,
   type ProviderMcpClientFactory,
   providerMcpServiceIds,
 } from '@authlane/ai';
@@ -141,14 +142,37 @@ export async function discoverProviderTools(
         continue;
       }
 
-      const client = await clientFactory({
-        endpoint: policy.endpoint,
-        accessToken: credentials.access_token,
-        tokenType: credentials.token_type ?? 'Bearer',
-      });
+      // Asked without a credential first. Google's endpoints serve tools/list openly and then stamp
+      // 401 on the very same body when a token they dislike is attached — which is how this sweep
+      // reported failure while holding the catalogue it wanted. Where a provider answers openly,
+      // sending a user's token achieves nothing and only widens where that token has been.
+      const attempts: Array<{ label: 'anonymous' | 'authenticated'; accessToken: string }> = [
+        { label: 'anonymous', accessToken: '' },
+        { label: 'authenticated', accessToken: credentials.access_token },
+      ];
 
-      try {
-        const definitions = await client.listToolDefinitions();
+      let definitions: Awaited<ReturnType<ProviderMcpClient['listToolDefinitions']>> | null = null;
+      let lastFailure: unknown;
+
+      for (const attempt of attempts) {
+        const client = await clientFactory({
+          endpoint: policy.endpoint,
+          accessToken: attempt.accessToken,
+          tokenType: credentials.token_type ?? 'Bearer',
+        });
+        try {
+          definitions = await client.listToolDefinitions();
+          break;
+        } catch (error) {
+          lastFailure = error;
+        } finally {
+          await client.close().catch(() => undefined);
+        }
+      }
+
+      if (!definitions) throw lastFailure ?? new Error('Provider MCP discovery failed');
+
+      {
         const tools: StoredProviderTool[] = definitions.map((tool) => ({
           name: tool.name,
           description: tool.description,
@@ -161,8 +185,6 @@ export async function discoverProviderTools(
         );
         await options.cache?.delete(`control-plane:tenant-services:${candidate.organizationId}`);
         updated += 1;
-      } finally {
-        await client.close().catch(() => undefined);
       }
     } catch (error) {
       // A provider that is unreachable, rate limiting, or refusing the token must not take away the

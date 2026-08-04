@@ -45,5 +45,26 @@ export function createMcpDiscoveryDeps(): McpDiscoveryDeps {
         clearTimeout(timer);
       }
     },
+
+    async readHeader(url, header, init) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), DISCOVERY_TIMEOUT_MS);
+      try {
+        // Deliberately does not check `response.ok`: the header worth reading arrives on a 401.
+        const response = await fetch(url, {
+          method: init?.method ?? 'GET',
+          body: init?.body,
+          headers: {
+            accept: 'application/json, text/event-stream',
+            ...(init?.body ? { 'content-type': 'application/json' } : {}),
+          },
+          redirect: 'error',
+          signal: controller.signal,
+        });
+        return response.headers.get(header);
+      } finally {
+        clearTimeout(timer);
+      }
+    },
   };
 }

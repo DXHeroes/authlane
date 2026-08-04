@@ -11,6 +11,16 @@
  * That combination is what makes dynamic client registration possible, and therefore what makes an
  * entry cost one row instead of an OAuth application registered by hand.
  *
+ * Known limitation, measured rather than assumed: `isSameRegistrableDomain` accepts the registered
+ * host and its subdomains, not its registrable domain. A vendor that publishes its authorization
+ * server beside its MCP host — Attio at `app.attio.com`, Vercel at `vercel.com`, Figma at
+ * `api.figma.com`, monday at `auth.monday.com`, every Cloudflare server at `mcp.cloudflare.com` —
+ * is turned away at discovery with `MCP_DISCOVERY_UNTRUSTED_ENDPOINT`. Those entries are still worth
+ * listing, because the URL is right and the rule is what needs deciding: widening it wants either a
+ * public suffix list or an authorization-server host carried per entry, and neither is a change to
+ * make quietly inside a catalogue. `apps/api/tests/unit/mcp-discovery-run.test.ts` pins the current
+ * behaviour so it cannot drift by accident.
+ *
  * Also absent: one error-monitoring vendor whose integration and SDK were removed from Authlane in
  * `00ad2c4`, and whose reintroduction `scripts/removed-service-contract.test.ts` forbids by name. Its
  * MCP server verified fine; relaxing that decision is not this change's to make.

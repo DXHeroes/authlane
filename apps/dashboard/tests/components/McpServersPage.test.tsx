@@ -27,13 +27,28 @@ const SERVER = {
   createdAt: '2026-08-03T09:00:00.000Z',
 };
 
+/**
+ * Routes by path rather than call order.
+ *
+ * The page issues several queries and gained one when the catalogue was added; sequential mocks made
+ * every existing test fail for a reason that had nothing to do with what it was checking.
+ */
+function mockApi(responses: { servers?: unknown[]; tools?: unknown[]; presets?: unknown[] } = {}) {
+  vi.mocked(apiModule.api.get).mockImplementation(async (path: string) => {
+    if (path.endsWith('/presets')) return responses.presets ?? [];
+    if (path.endsWith('/tools')) return responses.tools ?? [];
+    return responses.servers ?? [];
+  });
+}
+
 describe('McpServersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApi();
   });
 
   it('lists a registered server with its id and URL', async () => {
-    vi.mocked(apiModule.api.get).mockResolvedValueOnce([SERVER]);
+    mockApi({ servers: [SERVER] });
 
     render(<McpServersPage />);
 
@@ -43,9 +58,9 @@ describe('McpServersPage', () => {
   });
 
   it('surfaces a server discovery could not reach, so it can be retried', async () => {
-    vi.mocked(apiModule.api.get).mockResolvedValueOnce([
-      { ...SERVER, enabled: false, discoveryError: 'Server did not answer tools/list' },
-    ]);
+    mockApi({
+      servers: [{ ...SERVER, enabled: false, discoveryError: 'Server did not answer tools/list' }],
+    });
 
     render(<McpServersPage />);
 
@@ -57,9 +72,9 @@ describe('McpServersPage', () => {
   });
 
   it('shows a disapproved tool so the tenant can switch it back on', async () => {
-    vi.mocked(apiModule.api.get)
-      .mockResolvedValueOnce([SERVER])
-      .mockResolvedValueOnce([
+    mockApi({
+      servers: [SERVER],
+      tools: [
         {
           name: 'delete_ticket',
           description: 'Removes a ticket',
@@ -68,7 +83,8 @@ describe('McpServersPage', () => {
           declaredAnnotations: { readOnlyHint: true },
           lastSeenAt: '2026-08-03T10:00:00.000Z',
         },
-      ]);
+      ],
+    });
 
     render(<McpServersPage />);
     await userEvent.click(await screen.findByRole('button', { name: 'Tools' }));
@@ -79,5 +95,69 @@ describe('McpServersPage', () => {
     // What the server claims is shown next to what Authlane enforces, never instead of it.
     expect(screen.getByText(/server claims: readOnlyHint/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enable' })).toBeInTheDocument();
+  });
+});
+
+describe('the verified server catalogue', () => {
+  const PRESETS = [
+    {
+      key: 'linear',
+      name: 'Linear',
+      serverUrl: 'https://mcp.linear.app/mcp',
+      authType: 'oauth2',
+      category: 'productivity',
+      docsUrl: 'https://linear.app/docs/mcp',
+      dynamicRegistration: true,
+      verifiedAt: '2026-08-04',
+    },
+    {
+      key: 'slack',
+      name: 'Slack',
+      serverUrl: 'https://mcp.slack.com/mcp',
+      authType: 'oauth2',
+      category: 'productivity',
+      docsUrl: 'https://docs.slack.dev/ai/slack-mcp-server/',
+      dynamicRegistration: false,
+      verifiedAt: '2026-08-04',
+    },
+  ];
+
+  function withPresets() {
+    vi.mocked(apiModule.api.get).mockImplementation(async (path: string) => {
+      if (path.endsWith('/presets')) return PRESETS;
+      return [];
+    });
+  }
+
+  it('prefills the form from a chosen server', async () => {
+    withPresets();
+    render(<McpServersPage />);
+
+    const picker = await screen.findByLabelText('Start from a verified server');
+    await userEvent.selectOptions(picker, 'linear');
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Linear');
+    expect(screen.getByLabelText('Server URL')).toHaveValue('https://mcp.linear.app/mcp');
+  });
+
+  it('says when a server needs the tenant to bring their own OAuth application', async () => {
+    withPresets();
+    render(<McpServersPage />);
+
+    const picker = await screen.findByLabelText('Start from a verified server');
+    await userEvent.selectOptions(picker, 'slack');
+
+    // Sending someone into an authorization that cannot complete is the failure this avoids.
+    expect(screen.getByText(/your own OAuth application/)).toBeInTheDocument();
+  });
+
+  it('leaves the form empty for a server that is not in the catalogue', async () => {
+    withPresets();
+    render(<McpServersPage />);
+
+    await screen.findByLabelText('Start from a verified server');
+
+    expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(screen.getByLabelText('Server URL')).toHaveValue('');
   });
 });

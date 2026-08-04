@@ -3,7 +3,6 @@ import { fileURLToPath } from 'node:url';
 
 import { tools as airtable } from '../../../integrations/airtable/tools.ts';
 import { tools as discord } from '../../../integrations/discord/tools.ts';
-import { tools as github } from '../../../integrations/github/tools.ts';
 import { tools as gmail } from '../../../integrations/gmail/tools.ts';
 import { tools as googleCalendar } from '../../../integrations/google-calendar/tools.ts';
 import { tools as googleDrive } from '../../../integrations/google-drive/tools.ts';
@@ -38,7 +37,6 @@ type CapturedResponse = {
 const integrations = {
   airtable,
   discord,
-  github,
   gmail,
   'google-calendar': googleCalendar,
   'google-drive': googleDrive,
@@ -229,14 +227,6 @@ function providerResponse(
     url.pathname.endsWith('/messages')
   ) {
     return jsonResponse({ messages: [{ id: 'message-1' }], nextPageToken: 'next' });
-  }
-  if (serviceId === 'github' && toolName === 'github_get_file') {
-    return jsonResponse({
-      name: 'README.md',
-      path: 'README.md',
-      content: Buffer.from('hello').toString('base64'),
-      encoding: 'base64',
-    });
   }
   if (
     serviceId === 'google-drive' &&

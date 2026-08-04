@@ -7,9 +7,7 @@
     "prebuild": "pnpm --dir ../.. openapi:check && pnpm --dir ../.. docs:check",
     "build": "next build && node scripts/postprocess-static.mjs",
     "lint": "next lint",
-    "pretest": "pnpm --filter @authlane/shared build",
     "test": "vitest run",
-    "pretype-check": "pnpm --filter @authlane/shared build",
     "type-check": "tsc --noEmit && tsc --project tsconfig.scripts.json"
   },
   "dependencies": {

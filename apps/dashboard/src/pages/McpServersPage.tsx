@@ -140,10 +140,46 @@ function ToolList({ serverId }: { serverId: string }) {
   );
 }
 
+interface McpServerPreset {
+  key: string;
+  name: string;
+  serverUrl: string;
+  authType: 'oauth2' | 'api_key';
+  category: string;
+  docsUrl: string;
+  dynamicRegistration: boolean;
+  verifiedAt: string;
+}
+
 function RegisterForm({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('');
   const [serverUrl, setServerUrl] = useState('');
   const [authType, setAuthType] = useState<'oauth2' | 'api_key'>('oauth2');
+  const [presetKey, setPresetKey] = useState('');
+
+  const { data: presets } = useQuery({
+    queryKey: ['mcp-presets'],
+    queryFn: () => api.get<McpServerPreset[]>('/organization/mcp-servers/presets'),
+  });
+
+  const chosen = presets?.find((entry) => entry.key === presetKey);
+
+  const applyPreset = (key: string) => {
+    setPresetKey(key);
+    const entry = presets?.find((candidate) => candidate.key === key);
+    if (!entry) return;
+    setName(entry.name);
+    setServerUrl(entry.serverUrl);
+    setAuthType(entry.authType);
+  };
+
+  // Grouped so a long catalogue stays readable; the browser renders the groups itself.
+  const grouped = (presets ?? []).reduce<Record<string, McpServerPreset[]>>((groups, entry) => {
+    const bucket = groups[entry.category];
+    if (bucket) bucket.push(entry);
+    else groups[entry.category] = [entry];
+    return groups;
+  }, {});
 
   const register = useMutation({
     mutationFn: () =>
@@ -155,6 +191,7 @@ function RegisterForm({ onDone }: { onDone: () => void }) {
     onSuccess: () => {
       setName('');
       setServerUrl('');
+      setPresetKey('');
       onDone();
     },
   });
@@ -167,6 +204,48 @@ function RegisterForm({ onDone }: { onDone: () => void }) {
         register.mutate();
       }}
     >
+      {presets && presets.length > 0 && (
+        <div>
+          <label className="mb-1 block text-sm font-medium" htmlFor="mcp-preset">
+            Start from a verified server
+          </label>
+          <select
+            id="mcp-preset"
+            value={presetKey}
+            onChange={(event) => applyPreset(event.target.value)}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Enter a server URL myself</option>
+            {Object.entries(grouped)
+              .sort(([left], [right]) => left.localeCompare(right))
+              .map(([category, entries]) => (
+                <optgroup key={category} label={category}>
+                  {entries.map((entry) => (
+                    <option key={entry.key} value={entry.key}>
+                      {entry.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+          </select>
+          {chosen && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {chosen.dynamicRegistration
+                ? 'Authlane registers itself with this server, so there is nothing to set up.'
+                : 'This server has no dynamic registration, so you will need to add your own OAuth application under Services.'}{' '}
+              <a
+                href={chosen.docsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline"
+              >
+                Provider documentation
+              </a>
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium" htmlFor="mcp-name">

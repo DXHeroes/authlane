@@ -23,7 +23,6 @@ config:
       endpoint: https://api.githubcopilot.com/mcp/
       docs_url: https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server
       maturity: stable
-    fallback: direct_api
 
 
 

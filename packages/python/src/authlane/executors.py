@@ -1413,10 +1413,13 @@ DIRECT_PIPEDRIVE_TOOLS = frozenset(
         "pipedrive_search",
     }
 )
+# Services whose tools exist only on the provider's own MCP server. Mirrors
+# allowDirectFallback: false in packages/ai/src/provider-mcp.ts; the TypeScript parity fixture
+# fails if the two drift.
 MCP_ONLY_TOOL_KEYS = frozenset(
     key
     for key in definition_index()
-    if key[0] == "attio"
+    if key[0] in ("attio", "github")
     or (key[0] == "pipedrive" and key[1] not in DIRECT_PIPEDRIVE_TOOLS)
 )
 

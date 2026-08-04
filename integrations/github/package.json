@@ -5,13 +5,14 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --ui",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@authlane/integration-contracts": "workspace:*",
     "@authlane/shared": "workspace:*"
   },
   "devDependencies": {

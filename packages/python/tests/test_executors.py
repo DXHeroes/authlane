@@ -150,14 +150,14 @@ def test_generic_sync_tool_gets_fresh_lease_then_calls_provider_directly() -> No
                         "version": "v1",
                         "services": [
                             {
-                                "serviceId": "github",
+                                "serviceId": "slack",
                                 "status": "connected",
                                 "connected": True,
                                 "expiresAt": None,
                                 "tools": [
                                     {
-                                        "name": "github_create_issue",
-                                        "description": "Creates a new issue in a GitHub repository",
+                                        "name": "slack_send_message",
+                                        "description": "Sends a message to a Slack channel",
                                         "inputSchema": {
                                             "type": "object",
                                             "properties": {
@@ -194,10 +194,10 @@ def test_generic_sync_tool_gets_fresh_lease_then_calls_provider_directly() -> No
 
     def provider(request: httpx.Request) -> httpx.Response:
         calls.append(("provider", str(request.url)))
-        assert request.url.host == "api.github.com"
+        assert request.url.host == "slack.com"
         assert request.headers["authorization"] == "Bearer provider-secret"
-        assert json.loads(request.content) == {"title": "Ship Python SDK"}
-        return httpx.Response(201, json={"id": 42})
+        assert json.loads(request.content) == {"channel": "C1", "text": "Ship Python SDK"}
+        return httpx.Response(201, json={"ok": True, "id": 42})
 
     with Authlane(
         api_key="ak_test",
@@ -208,13 +208,13 @@ def test_generic_sync_tool_gets_fresh_lease_then_calls_provider_directly() -> No
             adapter=generic(provider_transport=httpx.MockTransport(provider))
         )
         assert listed.error is None and listed.data is not None
-        result = listed.data["github_create_issue"].invoke(
-            {"owner": "dxheroes", "repo": "authlane", "title": "Ship Python SDK"}
+        result = listed.data["slack_send_message"].invoke(
+            {"channel": "C1", "text": "Ship Python SDK"}
         )
 
-    assert result.data == {"id": 42} and result.error is None
+    assert result.data == {"ok": True, "id": 42} and result.error is None
     assert [kind for kind, _ in calls] == ["authlane", "authlane", "provider"]
-    assert calls[-1][1].startswith("https://api.github.com/")
+    assert calls[-1][1].startswith("https://slack.com/")
     assert all("provider-secret" not in url for _, url in calls)
 
 

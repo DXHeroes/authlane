@@ -35,7 +35,9 @@ def test_typescript_fixture_covers_all_tools_defaults_and_optional_branches() ->
     assert PARITY_DOCUMENT["schemaVersion"] == 2
     assert PARITY_DOCUMENT["generator"]["source"] == ("integrations/*/tools.ts exported handlers")
     assert len(canonical_tools) == 209
-    assert len(fixture_tools) == 108
+    # 120, not 108: GitHub is MCP-only now, and the ~60 cases it used to consume from the
+    # thousand-case budget went to tools that had been crowded out.
+    assert len(fixture_tools) == 120
     assert fixture_tools <= canonical_tools
     assert len(PARITY_CASES) >= 1000
     assert all(
@@ -48,7 +50,7 @@ def test_typescript_fixture_covers_all_tools_defaults_and_optional_branches() ->
         for service_id, tool_name in fixture_tools
     )
     variants = {(case["serviceId"], case["toolName"], case["variant"]) for case in PARITY_CASES}
-    assert sum(case["variant"] == "unknown-field" for case in PARITY_CASES) == 108
+    assert sum(case["variant"] == "unknown-field" for case in PARITY_CASES) == 120
     expected_falsey: set[tuple[str, str, str]] = set()
     for integration in canonical["integrations"]:
         for tool in integration["tools"]:

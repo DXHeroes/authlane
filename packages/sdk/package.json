@@ -17,15 +17,12 @@
     "LICENSE"
   ],
   "scripts": {
-    "prebuild": "pnpm --filter @authlane/shared build",
     "build": "tsc",
     "predev": "pnpm --filter @authlane/shared build",
     "dev": "tsc --watch",
-    "pretest": "pnpm --filter @authlane/shared build",
     "test": "vitest run",
     "pretest:coverage": "pnpm --filter @authlane/shared build",
     "test:coverage": "vitest --coverage",
-    "pretype-check": "pnpm --filter @authlane/shared build",
     "type-check": "tsc --noEmit && tsc -p tsconfig.type-tests.json"
   },
   "keywords": [

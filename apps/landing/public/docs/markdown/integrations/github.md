@@ -31,10 +31,16 @@ scheme, host, and path.
 
 ## Execution path
 
-Prefer GitHub's official MCP server at `https://api.githubcopilot.com/mcp/` for AI tool execution
-from the SaaS runtime; follow the [official MCP setup](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server).
-Use the direct adapter only as a deterministic fallback when the MCP server does not expose the
-required operation or the deployment cannot use its authentication model.
+Every GitHub tool runs against GitHub's own MCP server at `https://api.githubcopilot.com/mcp/`;
+follow the [official MCP setup](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server).
+Authlane ships no direct-API handlers for GitHub, so there is no second path: the tools listed below
+are the ones Authlane reviewed, and the server offers many more that arrive through discovery.
+
+**A connection whose token that server refuses has no working GitHub tool.** The endpoint expects a
+token with Copilot access, and Authlane used to paper over a refusal by calling `api.github.com`
+instead — which quietly limited every workspace to eight hand-written operations. Losing the
+workaround is the price of the full surface; the failure now names itself as
+`PROVIDER_MCP_TOOL_UNAVAILABLE` rather than silently doing something smaller.
 
 ## Available tools
 

@@ -35,7 +35,7 @@ export function createApiRouter(
   dashboard.use('*', requirePrincipalKind('session'));
   dashboard.route('/services', createServicesRouter(db));
   dashboard.route('/', createDashboardRouter(db, cache, secretStore));
-  dashboard.route('/', createMcpServersRouter(db, createMcpDiscoveryDeps(), cache));
+  dashboard.route('/', createMcpServersRouter(db, createMcpDiscoveryDeps(), cache, secretStore));
   if (internalFetch) {
     dashboard.route(
       '/',

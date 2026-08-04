@@ -3436,2854 +3436,6 @@
       "expectedError": null
     },
     {
-      "id": "github:github_create_issue:defaults",
-      "serviceId": "github",
-      "toolName": "github_create_issue",
-      "variant": "defaults",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value"
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_issue:all-options",
-      "serviceId": "github",
-      "toolName": "github_create_issue",
-      "variant": "all-options",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "body": "Body text",
-        "labels": [
-          "labels-value"
-        ]
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"body\":\"Body text\",\"labels\":[\"labels-value\"]}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_issue:option-body",
-      "serviceId": "github",
-      "toolName": "github_create_issue",
-      "variant": "option-body",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "body": "Body text"
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"body\":\"Body text\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_issue:falsey-body",
-      "serviceId": "github",
-      "toolName": "github_create_issue",
-      "variant": "falsey-body",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "body": ""
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"body\":\"\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_issue:option-labels",
-      "serviceId": "github",
-      "toolName": "github_create_issue",
-      "variant": "option-labels",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "labels": [
-          "labels-value"
-        ]
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"labels\":[\"labels-value\"]}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_issue:falsey-labels",
-      "serviceId": "github",
-      "toolName": "github_create_issue",
-      "variant": "falsey-labels",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "labels": []
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"labels\":[]}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_issue:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_create_issue",
-      "variant": "unknown-field",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_issues:defaults",
-      "serviceId": "github",
-      "toolName": "github_list_issues",
-      "variant": "defaults",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_issues:all-options",
-      "serviceId": "github",
-      "toolName": "github_list_issues",
-      "variant": "all-options",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "state": "all",
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [
-            [
-              "state",
-              "all"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_issues:option-state",
-      "serviceId": "github",
-      "toolName": "github_list_issues",
-      "variant": "option-state",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "state": "all"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [
-            [
-              "state",
-              "all"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_issues:option-limit",
-      "serviceId": "github",
-      "toolName": "github_list_issues",
-      "variant": "option-limit",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_issues:falsey-limit",
-      "serviceId": "github",
-      "toolName": "github_list_issues",
-      "variant": "falsey-limit",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "limit": 0
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "per_page",
-              "0"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_issues:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_list_issues",
-      "variant": "unknown-field",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/issues",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_pull_request:defaults",
-      "serviceId": "github",
-      "toolName": "github_create_pull_request",
-      "variant": "defaults",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "head": "head-value",
-        "base": "base-value"
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"head\":\"head-value\",\"base\":\"base-value\",\"draft\":false}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_pull_request:all-options",
-      "serviceId": "github",
-      "toolName": "github_create_pull_request",
-      "variant": "all-options",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "body": "Body text",
-        "head": "head-value",
-        "base": "base-value",
-        "draft": true
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"body\":\"Body text\",\"head\":\"head-value\",\"base\":\"base-value\",\"draft\":true}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_pull_request:option-body",
-      "serviceId": "github",
-      "toolName": "github_create_pull_request",
-      "variant": "option-body",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "head": "head-value",
-        "base": "base-value",
-        "body": "Body text"
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"body\":\"Body text\",\"head\":\"head-value\",\"base\":\"base-value\",\"draft\":false}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_pull_request:falsey-body",
-      "serviceId": "github",
-      "toolName": "github_create_pull_request",
-      "variant": "falsey-body",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "head": "head-value",
-        "base": "base-value",
-        "body": ""
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"body\":\"\",\"head\":\"head-value\",\"base\":\"base-value\",\"draft\":false}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_pull_request:option-draft",
-      "serviceId": "github",
-      "toolName": "github_create_pull_request",
-      "variant": "option-draft",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "head": "head-value",
-        "base": "base-value",
-        "draft": true
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"head\":\"head-value\",\"base\":\"base-value\",\"draft\":true}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_pull_request:falsey-draft",
-      "serviceId": "github",
-      "toolName": "github_create_pull_request",
-      "variant": "falsey-draft",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "head": "head-value",
-        "base": "base-value",
-        "draft": false
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"head\":\"head-value\",\"base\":\"base-value\",\"draft\":false}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_pull_request:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_create_pull_request",
-      "variant": "unknown-field",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "title": "title-value",
-        "head": "head-value",
-        "base": "base-value",
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "POST",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"title\":\"title-value\",\"head\":\"head-value\",\"base\":\"base-value\",\"draft\":false}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:defaults",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "defaults",
-      "input": {},
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "owner"
-            ],
-            [
-              "sort",
-              "updated"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:all-options",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "all-options",
-      "input": {
-        "type": "member",
-        "sort": "full_name",
-        "direction": "desc",
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "member"
-            ],
-            [
-              "sort",
-              "full_name"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:option-type",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "option-type",
-      "input": {
-        "type": "member"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "member"
-            ],
-            [
-              "sort",
-              "updated"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:option-sort",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "option-sort",
-      "input": {
-        "sort": "full_name"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "owner"
-            ],
-            [
-              "sort",
-              "full_name"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:option-direction",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "option-direction",
-      "input": {
-        "direction": "desc"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "owner"
-            ],
-            [
-              "sort",
-              "updated"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:option-limit",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "option-limit",
-      "input": {
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "owner"
-            ],
-            [
-              "sort",
-              "updated"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:falsey-limit",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "falsey-limit",
-      "input": {
-        "limit": 0
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "owner"
-            ],
-            [
-              "sort",
-              "updated"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "0"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_repos:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_list_repos",
-      "variant": "unknown-field",
-      "input": {
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/user/repos",
-          "query": [
-            [
-              "type",
-              "owner"
-            ],
-            [
-              "sort",
-              "updated"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_get_file:defaults",
-      "serviceId": "github",
-      "toolName": "github_get_file",
-      "variant": "defaults",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJuYW1lIjoiUkVBRE1FLm1kIiwicGF0aCI6IlJFQURNRS5tZCIsImNvbnRlbnQiOiJhR1ZzYkc4PSIsImVuY29kaW5nIjoiYmFzZTY0In0="
-        }
-      ],
-      "result": {
-        "name": "README.md",
-        "path": "README.md",
-        "content": "aGVsbG8=",
-        "encoding": "base64",
-        "decodedContent": "hello"
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_get_file:all-options",
-      "serviceId": "github",
-      "toolName": "github_get_file",
-      "variant": "all-options",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "ref": "ref-value"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [
-            [
-              "ref",
-              "ref-value"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJuYW1lIjoiUkVBRE1FLm1kIiwicGF0aCI6IlJFQURNRS5tZCIsImNvbnRlbnQiOiJhR1ZzYkc4PSIsImVuY29kaW5nIjoiYmFzZTY0In0="
-        }
-      ],
-      "result": {
-        "name": "README.md",
-        "path": "README.md",
-        "content": "aGVsbG8=",
-        "encoding": "base64",
-        "decodedContent": "hello"
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_get_file:falsey-ref",
-      "serviceId": "github",
-      "toolName": "github_get_file",
-      "variant": "falsey-ref",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "ref": ""
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJuYW1lIjoiUkVBRE1FLm1kIiwicGF0aCI6IlJFQURNRS5tZCIsImNvbnRlbnQiOiJhR1ZzYkc4PSIsImVuY29kaW5nIjoiYmFzZTY0In0="
-        }
-      ],
-      "result": {
-        "name": "README.md",
-        "path": "README.md",
-        "content": "aGVsbG8=",
-        "encoding": "base64",
-        "decodedContent": "hello"
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_get_file:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_get_file",
-      "variant": "unknown-field",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJuYW1lIjoiUkVBRE1FLm1kIiwicGF0aCI6IlJFQURNRS5tZCIsImNvbnRlbnQiOiJhR1ZzYkc4PSIsImVuY29kaW5nIjoiYmFzZTY0In0="
-        }
-      ],
-      "result": {
-        "name": "README.md",
-        "path": "README.md",
-        "content": "aGVsbG8=",
-        "encoding": "base64",
-        "decodedContent": "hello"
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_file:defaults",
-      "serviceId": "github",
-      "toolName": "github_create_file",
-      "variant": "defaults",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "message": "message-value",
-        "content": "aGVsbG8="
-      },
-      "requests": [
-        {
-          "method": "PUT",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"message\":\"message-value\",\"content\":\"YUdWc2JHOD0=\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_file:all-options",
-      "serviceId": "github",
-      "toolName": "github_create_file",
-      "variant": "all-options",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "message": "message-value",
-        "content": "aGVsbG8=",
-        "branch": "branch-value",
-        "sha": "sha-value"
-      },
-      "requests": [
-        {
-          "method": "PUT",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"message\":\"message-value\",\"content\":\"YUdWc2JHOD0=\",\"branch\":\"branch-value\",\"sha\":\"sha-value\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_file:option-branch",
-      "serviceId": "github",
-      "toolName": "github_create_file",
-      "variant": "option-branch",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "message": "message-value",
-        "content": "aGVsbG8=",
-        "branch": "branch-value"
-      },
-      "requests": [
-        {
-          "method": "PUT",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"message\":\"message-value\",\"content\":\"YUdWc2JHOD0=\",\"branch\":\"branch-value\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_file:falsey-branch",
-      "serviceId": "github",
-      "toolName": "github_create_file",
-      "variant": "falsey-branch",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "message": "message-value",
-        "content": "aGVsbG8=",
-        "branch": ""
-      },
-      "requests": [
-        {
-          "method": "PUT",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"message\":\"message-value\",\"content\":\"YUdWc2JHOD0=\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_file:option-sha",
-      "serviceId": "github",
-      "toolName": "github_create_file",
-      "variant": "option-sha",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "message": "message-value",
-        "content": "aGVsbG8=",
-        "sha": "sha-value"
-      },
-      "requests": [
-        {
-          "method": "PUT",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"message\":\"message-value\",\"content\":\"YUdWc2JHOD0=\",\"sha\":\"sha-value\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_file:falsey-sha",
-      "serviceId": "github",
-      "toolName": "github_create_file",
-      "variant": "falsey-sha",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "message": "message-value",
-        "content": "aGVsbG8=",
-        "sha": ""
-      },
-      "requests": [
-        {
-          "method": "PUT",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"message\":\"message-value\",\"content\":\"YUdWc2JHOD0=\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_create_file:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_create_file",
-      "variant": "unknown-field",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "path": "path-value",
-        "message": "message-value",
-        "content": "aGVsbG8=",
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "PUT",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/contents/path-value",
-          "query": [],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "content-type": "application/json",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": "{\"message\":\"message-value\",\"content\":\"YUdWc2JHOD0=\"}"
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_search_code:defaults",
-      "serviceId": "github",
-      "toolName": "github_search_code",
-      "variant": "defaults",
-      "input": {
-        "query": "status:open"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/search/code",
-          "query": [
-            [
-              "q",
-              "status:open"
-            ],
-            [
-              "order",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_search_code:all-options",
-      "serviceId": "github",
-      "toolName": "github_search_code",
-      "variant": "all-options",
-      "input": {
-        "query": "status:open",
-        "sort": "indexed",
-        "order": "desc",
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/search/code",
-          "query": [
-            [
-              "q",
-              "status:open"
-            ],
-            [
-              "sort",
-              "indexed"
-            ],
-            [
-              "order",
-              "desc"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_search_code:option-sort",
-      "serviceId": "github",
-      "toolName": "github_search_code",
-      "variant": "option-sort",
-      "input": {
-        "query": "status:open",
-        "sort": "indexed"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/search/code",
-          "query": [
-            [
-              "q",
-              "status:open"
-            ],
-            [
-              "sort",
-              "indexed"
-            ],
-            [
-              "order",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_search_code:option-order",
-      "serviceId": "github",
-      "toolName": "github_search_code",
-      "variant": "option-order",
-      "input": {
-        "query": "status:open",
-        "order": "desc"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/search/code",
-          "query": [
-            [
-              "q",
-              "status:open"
-            ],
-            [
-              "order",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_search_code:option-limit",
-      "serviceId": "github",
-      "toolName": "github_search_code",
-      "variant": "option-limit",
-      "input": {
-        "query": "status:open",
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/search/code",
-          "query": [
-            [
-              "q",
-              "status:open"
-            ],
-            [
-              "order",
-              "desc"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_search_code:falsey-limit",
-      "serviceId": "github",
-      "toolName": "github_search_code",
-      "variant": "falsey-limit",
-      "input": {
-        "query": "status:open",
-        "limit": 0
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/search/code",
-          "query": [
-            [
-              "q",
-              "status:open"
-            ],
-            [
-              "order",
-              "desc"
-            ],
-            [
-              "per_page",
-              "0"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_search_code:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_search_code",
-      "variant": "unknown-field",
-      "input": {
-        "query": "status:open",
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/search/code",
-          "query": [
-            [
-              "q",
-              "status:open"
-            ],
-            [
-              "order",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:defaults",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "defaults",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:all-options",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "all-options",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "state": "all",
-        "head": "head-value",
-        "base": "base-value",
-        "sort": "long-running",
-        "direction": "desc",
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "all"
-            ],
-            [
-              "sort",
-              "long-running"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "head",
-              "head-value"
-            ],
-            [
-              "base",
-              "base-value"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:option-state",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "option-state",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "state": "all"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "all"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:option-head",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "option-head",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "head": "head-value"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "head",
-              "head-value"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:falsey-head",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "falsey-head",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "head": ""
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:option-base",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "option-base",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "base": "base-value"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "base",
-              "base-value"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:falsey-base",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "falsey-base",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "base": ""
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:option-sort",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "option-sort",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "sort": "long-running"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "long-running"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:option-direction",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "option-direction",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "direction": "desc"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:option-limit",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "option-limit",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "limit": 1
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "1"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:falsey-limit",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "falsey-limit",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "limit": 0
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "0"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
-      "id": "github:github_list_pull_requests:unknown-field",
-      "serviceId": "github",
-      "toolName": "github_list_pull_requests",
-      "variant": "unknown-field",
-      "input": {
-        "owner": "owner-value",
-        "repo": "repo-value",
-        "unknown_field": "must-not-leak"
-      },
-      "requests": [
-        {
-          "method": "GET",
-          "origin": "https://api.github.com",
-          "path": "/repos/owner-value/repo-value/pulls",
-          "query": [
-            [
-              "state",
-              "open"
-            ],
-            [
-              "sort",
-              "created"
-            ],
-            [
-              "direction",
-              "desc"
-            ],
-            [
-              "per_page",
-              "30"
-            ]
-          ],
-          "headers": {
-            "accept": "application/vnd.github+json",
-            "authorization": "Bearer provider-secret",
-            "x-github-api-version": "2022-11-28"
-          },
-          "body": null
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "headers": {
-            "content-type": "application/json"
-          },
-          "bodyBase64": "eyJpZCI6InJlc3VsdCIsIm9rIjp0cnVlfQ=="
-        }
-      ],
-      "result": {
-        "id": "result",
-        "ok": true
-      },
-      "expectedError": null
-    },
-    {
       "id": "gmail:gmail_send_email:defaults",
       "serviceId": "gmail",
       "toolName": "gmail_send_email",
@@ -38639,6 +35791,606 @@
         "ok": true
       },
       "expectedError": null
+    },
+    {
+      "id": "pipedrive:pipedrive_add_activity:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_add_activity",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_add_activity:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_add_activity",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_add_note:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_add_note",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_add_note:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_add_note",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_add_organization:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_add_organization",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_add_organization:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_add_organization",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_convert_lead_to_deal:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_convert_lead_to_deal",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_convert_lead_to_deal:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_convert_lead_to_deal",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_activities:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_activities",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_activities:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_activities",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_activity:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_activity",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_activity:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_activity",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_lead_conversion_status:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_lead_conversion_status",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_lead_conversion_status:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_lead_conversion_status",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_note:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_note",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_note:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_note",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_notes:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_notes",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_notes:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_notes",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_organization:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_organization",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_organization:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_organization",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_organizations:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_organizations",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_organizations:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_organizations",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_stage:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_stage",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_stage:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_stage",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_stages:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_stages",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_get_stages:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_get_stages",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_deals:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_deals",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_deals:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_deals",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_leads:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_leads",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_leads:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_leads",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_organization:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_organization",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_organization:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_organization",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_persons:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_persons",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_search_persons:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_search_persons",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_update_activity:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_update_activity",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_update_activity:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_update_activity",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_update_note:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_update_note",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_update_note:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_update_note",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_update_organization:defaults",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_update_organization",
+      "variant": "defaults",
+      "input": {},
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
+    },
+    {
+      "id": "pipedrive:pipedrive_update_organization:unknown-field",
+      "serviceId": "pipedrive",
+      "toolName": "pipedrive_update_organization",
+      "variant": "unknown-field",
+      "input": {
+        "unknown_field": "must-not-leak"
+      },
+      "requests": [],
+      "responses": [],
+      "result": null,
+      "expectedError": {
+        "name": "Error",
+        "message": "This tool requires the provider MCP server"
+      }
     },
     {
       "id": "salesforce:salesforce_create_contact:defaults",

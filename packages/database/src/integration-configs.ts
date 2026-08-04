@@ -107,7 +107,6 @@ export const CANONICAL_INTEGRATION_CONFIGS = {
           'https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server',
         maturity: 'stable',
       },
-      fallback: 'direct_api',
     },
   },
   gmail: {

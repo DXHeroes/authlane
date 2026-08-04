@@ -37,14 +37,6 @@ CASES = [
         "/api/v10/users/@me/guilds",
     ),
     RequestCase(
-        "github",
-        "github_get_file",
-        {"owner": "dxheroes", "repo": "authlane", "path": "README.md", "ref": "main"},
-        "GET",
-        "api.github.com",
-        "/repos/dxheroes/authlane/contents/README.md",
-    ),
-    RequestCase(
         "gmail",
         "gmail_list_labels",
         {},
@@ -203,10 +195,6 @@ def test_representative_request_shape_for_each_service(case: RequestCase) -> Non
     assert request.headers["authorization"] == "Bearer provider-secret"
     if case.service_id in JSON_SERVICES:
         assert request.headers["content-type"] == "application/json"
-    if case.service_id == "github":
-        assert request.headers["accept"] == "application/vnd.github+json"
-        assert request.headers["x-github-api-version"] == "2022-11-28"
-        assert request.url.params["ref"] == "main"
     if case.service_id == "google-calendar":
         assert request.url.params["maxResults"] == "100"
     if case.service_id == "google-drive":

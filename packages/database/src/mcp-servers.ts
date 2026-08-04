@@ -247,6 +247,28 @@ export async function saveDiscoveryFailure(
     .where(eq(mcpServers.id, serverId));
 }
 
+/**
+ * Stores the OAuth client Authlane registered at the server (RFC 7591).
+ *
+ * Written once, when discovery first sees a `registration_endpoint`. Registering again on every
+ * refresh would leave a trail of abandoned clients in the provider's account, so the caller only
+ * reaches this when the column is still empty.
+ */
+export async function saveMcpOAuthClient(
+  db: Database,
+  serverId: string,
+  client: { clientId: string; clientSecretId: string | null }
+): Promise<void> {
+  await db
+    .update(mcpServers)
+    .set({
+      oauthClientId: client.clientId,
+      oauthClientSecretId: client.clientSecretId,
+      updatedAt: new Date(),
+    })
+    .where(eq(mcpServers.id, serverId));
+}
+
 export async function deleteMcpServer(db: Database, serverId: string): Promise<void> {
   await db.delete(mcpServers).where(eq(mcpServers.id, serverId));
 }

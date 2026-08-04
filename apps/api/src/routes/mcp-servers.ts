@@ -8,29 +8,65 @@
 
 import { randomUUID } from 'node:crypto';
 import {
+  createDatabaseSecretStore,
   createMcpServer,
   type Database,
   deleteMcpServer,
   listMcpServersForOrganization,
   listMcpServerToolsForReview,
   MCP_SERVER_ID_PREFIX,
+  type SecretStore,
   saveDiscoveryFailure,
   saveDiscoverySuccess,
   updateMcpServerTool,
 } from '@authlane/database';
-import { Errors } from '@authlane/shared';
+import { Errors, MCP_SERVER_PRESETS } from '@authlane/shared';
 import { Hono } from 'hono';
 import type { CacheStore } from '../lib/cache.js';
 import { logger } from '../lib/logger.js';
+import { ensureMcpOAuthClient } from '../lib/mcp-client-registration.js';
 import { discoverMcpServer, type McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
 import { parseMcpServerRegistration, parseMcpToolUpdate } from '../lib/mcp-server-input.js';
 
 export function createMcpServersRouter(
   db: Database,
   discoveryDeps: McpDiscoveryDeps,
-  cache?: CacheStore
+  cache?: CacheStore,
+  secretStore: SecretStore = createDatabaseSecretStore(db)
 ) {
   const router = new Hono();
+
+  /**
+   * Registers Authlane as an OAuth client if the server offers dynamic registration.
+   *
+   * Runs after a successful discovery, on both registration and refresh. Failure is recorded on the
+   * server rather than thrown: the tool list is still worth keeping, and the tenant needs to see why
+   * the OAuth step is not ready rather than a silently unusable server.
+   */
+  async function registerOAuthClientIfOffered(
+    organizationId: string,
+    serverId: string,
+    serverUrl: string,
+    authType: string,
+    existingClientId: string | null,
+    metadata: { registrationEndpoint: string | null } | null,
+    requestUrl: string
+  ): Promise<void> {
+    const outcome = await ensureMcpOAuthClient(db, secretStore, {
+      serverId,
+      organizationId,
+      host: new URL(serverUrl).hostname,
+      authType,
+      registrationEndpoint: metadata?.registrationEndpoint ?? null,
+      existingClientId,
+      apiBaseUrl: process.env.APP_URL ?? new URL(requestUrl).origin,
+      deps: discoveryDeps,
+    });
+
+    if (!outcome.registered && outcome.message) {
+      logger.info({ serverId, reason: outcome.message }, 'MCP server has no OAuth client');
+    }
+  }
 
   /**
    * Drops the cached service catalog for an organization.
@@ -41,6 +77,20 @@ export function createMcpServersRouter(
   async function invalidateCatalog(organizationId: string): Promise<void> {
     await cache?.delete(`control-plane:tenant-services:${organizationId}`);
   }
+
+  /**
+   * The catalogue of servers Authlane has verified.
+   *
+   * Static and organization-independent, so it is served straight from the list. Picking one still
+   * goes through POST /organization/mcp-servers, which means a preset gets the same discovery, host
+   * checks and per-tool review as a URL somebody typed.
+   */
+  router.get('/organization/mcp-servers/presets', (c) => {
+    const org = c.get('organization');
+    if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
+
+    return c.json({ data: MCP_SERVER_PRESETS, error: null });
+  });
 
   /** Every server the organization has registered, including ones discovery has not reached. */
   router.get('/organization/mcp-servers', async (c) => {
@@ -97,6 +147,15 @@ export function createMcpServersRouter(
     }
 
     await saveDiscoverySuccess(db, serverId, result);
+    await registerOAuthClientIfOffered(
+      org.id,
+      serverId,
+      result.serverUrl,
+      registration.authType,
+      null,
+      result.oauthMetadata,
+      c.req.url
+    );
     await invalidateCatalog(org.id);
     return c.json(
       { data: { id: serverId, enabled: true, tools: result.tools.length }, error: null },
@@ -124,6 +183,15 @@ export function createMcpServersRouter(
     }
 
     await saveDiscoverySuccess(db, serverId, result);
+    await registerOAuthClientIfOffered(
+      org.id,
+      serverId,
+      result.serverUrl,
+      server.authType,
+      server.oauthClientId,
+      result.oauthMetadata,
+      c.req.url
+    );
     await invalidateCatalog(org.id);
     logger.info({ serverId, tools: result.tools.length }, 'Rediscovered tenant MCP server');
     return c.json({ data: { id: serverId, tools: result.tools.length }, error: null });

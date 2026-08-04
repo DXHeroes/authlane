@@ -98,6 +98,24 @@ describe('createBuiltInAdapter', () => {
   it('falls back to the direct adapter only before an MCP tool call starts', async () => {
     const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
     const adapter = createBuiltInAdapter(({ tools }) => tools, {
+      integrations: [customIntegration('linear', directExecute)],
+      providerMcpClientFactory: async () => ({
+        listTools: async () => ['different_tool'],
+        callTool: vi.fn(),
+        close: async () => undefined,
+      }),
+      providerMcpForCustomIntegrations: true,
+    });
+
+    expect(
+      await adapter.execute({ ...input, serviceId: 'linear', toolName: 'linear_list_issues' })
+    ).toEqual({ data: { path: 'direct' }, error: null });
+    expect(directExecute).toHaveBeenCalledOnce();
+  });
+
+  it('never falls back for GitHub, because there is no local implementation left', async () => {
+    const directExecute = vi.fn(async () => ({ data: { path: 'direct' }, error: null }));
+    const adapter = createBuiltInAdapter(({ tools }) => tools, {
       integrations: [customIntegration('github', directExecute)],
       providerMcpClientFactory: async () => ({
         listTools: async () => ['different_tool'],
@@ -107,8 +125,13 @@ describe('createBuiltInAdapter', () => {
       providerMcpForCustomIntegrations: true,
     });
 
-    expect(await adapter.execute(input)).toEqual({ data: { path: 'direct' }, error: null });
-    expect(directExecute).toHaveBeenCalledOnce();
+    // GitHub tools come only from the official MCP server. Reaching for a direct call would either
+    // hit handlers that no longer exist or silently use a caller's own adapter in their place.
+    expect(await adapter.execute(input)).toMatchObject({
+      data: null,
+      error: { code: 'PROVIDER_MCP_TOOL_UNAVAILABLE' },
+    });
+    expect(directExecute).not.toHaveBeenCalled();
   });
 
   it('never retries a possibly-started MCP mutation through the direct API', async () => {
@@ -171,7 +194,13 @@ describe('createBuiltInAdapter', () => {
         content: 'content',
       },
     });
-    expect(result).toEqual({ data: { path: 'direct' }, error: null });
+    // Without a branch the mapper cannot build a valid provider call. There is no direct path any
+    // more, so the honest answer is that the tool is unavailable.
+    expect(result).toMatchObject({
+      data: null,
+      error: { code: 'PROVIDER_MCP_TOOL_UNAVAILABLE' },
+    });
+    expect(directExecute).not.toHaveBeenCalled();
     expect(callTool).toHaveBeenCalledTimes(1);
   });
 

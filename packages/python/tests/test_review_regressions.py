@@ -187,7 +187,7 @@ def test_jira_adf_filters_and_transition_name_match_typescript() -> None:
     }
 
 
-def test_gmail_notion_github_and_pipedrive_semantics_match_typescript() -> None:
+def test_gmail_notion_and_pipedrive_semantics_match_typescript() -> None:
     sent, send_requests = _capture(
         "gmail",
         "gmail_send_email",
@@ -221,20 +221,6 @@ def test_gmail_notion_github_and_pipedrive_semantics_match_typescript() -> None:
     assert list(page_requests[0].url.params.multi_items()) == [
         ("filter_properties", "title,status")
     ]
-
-    github, _ = _capture(
-        "github",
-        "github_get_file",
-        {"owner": "dxheroes", "repo": "authlane", "path": "README.md"},
-        responses=[
-            httpx.Response(
-                200,
-                json={"name": "README.md", "content": base64.b64encode(b"hello").decode()},
-            )
-        ],
-    )
-    assert github.error is None
-    assert github.data["decodedContent"] == "hello"
 
     pipedrive, pipedrive_requests = _capture(
         "pipedrive",

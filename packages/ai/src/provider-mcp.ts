@@ -578,6 +578,9 @@ const PROVIDER_MCP_POLICIES: Readonly<Record<string, ProviderMcpPolicy>> = Objec
   },
   github: {
     endpoint: 'https://api.githubcopilot.com/mcp/',
+    // No direct fallback: the handlers were removed, so falling through would only produce a
+    // confusing PROVIDER_REQUEST_FAILED instead of naming the real problem.
+    allowDirectFallback: false,
     prefixes: ['github_'],
     mapToolCall: mapGitHubToolCall,
     mappedToolNames: [

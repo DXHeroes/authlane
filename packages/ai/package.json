@@ -34,11 +34,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "prebuild": "pnpm --filter '@authlane/ai^...' build",
     "build": "tsc",
-    "pretest": "pnpm --filter '@authlane/ai^...' build",
     "test": "vitest run",
-    "pretype-check": "pnpm --filter '@authlane/ai^...' build",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

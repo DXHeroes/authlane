@@ -102,6 +102,30 @@ def test_falls_back_only_when_no_mcp_call_started() -> None:
 
     def direct(request: httpx.Request) -> httpx.Response:
         direct_requests.append(request)
+        return httpx.Response(200, json={"ok": True, "result": "ok"})
+
+    # Slack, not GitHub: the behaviour under test is real, but GitHub has no local handler to fall
+    # back to any more. Slack has no tool-name mapper, so an unmatched provider tool is the same
+    # "no MCP call started" situation the original test set up.
+    result = execute(
+        service_id="slack",
+        tool_name="slack_send_message",
+        arguments={"channel": "C1", "text": "hi"},
+        credential=_credential(),
+        transport=httpx.MockTransport(direct),
+        mcp_transport=httpx.MockTransport(lambda request: _mcp_response(request, ["other_tool"])),
+    )
+
+    assert result.error is None
+    assert result.data == {"ok": True, "result": "ok"}
+    assert len(direct_requests) == 1
+
+
+def test_github_never_falls_back_because_it_has_no_local_handler() -> None:
+    direct_requests: list[httpx.Request] = []
+
+    def direct(request: httpx.Request) -> httpx.Response:
+        direct_requests.append(request)
         return httpx.Response(200, json={"path": "direct"})
 
     result = execute(
@@ -113,9 +137,8 @@ def test_falls_back_only_when_no_mcp_call_started() -> None:
         mcp_transport=httpx.MockTransport(lambda request: _mcp_response(request, ["other_tool"])),
     )
 
-    assert result.error is None
-    assert result.data == {"path": "direct"}
-    assert len(direct_requests) == 1
+    assert result.error is not None
+    assert direct_requests == []
 
 
 def test_never_retries_a_started_mcp_mutation_through_direct_api() -> None:

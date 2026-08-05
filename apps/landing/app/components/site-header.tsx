@@ -2,7 +2,7 @@
 /* biome-ignore-all lint/a11y/useSemanticElements: These roles are applied to their native list elements. */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { landingLinks } from '../content';
 import {
   getMarketingHomepage,
@@ -17,7 +17,21 @@ type SiteHeaderProps = {
 
 export function SiteHeader({ navigationVariant = 'landing' }: SiteHeaderProps) {
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const homepageHref = getMarketingHomepage(navigationVariant);
+
+  // An open menu that Escape cannot close leaves the only way out as a precise tap on
+  // the toggle, which on a phone is exactly where a thumb is not.
+  useEffect(() => {
+    if (!isNavigationOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsNavigationOpen(false);
+      toggleRef.current?.focus();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isNavigationOpen]);
 
   return (
     <header className="site-header">
@@ -44,14 +58,16 @@ export function SiteHeader({ navigationVariant = 'landing' }: SiteHeaderProps) {
         </div>
 
         <button
+          ref={toggleRef}
           className="mobile-navigation__toggle"
           type="button"
           aria-controls="mobile-navigation"
           aria-expanded={isNavigationOpen}
-          aria-label={isNavigationOpen ? 'Close navigation menu' : 'Open navigation menu'}
           onClick={() => setIsNavigationOpen((isOpen) => !isOpen)}
         >
-          Menu
+          {/* The label used to read "Menu" in both states, with only the aria-label
+              changing, so a sighted user got no confirmation the tap registered. */}
+          {isNavigationOpen ? 'Close' : 'Menu'}
           <span className="mobile-navigation__touch-target" aria-hidden="true" />
         </button>
       </div>

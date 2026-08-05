@@ -10,6 +10,11 @@ import { landingLinks } from './content';
 export default function Home() {
   return (
     <div className="site-shell antialiased">
+      {/* The documentation had one of these; the marketing pages did not, so keyboard
+          users tabbed through the whole header on every visit. */}
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       <SiteHeader />
       <main id="main-content" className="isolate">
         <section className="hero section-shell" aria-labelledby="hero-title">

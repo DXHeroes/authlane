@@ -39,11 +39,20 @@ export const mcpServers = pgTable(
     discoveryError: text('discovery_error'),
     // Authorization server metadata (RFC 8414), stored only after endpoint validation.
     oauthMetadata: jsonb('oauth_metadata'),
-    // Client registered dynamically with the server (RFC 7591).
+    // Client registered dynamically with the server (RFC 7591), or one the tenant pasted in.
     oauthClientId: text('oauth_client_id'),
     oauthClientSecretId: text('oauth_client_secret_id').references(() => secretRecords.id, {
       onDelete: 'set null',
     }),
+    /**
+     * Which of the two put the client there.
+     *
+     * A registered client must never be offered for removal: the next rediscovery would register a
+     * fresh one and abandon it at the provider. A pasted one belongs to the tenant and only they
+     * can replace it. Nothing in the connect path reads this — provenance decides what the
+     * dashboard offers, never whether an authorization may start.
+     */
+    oauthClientSource: text('oauth_client_source'),
     // Stays false until a discovery succeeds, so an unreachable server is never offered to users.
     enabled: boolean('enabled').default(false).notNull(),
     /**
@@ -61,6 +70,10 @@ export const mcpServers = pgTable(
     index('mcp_servers_org_idx').on(table.organizationId),
     check('mcp_servers_auth_type_check', sql`${table.authType} in ('oauth2', 'api_key')`),
     check('mcp_servers_id_prefix_check', sql`${table.id} like 'mcp-%'`),
+    check(
+      'mcp_servers_oauth_client_source_check',
+      sql`${table.oauthClientSource} in ('dynamic', 'manual')`
+    ),
   ]
 );
 

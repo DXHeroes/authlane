@@ -127,11 +127,40 @@ export async function listMcpServersForOrganization(db: Database, organizationId
       discoveredAt: mcpServers.discoveredAt,
       discoveryError: mcpServers.discoveryError,
       oauthClientId: mcpServers.oauthClientId,
+      oauthClientSource: mcpServers.oauthClientSource,
       createdAt: mcpServers.createdAt,
     })
     .from(mcpServers)
     .where(eq(mcpServers.organizationId, organizationId))
     .orderBy(asc(mcpServers.name));
+}
+
+/**
+ * One server's OAuth client, scoped to the organization that owns it.
+ *
+ * Scoped in SQL rather than leaning on RLS alone, because the caller needs to tell "no such server"
+ * apart from "not yours" — both must answer 404, and a write that silently matched nothing would
+ * report success.
+ */
+export async function readMcpServerOAuthClient(
+  db: Database,
+  organizationId: string,
+  serverId: string
+) {
+  const [row] = await db
+    .select({
+      id: mcpServers.id,
+      authType: mcpServers.authType,
+      enabled: mcpServers.enabled,
+      oauthClientId: mcpServers.oauthClientId,
+      oauthClientSecretId: mcpServers.oauthClientSecretId,
+      oauthClientSource: mcpServers.oauthClientSource,
+    })
+    .from(mcpServers)
+    .where(and(eq(mcpServers.id, serverId), eq(mcpServers.organizationId, organizationId)))
+    .limit(1);
+
+  return row ?? null;
 }
 
 /**
@@ -261,13 +290,33 @@ export async function saveDiscoveryFailure(
 export async function saveMcpOAuthClient(
   db: Database,
   serverId: string,
-  client: { clientId: string; clientSecretId: string | null }
+  client: { clientId: string; clientSecretId: string | null; source: 'dynamic' | 'manual' }
 ): Promise<void> {
   await db
     .update(mcpServers)
     .set({
       oauthClientId: client.clientId,
       oauthClientSecretId: client.clientSecretId,
+      oauthClientSource: client.source,
+      updatedAt: new Date(),
+    })
+    .where(eq(mcpServers.id, serverId));
+}
+
+/**
+ * Forgets the server's OAuth client.
+ *
+ * Only ever reached for a client the tenant pasted in. Clearing a registered one would leave it
+ * live at the provider with nothing pointing at it, and the next rediscovery would register
+ * another beside it.
+ */
+export async function clearMcpOAuthClient(db: Database, serverId: string): Promise<void> {
+  await db
+    .update(mcpServers)
+    .set({
+      oauthClientId: null,
+      oauthClientSecretId: null,
+      oauthClientSource: null,
       updatedAt: new Date(),
     })
     .where(eq(mcpServers.id, serverId));

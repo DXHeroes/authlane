@@ -22,7 +22,9 @@ function fakeDb(rows: unknown[] = []) {
     select: () => ({
       from: () => ({
         innerJoin: () => ({ where: () => ({ orderBy: async () => rows }) }),
-        where: () => ({ orderBy: async () => rows }),
+        // `limit` is how the org-scoped single-row reads end; without it the delete route,
+        // which now looks up the client secret before dropping the row, throws.
+        where: () => ({ orderBy: async () => rows, limit: async () => rows.slice(0, 1) }),
       }),
     }),
     // Drizzle's insert builder is awaitable and also exposes onConflictDoUpdate, so the fake is a

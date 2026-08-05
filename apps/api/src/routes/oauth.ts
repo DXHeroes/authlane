@@ -46,6 +46,7 @@ import {
 } from '../lib/connect-session.js';
 import { resolveMcpAuthorization } from '../lib/oauth-provider-resolution.js';
 import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
+import { publicApiBase } from '../lib/public-api-base.js';
 import {
   readTenantServiceSettings,
   serviceEnabledForOrganization,
@@ -132,10 +133,6 @@ function parseRecentReauthentication(value: string | undefined, now: Date): Date
     return false;
   }
   return reauthenticatedAt;
-}
-
-function publicApiBase(requestUrl: string): string {
-  return process.env.BETTER_AUTH_URL || new URL(requestUrl).origin;
 }
 
 async function listEnabledServiceIds(db: Database, organizationId: string): Promise<string[]> {

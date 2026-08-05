@@ -26,6 +26,10 @@ const mcpServersMigration = readFileSync(
   join(import.meta.dirname, '../drizzle/0006_real_george_stacy.sql'),
   'utf8'
 );
+const oauthClientSourceMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0011_mcp_oauth_client_source.sql'),
+  'utf8'
+);
 const roles = readFileSync(join(import.meta.dirname, '../sql/roles.sql'), 'utf8');
 
 describe('control-plane migration', () => {
@@ -135,5 +139,28 @@ describe('tenant MCP server migration', () => {
     expect(mcpServersMigration).toContain(
       'REFERENCES "public"."mcp_servers"("id") ON DELETE cascade'
     );
+  });
+});
+
+describe('MCP OAuth client provenance migration', () => {
+  it('accepts only the two ways a client can arrive', () => {
+    expect(oauthClientSourceMigration).toContain('mcp_servers_oauth_client_source_check');
+    expect(oauthClientSourceMigration).toContain("IN ('dynamic', 'manual')");
+  });
+
+  // Everything that already has a client id was registered by Authlane, because until this change
+  // nothing else could write one. Leaving those NULL would let the dashboard offer to remove a
+  // registered client, which abandons it at the provider on the next rediscovery.
+  it('marks every client that already exists as registered', () => {
+    expect(oauthClientSourceMigration).toContain(
+      'UPDATE "mcp_servers" SET "oauth_client_source" = \'dynamic\' WHERE "oauth_client_id" IS NOT NULL'
+    );
+  });
+
+  it('leaves the column nullable, because a server may have no client at all', () => {
+    expect(oauthClientSourceMigration).toContain(
+      'ALTER TABLE "mcp_servers" ADD COLUMN "oauth_client_source" text;'
+    );
+    expect(oauthClientSourceMigration).not.toContain('"oauth_client_source" text NOT NULL');
   });
 });

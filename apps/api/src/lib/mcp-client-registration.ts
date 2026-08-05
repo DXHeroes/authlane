@@ -147,6 +147,7 @@ export async function ensureMcpOAuthClient(
   await saveMcpOAuthClient(db, input.serverId, {
     clientId: result.client.clientId,
     clientSecretId,
+    source: 'dynamic',
   });
   return { registered: true };
 }

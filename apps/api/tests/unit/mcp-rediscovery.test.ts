@@ -4,13 +4,21 @@ import type { McpDiscoveryDeps } from '../../src/lib/mcp-discovery-run.js';
 
 const REACHABLE: McpDiscoveryDeps = {
   resolveHost: async () => ['93.184.216.34'],
-  fetchJson: async (url) =>
-    url.includes('.well-known') ? {} : { tools: [{ name: 'search', inputSchema: {} }] },
+  fetchJson: async () => ({}),
+  callRpc: async () => ({
+    status: 200,
+    sessionId: null,
+    challenge: null,
+    payload: { tools: [{ name: 'search', inputSchema: {} }] },
+  }),
 };
 
 const UNREACHABLE: McpDiscoveryDeps = {
   resolveHost: async () => ['93.184.216.34'],
   fetchJson: async () => {
+    throw new Error('connection refused');
+  },
+  callRpc: async () => {
     throw new Error('connection refused');
   },
 };

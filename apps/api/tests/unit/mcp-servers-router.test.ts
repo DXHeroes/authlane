@@ -5,8 +5,13 @@ import { createMcpServersRouter } from '../../src/routes/mcp-servers.js';
 
 const DISCOVERY_OK: McpDiscoveryDeps = {
   resolveHost: async () => ['93.184.216.34'],
-  fetchJson: async (url) =>
-    url.includes('.well-known') ? {} : { tools: [{ name: 'search', inputSchema: {} }] },
+  fetchJson: async () => ({}),
+  callRpc: async () => ({
+    status: 200,
+    sessionId: null,
+    challenge: null,
+    payload: { tools: [{ name: 'search', inputSchema: {} }] },
+  }),
 };
 
 /** Minimal drizzle stand-in: enough shape for the router, no database. */
@@ -81,16 +86,58 @@ describe('MCP server registration route', () => {
     expect(payload.data.enabled).toBe(true);
   });
 
-  it('rejects a plaintext URL without touching the network', async () => {
-    const fetchJson = vi.fn();
+  it('enables a server that will not list its tools until a user authorizes', async () => {
+    // The shape every OAuth-protected server answers with. Registration has to succeed: the tool
+    // list arrives once somebody authorizes, and refusing here leaves the tenant nothing to click.
+    const db = fakeDb();
     const response = await post(
-      appWith(fakeDb(), { resolveHost: async () => ['93.184.216.34'], fetchJson }),
+      appWith(db, {
+        resolveHost: async () => ['93.184.216.34'],
+        fetchJson: async (url) =>
+          url.endsWith('/oauth-protected-resource')
+            ? { authorization_servers: ['https://mcp.example.com'] }
+            : {
+                issuer: 'https://mcp.example.com',
+                authorization_endpoint: 'https://mcp.example.com/authorize',
+                token_endpoint: 'https://mcp.example.com/token',
+              },
+        callRpc: async () => ({
+          status: 401,
+          sessionId: null,
+          challenge:
+            'Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"',
+          payload: null,
+        }),
+      }),
+      '/organization/mcp-servers',
+      { name: 'Linear', serverUrl: 'https://mcp.example.com', authType: 'oauth2' }
+    );
+
+    expect(response.status).toBe(201);
+    const payload = (await response.json()) as {
+      data: { enabled: boolean; tools: number; authorizationRequired: boolean };
+      error: unknown;
+    };
+    expect(payload.error).toBeNull();
+    expect(payload.data.enabled).toBe(true);
+    expect(payload.data.tools).toBe(0);
+    expect(payload.data.authorizationRequired).toBe(true);
+  });
+
+  it('rejects a plaintext URL without touching the network', async () => {
+    const callRpc = vi.fn();
+    const response = await post(
+      appWith(fakeDb(), {
+        resolveHost: async () => ['93.184.216.34'],
+        fetchJson: async () => ({}),
+        callRpc,
+      }),
       '/organization/mcp-servers',
       { name: 'x', serverUrl: 'http://mcp.example.com', authType: 'oauth2' }
     );
 
     expect(response.status).toBe(400);
-    expect(fetchJson).not.toHaveBeenCalled();
+    expect(callRpc).not.toHaveBeenCalled();
   });
 
   it('creates the server disabled when discovery fails, and says why', async () => {
@@ -98,6 +145,12 @@ describe('MCP server registration route', () => {
       appWith(fakeDb(), {
         resolveHost: async () => ['10.0.0.1'],
         fetchJson: async () => ({}),
+        callRpc: async () => ({
+          status: 200,
+          sessionId: null,
+          challenge: null,
+          payload: { tools: [] },
+        }),
       }),
       '/organization/mcp-servers',
       { name: 'internal', serverUrl: 'https://internal.example.com', authType: 'api_key' }

@@ -123,6 +123,7 @@ export async function listMcpServersForOrganization(db: Database, organizationId
       authType: mcpServers.authType,
       serverUrl: mcpServers.serverUrl,
       enabled: mcpServers.enabled,
+      authorizationRequired: mcpServers.authorizationRequired,
       discoveredAt: mcpServers.discoveredAt,
       discoveryError: mcpServers.discoveryError,
       oauthClientId: mcpServers.oauthClientId,
@@ -183,6 +184,8 @@ export interface DiscoverySnapshot {
   serverUrl: string;
   oauthMetadata: unknown;
   tools: readonly DiscoveredTool[];
+  /** The server refused to list anything without a credential. */
+  authorizationRequired: boolean;
 }
 
 /**
@@ -207,6 +210,7 @@ export async function saveDiscoverySuccess(
       discoveredAt: now,
       discoveryError: null,
       enabled: true,
+      authorizationRequired: snapshot.authorizationRequired,
       updatedAt: now,
     })
     .where(eq(mcpServers.id, serverId));

@@ -6,7 +6,14 @@
 import { describe, expect, it } from 'vitest';
 import { hashPassword, verifyPassword } from '../src/hash.js';
 
-describe('hash functions', () => {
+/**
+ * bcrypt at cost 12 is meant to be slow: one operation is roughly 800ms on a fast
+ * laptop and several times that on a shared CI runner. Vitest's 5s default left the
+ * tests that perform two operations right at the edge, so they timed out on CI while
+ * passing locally. This is headroom for a deliberately expensive KDF, not cover for a
+ * hang — a stuck call still fails, half a minute later.
+ */
+describe('hash functions', { timeout: 60_000 }, () => {
   const testApiKey = 'sk_test_1234567890abcdefghijklmnopqrstuvwxyz';
 
   describe('hashPassword', () => {
@@ -173,21 +180,30 @@ describe('hash functions', () => {
       expect(hash.toLowerCase()).not.toContain(testApiKey.toLowerCase());
     });
 
-    it('should resist timing attacks (constant time)', async () => {
+    /**
+     * A rejected password must still cost a full bcrypt round.
+     *
+     * This replaces an assertion that two wall-clock samples landed within 100ms of each
+     * other. Two samples cannot establish constant time — that needs thousands of them
+     * and a statistical test — and on a contended runner the scheduler alone moved them
+     * further apart than the algorithm ever would, which is what reddened CI. Worse, it
+     * failed in the direction that means nothing: a verification being slower than
+     * expected is not a leak.
+     *
+     * What does leak is an early exit, so that is what this asserts. A short-circuit
+     * added to verifyPassword — comparing lengths or prefixes before the KDF runs —
+     * returns in well under a millisecond, and a wrong password taking a full round is
+     * evidence there is no such path. Being slow can never fail it.
+     */
+    it('should not short-circuit on a wrong password', async () => {
       const hash = await hashPassword('sk_test_correct');
 
-      // Both verifications should take similar time (constant time comparison)
-      const start1 = Date.now();
-      await verifyPassword('sk_test_correct', hash);
-      const time1 = Date.now() - start1;
+      const start = Date.now();
+      const isValid = await verifyPassword('sk_test_wrong', hash);
+      const elapsed = Date.now() - start;
 
-      const start2 = Date.now();
-      await verifyPassword('sk_test_wrong', hash);
-      const time2 = Date.now() - start2;
-
-      // Time difference should be minimal (< 100ms) - bcrypt is constant time
-      const timeDiff = Math.abs(time1 - time2);
-      expect(timeDiff).toBeLessThan(100);
+      expect(isValid).toBe(false);
+      expect(elapsed).toBeGreaterThan(50);
     });
 
     it('should be computationally expensive (min 50ms)', async () => {

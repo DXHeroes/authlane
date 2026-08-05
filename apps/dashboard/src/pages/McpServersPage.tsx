@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import Badge, { type BadgeTone } from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import Callout from '@/components/ui/Callout';
 import { Card, CardBody } from '@/components/ui/Card';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Dialog from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { SelectField, TextField } from '@/components/ui/Field';
 import PageHeader from '@/components/ui/PageHeader';
@@ -24,6 +26,10 @@ interface McpServer {
   discoveredAt: string | null;
   discoveryError: string | null;
   oauthClientId: string | null;
+  /** Whether Authlane registered the client itself, or the tenant pasted one in. */
+  oauthClientSource: 'dynamic' | 'manual' | null;
+  /** The exact URI the provider must redirect back to. Built by the API, never by the browser. */
+  redirectUri: string | null;
   createdAt: string;
 }
 
@@ -205,6 +211,164 @@ function ToolList({
   );
 }
 
+/**
+ * The OAuth application a tenant registered with the provider themselves.
+ *
+ * Needed by every server that does not offer dynamic registration, and by every server that offers
+ * it somewhere other than its own host. Without one, authorizing answers 409 forever.
+ */
+function OAuthClientDialog({
+  server,
+  docsUrl,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  server: McpServer;
+  docsUrl?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [clientId, setClientId] = useState(server.oauthClientId ?? '');
+  const [clientSecret, setClientSecret] = useState('');
+  const [publicClient, setPublicClient] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put(`/organization/mcp-servers/${server.id}/oauth-client`, {
+        clientId: clientId.trim(),
+        ...(publicClient ? { clientSecret: null } : clientSecret ? { clientSecret } : {}),
+      }),
+    onSuccess: (result) => {
+      const ready = (result as { ready?: boolean } | null)?.ready;
+      toastSuccess(
+        `OAuth client saved for ${server.name}`,
+        ready === false
+          ? 'Discovery has not found an authorization endpoint yet — press Retry discovery.'
+          : 'Your users can authorize it now.'
+      );
+      setClientSecret('');
+      onSaved();
+      onOpenChange(false);
+    },
+    onError: (error) => toastError(error, 'Could not save the OAuth client.'),
+  });
+
+  const copyRedirectUri = async () => {
+    if (!server.redirectUri) return;
+    try {
+      await navigator.clipboard.writeText(server.redirectUri);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      toastError(error, 'Could not reach the clipboard. Select the URI and copy it manually.');
+    }
+  };
+
+  // A stored secret cannot travel to a new client id, so the API asks for the matching one.
+  const changingClientId = Boolean(
+    server.oauthClientId && clientId.trim() && clientId.trim() !== server.oauthClientId
+  );
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`OAuth client for ${server.name}`}
+      description="Authlane could not register itself with this server, so it uses an application you own."
+      size="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => save.mutate()}
+            isPending={save.isPending}
+            disabled={!clientId.trim() || (!publicClient && !clientSecret && !server.oauthClientId)}
+          >
+            Save OAuth client
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Callout tone="info" title="Redirect URI">
+          <p className="mb-2">
+            Register this exact URI in the provider's console. It contains this server's id, so it
+            only exists once the server is registered here — which it now is.
+          </p>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={server.redirectUri ?? ''}
+              className="min-w-0 flex-1 rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs"
+            />
+            <Button size="sm" onClick={copyRedirectUri}>
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+        </Callout>
+
+        <p className="text-sm text-muted-foreground">
+          Create an OAuth application in the provider's console, register the URI above, then paste
+          its credentials here.{' '}
+          {docsUrl && (
+            <a
+              href={docsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Provider documentation
+            </a>
+          )}
+        </p>
+
+        <TextField
+          label="Client ID"
+          value={clientId}
+          onChange={(event) => setClientId(event.target.value)}
+          placeholder="1234567890.abcdef"
+          required
+        />
+
+        <TextField
+          label="Client secret"
+          type="password"
+          value={clientSecret}
+          onChange={(event) => setClientSecret(event.target.value)}
+          disabled={publicClient}
+          hint={
+            server.oauthClientId && !changingClientId
+              ? 'Encrypted at rest and never shown again. Leave empty to keep the stored one.'
+              : 'Encrypted at rest and never shown again. Authlane always uses PKCE.'
+          }
+        />
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={publicClient}
+            onChange={(event) => setPublicClient(event.target.checked)}
+            className="size-4 rounded border-border accent-primary"
+          />
+          This provider issued a public client, with no secret
+        </label>
+
+        {changingClientId && (
+          <Callout tone="warning">
+            Changing the client id makes every existing connection to this server invalid, because
+            the stored tokens belong to the old one. Your users authorize again.
+          </Callout>
+        )}
+      </div>
+    </Dialog>
+  );
+}
+
 /** One card, whether it came from the catalogue or from a URL the tenant typed. */
 function ServerCard({
   name,
@@ -212,10 +376,12 @@ function ServerCard({
   authType,
   server,
   note,
+  docsUrl,
   busy,
   onEnable,
   onDisable,
   onRediscover,
+  onChanged,
 }: {
   name: string;
   serverUrl: string;
@@ -223,17 +389,24 @@ function ServerCard({
   /** The registered row, when this organization has this server. */
   server: McpServer | undefined;
   note?: React.ReactNode;
+  docsUrl?: string;
   busy: boolean;
   onEnable: () => void;
   onDisable: () => void;
   onRediscover: () => void;
+  onChanged: () => void;
 }) {
   const [showTools, setShowTools] = useState(false);
+  const [showOAuthClient, setShowOAuthClient] = useState(false);
   // Registered, not enabled: the row exists and discovery failed. Reading the card as off would
   // register a second copy of the same server on the next click.
   const registered = Boolean(server);
   const failed = Boolean(server && !server.enabled);
   const awaiting = Boolean(server?.enabled && server.authorizationRequired);
+  // The state that used to be a dead end: registered and on, but no client to authorize with.
+  const needsOAuthClient = Boolean(
+    server?.enabled && authType === 'oauth2' && !server.oauthClientId
+  );
 
   return (
     <Card className="transition-shadow hover:shadow-md">
@@ -249,7 +422,9 @@ function ServerCard({
             </div>
           </div>
           {failed && <Badge tone="danger">Not discovered</Badge>}
-          {awaiting && <Badge tone="warning">Awaiting authorization</Badge>}
+          {needsOAuthClient && <Badge tone="warning">OAuth client needed</Badge>}
+          {awaiting && !needsOAuthClient && <Badge tone="warning">Awaiting authorization</Badge>}
+          {server?.oauthClientSource === 'manual' && <Badge>Your OAuth app</Badge>}
         </div>
 
         <p className="mb-2 truncate font-mono text-xs text-muted-foreground">{serverUrl}</p>
@@ -264,6 +439,12 @@ function ServerCard({
         {server?.discoveryError && (
           <p className="mb-3 text-sm text-destructive">
             Last discovery failed: {server.discoveryError}
+          </p>
+        )}
+        {needsOAuthClient && (
+          <p className="mb-3 text-sm text-muted-foreground">
+            Authlane could not register itself with this server, so it needs an OAuth application
+            you own. Open <strong>OAuth client</strong> below to add one.
           </p>
         )}
         {!registered && note && <p className="mb-3 text-xs text-muted-foreground">{note}</p>}
@@ -282,6 +463,11 @@ function ServerCard({
                 Retry discovery
               </Button>
             )}
+            {server && authType === 'oauth2' && (
+              <Button variant="link" onClick={() => setShowOAuthClient(true)}>
+                OAuth client
+              </Button>
+            )}
             {server?.enabled && (
               <Button variant="link" onClick={() => setShowTools(!showTools)}>
                 {showTools ? 'Hide tools' : 'Tools'}
@@ -294,6 +480,16 @@ function ServerCard({
           <div className="mt-4 border-t border-border pt-4">
             <ToolList serverId={server.id} awaitingAuthorization={server.authorizationRequired} />
           </div>
+        )}
+
+        {server && (
+          <OAuthClientDialog
+            server={server}
+            docsUrl={docsUrl}
+            open={showOAuthClient}
+            onOpenChange={setShowOAuthClient}
+            onSaved={onChanged}
+          />
         )}
       </CardBody>
     </Card>
@@ -531,6 +727,7 @@ export default function McpServersPage() {
                 }
                 onDisable={() => setPendingRemoval(server)}
                 onRediscover={() => rediscover.mutate(server.id)}
+                onChanged={refreshAll}
               />
             ))}
           </div>
@@ -555,11 +752,13 @@ export default function McpServersPage() {
                     authType={entry.authType}
                     server={server}
                     busy={busy}
+                    docsUrl={entry.docsUrl}
+                    onChanged={refreshAll}
                     note={
                       <>
                         {entry.dynamicRegistration
                           ? 'Authlane registers itself with this server, so there is nothing to set up.'
-                          : 'This server has no dynamic registration, so you will need to add your own OAuth application under Services.'}{' '}
+                          : 'This server does not let Authlane register itself. Turn it on, then open OAuth client on its card to paste credentials from an application you create in the provider console.'}{' '}
                         <a
                           href={entry.docsUrl}
                           target="_blank"

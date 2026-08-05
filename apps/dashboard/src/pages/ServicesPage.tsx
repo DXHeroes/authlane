@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
 import { LoadingRegion, SkeletonCards } from '@/components/ui/Skeleton';
+import Switch from '@/components/ui/Switch';
 import { api } from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
 import type { OrganizationService, Service } from '@/types';
@@ -161,41 +162,17 @@ export default function ServicesPage() {
                   )}
 
                   <div className="flex items-center justify-between border-t border-border pt-3">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={isEnabled}
-                      aria-label={`${isEnabled ? 'Disable' : 'Enable'} ${service.name}`}
-                      onClick={() =>
+                    <Switch
+                      label={service.name}
+                      checked={isEnabled}
+                      disabled={toggleServiceMutation.isPending}
+                      onToggle={() =>
                         toggleServiceMutation.mutate({
                           serviceId: service.id,
                           enabled: !isEnabled,
                         })
                       }
-                      disabled={toggleServiceMutation.isPending}
-                      className="group flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <span
-                        className={`
-                          relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full
-                          transition-colors duration-200 ease-in-out
-                          ${isEnabled ? 'bg-success' : 'bg-muted-foreground/35'}
-                        `}
-                      >
-                        <span
-                          className={`
-                            pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg 
-                            ring-0 transition duration-200 ease-in-out
-                            ${isEnabled ? 'translate-x-4' : 'translate-x-0.5'}
-                          `}
-                        />
-                      </span>
-                      <span
-                        className={`text-sm ${isEnabled ? 'font-medium text-success' : 'text-muted-foreground'}`}
-                      >
-                        {isEnabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </button>
+                    />
 
                     <Link
                       to={`/dashboard/services/${service.id}`}

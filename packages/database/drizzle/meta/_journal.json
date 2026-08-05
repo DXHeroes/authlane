@@ -71,6 +71,13 @@
       "when": 1785774000000,
       "tag": "0009_provider_tool_discoveries",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785777000000,
+      "tag": "0010_mcp_authorization_required",
+      "breakpoints": true
     }
   ]
 }

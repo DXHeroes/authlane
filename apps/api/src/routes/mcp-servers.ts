@@ -158,7 +158,16 @@ export function createMcpServersRouter(
     );
     await invalidateCatalog(org.id);
     return c.json(
-      { data: { id: serverId, enabled: true, tools: result.tools.length }, error: null },
+      {
+        data: {
+          id: serverId,
+          enabled: true,
+          tools: result.tools.length,
+          // Zero tools with this set means "nobody has authorized it yet", not "it offers nothing".
+          authorizationRequired: result.authorizationRequired,
+        },
+        error: null,
+      },
       201
     );
   });
@@ -194,7 +203,14 @@ export function createMcpServersRouter(
     );
     await invalidateCatalog(org.id);
     logger.info({ serverId, tools: result.tools.length }, 'Rediscovered tenant MCP server');
-    return c.json({ data: { id: serverId, tools: result.tools.length }, error: null });
+    return c.json({
+      data: {
+        id: serverId,
+        tools: result.tools.length,
+        authorizationRequired: result.authorizationRequired,
+      },
+      error: null,
+    });
   });
 
   router.get('/organization/mcp-servers/:serverId/tools', async (c) => {

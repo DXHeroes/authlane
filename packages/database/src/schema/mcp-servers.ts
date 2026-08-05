@@ -46,6 +46,14 @@ export const mcpServers = pgTable(
     }),
     // Stays false until a discovery succeeds, so an unreachable server is never offered to users.
     enabled: boolean('enabled').default(false).notNull(),
+    /**
+     * The server refuses to list its tools without a credential.
+     *
+     * True for every OAuth-protected server, and not a fault: the contract arrives once a user has
+     * authorized. Stored so the dashboard can say that instead of showing an empty tool list, which
+     * reads as "this server offers nothing".
+     */
+    authorizationRequired: boolean('authorization_required').default(false).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },

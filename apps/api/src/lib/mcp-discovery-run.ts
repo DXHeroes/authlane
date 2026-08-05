@@ -15,20 +15,35 @@ import {
 export interface McpDiscoveryDeps {
   /** Resolves a hostname to every address it answers with. */
   resolveHost: (host: string) => Promise<string[]>;
+  /** Reads a plain JSON document, throwing on any non-2xx. Used for the metadata documents. */
   fetchJson: (url: string, init?: { method?: string; body?: string }) => Promise<unknown>;
   /**
-   * Reads a header from a request that is expected to fail, without throwing.
+   * Sends one JSON-RPC message over the Streamable HTTP transport.
    *
-   * Needed for RFC 9728: the pointer to a server's metadata arrives in the `WWW-Authenticate` header
-   * of an unauthorized `tools/list`, and `fetchJson` throws on any non-2xx by design. Optional so an
-   * older set of deps still works, falling back to the constructed path.
+   * Unlike `fetchJson` this does not throw on a non-2xx: a server that requires authorization
+   * refuses with 401 and names its metadata document in the same response, and that refusal is the
+   * most useful thing discovery learns about it.
    */
-  readHeader?: (
+  callRpc: (
     url: string,
-    header: string,
-    init?: { method?: string; body?: string }
-  ) => Promise<string | null>;
+    message: unknown,
+    session?: { sessionId: string | null }
+  ) => Promise<McpRpcResponse>;
 }
+
+/** What a server answered one JSON-RPC message with. */
+export interface McpRpcResponse {
+  status: number;
+  /** The session the server assigned, when it manages sessions. */
+  sessionId: string | null;
+  /** The `WWW-Authenticate` challenge, when the server sent one. */
+  challenge: string | null;
+  /** The JSON-RPC message it answered with, or null when it sent no body. */
+  payload: unknown;
+}
+
+/** The protocol revision discovery speaks. */
+export const MCP_PROTOCOL_VERSION = '2025-06-18';
 
 export interface McpOAuthMetadata {
   authorizationEndpoint: string;
@@ -43,7 +58,20 @@ export type McpDiscoveryFailureCode =
   | 'MCP_DISCOVERY_UNREACHABLE';
 
 export type McpDiscoveryResult =
-  | { ok: true; serverUrl: string; oauthMetadata: McpOAuthMetadata | null; tools: DiscoveredTool[] }
+  | {
+      ok: true;
+      serverUrl: string;
+      oauthMetadata: McpOAuthMetadata | null;
+      tools: DiscoveredTool[];
+      /**
+       * The server refused to list anything without a credential.
+       *
+       * Not a failure: it is the correct behaviour of every OAuth-protected server, and the tool
+       * list arrives once a user has authorized. Carried so the tenant is told that rather than
+       * shown an empty contract.
+       */
+      authorizationRequired: boolean;
+    }
   | { ok: false; code: McpDiscoveryFailureCode; message: string };
 
 function failure(code: McpDiscoveryFailureCode, message: string): McpDiscoveryResult {
@@ -54,25 +82,47 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isSuccess(status: number): boolean {
+  return status >= 200 && status < 300;
+}
+
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function withoutTrailingSlash(value: string): string {
+  return value.replace(/\/$/, '');
+}
+
 /**
- * Reads RFC 8414 metadata. Every endpoint must be https and on the registered server's domain:
- * the metadata document is fetched from the tenant's server, but nothing stops a compromised one
- * from naming a token endpoint an attacker controls.
+ * Reads RFC 8414 metadata, accepting an endpoint only where `isTrusted` says so.
+ *
+ * What counts as trusted depends on how the document was found, and the two cases are genuinely
+ * different. A document fetched from a path guessed on the server's own host has declared nothing,
+ * so its endpoints must stay on that host. One fetched from an issuer the server itself named is
+ * that issuer speaking about itself, and an authorization server may legitimately publish its
+ * authorize page and its token endpoint on different hosts — Dropbox uses www.dropbox.com and
+ * api.dropboxapi.com — so there https is the only structural requirement left.
  */
-function readOAuthMetadata(host: string, payload: unknown): McpOAuthMetadata | 'untrusted' | null {
+function readOAuthMetadata(
+  payload: unknown,
+  isTrusted: (endpoint: string) => boolean
+): McpOAuthMetadata | 'untrusted' | null {
   if (!isRecord(payload)) return null;
   const authorization = payload.authorization_endpoint;
   const token = payload.token_endpoint;
   if (typeof authorization !== 'string' && typeof token !== 'string') return null;
 
   if (typeof authorization !== 'string' || typeof token !== 'string') return 'untrusted';
-  if (!isSameRegistrableDomain(host, authorization)) return 'untrusted';
-  if (!isSameRegistrableDomain(host, token)) return 'untrusted';
+  if (!isTrusted(authorization)) return 'untrusted';
+  if (!isTrusted(token)) return 'untrusted';
 
   const registration = payload.registration_endpoint;
-  if (typeof registration === 'string' && !isSameRegistrableDomain(host, registration)) {
-    return 'untrusted';
-  }
+  if (typeof registration === 'string' && !isTrusted(registration)) return 'untrusted';
 
   return {
     authorizationEndpoint: authorization,
@@ -82,44 +132,53 @@ function readOAuthMetadata(host: string, payload: unknown): McpOAuthMetadata | '
 }
 
 /**
- * Fetches a server's RFC 8414 metadata, preferring the pointer it publishes over a guessed path.
+ * Finds a server's authorization server metadata and reads it.
  *
- * `${url}/.well-known/oauth-authorization-server` happens to work for most servers, but not all:
- * some keep the document at a path-specific location, and some publish it on a separate
- * authorization server. Following the `resource_metadata` pointer from an unauthorized `tools/list`
- * is what the specification asks for; the constructed path stays as a fallback because it works
- * today and a regression there would be worse than a missing entry.
+ * Two routes, tried in that order. The first is the chain the specifications describe: the refusal
+ * names a protected-resource document (RFC 9728), that document names an issuer, and the issuer's
+ * own metadata (RFC 8414) says where to authorize. It is what makes the vendors who run their
+ * authorization server beside their MCP host usable at all. The second is a guess at
+ * `${url}/.well-known/oauth-authorization-server`, kept because plenty of servers publish nothing
+ * else and it costs one request.
  */
-async function readMetadataDocument(url: string, deps: McpDiscoveryDeps): Promise<unknown> {
-  const pointer = await resolveMetadataPointer(url, deps);
-  if (pointer) {
-    try {
-      return await deps.fetchJson(pointer);
-    } catch {
-      // Fall through: a published pointer that does not answer is no worse than none.
+async function readAuthorizationMetadata(
+  server: { host: string; url: string },
+  challenge: string | null,
+  deps: McpDiscoveryDeps
+): Promise<McpOAuthMetadata | 'untrusted' | null> {
+  const issuer = await resolveDeclaredIssuer(server.host, challenge, deps);
+  if (issuer) {
+    const document = await readIssuerMetadata(issuer, deps);
+    if (document !== null) {
+      // RFC 8414 requires the document to name the issuer it was fetched for. Without this the
+      // issuer identifier binds to nothing and the chain above it proves nothing either.
+      const declared = isRecord(document) ? document.issuer : undefined;
+      if (typeof declared !== 'string' || withoutTrailingSlash(declared) !== issuer) {
+        return 'untrusted';
+      }
+      return readOAuthMetadata(document, isHttpsUrl);
     }
   }
-  return deps.fetchJson(`${url}/.well-known/oauth-authorization-server`);
+
+  const guessed = await deps.fetchJson(`${server.url}/.well-known/oauth-authorization-server`);
+  return readOAuthMetadata(guessed, (endpoint) => isSameRegistrableDomain(server.host, endpoint));
 }
 
-/** The authorization server metadata URL a server points at, if it publishes one. */
-async function resolveMetadataPointer(
-  url: string,
+/**
+ * The issuer a server declares for itself through RFC 9728.
+ *
+ * The pointer has to live on the registered server's own host. Everything downstream is trusted
+ * because the server said it, so a server free to name any document could name one an attacker
+ * wrote and every later check would be reading the attacker's answer.
+ */
+async function resolveDeclaredIssuer(
+  serverHost: string,
+  challenge: string | null,
   deps: McpDiscoveryDeps
 ): Promise<string | null> {
-  if (!deps.readHeader) return null;
-
-  let challenge: string | null;
-  try {
-    challenge = await deps.readHeader(url, 'www-authenticate', {
-      method: 'POST',
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-    });
-  } catch {
-    return null;
-  }
   const resourceMetadata = challenge?.match(/resource_metadata="?([^",\s]+)"?/)?.[1];
   if (!resourceMetadata) return null;
+  if (!isSameRegistrableDomain(serverHost, resourceMetadata)) return null;
 
   let resource: unknown;
   try {
@@ -130,8 +189,90 @@ async function resolveMetadataPointer(
   if (!isRecord(resource) || !Array.isArray(resource.authorization_servers)) return null;
 
   const [issuer] = resource.authorization_servers;
-  if (typeof issuer !== 'string' || !issuer.startsWith('https://')) return null;
-  return `${issuer.replace(/\/$/, '')}/.well-known/oauth-authorization-server`;
+  if (typeof issuer !== 'string' || !isHttpsUrl(issuer)) return null;
+  return withoutTrailingSlash(issuer);
+}
+
+/**
+ * Reads an issuer's RFC 8414 document, or null when it publishes none.
+ *
+ * For an issuer carrying a path the specification inserts the well-known segment before it, which
+ * is the only way Atlassian and Stripe answer. Appending it is tried second because some servers
+ * publish it there instead; for a path-less issuer the two are the same URL and only one is tried.
+ */
+async function readIssuerMetadata(issuer: string, deps: McpDiscoveryDeps): Promise<unknown | null> {
+  const parsed = new URL(issuer);
+  const path = withoutTrailingSlash(parsed.pathname);
+  const candidates = path
+    ? [
+        `${parsed.origin}/.well-known/oauth-authorization-server${path}`,
+        `${parsed.origin}${path}/.well-known/oauth-authorization-server`,
+      ]
+    : [`${parsed.origin}/.well-known/oauth-authorization-server`];
+
+  for (const candidate of candidates) {
+    try {
+      return await deps.fetchJson(candidate);
+    } catch {
+      // Try the next shape; the caller falls back to the guessed path if none answer.
+    }
+  }
+  return null;
+}
+
+type ToolContract =
+  | { state: 'tools'; payload: unknown; challenge: string | null }
+  | { state: 'unauthorized'; challenge: string | null }
+  | { state: 'unreachable' };
+
+/**
+ * Runs the MCP handshake and asks for the tool list.
+ *
+ * The handshake is not ceremony: a server that manages sessions answers everything but `initialize`
+ * with "no valid session ID provided", so skipping it makes a healthy server look broken. A server
+ * that refuses the handshake outright is still asked for its tools, because some answer `tools/list`
+ * on an open endpoint and losing that contract would be worse than one wasted request.
+ */
+async function readToolContract(url: string, deps: McpDiscoveryDeps): Promise<ToolContract> {
+  let sessionId: string | null = null;
+
+  try {
+    const opened = await deps.callRpc(url, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: 'authlane-discovery', version: '1.0' },
+      },
+    });
+
+    if (opened.status === 401) return { state: 'unauthorized', challenge: opened.challenge };
+    if (isSuccess(opened.status)) {
+      sessionId = opened.sessionId;
+      // Completes the handshake. A server that ignores the notification is none the worse for it,
+      // so its outcome is not worth acting on.
+      await deps
+        .callRpc(url, { jsonrpc: '2.0', method: 'notifications/initialized' }, { sessionId })
+        .catch(() => undefined);
+    }
+  } catch {
+    // The tools request below decides whether the server is reachable at all.
+  }
+
+  try {
+    const listed = await deps.callRpc(
+      url,
+      { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+      { sessionId }
+    );
+    if (listed.status === 401) return { state: 'unauthorized', challenge: listed.challenge };
+    if (!isSuccess(listed.status)) return { state: 'unreachable' };
+    return { state: 'tools', payload: listed.payload, challenge: listed.challenge };
+  } catch {
+    return { state: 'unreachable' };
+  }
 }
 
 export async function discoverMcpServer(
@@ -162,11 +303,15 @@ export async function discoverMcpServer(
     );
   }
 
+  const contract = await readToolContract(parsed.url, deps);
+  if (contract.state === 'unreachable') {
+    return failure('MCP_DISCOVERY_UNREACHABLE', 'The server did not answer a tools/list request');
+  }
+
   // Absent metadata is normal: a server may authenticate with an API key instead.
   let oauthMetadata: McpOAuthMetadata | null = null;
   try {
-    const payload = await readMetadataDocument(parsed.url, deps);
-    const parsedMetadata = readOAuthMetadata(parsed.host, payload);
+    const parsedMetadata = await readAuthorizationMetadata(parsed, contract.challenge, deps);
     if (parsedMetadata === 'untrusted') {
       return failure(
         'MCP_DISCOVERY_UNTRUSTED_ENDPOINT',
@@ -178,24 +323,29 @@ export async function discoverMcpServer(
     oauthMetadata = null;
   }
 
-  let toolsPayload: unknown;
-  try {
-    toolsPayload = await deps.fetchJson(parsed.url, {
-      method: 'POST',
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-    });
-  } catch {
-    return failure('MCP_DISCOVERY_UNREACHABLE', 'The server did not answer a tools/list request');
+  if (contract.state === 'unauthorized') {
+    return {
+      ok: true,
+      serverUrl: parsed.url,
+      oauthMetadata,
+      // No contract is known yet, and inventing an empty one would read as "this server has no
+      // tools" rather than "nobody has authorized it".
+      tools: [],
+      authorizationRequired: true,
+    };
   }
 
   // Servers answer either with the JSON-RPC envelope or the bare result.
   const result =
-    isRecord(toolsPayload) && isRecord(toolsPayload.result) ? toolsPayload.result : toolsPayload;
+    isRecord(contract.payload) && isRecord(contract.payload.result)
+      ? contract.payload.result
+      : contract.payload;
 
   return {
     ok: true,
     serverUrl: parsed.url,
     oauthMetadata,
     tools: normalizeDiscoveredTools(serverId, result),
+    authorizationRequired: false,
   };
 }

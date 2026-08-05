@@ -103,6 +103,9 @@ export function createMcpDiscoveryDeps(
             'content-type': 'application/json',
             'mcp-protocol-version': MCP_PROTOCOL_VERSION,
             ...(session?.sessionId ? { 'mcp-session-id': session.sessionId } : {}),
+            // Only ever a token the user themselves granted, and only when rediscovering a server
+            // that already refused an uncredentialed listing.
+            ...(session?.accessToken ? { authorization: `Bearer ${session.accessToken}` } : {}),
           },
           redirect: 'error',
           signal: controller.signal,

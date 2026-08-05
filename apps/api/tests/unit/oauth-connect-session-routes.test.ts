@@ -210,7 +210,8 @@ describe('POST /api/v1/connect-sessions', () => {
 describe('connect-session service availability after snapshot creation', () => {
   it('hides a later-disabled service from hosted session data', async () => {
     const { db } = fakeDatabase({
-      selectResults: [[session()], [{ id: 'github', name: 'GitHub', authType: 'oauth2' }], []],
+      // session, built-in services, the tenant's own MCP servers, connections
+      selectResults: [[session()], [{ id: 'github', name: 'GitHub', authType: 'oauth2' }], [], []],
     });
 
     const response = await appFor(db).request('/api/v1/connect/session', {
@@ -236,7 +237,7 @@ describe('connect-session service availability after snapshot creation', () => {
   });
 
   it('keeps an empty hosted session payload valid against OpenAPI', async () => {
-    const { db } = fakeDatabase({ selectResults: [[session()], []] });
+    const { db } = fakeDatabase({ selectResults: [[session()], [], []] });
 
     const response = await appFor(db).request('/api/v1/connect/session', {
       method: 'POST',
@@ -366,5 +367,62 @@ describe('connect-session service availability after snapshot creation', () => {
 
     expect(body).toEqual({ data: { disconnected: true }, error: null });
     assertOpenApiResponse('/api/v1/connect/{serviceId}', 'delete', 200, body);
+  });
+});
+
+/**
+ * A server the tenant registered themselves has no row in `services`, so the hosted page filtered
+ * it out twice — against a table it is not in, and against the built-in id list — while
+ * `/connect/:serviceId/authorize` would have authorized it. The tenant could allow it, send a user
+ * to the page, and watch it render nothing.
+ */
+describe('a tenant MCP server in the hosted connect page', () => {
+  const mcpSession = session({ allowedServices: ['mcp-1'] });
+  const mcpServer = {
+    id: 'mcp-1',
+    name: 'Slack',
+    authType: 'oauth2',
+    serverUrl: 'https://mcp.slack.com/mcp',
+  };
+
+  it('is offered alongside the built-in catalog', async () => {
+    const { db } = fakeDatabase({ selectResults: [[mcpSession], [], [mcpServer], []] });
+
+    const response = await appFor(db).request('/api/v1/connect/session', {
+      method: 'POST',
+      headers: { authorization: 'ConnectSession acs_test', 'content-type': 'application/json' },
+      body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
+    });
+
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.data.services).toMatchObject([{ id: 'mcp-1', name: 'Slack' }]);
+    assertOpenApiResponse('/api/v1/connect/session', 'post', 200, body);
+  });
+
+  it('stays hidden once the tenant turns it off', async () => {
+    // listEnabledMcpServers only returns enabled ones, so a disabled server simply is not there.
+    const { db } = fakeDatabase({ selectResults: [[mcpSession], [], [], []] });
+
+    const response = await appFor(db).request('/api/v1/connect/session', {
+      method: 'POST',
+      headers: { authorization: 'ConnectSession acs_test', 'content-type': 'application/json' },
+      body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
+    });
+
+    expect((await response.json()).data.services).toEqual([]);
+  });
+
+  it('is not offered when the session did not allow it', async () => {
+    const otherSession = session({ allowedServices: ['github'] });
+    const { db } = fakeDatabase({ selectResults: [[otherSession], [], [mcpServer], []] });
+
+    const response = await appFor(db).request('/api/v1/connect/session', {
+      method: 'POST',
+      headers: { authorization: 'ConnectSession acs_test', 'content-type': 'application/json' },
+      body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
+    });
+
+    expect((await response.json()).data.services).toEqual([]);
   });
 });

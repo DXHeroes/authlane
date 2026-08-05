@@ -60,7 +60,7 @@ export function createApiRouter(
   };
 
   router.route('/', createControlPlaneRouter(repository, registryFor, secretStore));
-  router.route('/', createOAuthRouter(db, secretStore));
+  router.route('/', createOAuthRouter(db, secretStore, createMcpDiscoveryDeps(), cache));
 
   return router;
 }

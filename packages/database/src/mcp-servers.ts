@@ -349,6 +349,8 @@ export interface McpServerConnectConfig {
   oauthClientSecretId: string | null;
   authorizationEndpoint: string | null;
   tokenEndpoint: string | null;
+  /** True while the server has only ever been asked without a credential. */
+  authorizationRequired: boolean;
 }
 
 /**
@@ -371,6 +373,7 @@ export async function readMcpServerConnectConfig(
       oauthClientId: mcpServers.oauthClientId,
       oauthClientSecretId: mcpServers.oauthClientSecretId,
       oauthMetadata: mcpServers.oauthMetadata,
+      authorizationRequired: mcpServers.authorizationRequired,
     })
     .from(mcpServers)
     .where(eq(mcpServers.id, serverId))
@@ -393,5 +396,6 @@ export async function readMcpServerConnectConfig(
     authorizationEndpoint:
       typeof metadata?.authorizationEndpoint === 'string' ? metadata.authorizationEndpoint : null,
     tokenEndpoint: typeof metadata?.tokenEndpoint === 'string' ? metadata.tokenEndpoint : null,
+    authorizationRequired: row.authorizationRequired,
   };
 }

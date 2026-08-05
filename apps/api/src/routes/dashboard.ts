@@ -39,6 +39,7 @@ import {
 import { Hono } from 'hono';
 import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
 import type { CacheStore } from '../lib/cache.js';
+import { expireConnectionsForService } from '../lib/connection-invalidation.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
 import { logger } from '../lib/logger.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
@@ -865,36 +866,13 @@ export function createDashboardRouter(
         });
 
       if (policyChanged) {
-        const affectedConnections = await db
-          .select({
-            externalUserId: connections.externalUserId,
-            credentialSecretId: connections.credentialSecretId,
-          })
-          .from(connections)
-          .where(and(eq(connections.organizationId, org.id), eq(connections.serviceId, serviceId)));
-        await db
-          .update(connections)
-          .set({
-            status: 'expired',
-            credentialSecretId: null,
-            lastErrorCode: 'TOOL_POLICY_REAUTHORIZATION_REQUIRED',
-            updatedAt: new Date(),
-          })
-          .where(and(eq(connections.organizationId, org.id), eq(connections.serviceId, serviceId)));
-        await Promise.all(
-          affectedConnections.flatMap(({ credentialSecretId }) =>
-            credentialSecretId
-              ? [
-                  secretStore.delete?.(credentialSecretId, org.id, 'connection_credentials') ??
-                    Promise.resolve(),
-                ]
-              : []
-          )
-        );
-        await Promise.all(
-          affectedConnections.map(({ externalUserId }) =>
-            cache?.delete(`control-plane:connections:${org.id}:${externalUserId}`)
-          )
+        await expireConnectionsForService(
+          db,
+          secretStore,
+          cache,
+          org.id,
+          serviceId,
+          'TOOL_POLICY_REAUTHORIZATION_REQUIRED'
         );
       }
       await cache?.delete(`control-plane:tenant-services:${org.id}`);

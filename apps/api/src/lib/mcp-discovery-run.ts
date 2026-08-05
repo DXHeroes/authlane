@@ -27,7 +27,7 @@ export interface McpDiscoveryDeps {
   callRpc: (
     url: string,
     message: unknown,
-    session?: { sessionId: string | null }
+    session?: { sessionId: string | null; accessToken?: string | null }
   ) => Promise<McpRpcResponse>;
 }
 
@@ -233,20 +233,28 @@ type ToolContract =
  * that refuses the handshake outright is still asked for its tools, because some answer `tools/list`
  * on an open endpoint and losing that contract would be worse than one wasted request.
  */
-async function readToolContract(url: string, deps: McpDiscoveryDeps): Promise<ToolContract> {
+async function readToolContract(
+  url: string,
+  deps: McpDiscoveryDeps,
+  accessToken: string | null = null
+): Promise<ToolContract> {
   let sessionId: string | null = null;
 
   try {
-    const opened = await deps.callRpc(url, {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: {},
-        clientInfo: { name: 'authlane-discovery', version: '1.0' },
+    const opened = await deps.callRpc(
+      url,
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: MCP_PROTOCOL_VERSION,
+          capabilities: {},
+          clientInfo: { name: 'authlane-discovery', version: '1.0' },
+        },
       },
-    });
+      { sessionId: null, accessToken }
+    );
 
     if (opened.status === 401) return { state: 'unauthorized', challenge: opened.challenge };
     if (isSuccess(opened.status)) {
@@ -254,7 +262,11 @@ async function readToolContract(url: string, deps: McpDiscoveryDeps): Promise<To
       // Completes the handshake. A server that ignores the notification is none the worse for it,
       // so its outcome is not worth acting on.
       await deps
-        .callRpc(url, { jsonrpc: '2.0', method: 'notifications/initialized' }, { sessionId })
+        .callRpc(
+          url,
+          { jsonrpc: '2.0', method: 'notifications/initialized' },
+          { sessionId, accessToken }
+        )
         .catch(() => undefined);
     }
   } catch {
@@ -265,7 +277,7 @@ async function readToolContract(url: string, deps: McpDiscoveryDeps): Promise<To
     const listed = await deps.callRpc(
       url,
       { jsonrpc: '2.0', id: 2, method: 'tools/list' },
-      { sessionId }
+      { sessionId, accessToken }
     );
     if (listed.status === 401) return { state: 'unauthorized', challenge: listed.challenge };
     if (!isSuccess(listed.status)) return { state: 'unreachable' };
@@ -278,7 +290,16 @@ async function readToolContract(url: string, deps: McpDiscoveryDeps): Promise<To
 export async function discoverMcpServer(
   serverId: string,
   serverUrl: string,
-  deps: McpDiscoveryDeps
+  deps: McpDiscoveryDeps,
+  /**
+   * A user's access token, when one exists.
+   *
+   * Discovery asks without a credential by default, and deliberately: a server's refusal is what
+   * names its authorization metadata, and that is how a server gets registered at all. But an
+   * OAuth-protected server lists its tools to nobody else, so until a token is offered the
+   * contract stays empty and `authorization_required` stays true forever.
+   */
+  options: { accessToken?: string | null } = {}
 ): Promise<McpDiscoveryResult> {
   const parsed = parseServerUrl(serverUrl);
   if (!parsed) {
@@ -303,7 +324,7 @@ export async function discoverMcpServer(
     );
   }
 
-  const contract = await readToolContract(parsed.url, deps);
+  const contract = await readToolContract(parsed.url, deps, options.accessToken ?? null);
   if (contract.state === 'unreachable') {
     return failure('MCP_DISCOVERY_UNREACHABLE', 'The server did not answer a tools/list request');
   }

@@ -160,19 +160,28 @@ describe('asking without a credential first', () => {
     const db = fakeDb([CANDIDATE]);
     const tokensSeen: string[] = [];
 
-    const result = await discoverProviderTools(db, fakeSecretStore({ access_token: 'gho_secret' }), {
-      clientFactory: async ({ accessToken }) => {
-        tokensSeen.push(accessToken);
-        return {
-          listTools: async () => ['search_code'],
-          listToolDefinitions: async () => [
-            { name: 'search_code', description: 'Search', inputSchema: {}, declaredAnnotations: null },
-          ],
-          callTool: async () => undefined,
-          close: async () => undefined,
-        };
-      },
-    });
+    const result = await discoverProviderTools(
+      db,
+      fakeSecretStore({ access_token: 'gho_secret' }),
+      {
+        clientFactory: async ({ accessToken }) => {
+          tokensSeen.push(accessToken);
+          return {
+            listTools: async () => ['search_code'],
+            listToolDefinitions: async () => [
+              {
+                name: 'search_code',
+                description: 'Search',
+                inputSchema: {},
+                declaredAnnotations: null,
+              },
+            ],
+            callTool: async () => undefined,
+            close: async () => undefined,
+          };
+        },
+      }
+    );
 
     expect(result.updated).toBe(1);
     // One attempt, with no token. Google answers tools/list openly, so a user's token would only
@@ -184,22 +193,31 @@ describe('asking without a credential first', () => {
     const db = fakeDb([CANDIDATE]);
     const tokensSeen: string[] = [];
 
-    const result = await discoverProviderTools(db, fakeSecretStore({ access_token: 'gho_secret' }), {
-      clientFactory: async ({ accessToken }) => {
-        tokensSeen.push(accessToken);
-        return {
-          listTools: async () => [],
-          listToolDefinitions: async () => {
-            if (!accessToken) throw new Error('HTTP 401');
-            return [
-              { name: 'list_repos', description: 'List', inputSchema: {}, declaredAnnotations: null },
-            ];
-          },
-          callTool: async () => undefined,
-          close: async () => undefined,
-        };
-      },
-    });
+    const result = await discoverProviderTools(
+      db,
+      fakeSecretStore({ access_token: 'gho_secret' }),
+      {
+        clientFactory: async ({ accessToken }) => {
+          tokensSeen.push(accessToken);
+          return {
+            listTools: async () => [],
+            listToolDefinitions: async () => {
+              if (!accessToken) throw new Error('HTTP 401');
+              return [
+                {
+                  name: 'list_repos',
+                  description: 'List',
+                  inputSchema: {},
+                  declaredAnnotations: null,
+                },
+              ];
+            },
+            callTool: async () => undefined,
+            close: async () => undefined,
+          };
+        },
+      }
+    );
 
     expect(result.updated).toBe(1);
     expect(tokensSeen).toEqual(['', 'gho_secret']);

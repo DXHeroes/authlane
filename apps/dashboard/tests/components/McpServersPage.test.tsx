@@ -11,6 +11,7 @@ vi.mock('@/lib/api', () => ({
     get: vi.fn(),
     patch: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
   DashboardApiError: class extends Error {},
 }));
@@ -53,6 +54,8 @@ const SERVER = {
   discoveredAt: '2026-08-03T10:00:00.000Z',
   discoveryError: null,
   oauthClientId: 'client-1',
+  oauthClientSource: 'dynamic',
+  redirectUri: 'https://app.authlane.io/api/v1/oauth/mcp-1/callback',
   createdAt: '2026-08-03T09:00:00.000Z',
 };
 
@@ -135,11 +138,16 @@ describe('the verified server catalogue', () => {
     expect(apiModule.api.delete).toHaveBeenCalledWith('/organization/mcp-servers/mcp-1');
   });
 
-  it('says when a server needs the tenant to bring their own OAuth application', async () => {
+  /**
+   * The old copy sent the tenant to Services, whose OAuth form writes a built-in service's client
+   * id — a value the MCP branch never reads. Following it changed nothing, and the server kept
+   * answering 409.
+   */
+  it('points a server without dynamic registration at its own form, not at Services', async () => {
     render(<McpServersPage />);
 
-    // Sending someone into an authorization that cannot complete is the failure this avoids.
-    expect(await screen.findByText(/your own OAuth application/)).toBeInTheDocument();
+    expect(await screen.findByText(/does not let Authlane register itself/)).toBeInTheDocument();
+    expect(screen.queryByText(/under Services/)).not.toBeInTheDocument();
   });
 });
 
@@ -244,5 +252,100 @@ describe('a server the tenant runs themselves', () => {
       serverUrl: 'https://mcp.acme.test',
       authType: 'oauth2',
     });
+  });
+});
+
+/**
+ * The screen that turns a permanent 409 into something a tenant can fix.
+ *
+ * Slack publishes no registration endpoint and Attio publishes one on another host, so neither can
+ * ever get a client through RFC 7591. Their only route is an application the tenant owns.
+ */
+describe('bringing your own OAuth application', () => {
+  const withoutClient = {
+    ...SERVER,
+    name: 'Slack',
+    serverUrl: 'https://mcp.slack.com/mcp',
+    oauthClientId: null,
+    oauthClientSource: null,
+    redirectUri: 'https://app.authlane.io/api/v1/oauth/mcp-1/callback',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('says on the card which servers cannot authorize anyone yet', async () => {
+    mockApi({ servers: [withoutClient] });
+    render(<McpServersPage />);
+
+    expect(await screen.findByText('OAuth client needed')).toBeInTheDocument();
+  });
+
+  it('shows the redirect URI the provider must be given', async () => {
+    mockApi({ servers: [withoutClient] });
+    render(<McpServersPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'OAuth client' }));
+
+    const dialog = await screen.findByRole('dialog');
+    // Built by the API: the dashboard runs on its own origin, so a URI derived here would be the
+    // wrong one and the provider would reject the redirect.
+    expect(
+      within(dialog).getByDisplayValue('https://app.authlane.io/api/v1/oauth/mcp-1/callback')
+    ).toBeInTheDocument();
+  });
+
+  it('sends the credentials the tenant pasted', async () => {
+    mockApi({ servers: [withoutClient] });
+    vi.mocked(apiModule.api.put).mockResolvedValue({ ready: true } as never);
+    render(<McpServersPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'OAuth client' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText('Client ID'), '1234.5678');
+    await userEvent.type(within(dialog).getByLabelText('Client secret'), 'xoxb-secret');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save OAuth client' }));
+
+    expect(apiModule.api.put).toHaveBeenCalledWith('/organization/mcp-servers/mcp-1/oauth-client', {
+      clientId: '1234.5678',
+      clientSecret: 'xoxb-secret',
+    });
+  });
+
+  /**
+   * A provider that issues no secret still needs to be storable — otherwise the only PKCE-only
+   * servers stay unreachable for the opposite reason to the one this screen exists to fix.
+   */
+  it('can store a public client, which carries no secret at all', async () => {
+    mockApi({ servers: [withoutClient] });
+    vi.mocked(apiModule.api.put).mockResolvedValue({ ready: true } as never);
+    render(<McpServersPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'OAuth client' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText('Client ID'), '1234.5678');
+    await userEvent.click(within(dialog).getByLabelText(/public client/i));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save OAuth client' }));
+
+    expect(apiModule.api.put).toHaveBeenCalledWith('/organization/mcp-servers/mcp-1/oauth-client', {
+      clientId: '1234.5678',
+      clientSecret: null,
+    });
+  });
+
+  it('warns that changing the client id disconnects everyone', async () => {
+    mockApi({
+      servers: [{ ...withoutClient, oauthClientId: 'old-id', oauthClientSource: 'manual' }],
+    });
+    render(<McpServersPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'OAuth client' }));
+    const dialog = await screen.findByRole('dialog');
+    const clientId = within(dialog).getByLabelText('Client ID');
+    await userEvent.clear(clientId);
+    await userEvent.type(clientId, 'new-id');
+
+    expect(within(dialog).getByText(/authorize again/i)).toBeInTheDocument();
   });
 });

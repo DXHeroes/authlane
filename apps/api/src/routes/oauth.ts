@@ -37,6 +37,7 @@ import {
 } from '@authlane/shared';
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
+import type { CacheStore } from '../lib/cache.js';
 import {
   canPerformDestructiveAction,
   createConnectSessionToken,
@@ -44,8 +45,11 @@ import {
   isUsableConnectSession,
   resolveAllowedServiceSnapshot,
 } from '../lib/connect-session.js';
+import type { McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
+import { discoverAfterFirstAuthorization } from '../lib/mcp-first-authorization.js';
 import { resolveMcpAuthorization } from '../lib/oauth-provider-resolution.js';
 import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
+import { publicApiBase } from '../lib/public-api-base.js';
 import {
   readTenantServiceSettings,
   serviceEnabledForOrganization,
@@ -132,10 +136,6 @@ function parseRecentReauthentication(value: string | undefined, now: Date): Date
     return false;
   }
   return reauthenticatedAt;
-}
-
-function publicApiBase(requestUrl: string): string {
-  return process.env.BETTER_AUTH_URL || new URL(requestUrl).origin;
 }
 
 async function listEnabledServiceIds(db: Database, organizationId: string): Promise<string[]> {
@@ -252,7 +252,12 @@ async function issueAuthorizationRedirect(
   return authorizationUrl.toString();
 }
 
-export function createOAuthRouter(db: Database, secretStore: SecretStore) {
+export function createOAuthRouter(
+  db: Database,
+  secretStore: SecretStore,
+  discoveryDeps?: McpDiscoveryDeps,
+  cache?: CacheStore
+) {
   const router = new Hono();
   router.use('*', async (c, next) => {
     await next();
@@ -437,7 +442,7 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
     }
 
     return withTenantContext(db, session.organizationId, async () => {
-      const allowedServiceRows = await db
+      const builtInRows = await db
         .select({ id: services.id, name: services.name, authType: services.authType })
         .from(services)
         .leftJoin(organizationServices, tenantServiceJoin(session.organizationId))
@@ -450,6 +455,20 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
           )
         )
         .orderBy(asc(services.id));
+
+      /*
+       * The tenant's own servers, which `services` has no row for.
+       *
+       * Without this the widget filtered them out twice — once against a table they are not in,
+       * once against the built-in id list — while `/connect/:serviceId/authorize` would have
+       * authorized them happily. A tenant could put an MCP server in `allowedServices`, send a
+       * user to the hosted page, and watch it render an empty list.
+       */
+      const allowedMcpServers = (await listEnabledMcpServers(db, session.organizationId))
+        .filter((server) => session.allowedServices.includes(server.id))
+        .map((server) => ({ id: server.id, name: server.name, authType: server.authType }));
+
+      const allowedServiceRows = [...builtInRows, ...allowedMcpServers];
       const visibleServiceIds = filterCurrentlyEnabledServices(
         session.allowedServices,
         allowedServiceRows.map((service) => service.id)
@@ -905,6 +924,27 @@ export function createOAuthRouter(db: Database, secretStore: SecretStore) {
         const { scheduleTokenRefresh } = await import('../jobs/setup.js');
         await scheduleTokenRefresh(connection.id, serviceId, connection.organizationId, expiresAt);
       }
+
+      /*
+       * The first credential this server has ever been offered.
+       *
+       * Discovery asks without one, so an OAuth-protected server answers 401 and its tool list
+       * stays empty. Until now nothing asked again, which left every such server permanently
+       * "awaiting authorization" with nothing to offer even after a user had authorized it.
+       *
+       * Deliberately awaited rather than left running: the redirect that follows lands the user on
+       * a page that lists what they just connected, and a contract that arrives after it is a
+       * screen that looks broken. It never throws, so the worst case is the old empty list.
+       */
+      if (mcpServer && discoveryDeps && typeof tokens.access_token === 'string') {
+        await discoverAfterFirstAuthorization(db, discoveryDeps, cache, {
+          serverId: serviceId,
+          organizationId: connection.organizationId,
+          accessToken: tokens.access_token,
+          authorizationRequired: mcpServer.authorizationRequired,
+        });
+      }
+
       const completedUrl = new URL('/connect/callback', publicApiBase(c.req.url));
       completedUrl.searchParams.set('status', 'connected');
       completedUrl.searchParams.set('serviceId', serviceId);

@@ -64,7 +64,20 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         // Per-tool risk is stored on the contract, so the service-level policy stays permissive
         // and the read_only decision is made per tool when they are issued.
         toolAccessPolicy: 'full' as const,
-        config: {},
+        /*
+         * The same shape a built-in service carries, so a runtime reads one field for both kinds.
+         *
+         * This used to be `{}`, which meant a tenant could be offered a server and issued a
+         * credential for it while never being told where to send it. The only way to run an MCP
+         * server's tools was to already know its address, so every consumer transcribed a table of
+         * them by hand and could serve nothing else.
+         */
+        config: {
+          execution: {
+            preferred: 'provider_mcp',
+            provider_mcp: { endpoint: server.serverUrl },
+          },
+        },
       })),
     ];
   }

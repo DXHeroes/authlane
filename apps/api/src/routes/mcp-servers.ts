@@ -15,6 +15,8 @@ import {
   listMcpServersForOrganization,
   listMcpServerToolsForReview,
   MCP_SERVER_ID_PREFIX,
+  readMcpServerConnectConfig,
+  readMcpServerOAuthClient,
   type SecretStore,
   saveDiscoveryFailure,
   saveDiscoverySuccess,
@@ -23,10 +25,18 @@ import {
 import { Errors, MCP_SERVER_PRESETS } from '@authlane/shared';
 import { Hono } from 'hono';
 import type { CacheStore } from '../lib/cache.js';
+import { expireConnectionsForService } from '../lib/connection-invalidation.js';
 import { logger } from '../lib/logger.js';
-import { ensureMcpOAuthClient } from '../lib/mcp-client-registration.js';
+import { ensureMcpOAuthClient, mcpCallbackUrl } from '../lib/mcp-client-registration.js';
 import { discoverMcpServer, type McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
-import { parseMcpServerRegistration, parseMcpToolUpdate } from '../lib/mcp-server-input.js';
+import { removeMcpOAuthClient, saveManualMcpOAuthClient } from '../lib/mcp-manual-oauth-client.js';
+import {
+  parseMcpOAuthClientInput,
+  parseMcpServerRegistration,
+  parseMcpToolUpdate,
+} from '../lib/mcp-server-input.js';
+import { resolveMcpAuthorization } from '../lib/oauth-provider-resolution.js';
+import { publicApiBase } from '../lib/public-api-base.js';
 
 export function createMcpServersRouter(
   db: Database,
@@ -59,7 +69,9 @@ export function createMcpServersRouter(
       authType,
       registrationEndpoint: metadata?.registrationEndpoint ?? null,
       existingClientId,
-      apiBaseUrl: process.env.APP_URL ?? new URL(requestUrl).origin,
+      // The same origin the authorize step will send as redirect_uri. APP_URL points at the
+      // dashboard, so registering with it produced a client the callback could never satisfy.
+      apiBaseUrl: publicApiBase(requestUrl),
       deps: discoveryDeps,
     });
 
@@ -98,11 +110,15 @@ export function createMcpServersRouter(
     if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
 
     const servers = await listMcpServersForOrganization(db, org.id);
+    const apiBaseUrl = publicApiBase(c.req.url);
     return c.json({
       data: servers.map((server) => ({
         ...server,
         discoveredAt: server.discoveredAt?.toISOString() ?? null,
         createdAt: server.createdAt.toISOString(),
+        // Built here, never in the browser: the dashboard runs on its own origin in development,
+        // and a tenant who pastes that one into their provider gets a redirect we never send.
+        redirectUri: server.authType === 'oauth2' ? mcpCallbackUrl(apiBaseUrl, server.id) : null,
       })),
       error: null,
     });
@@ -260,8 +276,139 @@ export function createMcpServersRouter(
     const org = c.get('organization');
     if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
 
-    await deleteMcpServer(db, c.req.param('serverId'));
+    const serverId = c.req.param('serverId');
+    // Read before the row goes: the foreign key nulls the other direction, so dropping the server
+    // would leave its client secret encrypted at rest with nothing pointing at it, re-wrapped by
+    // every future key rotation.
+    const existing = await readMcpServerOAuthClient(db, org.id, serverId);
+
+    await deleteMcpServer(db, serverId);
+    if (existing?.oauthClientSecretId) {
+      await secretStore.delete?.(existing.oauthClientSecretId, org.id, 'oauth_client_secret');
+    }
     await invalidateCatalog(org.id);
+    return c.json({ data: { deleted: true }, error: null });
+  });
+
+  /**
+   * Reports where a server stands after its OAuth client changed.
+   *
+   * `ready` is the part that matters: credentials can be saved before discovery has found an
+   * authorization endpoint, and without this the tenant would only learn that when one of their
+   * users hit a 409.
+   */
+  async function oauthClientState(serverId: string, clientSecretId: string | null) {
+    const resolution = resolveMcpAuthorization(await readMcpServerConnectConfig(db, serverId));
+    return { hasClientSecret: clientSecretId !== null, ready: resolution.ok };
+  }
+
+  /**
+   * The OAuth application a tenant registered with the provider themselves.
+   *
+   * The only route out of a permanent 409 for a server that offers no dynamic registration, or
+   * that offers it on a host other than its own. Never accepts an endpoint — those stay whatever
+   * discovery read from the server and checked.
+   */
+  router.put('/organization/mcp-servers/:serverId/oauth-client', async (c) => {
+    const org = c.get('organization');
+    if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
+
+    const body = await c.req.json().catch(() => null);
+    const input = parseMcpOAuthClientInput(body);
+    if (!input) {
+      return c.json(
+        Errors.validationError(
+          'A clientId is required. Send clientSecret as a string to store one, or null for a public client.'
+        ),
+        400
+      );
+    }
+
+    const serverId = c.req.param('serverId');
+    const existing = await readMcpServerOAuthClient(db, org.id, serverId);
+    if (!existing) return c.json(Errors.notFound('MCP server', serverId), 404);
+    if (existing.authType !== 'oauth2') {
+      return c.json(Errors.validationError('Only an OAuth 2.1 server has an OAuth client'), 400);
+    }
+
+    // Carrying a stored secret onto a different client id produces a token exchange that fails at
+    // the provider for a reason nothing here can report.
+    if (input.secret.kind === 'unchanged' && input.clientId !== existing.oauthClientId) {
+      return c.json(
+        Errors.validationError(
+          'Changing the client id needs its matching client secret, or null for a public client'
+        ),
+        400
+      );
+    }
+
+    const outcome = await saveManualMcpOAuthClient(db, secretStore, {
+      serverId,
+      organizationId: org.id,
+      clientId: input.clientId,
+      secret: input.secret,
+      existing,
+    });
+
+    // Tokens were issued to the old client. Rotating only the secret leaves them valid, so that
+    // case deliberately does not expire anything.
+    if (outcome.previousClientId && outcome.previousClientId !== outcome.clientId) {
+      await expireConnectionsForService(
+        db,
+        secretStore,
+        cache,
+        org.id,
+        serverId,
+        'OAUTH_CLIENT_CHANGED_REAUTHORIZATION_REQUIRED'
+      );
+    }
+    await invalidateCatalog(org.id);
+
+    return c.json({
+      data: {
+        clientId: outcome.clientId,
+        source: 'manual',
+        redirectUri: mcpCallbackUrl(publicApiBase(c.req.url), serverId),
+        ...(await oauthClientState(serverId, outcome.clientSecretId)),
+      },
+      error: null,
+    });
+  });
+
+  router.delete('/organization/mcp-servers/:serverId/oauth-client', async (c) => {
+    const org = c.get('organization');
+    if (!org) return c.json(Errors.unauthorized('Organization context required'), 401);
+
+    const serverId = c.req.param('serverId');
+    const existing = await readMcpServerOAuthClient(db, org.id, serverId);
+    if (!existing) return c.json(Errors.notFound('MCP server', serverId), 404);
+
+    // A registered client belongs to Authlane, not the tenant: clearing it would leave it live at
+    // the provider and the next rediscovery would register another one beside it.
+    if (existing.oauthClientSource !== 'manual') {
+      return c.json(
+        Errors.validationError('Authlane registered this client itself, so it cannot be removed'),
+        400
+      );
+    }
+
+    const outcome = await removeMcpOAuthClient(db, secretStore, {
+      serverId,
+      organizationId: org.id,
+      existing,
+    });
+    if (outcome.previousClientId) {
+      await expireConnectionsForService(
+        db,
+        secretStore,
+        cache,
+        org.id,
+        serverId,
+        'OAUTH_CLIENT_CHANGED_REAUTHORIZATION_REQUIRED'
+      );
+    }
+    await invalidateCatalog(org.id);
+
     return c.json({ data: { deleted: true }, error: null });
   });
 

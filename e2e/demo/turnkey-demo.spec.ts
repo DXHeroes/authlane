@@ -241,8 +241,11 @@ test.describe
       await page.getByRole('button', { name: 'Create API Key' }).click();
       await page.getByLabel('API Key Name').fill('Guided demo key');
       await page.getByLabel('Expires In (Days)').fill('1');
+      // Scoped to the dialog rather than to the form: the submit button lives in the dialog
+      // footer and reaches the form through its `form` attribute, so it is a sibling of the
+      // <form> rather than a descendant. The page behind it has a button of the same name.
       await page
-        .locator('form')
+        .getByRole('dialog')
         .getByRole('button', { name: 'Create API Key', exact: true })
         .click();
       await expect(page.getByRole('heading', { name: 'API Key Created' })).toBeVisible();
@@ -255,8 +258,11 @@ test.describe
 
       const row = page.getByRole('row').filter({ hasText: 'Guided demo key' });
       await expect(row).toBeVisible();
-      page.once('dialog', (dialog) => dialog.accept());
       await row.getByRole('button', { name: 'Revoke' }).click();
+      // Revoking asks in a dialog that names the key rather than through window.confirm(). Accepting
+      // a native dialog is no longer what confirms it, and the row hides either way once the dialog
+      // covers it — so the database assertions below are what prove the key was actually revoked.
+      await page.getByRole('dialog').getByRole('button', { name: 'Revoke key' }).click();
       await expect(row).toBeHidden();
 
       const sql = postgres(requiredEnvironment('DEMO_ADMIN_DATABASE_URL'), { max: 1 });

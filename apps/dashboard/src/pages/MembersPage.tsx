@@ -1,8 +1,18 @@
+import { PlusIcon, UsersIcon } from '@heroicons/react/16/solid';
 import { useCallback, useEffect, useState } from 'react';
 import ErrorNotice from '@/components/ErrorNotice';
 import InviteMemberModal from '@/components/InviteMemberModal';
+import Badge, { type BadgeTone } from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import { LoadingRegion, SkeletonTable } from '@/components/ui/Skeleton';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
 import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 interface Member {
   id: string;
@@ -18,6 +28,18 @@ interface Member {
   };
 }
 
+const ROLE_TONES: Record<Member['role'], BadgeTone> = {
+  owner: 'info',
+  admin: 'info',
+  member: 'neutral',
+};
+
+const ROLE_LEGEND: ReadonlyArray<{ role: Member['role']; label: string; meaning: string }> = [
+  { role: 'owner', label: 'Owner', meaning: 'Full access, can delete organization' },
+  { role: 'admin', label: 'Admin', meaning: 'Can manage members and settings' },
+  { role: 'member', label: 'Member', meaning: 'Basic access' },
+];
+
 export default function MembersPage() {
   const { organization, user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
@@ -26,6 +48,7 @@ export default function MembersPage() {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<Member | null>(null);
 
   const loadMembers = useCallback(async () => {
     if (!organization) return;
@@ -62,35 +85,39 @@ export default function MembersPage() {
   const isAdmin = currentUserRole === 'admin';
   const canManageMembers = isOwner || isAdmin;
 
-  const handleRoleChange = async (memberId: string, newRole: 'admin' | 'member') => {
+  const handleRoleChange = async (member: Member, newRole: 'admin' | 'member') => {
     if (!canManageMembers) return;
 
-    setActionLoading(memberId);
+    setActionLoading(member.id);
     try {
       await authClient.organization.updateMemberRole({
-        memberId,
+        memberId: member.id,
         role: newRole,
       });
       await loadMembers();
+      toastSuccess(`${member.user.name} is now ${newRole === 'admin' ? 'an admin' : 'a member'}`);
     } catch (err) {
       setError(err ?? new Error('Failed to update role'));
+      toastError(err, 'Could not update the role.');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleRemoveMember = async (memberId: string, memberName: string) => {
+  const handleRemoveMember = async (member: Member) => {
     if (!canManageMembers) return;
-    if (!confirm(`Are you sure you want to remove ${memberName} from the organization?`)) return;
 
-    setActionLoading(memberId);
+    setActionLoading(member.id);
     try {
       await authClient.organization.removeMember({
-        memberIdOrEmail: memberId,
+        memberIdOrEmail: member.id,
       });
+      setPendingRemoval(null);
       await loadMembers();
+      toastSuccess(`${member.user.name} removed from ${organization?.name ?? 'the organization'}`);
     } catch (err) {
       setError(err ?? new Error('Failed to remove member'));
+      toastError(err, 'Could not remove the member.');
     } finally {
       setActionLoading(null);
     }
@@ -98,178 +125,151 @@ export default function MembersPage() {
 
   if (!organization) {
     return (
-      <div className="p-6">
-        <div className="rounded-md border border-yellow-500 bg-yellow-50 p-4 text-yellow-800">
-          No organization selected. Please select or create an organization.
+      <div className="p-6 sm:p-8">
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+          No organization selected. Select or create an organization to manage members.
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Team Members</h1>
-          <p className="text-muted-foreground">
-            Manage members and their roles in {organization.name}
-          </p>
-        </div>
-        {canManageMembers && (
-          <button
-            type="button"
-            onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <svg
-              aria-hidden="true"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className="p-6 sm:p-8">
+      <PageHeader
+        title="Team Members"
+        description={`Manage members and their roles in ${organization.name}.`}
+        actions={
+          canManageMembers && (
+            <Button
+              onClick={() => setShowInviteModal(true)}
+              icon={<PlusIcon className="size-4 fill-current" aria-hidden="true" />}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Invite Member
-          </button>
-        )}
-      </div>
+              Invite Member
+            </Button>
+          )
+        }
+      />
 
       {error ? (
         <div className="mb-4">
           <ErrorNotice error={error} />
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="mt-2 text-sm font-medium text-red-700 underline"
-          >
+          <Button variant="link" onClick={() => setError(null)} className="mt-2 text-sm">
             Dismiss
-          </button>
+          </Button>
         </div>
       ) : null}
 
-      {/* Role Legend */}
-      <div className="mb-4 flex gap-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
-            Owner
-          </span>
-          <span>Full access, can delete organization</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-            Admin
-          </span>
-          <span>Can manage members and settings</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-            Member
-          </span>
-          <span>Basic access</span>
-        </div>
-      </div>
+      <dl className="mb-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+        {ROLE_LEGEND.map(({ role, label, meaning }) => (
+          <div key={role} className="flex items-center gap-2">
+            <dt>
+              <Badge tone={ROLE_TONES[role]}>{label}</Badge>
+            </dt>
+            <dd>{meaning}</dd>
+          </div>
+        ))}
+      </dl>
 
-      {/* Members List */}
-      <div className="rounded-lg border border-border bg-card">
-        {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading members...</div>
-        ) : members.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No members found</div>
-        ) : (
-          <table className="w-full">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium">Member</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Role</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Joined</th>
-                {canManageMembers && (
-                  <th className="px-4 py-3 text-right text-sm font-medium">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {members.map((member) => {
-                const isCurrentUser = member.userId === user?.id;
-                const isMemberOwner = member.role === 'owner';
-                const canModify = canManageMembers && !isCurrentUser && !isMemberOwner;
-                const isActionLoading = actionLoading === member.id;
+      {isLoading ? (
+        <LoadingRegion label="Loading members">
+          <SkeletonTable rows={3} columns={4} />
+        </LoadingRegion>
+      ) : (
+        <Card>
+          {members.length === 0 ? (
+            <EmptyState icon={UsersIcon} title="No members yet">
+              Invite a colleague and they will show up here once they accept.
+            </EmptyState>
+          ) : (
+            <Table caption={`Members of ${organization.name}`}>
+              <Thead>
+                <Tr className="hover:bg-transparent">
+                  <Th>Member</Th>
+                  <Th>Role</Th>
+                  <Th>Joined</Th>
+                  {canManageMembers && <Th className="text-right">Actions</Th>}
+                </Tr>
+              </Thead>
+              <Tbody>
+                {members.map((member) => {
+                  const isCurrentUser = member.userId === user?.id;
+                  const isMemberOwner = member.role === 'owner';
+                  const canModify = canManageMembers && !isCurrentUser && !isMemberOwner;
+                  const isActionLoading = actionLoading === member.id;
 
-                return (
-                  <tr key={member.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
-                          {member.user.name?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <div className="font-medium">
-                            {member.user.name}
-                            {isCurrentUser && (
-                              <span className="ml-2 text-xs text-muted-foreground">(you)</span>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">{member.user.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {canModify && !isActionLoading ? (
-                        <select
-                          value={member.role}
-                          onChange={(e) =>
-                            handleRoleChange(member.id, e.target.value as 'admin' | 'member')
-                          }
-                          className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-                        >
-                          <option value="admin">Admin</option>
-                          <option value="member">Member</option>
-                        </select>
-                      ) : (
-                        <span
-                          className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-                            member.role === 'owner'
-                              ? 'bg-purple-100 text-purple-700'
-                              : member.role === 'admin'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {new Date(member.createdAt).toLocaleDateString()}
-                    </td>
-                    {canManageMembers && (
-                      <td className="px-4 py-3 text-right">
-                        {canModify && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMember(member.id, member.user.name)}
-                            disabled={isActionLoading}
-                            className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                  return (
+                    <Tr key={member.id}>
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
+                            aria-hidden="true"
                           >
-                            {isActionLoading ? 'Removing...' : 'Remove'}
-                          </button>
+                            {member.user.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {member.user.name}
+                              {isCurrentUser && (
+                                <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+                              )}
+                            </div>
+                            <div className="truncate text-sm text-muted-foreground">
+                              {member.user.email}
+                            </div>
+                          </div>
+                        </div>
+                      </Td>
+                      <Td>
+                        {canModify && !isActionLoading ? (
+                          <>
+                            <label className="sr-only" htmlFor={`role-${member.id}`}>
+                              Role for {member.user.name}
+                            </label>
+                            <select
+                              id={`role-${member.id}`}
+                              value={member.role}
+                              onChange={(e) =>
+                                handleRoleChange(member, e.target.value as 'admin' | 'member')
+                              }
+                              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                            >
+                              <option value="admin">Admin</option>
+                              <option value="member">Member</option>
+                            </select>
+                          </>
+                        ) : (
+                          <Badge tone={ROLE_TONES[member.role]}>
+                            {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                          </Badge>
                         )}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                      </Td>
+                      <Td className="whitespace-nowrap text-muted-foreground">
+                        {new Date(member.createdAt).toLocaleDateString()}
+                      </Td>
+                      {canManageMembers && (
+                        <Td className="text-right">
+                          {canModify && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => setPendingRemoval(member)}
+                              isPending={isActionLoading}
+                            >
+                              {isActionLoading ? 'Removing...' : 'Remove'}
+                            </Button>
+                          )}
+                        </Td>
+                      )}
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          )}
+        </Card>
+      )}
 
-      {/* Invite Modal */}
       {showInviteModal && (
         <InviteMemberModal
           onClose={() => setShowInviteModal(false)}
@@ -278,6 +278,24 @@ export default function MembersPage() {
             loadMembers();
           }}
         />
+      )}
+
+      {pendingRemoval && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setPendingRemoval(null);
+          }}
+          title={`Remove ${pendingRemoval.user.name}?`}
+          confirmLabel="Remove member"
+          isPending={actionLoading === pendingRemoval.id}
+          onConfirm={() => handleRemoveMember(pendingRemoval)}
+        >
+          <p>
+            They lose access to {organization.name} and everything in it. Their own connections stay
+            intact — invite them again to restore access.
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   );

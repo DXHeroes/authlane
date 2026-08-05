@@ -1,5 +1,8 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import Button from '@/components/ui/Button';
+import Callout from '@/components/ui/Callout';
+import { TextField } from '@/components/ui/Field';
 import { useAuth } from '@/contexts/AuthContext';
 import { magicLinkErrorMessage } from '@/lib/auth-helpers';
 
@@ -58,9 +61,7 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-          )}
+          {error && <Callout tone="danger">{error}</Callout>}
           {sent && (
             <output className="block rounded-md bg-primary/10 p-4 text-sm">
               <strong>Check your inbox.</strong> We sent a secure sign-in link. It expires in ten
@@ -68,47 +69,36 @@ export default function LoginPage() {
             </output>
           )}
 
-          <div className="space-y-4 rounded-md shadow-sm">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
+          <div className="space-y-4">
+            <TextField
+              id="email"
+              label="Email address"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              // The one field on the page. Making someone reach for the mouse first is
+              // a step for nothing.
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
             {authMode === 'email-password' && (
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
+              <TextField
+                id="password"
+                label="Password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading || cooldown > 0}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
-          >
+          <Button type="submit" className="w-full" isPending={isLoading} disabled={cooldown > 0}>
             {isLoading
               ? 'Sending...'
               : authMode === 'magic-link'
@@ -116,7 +106,7 @@ export default function LoginPage() {
                   ? `Send again in ${cooldown}s`
                   : 'Continue with email'
                 : 'Sign in'}
-          </button>
+          </Button>
 
           {authMode === 'email-password' && signUpEnabled && (
             <p className="text-center text-sm text-muted-foreground">

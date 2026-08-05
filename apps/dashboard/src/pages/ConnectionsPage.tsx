@@ -1,8 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { LinkIcon } from '@heroicons/react/16/solid';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import ConnectionDetailModal from '@/components/ConnectionDetailModal';
+import Badge, { connectionTone } from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
+import { SelectField, TextField } from '@/components/ui/Field';
+import PageHeader from '@/components/ui/PageHeader';
+import { LoadingRegion, SkeletonTable } from '@/components/ui/Skeleton';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
 import { api } from '@/lib/api';
+import { useIsCompact } from '@/lib/use-media-query';
 import type { Connection, Service } from '@/types';
 
 export default function ConnectionsPage() {
@@ -10,16 +20,28 @@ export default function ConnectionsPage() {
   const [serviceFilter, setServiceFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+  const isCompact = useIsCompact();
 
-  const { data: connections, isLoading: connectionsLoading } = useQuery({
-    queryKey: ['connections', serviceFilter, statusFilter, searchQuery],
+  // The search term went straight into the query key, so typing an eight-character user
+  // id fired eight requests and the last one to land won.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  const { data: connections, isLoading } = useQuery({
+    queryKey: ['connections', serviceFilter, statusFilter, debouncedSearch],
     queryFn: () => {
       const params = new URLSearchParams();
       if (serviceFilter) params.append('service', serviceFilter);
       if (statusFilter) params.append('status', statusFilter);
-      if (searchQuery) params.append('userId', searchQuery);
+      if (debouncedSearch) params.append('userId', debouncedSearch);
       return api.get<Connection[]>(`/connections?${params.toString()}`);
     },
+    // Keeps the current rows on screen while a narrower filter loads, instead of
+    // blanking the table on every keystroke.
+    placeholderData: keepPreviousData,
   });
 
   const { data: services } = useQuery({
@@ -27,165 +49,161 @@ export default function ConnectionsPage() {
     queryFn: () => api.get<Service[]>('/services'),
   });
 
-  const getStatusBadgeClass = (status: Connection['status']) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'expired':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'error':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const hasFilters = Boolean(searchQuery || serviceFilter || statusFilter);
+  const clearFilters = () => {
+    setSearchQuery('');
+    setServiceFilter('');
+    setStatusFilter('');
   };
 
+  const serviceName = (serviceId: string) =>
+    services?.find((service) => service.id === serviceId)?.name || serviceId;
+
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Connections</h1>
-        <p className="mt-2 text-muted-foreground">Monitor and manage all user connections</p>
+    <div className="p-6 sm:p-8">
+      <PageHeader title="Connections" description="Monitor and manage all user connections." />
+
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <TextField
+          label="Search by user ID"
+          type="text"
+          placeholder="Enter user ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          fieldClassName="flex-1 basis-64"
+        />
+
+        <SelectField
+          label="Service"
+          value={serviceFilter}
+          onChange={(e) => setServiceFilter(e.target.value)}
+          fieldClassName="w-48"
+        >
+          <option value="">All services</option>
+          {services?.map((service) => (
+            <option key={service.id} value={service.id}>
+              {service.name}
+            </option>
+          ))}
+        </SelectField>
+
+        <SelectField
+          label="Status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          fieldClassName="w-48"
+        >
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+          <option value="error">Error</option>
+        </SelectField>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-4">
-        <div className="flex-1 min-w-64">
-          <label htmlFor="search" className="block text-sm font-medium mb-2">
-            Search by User ID
-          </label>
-          <input
-            id="search"
-            type="text"
-            placeholder="Enter user ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        <div className="w-48">
-          <label htmlFor="service-filter" className="block text-sm font-medium mb-2">
-            Service
-          </label>
-          <select
-            id="service-filter"
-            value={serviceFilter}
-            onChange={(e) => setServiceFilter(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">All Services</option>
-            {services?.map((service) => (
-              <option key={service.id} value={service.id}>
-                {service.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="w-48">
-          <label htmlFor="status-filter" className="block text-sm font-medium mb-2">
-            Status
-          </label>
-          <select
-            id="status-filter"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="expired">Expired</option>
-            <option value="error">Error</option>
-          </select>
-        </div>
+      {/* Says how much of the data the current filters are showing, and offers the way out. */}
+      <div className="mb-4 flex min-h-8 flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {isLoading
+            ? 'Loading connections'
+            : `${connections?.length ?? 0} ${connections?.length === 1 ? 'connection' : 'connections'}${hasFilters ? ' match your filters' : ''}`}
+        </p>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        )}
       </div>
 
-      {connectionsLoading ? (
-        <div className="flex h-64 items-center justify-center">
-          <div className="text-muted-foreground">Loading connections...</div>
-        </div>
+      {isLoading ? (
+        <LoadingRegion label="Loading connections">
+          <SkeletonTable columns={5} />
+        </LoadingRegion>
       ) : (
-        <div className="rounded-lg border border-border bg-card">
+        <Card>
           {connections && connections.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-border">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      User ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Service
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Created
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Last Health Check
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
+            isCompact ? (
+              <div className="divide-y divide-border">
+                {connections.map((connection) => (
+                  <button
+                    key={connection.id}
+                    type="button"
+                    onClick={() => setSelectedConnection(connection)}
+                    className="flex w-full items-start justify-between gap-3 p-4 text-left transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-sm">{connection.externalUserId}</p>
+                      <p className="mt-1 truncate text-sm text-muted-foreground">
+                        {serviceName(connection.serviceId)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Created {new Date(connection.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge tone={connectionTone(connection.status)}>{connection.status}</Badge>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Table caption="User connections in this organization">
+                <Thead>
+                  <Tr className="hover:bg-transparent">
+                    <Th>User ID</Th>
+                    <Th>Service</Th>
+                    <Th>Status</Th>
+                    <Th>Created</Th>
+                    <Th>Last Health Check</Th>
+                    <Th>Actions</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
                   {connections.map((connection) => (
-                    <tr key={connection.id} className="hover:bg-accent/50">
-                      <td className="px-6 py-4 text-sm font-mono">{connection.externalUserId}</td>
-                      <td className="px-6 py-4 text-sm">
-                        {services?.find((s) => s.id === connection.serviceId)?.name ||
-                          connection.serviceId}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusBadgeClass(connection.status)}`}
-                        >
-                          {connection.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                    <Tr key={connection.id}>
+                      <Td className="font-mono">{connection.externalUserId}</Td>
+                      <Td>{serviceName(connection.serviceId)}</Td>
+                      <Td>
+                        <Badge tone={connectionTone(connection.status)}>{connection.status}</Badge>
+                      </Td>
+                      <Td className="whitespace-nowrap text-muted-foreground">
                         {new Date(connection.createdAt).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                      </Td>
+                      <Td className="whitespace-nowrap text-muted-foreground">
                         {connection.lastHealthCheck
                           ? new Date(connection.lastHealthCheck).toLocaleString()
                           : 'Never'}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button
-                          type="button"
+                      </Td>
+                      <Td>
+                        <Button
+                          variant="link"
                           onClick={() => setSelectedConnection(connection)}
-                          className="text-primary hover:underline"
+                          className="text-sm"
                         >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
+                          View details
+                        </Button>
+                      </Td>
+                    </Tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </Tbody>
+              </Table>
+            )
+          ) : hasFilters ? (
+            <EmptyState
+              icon={LinkIcon}
+              title="No connections match your filters"
+              action={
+                <Button variant="secondary" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            >
+              Widen the service or status filter, or check the user ID you searched for.
+            </EmptyState>
           ) : (
-            <div className="p-12 text-center">
-              {searchQuery || serviceFilter || statusFilter ? (
-                <p className="text-muted-foreground">No connections found matching your filters</p>
-              ) : (
-                <>
-                  <p className="text-muted-foreground">No connections yet</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Connect one yourself in the{' '}
-                    <Link to="/dashboard/sandbox" className="text-primary hover:underline">
-                      Sandbox
-                    </Link>{' '}
-                    to check the flow end to end.
-                  </p>
-                </>
-              )}
-            </div>
+            <EmptyState icon={LinkIcon} title="No connections yet">
+              Connect one yourself in the <Link to="/dashboard/sandbox">Sandbox</Link> to check the
+              flow end to end.
+            </EmptyState>
           )}
-        </div>
+        </Card>
       )}
 
       {selectedConnection && (

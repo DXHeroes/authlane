@@ -10,6 +10,17 @@ vi.mock('@/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
+// The layout invalidates the cache after a new organization is created. The layout is
+// rendered here without a provider, so the client itself is stubbed.
+const mockInvalidateQueries = vi.fn();
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
+}));
+
+vi.mock('@/components/ThemeToggle', () => ({
+  default: () => <div data-testid="theme-toggle" />,
+}));
+
 // Mock child components to keep tests focused on DashboardLayout
 vi.mock('@/components/OrganizationSelector', () => ({
   default: ({ onCreateNew }: { onCreateNew: () => void }) => (
@@ -36,6 +47,7 @@ vi.mock('@/components/CreateOrganizationModal', () => ({
 
 describe('DashboardLayout', () => {
   const mockLogout = vi.fn();
+  const mockRefreshOrganizations = vi.fn();
 
   const mockUser = {
     id: 'user-1',
@@ -48,10 +60,13 @@ describe('DashboardLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLogout.mockResolvedValue(undefined);
+    mockRefreshOrganizations.mockResolvedValue(undefined);
 
     vi.mocked(AuthContext.useAuth).mockReturnValue({
       user: mockUser,
+      organization: { id: 'org-1', name: 'Acme' },
       logout: mockLogout,
+      refreshOrganizations: mockRefreshOrganizations,
     } as any);
   });
 
@@ -277,11 +292,12 @@ describe('DashboardLayout', () => {
       });
     });
 
-    it('reloads page when organization is created successfully', async () => {
+    // Creating an organization used to reload the page, which threw away the router
+    // position, the query cache and the scroll offset to pick up one new row.
+    it('refreshes the organization list and the cache instead of reloading the page', async () => {
       const user = userEvent.setup();
       const reloadSpy = vi.fn();
 
-      // Mock window.location.reload
       Object.defineProperty(window, 'location', {
         value: { reload: reloadSpy },
         writable: true,
@@ -293,15 +309,12 @@ describe('DashboardLayout', () => {
         </MemoryRouter>
       );
 
-      // Open modal
-      const createButton = screen.getByText('Create New Org');
-      await user.click(createButton);
+      await user.click(screen.getByText('Create New Org'));
+      await user.click(screen.getByText('Success'));
 
-      // Trigger success
-      const successButton = screen.getByText('Success');
-      await user.click(successButton);
-
-      expect(reloadSpy).toHaveBeenCalledTimes(1);
+      expect(mockRefreshOrganizations).toHaveBeenCalledTimes(1);
+      expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
+      expect(reloadSpy).not.toHaveBeenCalled();
     });
   });
 

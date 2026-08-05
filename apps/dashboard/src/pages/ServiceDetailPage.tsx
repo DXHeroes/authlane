@@ -1,8 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import Badge, { type BadgeTone } from '@/components/ui/Badge';
+import Callout from '@/components/ui/Callout';
+import { LoadingRegion, Skeleton } from '@/components/ui/Skeleton';
 import { api } from '@/lib/api';
+import { toastError, toastSuccess } from '@/lib/toast';
 import type { OrganizationService, Service, ServiceConfig, ServiceTool } from '@/types';
+
+/** One reading of an HTTP verb, so the endpoint table cannot disagree with itself. */
+const METHOD_TONES: Record<string, BadgeTone> = {
+  GET: 'success',
+  POST: 'info',
+  PUT: 'warning',
+  PATCH: 'warning',
+  DELETE: 'danger',
+};
 
 /**
  * Copy text to clipboard with fallback
@@ -16,23 +29,19 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-/**
- * Auth type badge component
- */
+const AUTH_TYPE_BADGES: Record<string, { label: string; tone: BadgeTone }> = {
+  oauth2: { label: 'OAuth 2.0', tone: 'info' },
+  api_key: { label: 'API Key', tone: 'warning' },
+  none: { label: 'Public API', tone: 'success' },
+};
+
 function AuthTypeBadge({ authType }: { authType: string }) {
-  const badges = {
-    oauth2: { label: 'OAuth 2.0', className: 'bg-blue-100 text-blue-800' },
-    api_key: { label: 'API Key', className: 'bg-amber-100 text-amber-800' },
-    none: { label: 'Public API', className: 'bg-green-100 text-green-800' },
-  };
-  const badge = badges[authType as keyof typeof badges] || badges.none;
+  const badge = AUTH_TYPE_BADGES[authType] ?? AUTH_TYPE_BADGES.none;
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${badge.className}`}
-    >
+    <Badge tone={badge.tone} className="px-3 py-1 text-sm">
       {badge.label}
-    </span>
+    </Badge>
   );
 }
 
@@ -82,17 +91,16 @@ function OAuthConfigSection({
       </p>
 
       {config.developer_console_url && (
-        <div className="mb-6 rounded-md bg-blue-50 border border-blue-200 p-4">
-          <p className="text-sm font-medium text-blue-800">Developer Console</p>
+        <Callout className="mb-6" tone="info" title="Developer console">
           <a
             href={config.developer_console_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 text-sm text-blue-600 hover:underline"
+            className="break-all underline underline-offset-4 hover:no-underline"
           >
-            {config.developer_console_url} →
+            {config.developer_console_url} &rarr;
           </a>
-        </div>
+        </Callout>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -141,9 +149,7 @@ function OAuthConfigSection({
               {config.scopes.map((scope) => (
                 <div key={scope.name} className="flex items-start gap-2 text-xs">
                   <span className="rounded bg-secondary px-2 py-0.5 font-mono">{scope.name}</span>
-                  {scope.required && (
-                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">required</span>
-                  )}
+                  {scope.required && <Badge tone="danger">required</Badge>}
                   <span className="text-muted-foreground">{scope.description}</span>
                 </div>
               ))}
@@ -152,12 +158,9 @@ function OAuthConfigSection({
         )}
 
         {config.pkce_required && (
-          <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
-            <p className="text-sm text-amber-800">
-              <strong>PKCE Required:</strong> This service requires Proof Key for Code Exchange
-              (PKCE)
-            </p>
-          </div>
+          <Callout tone="warning">
+            <strong>PKCE required:</strong> this service requires Proof Key for Code Exchange.
+          </Callout>
         )}
 
         <button
@@ -212,23 +215,22 @@ function ApiKeyConfigSection({
       </p>
 
       {config.setup_guide_url && (
-        <div className="mb-6 rounded-md bg-amber-50 border border-amber-200 p-4">
-          <p className="text-sm font-medium text-amber-800">Get your API Key</p>
+        <Callout className="mb-6" tone="warning" title="Get your API key">
           <a
             href={config.setup_guide_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 text-sm text-amber-600 hover:underline"
+            className="break-all underline underline-offset-4 hover:no-underline"
           >
-            {config.setup_guide_url} →
+            {config.setup_guide_url} &rarr;
           </a>
-        </div>
+        </Callout>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="apiKey" className="block text-sm font-medium">
-            API Key {hasExistingKey && <span className="text-green-600">(configured)</span>}
+            API Key {hasExistingKey && <span className="text-success">(configured)</span>}
           </label>
           <input
             id="apiKey"
@@ -312,12 +314,9 @@ function PublicApiSection({ service }: { service: Service }) {
         <AuthTypeBadge authType="none" />
       </div>
 
-      <div className="mb-6 rounded-md bg-green-50 border border-green-200 p-4">
-        <p className="text-sm font-medium text-green-800">No Authentication Required</p>
-        <p className="mt-1 text-sm text-green-700">
-          {config.description || 'This is a public API that can be used without any credentials.'}
-        </p>
-      </div>
+      <Callout className="mb-6" tone="success" title="No authentication required">
+        {config.description || 'This is a public API that can be used without any credentials.'}
+      </Callout>
 
       {config.api_base_url && (
         <div className="mb-4">
@@ -353,21 +352,9 @@ function PublicApiSection({ service }: { service: Service }) {
                 {config.endpoints.map((endpoint) => (
                   <tr key={`${endpoint.method}:${endpoint.path}`}>
                     <td className="px-3 py-2">
-                      <span
-                        className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-                          endpoint.method === 'GET'
-                            ? 'bg-green-100 text-green-700'
-                            : endpoint.method === 'POST'
-                              ? 'bg-blue-100 text-blue-700'
-                              : endpoint.method === 'PUT'
-                                ? 'bg-amber-100 text-amber-700'
-                                : endpoint.method === 'DELETE'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
+                      <Badge tone={METHOD_TONES[endpoint.method] ?? 'neutral'}>
                         {endpoint.method}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{endpoint.path}</td>
                     <td className="px-3 py-2 text-muted-foreground">{endpoint.description}</td>
@@ -382,10 +369,8 @@ function PublicApiSection({ service }: { service: Service }) {
       {config.example_call && (
         <div className="mb-4">
           <p className="text-sm font-medium mb-2">Example Call:</p>
-          <div className="rounded-md bg-gray-900 p-3">
-            <code className="text-sm text-green-400 font-mono break-all">
-              {config.example_call}
-            </code>
+          <div className="rounded-md border border-border bg-muted p-3">
+            <code className="break-all font-mono text-sm">{config.example_call}</code>
           </div>
         </div>
       )}
@@ -437,20 +422,26 @@ export default function ServiceDetailPage() {
 
   const toggleServiceMutation = useMutation({
     mutationFn: (enabled: boolean) => api.put(`/organization/services/${id}`, { enabled }),
-    onSuccess: () => {
+    onSuccess: (_data, enabled) => {
       queryClient.invalidateQueries({ queryKey: ['org-service', id] });
       queryClient.invalidateQueries({ queryKey: ['org-services'] });
       queryClient.invalidateQueries({ queryKey: ['service-tools', id] });
+      toastSuccess(`${service?.name ?? 'Service'} ${enabled ? 'enabled' : 'disabled'}`);
     },
+    onError: (error) => toastError(error, 'Could not change the service.'),
   });
 
   const updateToolPolicyMutation = useMutation({
     mutationFn: (toolAccessPolicy: 'read_only' | 'full') =>
       api.put(`/organization/services/${id}`, { toolAccessPolicy }),
-    onSuccess: () => {
+    onSuccess: (_data, toolAccessPolicy) => {
       queryClient.invalidateQueries({ queryKey: ['org-service', id] });
       queryClient.invalidateQueries({ queryKey: ['org-services'] });
+      toastSuccess(
+        toolAccessPolicy === 'read_only' ? 'Limited to read-only tools' : 'Full tool set allowed'
+      );
     },
+    onError: (error) => toastError(error, 'Could not change the tool policy.'),
   });
 
   const updateConfigMutation = useMutation({
@@ -460,13 +451,19 @@ export default function ServiceDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['org-service', id] });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
+      toastSuccess('Configuration saved');
     },
+    onError: (error) => toastError(error, 'Could not save the configuration.'),
   });
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="p-6 sm:p-8">
+        <LoadingRegion label="Loading service">
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="mt-4 h-4 w-80" />
+          <Skeleton className="mt-8 h-64" />
+        </LoadingRegion>
       </div>
     );
   }
@@ -519,9 +516,9 @@ export default function ServiceDetailPage() {
       </div>
 
       {success && (
-        <div className="mb-6 rounded-md bg-green-100 border border-green-300 p-3 text-sm text-green-800">
-          ✓ Configuration saved successfully
-        </div>
+        <Callout className="mb-6" tone="success">
+          Configuration saved.
+        </Callout>
       )}
 
       <div className="mb-6 rounded-lg border border-border bg-card p-6">
@@ -579,26 +576,22 @@ export default function ServiceDetailPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <code className="text-sm font-medium">{tool.name}</code>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  <Badge
+                    tone={
                       tool.risk === 'read'
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'success'
                         : tool.risk === 'write'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-red-100 text-red-800'
-                    }`}
+                          ? 'warning'
+                          : 'danger'
+                    }
                   >
                     {tool.risk === 'read'
                       ? 'Read-only'
                       : tool.risk === 'write'
                         ? 'Writes data'
                         : 'Destructive'}
-                  </span>
-                  {!tool.enabledByPolicy && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                      Disabled by policy
-                    </span>
-                  )}
+                  </Badge>
+                  {!tool.enabledByPolicy && <Badge>Disabled by policy</Badge>}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{tool.description}</p>
               </div>

@@ -1,9 +1,14 @@
 import { API_SCOPES, type ApiScope, DEFAULT_API_SCOPES } from '@authlane/shared/api-scopes';
+import { CheckIcon } from '@heroicons/react/16/solid';
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import ErrorNotice from '@/components/ErrorNotice';
 import { api } from '@/lib/api';
+import { toastError, toastSuccess } from '@/lib/toast';
 import type { ApiKeyWithSecret } from '@/types';
+import Button from './ui/Button';
+import Dialog from './ui/Dialog';
+import { TextField } from './ui/Field';
 
 interface CreateApiKeyModalProps {
   onClose: () => void;
@@ -35,6 +40,7 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
   const [scopes, setScopes] = useState<ApiScope[]>([...DEFAULT_API_SCOPES]);
   const [createdKey, setCreatedKey] = useState<ApiKeyWithSecret | null>(null);
   const [copied, setCopied] = useState(false);
+  const formId = useId();
 
   const createMutation = useMutation({
     mutationFn: (data: { name: string; expiresInDays?: number; scopes: ApiScope[] }) =>
@@ -69,9 +75,10 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
     try {
       await navigator.clipboard.writeText(createdKey.key);
       setCopied(true);
+      toastSuccess('API key copied to your clipboard');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      toastError(err, 'Could not reach the clipboard. Select the key and copy it manually.');
     }
   };
 
@@ -82,220 +89,153 @@ export default function CreateApiKeyModal({ onClose, onSuccess }: CreateApiKeyMo
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-api-key-title"
-        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
+  if (createdKey) {
+    return (
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open) handleClose();
+        }}
+        title="API Key Created"
+        size="sm"
+        footer={<Button onClick={handleClose}>Done</Button>}
       >
-        <div className="mb-6 flex items-center justify-between">
-          <h2 id="create-api-key-title" className="text-2xl font-bold">
-            {createdKey ? 'API Key Created' : 'Create API Key'}
-          </h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="Close"
-          >
-            <svg
-              aria-hidden="true"
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
+        <div className="space-y-4">
+          <div className="rounded-md border border-warning/40 bg-warning/10 p-4">
+            <p className="mb-1 text-sm font-semibold text-warning">
+              Important: Save this API key now!
+            </p>
+            <p className="text-sm text-warning/90">
+              This is the only time you will see this key. Store it securely.
+            </p>
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-sm font-medium">API Key Name</span>
+            <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm">
+              {createdKey.name}
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="created-api-key" className="mb-1.5 block text-sm font-medium">
+              API Key
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="created-api-key"
+                type="text"
+                value={createdKey.key}
+                readOnly
+                className="min-w-0 flex-1 rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
               />
-            </svg>
-          </button>
-        </div>
-
-        {createdKey ? (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-yellow-500 bg-yellow-50 p-4">
-              <p className="mb-2 text-sm font-semibold text-yellow-800">
-                Important: Save this API key now!
-              </p>
-              <p className="text-sm text-yellow-700">
-                This is the only time you will see this key. Store it securely.
-              </p>
-            </div>
-
-            <div>
-              <span className="mb-2 block text-sm font-medium">API Key Name</span>
-              <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm">
-                {createdKey.name}
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="created-api-key" className="mb-2 block text-sm font-medium">
-                API Key
-              </label>
-              <div className="flex gap-2">
-                <input
-                  id="created-api-key"
-                  type="text"
-                  value={createdKey.key}
-                  readOnly
-                  className="flex-1 rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  {copied ? (
-                    <span className="flex items-center gap-1">
-                      <svg
-                        aria-hidden="true"
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Copied
-                    </span>
-                  ) : (
-                    'Copy'
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {createdKey.expiresAt && (
-              <div>
-                <span className="mb-2 block text-sm font-medium">Expires At</span>
-                <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm">
-                  {new Date(createdKey.expiresAt).toLocaleString()}
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-4">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Done
-              </button>
+              <Button onClick={handleCopy} icon={copied ? <CheckIcon className="size-4" /> : null}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
             </div>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+          {createdKey.expiresAt && (
             <div>
-              <label htmlFor="key-name" className="mb-2 block text-sm font-medium">
-                API Key Name
-              </label>
-              <input
-                id="key-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Production API Key"
-                required
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                A descriptive name to help you identify this key
+              <span className="mb-1.5 block text-sm font-medium">Expires At</span>
+              <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm">
+                {new Date(createdKey.expiresAt).toLocaleString()}
               </p>
             </div>
+          )}
+        </div>
+      </Dialog>
+    );
+  }
 
-            <div>
-              <label htmlFor="expires-in" className="mb-2 block text-sm font-medium">
-                Expires In (Days)
-              </label>
-              <input
-                id="expires-in"
-                type="number"
-                value={expiresInDays}
-                onChange={(e) =>
-                  setExpiresInDays(e.target.value === '' ? '' : Number(e.target.value))
-                }
-                placeholder="Leave empty for no expiration"
-                min="1"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Optional: Set an expiration date for this key
-              </p>
-            </div>
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) handleClose();
+      }}
+      title="Create API Key"
+      description="Permissions are fixed once the key exists."
+      size="sm"
+      footer={
+        <>
+          <Button variant="secondary" onClick={handleClose} disabled={createMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            isPending={createMutation.isPending}
+            disabled={!name.trim()}
+          >
+            {createMutation.isPending ? 'Creating...' : 'Create API Key'}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4">
+        <TextField
+          id="key-name"
+          label="API Key Name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g., Production API Key"
+          required
+          hint="A descriptive name to help you identify this key"
+        />
 
-            <fieldset>
-              <legend className="mb-2 text-sm font-medium">Permissions</legend>
-              <div className="space-y-2 rounded-md border border-border p-3">
-                {API_SCOPES.map((scope) => {
-                  const option = scopeOptions[scope];
-                  return (
-                    <label key={scope} className="flex cursor-pointer items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={scopes.includes(scope)}
-                        onChange={() => toggleScope(scope)}
-                        className="mt-1 h-4 w-4 rounded border-border"
-                      />
-                      <span>
-                        <span className="block text-sm font-medium">{option.label}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {option.description}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {scopes.includes('credentials:issue') ? (
-                <p className="mt-2 rounded-md border border-yellow-500 bg-yellow-50 p-2 text-xs text-yellow-800">
-                  This key can retrieve short-lived credentials. Treat it as a high-privilege
-                  secret.
-                </p>
-              ) : (
-                // Without this scope every tool call fails at run time, long after the key looked
-                // fine: listing tools succeeds, and only the model's first invocation gets a 403.
-                <p className="mt-2 rounded-md border border-border bg-muted p-2 text-xs text-muted-foreground">
-                  Without <strong>Issue credential leases</strong> this key can read the catalog and
-                  start connections, but no tool will run: the first call an agent makes returns
-                  403. A key's permissions are fixed once created.
-                </p>
-              )}
-            </fieldset>
+        <TextField
+          id="expires-in"
+          label="Expires In (Days)"
+          type="number"
+          value={expiresInDays}
+          onChange={(e) => setExpiresInDays(e.target.value === '' ? '' : Number(e.target.value))}
+          placeholder="Leave empty for no expiration"
+          min="1"
+          hint="Optional: Set an expiration date for this key"
+        />
 
-            {createMutation.isError && <ErrorNotice error={createMutation.error} />}
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium">Permissions</legend>
+          <div className="space-y-2 rounded-md border border-border p-3">
+            {API_SCOPES.map((scope) => {
+              const option = scopeOptions[scope];
+              return (
+                <label key={scope} className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={scopes.includes(scope)}
+                    onChange={() => toggleScope(scope)}
+                    className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{option.label}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {scopes.includes('credentials:issue') ? (
+            <p className="mt-2 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
+              This key can retrieve short-lived credentials. Treat it as a high-privilege secret.
+            </p>
+          ) : (
+            // Without this scope every tool call fails at run time, long after the key looked
+            // fine: listing tools succeeds, and only the model's first invocation gets a 403.
+            <p className="mt-2 rounded-md border border-border bg-muted p-2 text-xs text-muted-foreground">
+              Without <strong>Issue credential leases</strong> this key can read the catalog and
+              start connections, but no tool will run: the first call an agent makes returns 403. A
+              key's permissions are fixed once created.
+            </p>
+          )}
+        </fieldset>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending || !name.trim()}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
-                {createMutation.isPending ? 'Creating...' : 'Create API Key'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+        {createMutation.isError && <ErrorNotice error={createMutation.error} />}
+      </form>
+    </Dialog>
   );
 }

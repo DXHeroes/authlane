@@ -1,14 +1,22 @@
 import { Check, Clock } from 'lucide-react';
 import type React from 'react';
+import { useState } from 'react';
 import type { Service } from '../types';
 import { ConnectionStatus } from './ConnectionStatus';
 
 interface ServiceCardProps {
   service: Service;
   onClick: () => void;
+  /** True while the connect or disconnect call for this service is in flight. */
+  pending?: boolean;
 }
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) => {
+export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick, pending = false }) => {
+  // Clicking a connected service disconnects it. That used to happen on the first click
+  // with nothing asked, so a misplaced tap dropped an authorization silently.
+  const [confirming, setConfirming] = useState(false);
+  const isConnected = service.status === 'connected';
+
   const getStatusIcon = () => {
     switch (service.status) {
       case 'connected':
@@ -30,8 +38,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
     }
   };
 
-  return (
-    <button type="button" className="service-card" onClick={onClick}>
+  const body = (
+    <>
       <div className="service-card__header">
         <div className="service-card__icon">
           {service.icon ? (
@@ -51,6 +59,52 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
 
         {service.status && <ConnectionStatus status={service.status} compact />}
       </div>
+    </>
+  );
+
+  if (confirming) {
+    return (
+      <div className="service-card service-card--confirming">
+        {body}
+        <div className="service-card__confirm">
+          <p className="service-card__confirm-question">
+            Disconnect {service.name}? Anything using it stops working until you connect again.
+          </p>
+          <div className="service-card__confirm-actions">
+            <button
+              type="button"
+              className="service-card__confirm-cancel"
+              onClick={() => setConfirming(false)}
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              className="service-card__confirm-accept"
+              onClick={() => {
+                setConfirming(false);
+                onClick();
+              }}
+            >
+              Disconnect
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="service-card"
+      aria-busy={pending || undefined}
+      disabled={pending}
+      // Names what the click does, rather than only what the card is about.
+      aria-label={`${isConnected ? 'Disconnect' : 'Connect'} ${service.name}`}
+      onClick={() => (isConnected ? setConfirming(true) : onClick())}
+    >
+      {body}
     </button>
   );
 };

@@ -40,27 +40,26 @@ describe('ConnectionDetailModal', () => {
       expect(screen.getByText('github')).toBeInTheDocument();
     });
 
-    it('displays connection status with correct color', () => {
+    // Status colour comes from the theme tokens rather than a literal Tailwind shade,
+    // because the literal palette has no dark counterpart.
+    it('displays an active connection in the success tone', () => {
       render(<ConnectionDetailModal connection={mockConnection} onClose={mockOnClose} />);
 
-      const statusElement = screen.getByText('active');
-      expect(statusElement).toHaveClass('text-green-600');
+      expect(screen.getByText('active')).toHaveClass('text-success');
     });
 
-    it('displays expired status in yellow', () => {
+    it('displays an expired connection in the warning tone', () => {
       const expiredConnection = { ...mockConnection, status: 'expired' as const };
       render(<ConnectionDetailModal connection={expiredConnection} onClose={mockOnClose} />);
 
-      const statusElement = screen.getByText('expired');
-      expect(statusElement).toHaveClass('text-yellow-600');
+      expect(screen.getByText('expired')).toHaveClass('text-warning');
     });
 
-    it('displays error status in red', () => {
+    it('displays a failed connection in the destructive tone', () => {
       const errorConnection = { ...mockConnection, status: 'error' as const };
       render(<ConnectionDetailModal connection={errorConnection} onClose={mockOnClose} />);
 
-      const statusElement = screen.getByText('error');
-      expect(statusElement).toHaveClass('text-red-600');
+      expect(screen.getByText('error')).toHaveClass('text-destructive');
     });
 
     it('formats and displays creation date', () => {

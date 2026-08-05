@@ -2,8 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { Toaster } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
+import Spinner from '@/components/ui/Spinner';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import AcceptInvitationPage from '@/pages/AcceptInvitationPage';
 import ApiKeysPage from '@/pages/ApiKeysPage';
 import ConnectionsPage from '@/pages/ConnectionsPage';
@@ -53,8 +56,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div
+        className="flex h-dvh items-center justify-center gap-3 text-muted-foreground"
+        role="status"
+        aria-busy="true"
+      >
+        <Spinner className="size-5" />
+        <span>Checking your session</span>
       </div>
     );
   }
@@ -75,8 +83,13 @@ function AppRoutes() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div
+        className="flex h-dvh items-center justify-center gap-3 text-muted-foreground"
+        role="status"
+        aria-busy="true"
+      >
+        <Spinner className="size-5" />
+        <span>Checking your session</span>
       </div>
     );
   }
@@ -156,16 +169,25 @@ function AppRoutes() {
   );
 }
 
+/** The toaster follows the theme, otherwise a light toast flashes over the dark app. */
+function ThemedToaster() {
+  const { resolvedTheme } = useTheme();
+  return <Toaster theme={resolvedTheme} position="bottom-right" richColors closeButton />;
+}
+
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <StepUpNavigator />
-          <AppRoutes />
-        </AuthProvider>
-      </BrowserRouter>
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <StepUpNavigator />
+            <AppRoutes />
+          </AuthProvider>
+        </BrowserRouter>
+        <ThemedToaster />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

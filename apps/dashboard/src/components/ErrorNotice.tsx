@@ -1,4 +1,6 @@
 import { DashboardApiError } from '@/lib/api';
+import { errorMessage } from '@/lib/error-message';
+import { cn } from '@/lib/utils';
 
 /**
  * Shows an API failure with everything the API said about it.
@@ -17,27 +19,33 @@ export default function ErrorNotice({
   if (!error) return null;
 
   const apiError = error instanceof DashboardApiError ? error : null;
-  const message =
-    apiError?.message ?? (error instanceof Error ? error.message : 'Something went wrong.');
+  const message = errorMessage(error);
 
   return (
     <div
       role="alert"
-      className={`rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700 ${className}`}
+      className={cn(
+        // Literal red-50/red-700 had no dark counterpart, so the notice stayed a pale
+        // wash on a near-black card. The destructive token carries both themes.
+        'rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive',
+        className
+      )}
     >
       <p className="font-medium">{message}</p>
-      {apiError?.hint && <p className="mt-1 text-red-600">{apiError.hint}</p>}
+      {apiError?.hint && <p className="mt-1 text-destructive/90">{apiError.hint}</p>}
       {apiError?.docUrl && (
         <a
           href={apiError.docUrl}
           target="_blank"
           rel="noreferrer"
-          className="mt-2 inline-block underline hover:no-underline"
+          className="mt-2 inline-block underline underline-offset-4 hover:no-underline"
         >
           Read the documentation for this error
         </a>
       )}
-      {apiError?.code && <p className="mt-2 font-mono text-xs text-red-500">{apiError.code}</p>}
+      {apiError?.code && (
+        <p className="mt-2 font-mono text-xs text-destructive/80">{apiError.code}</p>
+      )}
     </div>
   );
 }

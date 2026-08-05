@@ -4,7 +4,30 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)" />
     <title>Authlane Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <script>
+      // Runs before first paint. Without it the light theme renders for a frame and
+      // then flips, which reads as a bug on every reload for dark-theme users.
+      (() => {
+        try {
+          const stored = localStorage.getItem('authlane:theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (stored === 'dark' || ((stored === 'system' || !stored) && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (_) {
+          /* Private-mode storage denial is not worth failing the boot over. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,8 +1,15 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import ErrorNotice from '@/components/ErrorNotice';
+import Button from '@/components/ui/Button';
+import Callout from '@/components/ui/Callout';
+import { Card } from '@/components/ui/Card';
+import { TextField } from '@/components/ui/Field';
+import PageHeader from '@/components/ui/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 interface Member {
   id: string;
@@ -17,8 +24,9 @@ interface Member {
 }
 
 export default function OrganizationPage() {
-  const { organization, user, switchOrganization } = useAuth();
+  const { organization, organizations, user, switchOrganization, refreshOrganizations } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -82,8 +90,11 @@ export default function OrganizationPage() {
       setSuccess('Organization updated successfully');
       // Refresh the organization data
       await switchOrganization(organization.id);
+      await refreshOrganizations();
+      toastSuccess(`${name.trim()} saved`);
     } catch (err) {
       setError(err ?? new Error('Failed to update organization'));
+      toastError(err, 'Could not save the organization.');
     } finally {
       setIsUpdating(false);
     }
@@ -97,69 +108,71 @@ export default function OrganizationPage() {
     setError(null);
 
     try {
+      const deletedName = organization.name;
       await authClient.organization.delete({
         organizationId: organization.id,
       });
-      // Navigate to dashboard after deletion
-      navigate('/dashboard');
-      // Force page reload to clear state
-      window.location.reload();
+
+      /*
+       * Deleting the active organization leaves the session pointing at nothing, so the
+       * page used to reload to clear the state. Switching to whatever is left does the
+       * same job: every cached query is dropped on the switch, and a workspace with no
+       * organizations falls through to onboarding on the next render.
+       */
+      const remaining = organizations.filter((candidate) => candidate.id !== organization.id);
+      queryClient.removeQueries();
+      await refreshOrganizations();
+      if (remaining[0]) await switchOrganization(remaining[0].id);
+      navigate('/dashboard', { replace: true });
+      toastSuccess(`${deletedName} deleted`);
     } catch (err) {
       setError(err ?? new Error('Failed to delete organization'));
+      toastError(err, 'Could not delete the organization.');
       setIsDeleting(false);
     }
   };
 
   if (!organization) {
     return (
-      <div className="p-6">
-        <div className="rounded-md border border-yellow-500 bg-yellow-50 p-4 text-yellow-800">
-          No organization selected. Please select or create an organization.
-        </div>
+      <div className="p-6 sm:p-8">
+        <Callout tone="warning">
+          No organization selected. Select or create an organization to change its settings.
+        </Callout>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Organization Settings</h1>
-        <p className="text-muted-foreground">Manage your organization details and settings</p>
-      </div>
+    <div className="p-6 sm:p-8">
+      <PageHeader
+        title="Organization Settings"
+        description="Manage your organization details and settings."
+      />
 
-      {/* Organization Details Form */}
-      <div className="mb-8 rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 text-lg font-semibold">Organization Details</h2>
+      <Card className="mb-8 p-6">
+        <h2 className="heading-tight mb-4 text-lg font-semibold">Organization Details</h2>
 
         <form onSubmit={handleUpdate} className="space-y-4">
-          <div>
-            <label htmlFor="org-name" className="mb-2 block text-sm font-medium">
-              Organization Name
-            </label>
-            <input
-              id="org-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={!canEdit}
-              className="w-full max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-            />
-          </div>
+          <TextField
+            id="org-name"
+            label="Organization Name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={!canEdit}
+            fieldClassName="max-w-md"
+          />
 
-          <div>
-            <label htmlFor="org-slug" className="mb-2 block text-sm font-medium">
-              Organization Slug
-            </label>
-            <input
-              id="org-slug"
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-              disabled={!canEdit}
-              className="w-full max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">URL-friendly identifier</p>
-          </div>
+          <TextField
+            id="org-slug"
+            label="Organization Slug"
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+            disabled={!canEdit}
+            hint="URL-friendly identifier"
+            fieldClassName="max-w-md"
+          />
 
           <div>
             <span className="mb-2 block text-sm font-medium">Organization ID</span>
@@ -177,81 +190,65 @@ export default function OrganizationPage() {
 
           {error ? <ErrorNotice error={error} /> : null}
 
-          {success && (
-            <div className="rounded-md border border-green-500 bg-green-50 p-3 text-sm text-green-700">
-              {success}
-            </div>
-          )}
+          {success && <Callout tone="success">{success}</Callout>}
 
           {canEdit && (
             <div className="pt-4">
-              <button
-                type="submit"
-                disabled={isUpdating || !name.trim() || !slug.trim()}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
+              <Button type="submit" isPending={isUpdating} disabled={!name.trim() || !slug.trim()}>
                 {isUpdating ? 'Saving...' : 'Save Changes'}
-              </button>
+              </Button>
             </div>
           )}
         </form>
-      </div>
+      </Card>
 
-      {/* Danger Zone - Only for owners */}
+      {/* Only an owner can delete, and only after typing the name back. */}
       {isOwner && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-6">
-          <h2 className="mb-4 text-lg font-semibold text-red-800">Danger Zone</h2>
+        <Card className="border-destructive/40 bg-destructive/[0.04] p-6">
+          <h2 className="heading-tight mb-4 text-lg font-semibold text-destructive">Danger Zone</h2>
 
           {!showDeleteConfirm ? (
             <div>
-              <p className="mb-4 text-sm text-red-700">
-                Deleting an organization is permanent and cannot be undone. All data associated with
-                this organization will be permanently removed.
+              <p className="mb-4 max-w-prose text-sm text-muted-foreground">
+                Deleting an organization is permanent. Every connection, key and member record
+                belonging to it goes with it.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="rounded-md border border-red-500 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-              >
+              <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
                 Delete Organization
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-red-700">
-                To confirm deletion, please type the organization name:{' '}
-                <strong>{organization.name}</strong>
-              </p>
-              <input
+              <TextField
+                label={`Type ${organization.name} to confirm`}
                 type="text"
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="Type organization name to confirm"
-                className="w-full max-w-md rounded-md border border-red-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder={organization.name}
+                fieldClassName="max-w-md"
               />
-              <div className="flex gap-3">
-                <button
-                  type="button"
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="danger"
                   onClick={handleDelete}
-                  disabled={isDeleting || deleteConfirmText !== organization.name}
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  isPending={isDeleting}
+                  disabled={deleteConfirmText !== organization.name}
                 >
                   {isDeleting ? 'Deleting...' : 'Permanently Delete Organization'}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     setShowDeleteConfirm(false);
                     setDeleteConfirmText('');
                   }}
-                  className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );

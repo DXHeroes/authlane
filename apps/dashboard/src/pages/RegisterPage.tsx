@@ -1,5 +1,8 @@
 import { type FormEvent, useState } from 'react';
 import { Link } from 'react-router';
+import Button from '@/components/ui/Button';
+import Callout from '@/components/ui/Callout';
+import { TextField } from '@/components/ui/Field';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
@@ -35,72 +38,52 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-          )}
+          {error && <Callout tone="danger">{error}</Callout>}
           {verificationPending && (
             <output className="block rounded-md bg-primary/10 p-4 text-sm">
               <strong>Check your inbox.</strong> Verify your email, then finish workspace setup.
             </output>
           )}
 
-          <div className="space-y-4 rounded-md shadow-sm">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium">
-                Your name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
+          <div className="space-y-4">
+            <TextField
+              id="name"
+              label="Your name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              required
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
+            <TextField
+              id="email"
+              label="Email address"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
+            <TextField
+              id="password"
+              label="Password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
-          >
+          <Button type="submit" className="w-full" isPending={isLoading}>
             {isLoading ? 'Creating account...' : 'Create account'}
-          </button>
+          </Button>
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}

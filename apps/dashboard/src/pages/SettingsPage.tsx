@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import ErrorNotice from '@/components/ErrorNotice';
+import Callout from '@/components/ui/Callout';
 import { api } from '@/lib/api';
+import { toastError, toastSuccess } from '@/lib/toast';
 import type { TenantSettings } from '@/types';
 
 export default function SettingsPage() {
@@ -35,7 +38,9 @@ export default function SettingsPage() {
       setNewWebhookSecret(updated.newWebhookSecret || '');
       setRotateWebhookSecret(false);
       queryClient.invalidateQueries({ queryKey: ['tenant-settings'] });
+      toastSuccess('Settings saved');
     },
+    onError: (error) => toastError(error, 'Could not save the settings.'),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -113,12 +118,13 @@ export default function SettingsPage() {
                 The server generates and encrypts this secret. It is shown only once after saving.
               </p>
               {newWebhookSecret && (
-                <div className="mt-3 rounded-md border border-amber-500 bg-amber-50 p-3 text-amber-950">
-                  <p className="text-sm font-medium">
-                    Copy this secret now. It cannot be shown again.
-                  </p>
-                  <code className="mt-2 block break-all font-mono text-sm">{newWebhookSecret}</code>
-                </div>
+                <Callout
+                  className="mt-3"
+                  tone="warning"
+                  title="Copy this secret now. It cannot be shown again."
+                >
+                  <code className="mt-1 block break-all font-mono text-sm">{newWebhookSecret}</code>
+                </Callout>
               )}
             </div>
           </div>
@@ -200,17 +206,9 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {updateMutation.isError && (
-          <div className="rounded-md border border-red-500 bg-red-50 p-4 text-sm text-red-700">
-            Failed to update settings. Please try again.
-          </div>
-        )}
+        {updateMutation.isError && <ErrorNotice error={updateMutation.error} />}
 
-        {updateMutation.isSuccess && (
-          <div className="rounded-md border border-green-500 bg-green-50 p-4 text-sm text-green-700">
-            Settings updated successfully!
-          </div>
-        )}
+        {updateMutation.isSuccess && <Callout tone="success">Settings saved.</Callout>}
 
         <div className="flex justify-end gap-3">
           <button

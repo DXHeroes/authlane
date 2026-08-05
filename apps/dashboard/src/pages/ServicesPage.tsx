@@ -1,26 +1,24 @@
+import { Squares2X2Icon } from '@heroicons/react/16/solid';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
+import Badge, { type BadgeTone } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import { LoadingRegion, SkeletonCards } from '@/components/ui/Skeleton';
 import { api } from '@/lib/api';
+import { toastError, toastSuccess } from '@/lib/toast';
 import type { OrganizationService, Service } from '@/types';
 
-/**
- * Auth type badge component
- */
-function AuthTypeBadge({ authType }: { authType: string }) {
-  const badges = {
-    oauth2: { label: 'OAuth 2.0', className: 'bg-blue-100 text-blue-700' },
-    api_key: { label: 'API Key', className: 'bg-amber-100 text-amber-700' },
-    none: { label: 'Public API', className: 'bg-green-100 text-green-700' },
-  };
-  const badge = badges[authType as keyof typeof badges] || badges.none;
+const AUTH_TYPE_BADGES: Record<string, { label: string; tone: BadgeTone }> = {
+  oauth2: { label: 'OAuth 2.0', tone: 'info' },
+  api_key: { label: 'API Key', tone: 'warning' },
+  none: { label: 'Public API', tone: 'success' },
+};
 
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}
-    >
-      {badge.label}
-    </span>
-  );
+function AuthTypeBadge({ authType }: { authType: string }) {
+  const badge = AUTH_TYPE_BADGES[authType] ?? AUTH_TYPE_BADGES.none;
+  return <Badge tone={badge.tone}>{badge.label}</Badge>;
 }
 
 /**
@@ -63,15 +61,21 @@ export default function ServicesPage() {
   const toggleServiceMutation = useMutation({
     mutationFn: ({ serviceId, enabled }: { serviceId: string; enabled: boolean }) =>
       api.put(`/organization/services/${serviceId}`, { enabled }),
-    onSuccess: () => {
+    onSuccess: (_data, { serviceId, enabled }) => {
       queryClient.invalidateQueries({ queryKey: ['org-services'] });
+      const name = services?.find((service) => service.id === serviceId)?.name ?? 'Service';
+      toastSuccess(`${name} ${enabled ? 'enabled' : 'disabled'}`);
     },
+    onError: (error) => toastError(error, 'Could not change the service.'),
   });
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="p-6 sm:p-8">
+        <PageHeader title="Services" description="Configure integrations for your organization." />
+        <LoadingRegion label="Loading services">
+          <SkeletonCards count={3} />
+        </LoadingRegion>
       </div>
     );
   }
@@ -96,26 +100,22 @@ export default function ServicesPage() {
   const publicApiCount = services?.filter((s: Service) => s.authType === 'none').length ?? 0;
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Services</h1>
-        <p className="mt-2 text-muted-foreground">Configure integrations for your organization</p>
-      </div>
+    <div className="p-6 sm:p-8">
+      <PageHeader title="Services" description="Configure integrations for your organization." />
 
-      {/* Stats */}
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-2xl font-bold">{totalServices}</div>
-          <div className="text-sm text-muted-foreground">Total Services</div>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-2xl font-bold text-green-600">{enabledServices}</div>
-          <div className="text-sm text-muted-foreground">Enabled Services</div>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-2xl font-bold text-blue-600">{publicApiCount}</div>
-          <div className="text-sm text-muted-foreground">Public APIs (No Setup Needed)</div>
-        </div>
+        <Card className="p-4">
+          <div className="text-2xl font-semibold tabular-nums">{totalServices}</div>
+          <div className="text-sm text-muted-foreground">Total services</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-2xl font-semibold tabular-nums text-success">{enabledServices}</div>
+          <div className="text-sm text-muted-foreground">Enabled services</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-2xl font-semibold tabular-nums text-info">{publicApiCount}</div>
+          <div className="text-sm text-muted-foreground">Public APIs (no setup needed)</div>
+        </Card>
       </div>
 
       {groupedServices.map(({ authType, services: categoryServices }) => (
@@ -132,9 +132,9 @@ export default function ServicesPage() {
               const config = service.config;
 
               return (
-                <div
+                <Card
                   key={service.id}
-                  className="rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-md"
+                  className="p-5 transition-shadow hover:shadow-md dark:hover:border-foreground/20 dark:hover:shadow-none"
                 >
                   <div className="mb-3 flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -165,6 +165,7 @@ export default function ServicesPage() {
                       type="button"
                       role="switch"
                       aria-checked={isEnabled}
+                      aria-label={`${isEnabled ? 'Disable' : 'Enable'} ${service.name}`}
                       onClick={() =>
                         toggleServiceMutation.mutate({
                           serviceId: service.id,
@@ -172,15 +173,13 @@ export default function ServicesPage() {
                         })
                       }
                       disabled={toggleServiceMutation.isPending}
-                      className="group flex items-center gap-2"
+                      className="group flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span
                         className={`
-                          relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full 
+                          relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full
                           transition-colors duration-200 ease-in-out
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                          disabled:cursor-not-allowed disabled:opacity-50
-                          ${isEnabled ? 'bg-green-500' : 'bg-gray-300'}
+                          ${isEnabled ? 'bg-success' : 'bg-muted-foreground/35'}
                         `}
                       >
                         <span
@@ -192,7 +191,7 @@ export default function ServicesPage() {
                         />
                       </span>
                       <span
-                        className={`text-sm ${isEnabled ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}
+                        className={`text-sm ${isEnabled ? 'font-medium text-success' : 'text-muted-foreground'}`}
                       >
                         {isEnabled ? 'Enabled' : 'Disabled'}
                       </span>
@@ -200,12 +199,12 @@ export default function ServicesPage() {
 
                     <Link
                       to={`/dashboard/services/${service.id}`}
-                      className="text-sm text-primary hover:underline"
+                      className="text-sm text-primary underline-offset-4 hover:underline"
                     >
-                      Configure →
+                      Configure &rarr;
                     </Link>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -213,9 +212,12 @@ export default function ServicesPage() {
       ))}
 
       {(!services || services.length === 0) && (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-muted-foreground">No services available</p>
-        </div>
+        <Card className="border-dashed">
+          <EmptyState icon={Squares2X2Icon} title="No services available">
+            The platform catalogue is empty for this workspace. Check your deployment&apos;s
+            integration configuration.
+          </EmptyState>
+        </Card>
       )}
     </div>
   );

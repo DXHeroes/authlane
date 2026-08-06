@@ -35,6 +35,22 @@ describe('HTTP security boundary', () => {
     expect(oversized.status).toBe(413);
   });
 
+  it('exempts only the OAuth token endpoint from the JSON-only content type rule', async () => {
+    const app = createApp({} as never, { rateLimitEnabled: false });
+    const form = {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'authorization_code', code: 'x' }).toString(),
+    };
+
+    // RFC 6749 token requests are form-encoded, so this one has to reach better-auth.
+    const token = await app.request('/api/auth/oauth2/token', form);
+    const consent = await app.request('/api/auth/oauth2/consent', form);
+
+    expect(token.status).not.toBe(415);
+    expect(consent.status).toBe(415);
+  });
+
   it('keeps metrics undiscoverable without the configured bearer token', async () => {
     const token = 'm'.repeat(32);
     const app = createApp({} as never, {

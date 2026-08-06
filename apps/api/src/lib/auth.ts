@@ -31,6 +31,7 @@ import {
   validateMagicLinkEmailConfiguration,
   validateTrustedOrigins,
 } from './auth-security-config.js';
+import { createOidcProviderPlugin, oidcProviderRateLimitRules } from './oidc-provider-config.js';
 
 export interface Auth {
   handler(request: Request): Promise<Response>;
@@ -196,6 +197,7 @@ export function createAuth(
         '/forget-password': { window: 60 * 60, max: 3 },
         '/two-factor/verify-totp': { window: 60, max: 5 },
         '/two-factor/verify-backup-code': { window: 60, max: 5 },
+        ...oidcProviderRateLimitRules,
       },
     },
 
@@ -282,6 +284,10 @@ export function createAuth(
             }),
           ]
         : []),
+
+      // Authlane's own OAuth 2.1 authorization-server surface, so a downstream SaaS can pair a
+      // user identity against a workspace.
+      createOidcProviderPlugin(db),
 
       // SSO plugin can be added here later:
       // sso({

@@ -8,8 +8,12 @@ import { afterAll, beforeAll } from 'vitest';
 // Mock environment variables for tests
 beforeAll(() => {
   process.env.NODE_ENV = 'test';
+  // A DATABASE_URL already in the environment wins over the placeholder, so the suites that drive
+  // a real database (the OAuth provider flow) run against whatever CI or a developer provisioned.
   process.env.DATABASE_URL =
-    process.env.TEST_DATABASE_URL || 'postgresql://test:test@localhost:5432/authlane_test';
+    process.env.TEST_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    'postgresql://test:test@localhost:5432/authlane_test';
   process.env.REDIS_URL = process.env.TEST_REDIS_URL || 'redis://localhost:6379';
   process.env.AUTHLANE_DATA_KEK_RING = `test-kek:${'01'.repeat(32)}`;
   process.env.AUTHLANE_LOOKUP_KEY_RING = `test-lookup:${'02'.repeat(32)}`;

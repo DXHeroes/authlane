@@ -6,5 +6,6 @@
 
 export * from './keyring.js';
 export * from './lookup.js';
+export * from './oauth-client-secret.js';
 export * from './redis-cipher.js';
 export * from './secret-vault.js';

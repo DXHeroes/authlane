@@ -339,7 +339,9 @@ pnpm type-check
 
 ### Environment Variables
 ```env
-VITE_API_URL=http://localhost:3000/api/v1
+# The full base the dashboard router is mounted at — /dashboard included. Pointing this at
+# /api/v1 404s every call. Leave it unset to use the default in lib/api.ts.
+VITE_API_URL=http://localhost:3000/api/v1/dashboard
 ```
 
 ---

@@ -12,6 +12,7 @@ import {
   connectSessions,
   invitation,
   member,
+  oauthApplication,
   oauthTransactions,
   organization,
   organizationServices,
@@ -21,6 +22,7 @@ import {
   user,
 } from './schema/index.js';
 import { createDatabaseSecretStore } from './secret-store.js';
+import { seedSmartStaffDevOAuthClient } from './seed-oauth-client.js';
 
 export const DEMO_ORGANIZATION_ID = 'authlane_demo_org';
 export const DEMO_USER_ID = 'authlane_demo_admin';
@@ -83,6 +85,7 @@ export async function bootstrapDemo(options: BootstrapDemoOptions): Promise<Demo
       account,
       apiKeys,
       member,
+      oauthApplication,
       organization,
       organizationServices,
       services,
@@ -234,6 +237,10 @@ export async function bootstrapDemo(options: BootstrapDemoOptions): Promise<Demo
           eq(apiKeys.name, 'Example SaaS demo key')
         )
       );
+    // The demo workspace is the one a local developer can actually sign in to, so it is where the
+    // fixed SmartStaff pairing client has to live: the authorize gate only admits its members.
+    await seedSmartStaffDevOAuthClient(db as unknown as Database, DEMO_ORGANIZATION_ID);
+
     const apiKeyId = `demo_${randomUUID().replaceAll('-', '')}`;
     const issued = createApiKey(apiKeyId, getLookupKeyring());
     await db.insert(apiKeys).values({

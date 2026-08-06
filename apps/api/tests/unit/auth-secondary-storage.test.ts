@@ -64,7 +64,9 @@ describe('Better Auth Redis secondary storage', () => {
     expect(redisKey).not.toContain('verification:1');
     const sealed = values.get(redisKey);
     if (!sealed) throw new Error('Expected encrypted test value');
-    values.set(redisKey, `${sealed.slice(0, -1)}A`);
+    // Flip the last character to one it is not: appending a fixed 'A' left the value untouched
+    // whenever the ciphertext already ended in 'A', which passed roughly one run in sixty-four.
+    values.set(redisKey, `${sealed.slice(0, -1)}${sealed.endsWith('A') ? 'B' : 'A'}`);
 
     await expect(storage.get('verification:1')).rejects.toThrow();
     await storage.delete('verification:1');

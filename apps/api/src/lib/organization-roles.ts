@@ -3,8 +3,13 @@
  *
  * The dashboard's administrative endpoints all ask the same question — is this user an owner, an
  * admin, or an ordinary member of the workspace they are acting on — and each one used to answer it
- * with its own copy of the same `member` lookup. One shared answer means a new endpoint cannot
- * accidentally spell the check differently, and there is one place to change when roles grow.
+ * with its own copy of the same `member` lookup. What is shared here is that lookup, and the
+ * predicates over its result: one place to change when roles grow.
+ *
+ * The refusal is still each endpoint's own. `dashboard.ts` answers a failed role check with
+ * `Errors.unauthorized` at 403 while the OAuth clients router answers `Errors.insufficientScope`,
+ * so a caller cannot rely on one error shape across the dashboard surface. Unifying that is a
+ * separate change with its own blast radius on the dashboard client.
  *
  * Membership itself is established upstream: `authMiddleware` only sets `organization` from the
  * session's active organization, so these helpers decide the level of access, not whether the user
@@ -13,11 +18,8 @@
 
 import { and, type Database, eq, member } from '@authlane/database';
 
-/** Roles better-auth's organization plugin assigns. Stored as free text, so read defensively. */
-export type OrganizationRole = 'owner' | 'admin' | 'member';
-
 /** The caller's role in an organization, or null when they are not a member of it. */
-export async function organizationRole(
+export async function readOrganizationRole(
   db: Database,
   organizationId: string,
   userId: string

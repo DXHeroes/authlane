@@ -11,6 +11,10 @@
  *
  * The secret goes through @authlane/crypto's `encryptOAuthClientSecret`, the same envelope the
  * token endpoint decrypts. Any other spelling of the column fails at token exchange.
+ *
+ * Deliberately not re-exported from the package index, the way `seed-catalog.ts` is not: importing
+ * it would pull a fixed plaintext credential and a top-level `process.exit` block into every app
+ * that imports @authlane/database. Reach it by the `@authlane/database/seed-oauth-client` subpath.
  */
 
 import { encryptOAuthClientSecret } from '@authlane/crypto';
@@ -23,8 +27,7 @@ import { oauthApplication } from './schema/index.js';
  * SmartStaff's callback in local development. Its dev server runs on port 3000, and the URI is
  * compared byte for byte at the authorize endpoint, so this string is the contract.
  */
-export const SMARTSTAFF_DEV_REDIRECT_URI =
-  'http://localhost:3000/api/integrations/authlane/callback';
+const SMARTSTAFF_DEV_REDIRECT_URI = 'http://localhost:3000/api/integrations/authlane/callback';
 
 export const SMARTSTAFF_DEV_OAUTH_CLIENT = {
   /** Fixed so re-seeding updates the one row rather than adding another. */
@@ -38,11 +41,17 @@ export const SMARTSTAFF_DEV_OAUTH_CLIENT = {
 export type SeedOAuthClientOutcome = 'seeded' | 'skipped-production';
 
 /**
- * Registers the development client against one workspace, or refuses in production.
+ * Registers the development client against one workspace, or refuses when NODE_ENV says production.
  *
- * Idempotent: the row is keyed on a fixed id, so a re-run rewrites the same row. The secret is
- * re-sealed each time, which produces a different ciphertext for the same plaintext — the client
- * credential a developer configured stays valid.
+ * That guard reads NODE_ENV and nothing else. It stops the seed running as part of a production
+ * process, which is what the demo bootstrap and the CLI are; it does NOT know what database it is
+ * pointed at, so a laptop with NODE_ENV unset and DATABASE_URL aimed at production would write this
+ * fixed credential there. The callers are developer-invoked by design — do not add one that runs
+ * automatically on boot.
+ *
+ * Idempotent: the row is keyed on the unique `client_id`, so a re-run rewrites the same row even if
+ * its primary key differs from the one seeded here. The secret is re-sealed each time, producing a
+ * different ciphertext for the same plaintext — the credential a developer configured stays valid.
  *
  * The workspace matters. Authlane's authorize gate only lets a member of the client's organization
  * through, so pairing works for whoever can sign in to `organizationId` and nobody else.
@@ -53,10 +62,10 @@ export async function seedSmartStaffDevOAuthClient(
 ): Promise<SeedOAuthClientOutcome> {
   if (process.env.NODE_ENV === 'production') return 'skipped-production';
 
-  const values = {
-    id: SMARTSTAFF_DEV_OAUTH_CLIENT.id,
+  // Everything except the identity columns, so a conflicting row keeps the primary key it already
+  // has rather than having it rewritten underneath its foreign keys.
+  const attributes = {
     name: SMARTSTAFF_DEV_OAUTH_CLIENT.name,
-    clientId: SMARTSTAFF_DEV_OAUTH_CLIENT.clientId,
     clientSecret: await encryptOAuthClientSecret(SMARTSTAFF_DEV_OAUTH_CLIENT.clientSecret),
     redirectUrls: SMARTSTAFF_DEV_OAUTH_CLIENT.redirectUri,
     type: 'web',
@@ -67,10 +76,14 @@ export async function seedSmartStaffDevOAuthClient(
     updatedAt: new Date(),
   };
 
-  await db.insert(oauthApplication).values(values).onConflictDoUpdate({
-    target: oauthApplication.id,
-    set: values,
-  });
+  await db
+    .insert(oauthApplication)
+    .values({
+      id: SMARTSTAFF_DEV_OAUTH_CLIENT.id,
+      clientId: SMARTSTAFF_DEV_OAUTH_CLIENT.clientId,
+      ...attributes,
+    })
+    .onConflictDoUpdate({ target: oauthApplication.clientId, set: attributes });
 
   return 'seeded';
 }

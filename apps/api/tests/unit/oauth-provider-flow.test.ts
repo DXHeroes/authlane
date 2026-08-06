@@ -8,6 +8,7 @@
  */
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { encryptOAuthClientSecret } from '@authlane/crypto';
 import {
   createDatabaseClient,
   type Database,
@@ -21,7 +22,6 @@ import {
 import { jwtVerify } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/index.js';
-import { encryptOAuthClientSecret } from '../../src/lib/oidc-provider-config.js';
 
 const ORIGIN = 'http://localhost:3000';
 const REDIRECT_URI = 'https://smartstaff.test/api/authlane/callback';

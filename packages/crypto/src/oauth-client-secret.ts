@@ -112,8 +112,3 @@ export async function decryptOAuthClientSecret(
   );
   return plaintext.toString('utf8');
 }
-
-/** Whether a stored value carries the envelope this module writes. */
-export function isSealedOAuthClientSecret(stored: string | null | undefined): boolean {
-  return typeof stored === 'string' && stored.startsWith(SECRET_ENVELOPE_PREFIX);
-}

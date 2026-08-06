@@ -20,10 +20,12 @@ import {
   member,
   oauthApplication,
   organization,
-  SMARTSTAFF_DEV_OAUTH_CLIENT,
-  seedSmartStaffDevOAuthClient,
   user as userTable,
 } from '@authlane/database';
+import {
+  SMARTSTAFF_DEV_OAUTH_CLIENT,
+  seedSmartStaffDevOAuthClient,
+} from '@authlane/database/seed-oauth-client';
 import { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/index.js';
@@ -53,6 +55,8 @@ let organizationB: string;
 let userId: string;
 let plainMemberId: string;
 let userCookie: string;
+/** The workspace a pre-existing dev client belonged to, so afterAll can put it back. */
+let seededDevClientOrganizationId: string | null = null;
 
 /**
  * The dashboard router with the context `authMiddleware` would have established.
@@ -126,6 +130,14 @@ beforeAll(async () => {
     );
   }
 
+  // The seed suite writes and deletes the one fixed dev row, which a developer may already have
+  // pointed at their own workspace. Remember where it was so afterAll can restore it.
+  const [existingDevClient] = await db
+    .select({ organizationId: oauthApplication.organizationId })
+    .from(oauthApplication)
+    .where(eq(oauthApplication.clientId, SMARTSTAFF_DEV_OAUTH_CLIENT.clientId));
+  seededDevClientOrganizationId = existingDevClient?.organizationId ?? null;
+
   organizationA = `org_${randomUUID()}`;
   organizationB = `org_${randomUUID()}`;
   await db.insert(organization).values([
@@ -191,6 +203,18 @@ afterAll(async () => {
   }
   for (const id of [userId, plainMemberId].filter(Boolean)) {
     await db.delete(userTable).where(eq(userTable.id, id));
+  }
+
+  // Put the developer's dev client back where it was. Its organization outlives this suite, so the
+  // restore is exact; if that workspace is gone there is nothing to restore it to.
+  if (seededDevClientOrganizationId) {
+    const [survivingOrganization] = await db
+      .select({ id: organization.id })
+      .from(organization)
+      .where(eq(organization.id, seededDevClientOrganizationId));
+    if (survivingOrganization) {
+      await seedSmartStaffDevOAuthClient(db, seededDevClientOrganizationId);
+    }
   }
 });
 
@@ -338,6 +362,33 @@ describe('listing clients', () => {
     expect(listed?.redirectUris).toEqual([REDIRECT_URI, second]);
   });
 
+  it('includes a disabled client, so a workspace can find it and turn it back on', async () => {
+    const created = await registerOk(organizationA, 'Disabled but listed');
+    await dashboardFor(organizationA).request(`/oauth-clients/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ disabled: true }),
+    });
+
+    const { data } = (await (
+      await dashboardFor(organizationA).request('/oauth-clients')
+    ).json()) as { data: ClientPayload[] };
+
+    expect(data.find((client) => client.id === created.id)?.disabled).toBe(true);
+  });
+
+  it('returns the newest client first', async () => {
+    const older = await registerOk(organizationA, 'Older');
+    const newer = await registerOk(organizationA, 'Newer');
+
+    const { data } = (await (
+      await dashboardFor(organizationA).request('/oauth-clients')
+    ).json()) as { data: ClientPayload[] };
+    const ids = data.map((client) => client.id);
+
+    expect(ids.indexOf(newer.id)).toBeLessThan(ids.indexOf(older.id));
+  });
+
   it('shows only the active workspace', async () => {
     const mine = await registerOk(organizationA, 'Mine');
     const theirs = await registerOk(organizationB, 'Theirs');
@@ -407,6 +458,11 @@ describe('the role gate', () => {
     });
 
     expect(response.status).toBe(403);
+    const [written] = await db
+      .select({ id: oauthApplication.id })
+      .from(oauthApplication)
+      .where(eq(oauthApplication.name, 'From an outsider'));
+    expect(written).toBeUndefined();
   });
 });
 
@@ -489,6 +545,23 @@ describe('updating and removing a client', () => {
       .from(oauthApplication)
       .where(eq(oauthApplication.id, created.id));
     expect(row?.redirectUrls).toBe(replacement);
+  });
+
+  it('renames a client without disturbing its callbacks', async () => {
+    const created = await registerOk(organizationA, 'Before the rename');
+
+    const response = await dashboardFor(organizationA).request(`/oauth-clients/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'After the rename' }),
+    });
+
+    expect(response.status).toBe(200);
+    const { data } = (await response.json()) as { data: ClientPayload };
+    expect(data.name).toBe('After the rename');
+    expect(data.redirectUris).toEqual([REDIRECT_URI]);
+    expect(data.disabled).toBe(false);
+    expect(data.clientId).toBe(created.clientId);
   });
 
   it('refuses an update that would register an unusable callback', async () => {
@@ -706,10 +779,9 @@ describe('a registered client at the token endpoint', () => {
 });
 
 /**
- * These exercise the real seed, so they write and then remove the one fixed
- * `oauth_client_smartstaff_dev` row. Against a database where a developer had seeded that client
- * for their own workspace, running this suite takes it away — point the tests at the throwaway test
- * database, not the one behind `pnpm dev`.
+ * These exercise the real seed, so they write and then remove the one fixed dev client row. A
+ * developer may already have pointed it at their own workspace, so `beforeAll` remembers where it
+ * was and `afterAll` seeds it back rather than leaving them to rediscover it missing.
  */
 describe('the local development seed', () => {
   it('is idempotent, and leaves one usable client behind', async () => {

@@ -6,11 +6,8 @@
  * out of token exchange.
  */
 
+import { decryptOAuthClientSecret, encryptOAuthClientSecret } from '@authlane/crypto';
 import { describe, expect, it } from 'vitest';
-import {
-  decryptOAuthClientSecret,
-  encryptOAuthClientSecret,
-} from '../../src/lib/oidc-provider-config.js';
 
 const SECRET = 'smartstaff-client-secret-value';
 

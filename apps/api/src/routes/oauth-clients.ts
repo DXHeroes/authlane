@@ -26,7 +26,14 @@
 
 import { randomBytes, randomUUID } from 'node:crypto';
 import { encryptOAuthClientSecret } from '@authlane/crypto';
-import { and, type Database, desc, eq, oauthApplication } from '@authlane/database';
+import {
+  and,
+  type Database,
+  desc,
+  eq,
+  type OAuthApplication,
+  oauthApplication,
+} from '@authlane/database';
 import { Errors } from '@authlane/shared';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -37,7 +44,7 @@ import {
   redirectUrisFromStorage,
   redirectUrisToStorage,
 } from '../lib/oauth-client-input.js';
-import { isOrganizationAdmin, organizationRole } from '../lib/organization-roles.js';
+import { isOrganizationAdmin, readOrganizationRole } from '../lib/organization-roles.js';
 
 /** 24 random bytes render as exactly 32 URL-safe characters. */
 const CLIENT_ID_BYTES = 24;
@@ -69,15 +76,7 @@ const clientColumns = {
   updatedAt: oauthApplication.updatedAt,
 };
 
-type ClientRow = {
-  id: string;
-  name: string;
-  clientId: string;
-  redirectUrls: string;
-  disabled: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-};
+type ClientRow = Pick<OAuthApplication, keyof typeof clientColumns>;
 
 function present(row: ClientRow) {
   return {
@@ -110,7 +109,7 @@ export function createOAuthClientsRouter(db: Database) {
       return c.json(Errors.unauthorized('Organization context required'), 401);
     }
 
-    if (!isOrganizationAdmin(await organizationRole(db, org.id, user.id))) {
+    if (!isOrganizationAdmin(await readOrganizationRole(db, org.id, user.id))) {
       return c.json(
         Errors.insufficientScope('Only admins and owners can manage OAuth clients'),
         403
@@ -169,10 +168,11 @@ export function createOAuthClientsRouter(db: Database) {
         );
       }
 
-      const { registration, error, hint } = parseOAuthClientRegistration(body);
-      if (!registration) {
-        return c.json(Errors.validationError(error as string, hint), 400);
+      const parsed = parseOAuthClientRegistration(body);
+      if (!parsed.ok) {
+        return c.json(Errors.validationError(parsed.error, parsed.hint), 400);
       }
+      const { registration } = parsed;
 
       const clientSecret = generateClientSecret();
       const [created] = await db
@@ -238,10 +238,11 @@ export function createOAuthClientsRouter(db: Database) {
         );
       }
 
-      const { update, error, hint } = parseOAuthClientUpdate(body);
-      if (!update) {
-        return c.json(Errors.validationError(error as string, hint), 400);
+      const parsed = parseOAuthClientUpdate(body);
+      if (!parsed.ok) {
+        return c.json(Errors.validationError(parsed.error, parsed.hint), 400);
       }
+      const { update } = parsed;
 
       const [updated] = await db
         .update(oauthApplication)

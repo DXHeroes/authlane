@@ -16,14 +16,6 @@ import { oidcProvider } from 'better-auth/plugins';
 import { createWorkspaceClaimResolver } from './oauth-workspace-claims.js';
 
 /**
- * The sealed storage format lives in @authlane/crypto, because the local development seed in
- * @authlane/database registers a client too and both writers have to produce the one envelope the
- * token endpoint reads back. Re-exported here so the authorization surface stays a single import
- * for everything that shapes it.
- */
-export { decryptOAuthClientSecret, encryptOAuthClientSecret };
-
-/**
  * Rate limits for the authorization-server endpoints.
  *
  * The `/api/v1` limiter does not see `/api/auth/*`, so the token and authorize endpoints would

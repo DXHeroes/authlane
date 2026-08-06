@@ -45,7 +45,7 @@ import { logger } from '../lib/logger.js';
 import {
   isOrganizationAdmin,
   isOrganizationOwner,
-  organizationRole,
+  readOrganizationRole,
 } from '../lib/organization-roles.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
 import {
@@ -1070,9 +1070,7 @@ export function createDashboardRouter(
       if (!org || !currentUser) {
         return c.json(Errors.unauthorized('Organization context required'), 401);
       }
-
-      // Check if user has admin or owner role
-      if (!isOrganizationAdmin(await organizationRole(db, org.id, currentUser.id))) {
+      if (!isOrganizationAdmin(await readOrganizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only admins and owners can invite members'), 403);
       }
 
@@ -1115,9 +1113,7 @@ export function createDashboardRouter(
       if (!org || !currentUser) {
         return c.json(Errors.unauthorized('Organization context required'), 401);
       }
-
-      // Check if current user is owner (only owners can update roles)
-      if (!isOrganizationOwner(await organizationRole(db, org.id, currentUser.id))) {
+      if (!isOrganizationOwner(await readOrganizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only owners can update member roles'), 403);
       }
 
@@ -1180,9 +1176,7 @@ export function createDashboardRouter(
       if (!org || !currentUser) {
         return c.json(Errors.unauthorized('Organization context required'), 401);
       }
-
-      // Check if current user has admin or owner role
-      if (!isOrganizationAdmin(await organizationRole(db, org.id, currentUser.id))) {
+      if (!isOrganizationAdmin(await readOrganizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only admins and owners can remove members'), 403);
       }
 
@@ -1268,9 +1262,7 @@ export function createDashboardRouter(
       if (!org || !currentUser) {
         return c.json(Errors.unauthorized('Organization context required'), 401);
       }
-
-      // Check if user has admin or owner role
-      if (!isOrganizationAdmin(await organizationRole(db, org.id, currentUser.id))) {
+      if (!isOrganizationAdmin(await readOrganizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only admins and owners can update organization'), 403);
       }
 
@@ -1374,9 +1366,7 @@ export function createDashboardRouter(
       if (!org || !currentUser) {
         return c.json(Errors.unauthorized('Organization context required'), 401);
       }
-
-      // Check if user is owner
-      if (!isOrganizationOwner(await organizationRole(db, org.id, currentUser.id))) {
+      if (!isOrganizationOwner(await readOrganizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only owners can delete organization'), 403);
       }
 

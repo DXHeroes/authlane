@@ -30,6 +30,10 @@ const oauthClientSourceMigration = readFileSync(
   join(import.meta.dirname, '../drizzle/0011_mcp_oauth_client_source.sql'),
   'utf8'
 );
+const oauthProviderMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0012_oauth_provider.sql'),
+  'utf8'
+);
 const roles = readFileSync(join(import.meta.dirname, '../sql/roles.sql'), 'utf8');
 
 describe('control-plane migration', () => {
@@ -162,5 +166,60 @@ describe('MCP OAuth client provenance migration', () => {
       'ALTER TABLE "mcp_servers" ADD COLUMN "oauth_client_source" text;'
     );
     expect(oauthClientSourceMigration).not.toContain('"oauth_client_source" text NOT NULL');
+  });
+});
+
+describe('OAuth authorization-server migration', () => {
+  it('creates the three tables the oidc-provider plugin resolves by model name', () => {
+    for (const table of ['oauth_application', 'oauth_access_token', 'oauth_consent']) {
+      expect(oauthProviderMigration).toContain(`CREATE TABLE "${table}"`);
+    }
+  });
+
+  it('owns every OAuth client by the workspace that registered it', () => {
+    // The plugin's adapter writes only the fields its own schema declares, so it can never populate
+    // organization_id. NOT NULL is what keeps an unowned client — one from RFC 7591 dynamic
+    // registration — out of the table rather than visible to every workspace.
+    //
+    // Scoped to the oauth_application block: an unscoped match would be satisfied by any other
+    // org-scoped table that later joins this file, and stop guarding the column it names.
+    const applicationTable = oauthProviderMigration
+      .split('CREATE TABLE "oauth_application" (')[1]
+      ?.split(');')[0];
+
+    expect(applicationTable).toBeDefined();
+    expect(applicationTable).toContain('"organization_id" text NOT NULL');
+    expect(oauthProviderMigration).toContain(
+      'ALTER TABLE "oauth_application" ADD CONSTRAINT "oauth_application_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade'
+    );
+  });
+
+  it('keeps a workspace’s client when the user who registered it is deleted', () => {
+    // The registering user is incidental to a client the organization owns. Cascading would take
+    // the client, its access tokens, and its consents with the user, breaking every downstream
+    // integration the workspace had running.
+    expect(oauthProviderMigration).toContain(
+      'ALTER TABLE "oauth_application" ADD CONSTRAINT "oauth_application_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null'
+    );
+  });
+
+  it('leaves these tables outside tenant RLS, as auth-plane tables', () => {
+    // Like user and session: the plugin reads a client on the token and consent paths with no
+    // organization in context, so a tenant_isolation policy would hide every row from it.
+    expect(oauthProviderMigration).not.toContain('ROW LEVEL SECURITY');
+    expect(oauthProviderMigration).not.toContain('CREATE POLICY');
+  });
+
+  it('points tokens and consents at the public client id, not the primary key', () => {
+    // The plugin looks a client up by the client_id it received on the request. Referencing "id"
+    // would leave those foreign keys pointing at a value no OAuth request ever carries.
+    for (const table of ['oauth_access_token', 'oauth_consent']) {
+      expect(oauthProviderMigration).toContain(
+        `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_client_id_oauth_application_client_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."oauth_application"("client_id") ON DELETE cascade`
+      );
+    }
+    expect(oauthProviderMigration).toContain(
+      'CONSTRAINT "oauth_application_client_id_unique" UNIQUE("client_id")'
+    );
   });
 });

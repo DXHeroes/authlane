@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import Spinner from '@/components/ui/Spinner';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { parksAnAuthorization } from '@/lib/oauth-flow';
 import AcceptInvitationPage from '@/pages/AcceptInvitationPage';
 import ApiKeysPage from '@/pages/ApiKeysPage';
 import ConnectionsPage from '@/pages/ConnectionsPage';
@@ -14,6 +15,8 @@ import DashboardHome from '@/pages/DashboardHome';
 import LoginPage from '@/pages/LoginPage';
 import McpServersPage from '@/pages/McpServersPage';
 import MembersPage from '@/pages/MembersPage';
+import OAuthClientsPage from '@/pages/OAuthClientsPage';
+import OAuthConsentPage from '@/pages/OAuthConsentPage';
 import OnboardingPage from '@/pages/OnboardingPage';
 import OrganizationPage from '@/pages/OrganizationPage';
 import ReauthPage from '@/pages/ReauthPage';
@@ -78,6 +81,47 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * The login route, which an already-signed-in user normally never sees.
+ *
+ * The exceptions are the three ways better-auth's oidc-provider parks somebody else's sign-in on
+ * this page. Bouncing any of them to the dashboard kills the authorization silently and leaves the
+ * application that asked waiting for a callback that never comes, so each one has to render
+ * LoginPage instead and let it decide what to do:
+ *
+ *  - the full authorize query, forwarded when there is no session at all;
+ *  - a re-authentication prompt (`prompt=login`, or an expired `max_age`), which carries only
+ *    `client_id`, `code` and `state` — the one shape that arrives with a session already, and the
+ *    reason this check cannot simply be "is there a query";
+ *  - a consent request whose session lapsed before the screen rendered.
+ */
+export function LoginRoute() {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (isAuthenticated && !parksAnAuthorization(location.search)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <LoginPage />;
+}
+
+/**
+ * The consent screen, which needs a session the flow normally guarantees.
+ *
+ * When it has lapsed, the request goes to the login page rather than being dropped: signing in
+ * there brings the user straight back here. Without the query the sign-in would end on the
+ * dashboard and the application would wait forever.
+ */
+export function ConsentRoute() {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to={`/login${location.search}`} replace />;
+  }
+  return <OAuthConsentPage />;
+}
+
 function AppRoutes() {
   const { authMode, isAuthenticated, isLoading, organizations, signUpEnabled } = useAuth();
 
@@ -96,10 +140,14 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
-      />
+      <Route path="/login" element={<LoginRoute />} />
+      {/*
+        The consent screen better-auth's oidc-provider redirects to (`consentPage` in
+        apps/api/src/lib/oidc-provider-config.ts). It sits outside ProtectedRoute for the same
+        reason invitation acceptance does: that gate sends anyone without an organization to
+        /onboarding, and a user consenting has a workspace but not necessarily an active one.
+      */}
+      <Route path="/oauth/consent" element={<ConsentRoute />} />
       <Route
         path="/register"
         element={
@@ -159,6 +207,7 @@ function AppRoutes() {
         <Route path="mcp-servers" element={<McpServersPage />} />
         <Route path="sandbox" element={<SandboxPage />} />
         <Route path="api-keys" element={<ApiKeysPage />} />
+        <Route path="oauth-clients" element={<OAuthClientsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="security" element={<SecurityPage />} />
         <Route path="members" element={<MembersPage />} />

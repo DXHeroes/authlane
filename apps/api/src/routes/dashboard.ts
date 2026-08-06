@@ -42,6 +42,11 @@ import type { CacheStore } from '../lib/cache.js';
 import { expireConnectionsForService } from '../lib/connection-invalidation.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
 import { logger } from '../lib/logger.js';
+import {
+  isOrganizationAdmin,
+  isOrganizationOwner,
+  organizationRole,
+} from '../lib/organization-roles.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
 import {
   isPlatformDefaultService,
@@ -1067,13 +1072,7 @@ export function createDashboardRouter(
       }
 
       // Check if user has admin or owner role
-      const [currentMember] = await db
-        .select()
-        .from(member)
-        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
-        .limit(1);
-
-      if (!currentMember || (currentMember.role !== 'admin' && currentMember.role !== 'owner')) {
+      if (!isOrganizationAdmin(await organizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only admins and owners can invite members'), 403);
       }
 
@@ -1118,13 +1117,7 @@ export function createDashboardRouter(
       }
 
       // Check if current user is owner (only owners can update roles)
-      const [currentMember] = await db
-        .select()
-        .from(member)
-        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
-        .limit(1);
-
-      if (currentMember?.role !== 'owner') {
+      if (!isOrganizationOwner(await organizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only owners can update member roles'), 403);
       }
 
@@ -1189,13 +1182,7 @@ export function createDashboardRouter(
       }
 
       // Check if current user has admin or owner role
-      const [currentMember] = await db
-        .select()
-        .from(member)
-        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
-        .limit(1);
-
-      if (!currentMember || (currentMember.role !== 'admin' && currentMember.role !== 'owner')) {
+      if (!isOrganizationAdmin(await organizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only admins and owners can remove members'), 403);
       }
 
@@ -1283,13 +1270,7 @@ export function createDashboardRouter(
       }
 
       // Check if user has admin or owner role
-      const [currentMember] = await db
-        .select()
-        .from(member)
-        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
-        .limit(1);
-
-      if (!currentMember || (currentMember.role !== 'admin' && currentMember.role !== 'owner')) {
+      if (!isOrganizationAdmin(await organizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only admins and owners can update organization'), 403);
       }
 
@@ -1395,13 +1376,7 @@ export function createDashboardRouter(
       }
 
       // Check if user is owner
-      const [currentMember] = await db
-        .select()
-        .from(member)
-        .where(and(eq(member.organizationId, org.id), eq(member.userId, currentUser.id)))
-        .limit(1);
-
-      if (currentMember?.role !== 'owner') {
+      if (!isOrganizationOwner(await organizationRole(db, org.id, currentUser.id))) {
         return c.json(Errors.unauthorized('Only owners can delete organization'), 403);
       }
 

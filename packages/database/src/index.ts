@@ -33,3 +33,4 @@ export * from './mcp-servers.js';
 export * from './provider-tools.js';
 export * from './schema/index.js';
 export * from './secret-store.js';
+export * from './seed-oauth-client.js';

@@ -5,16 +5,6 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./seed-oauth-client": {
-      "types": "./dist/seed-oauth-client.d.ts",
-      "import": "./dist/seed-oauth-client.js"
-    }
-  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -27,8 +17,7 @@
     "generate": "drizzle-kit generate",
     "studio": "drizzle-kit studio",
     "seed": "dotenv -e ../../.env -- tsx src/seed.ts",
-    "seed:catalog": "dotenv -e ../../.env -- tsx src/seed-catalog.ts",
-    "seed:oauth-client": "dotenv -e ../../.env -- tsx src/seed-oauth-client.ts"
+    "seed:catalog": "dotenv -e ../../.env -- tsx src/seed-catalog.ts"
   },
   "dependencies": {
     "@authlane/crypto": "workspace:*",

@@ -18,7 +18,6 @@ import { createControlPlaneRouter } from './control-plane.js';
 import { createDashboardRouter } from './dashboard.js';
 import { createMcpServersRouter } from './mcp-servers.js';
 import { createOAuthRouter } from './oauth.js';
-import { createOAuthClientsRouter } from './oauth-clients.js';
 import { createSandboxRouter } from './sandbox.js';
 import { createServicesRouter } from './services.js';
 
@@ -37,7 +36,6 @@ export function createApiRouter(
   dashboard.route('/services', createServicesRouter(db));
   dashboard.route('/', createDashboardRouter(db, cache, secretStore));
   dashboard.route('/', createMcpServersRouter(db, createMcpDiscoveryDeps(), cache, secretStore));
-  dashboard.route('/', createOAuthClientsRouter(db));
   if (internalFetch) {
     dashboard.route(
       '/',

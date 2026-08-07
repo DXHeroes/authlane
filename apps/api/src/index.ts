@@ -36,10 +36,6 @@ import {
 import { logger, logRequest } from './lib/logger.js';
 import { recordHttpRequest } from './lib/metrics.js';
 import {
-  evaluateOAuthAuthorizeRequest,
-  guardResumedOAuthAuthorize,
-} from './lib/oauth-authorize-gate.js';
-import {
   canonicalRedirectLocation,
   isDocsPath,
   isProductOnlyPath,
@@ -60,21 +56,6 @@ import {
 import { createApiRouter } from './routes/index.js';
 
 const ROOT_DOCUMENTATION_ASSETS = new Set(['/llms.txt', '/llms-full.txt']);
-
-const OAUTH_TOKEN_PATH = '/api/auth/oauth2/token';
-const OAUTH_AUTHORIZE_PATH = '/api/auth/oauth2/authorize';
-const OAUTH_REGISTER_PATH = '/api/auth/oauth2/register';
-
-/**
- * The one route allowed past the JSON-only content-type gate.
- *
- * RFC 6749 token requests are `application/x-www-form-urlencoded`, and the oidc-provider plugin
- * accepts both that and JSON. Rejecting form bodies here would make Authlane unusable by any
- * spec-compliant OAuth client library.
- */
-function isFormEncodedTokenRequest(method: string, path: string): boolean {
-  return method === 'POST' && path === OAUTH_TOKEN_PATH;
-}
 
 function isDocumentationPath(path: string): boolean {
   return isDocsPath(path) || ROOT_DOCUMENTATION_ASSETS.has(path);
@@ -359,11 +340,7 @@ export function createApp(
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method)) {
       const contentLength = Number(c.req.header('content-length') || 0);
       const contentType = c.req.header('content-type') || '';
-      if (
-        contentLength > 0 &&
-        !contentType.toLowerCase().startsWith('application/json') &&
-        !isFormEncodedTokenRequest(c.req.method, c.req.path)
-      ) {
+      if (contentLength > 0 && !contentType.toLowerCase().startsWith('application/json')) {
         return c.json(
           errorResult(Errors.validationError('Content-Type must be application/json')),
           415
@@ -430,29 +407,7 @@ export function createApp(
     try {
       const headers = new Headers(c.req.raw.headers);
       headers.set('x-authlane-client-ip', c.get('clientIp'));
-      const request = new Request(c.req.raw, { headers });
-      // RFC 7591 registration is closed. The plugin's `allowDynamicClientRegistration: false` only
-      // makes its /oauth2/register endpoint require a session, and any Authlane user reaching it
-      // would violate the NOT NULL `oauth_application.organization_id` the plugin cannot populate.
-      // Clients are created from the dashboard, where the workspace is known.
-      if (c.req.path === OAUTH_REGISTER_PATH) {
-        return c.json(
-          {
-            error: 'invalid_request',
-            error_description:
-              'Dynamic client registration is not supported. Register OAuth clients from the Authlane dashboard.',
-          },
-          404
-        );
-      }
-      if (c.req.path === OAUTH_AUTHORIZE_PATH) {
-        const deniedRedirect = await evaluateOAuthAuthorizeRequest(db, auth, request);
-        if (deniedRedirect) return c.redirect(deniedRedirect, 302);
-      }
-      const response = await auth.handler(request);
-      // A sign-in can resume a pending authorization inside the plugin, on a path the check above
-      // never sees, so the response has to be gated too.
-      return await guardResumedOAuthAuthorize(db, auth, request, response);
+      return await auth.handler(new Request(c.req.raw, { headers }));
     } catch (error) {
       logger.error({ error, requestId: c.get('requestId') }, 'Authentication handler failed');
       return c.json(errorResult(Errors.internalError('Authentication request failed')), 500);

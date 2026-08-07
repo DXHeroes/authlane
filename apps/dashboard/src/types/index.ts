@@ -122,28 +122,6 @@ export interface ApiKeyWithSecret extends ApiKey {
   key: string;
 }
 
-/**
- * An OAuth client this workspace registered against Authlane's own authorization server, so a
- * downstream app can pair user identities with the workspace.
- */
-export interface OAuthClient {
-  id: string;
-  name: string;
-  clientId: string;
-  redirectUris: string[];
-  disabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
- * The registration response, and the only place `clientSecret` ever appears. Authlane stores it
- * sealed and cannot return it again — losing it means registering a new client.
- */
-export interface OAuthClientWithSecret extends OAuthClient {
-  clientSecret: string;
-}
-
 export interface OrganizationSettings {
   organizationId: string;
   webhookUrl?: string;

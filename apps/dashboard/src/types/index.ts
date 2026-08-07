@@ -66,6 +66,13 @@ export interface OrganizationService {
   customClientSecret?: string;
   // API Key credential
   apiKey?: string;
+  /**
+   * The callback the provider must redirect back to, built by the API.
+   *
+   * Never assembled in the browser: the dashboard has its own origin in development, and a URI
+   * taken from there names a host the API never answers on.
+   */
+  redirectUri?: string;
   config?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;

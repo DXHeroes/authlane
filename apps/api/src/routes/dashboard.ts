@@ -40,6 +40,7 @@ import { Hono } from 'hono';
 import { DEFAULT_API_SCOPES, normalizeApiScopes } from '../lib/api-principal.js';
 import type { CacheStore } from '../lib/cache.js';
 import { expireConnectionsForService } from '../lib/connection-invalidation.js';
+import { tenantServicesCacheKey } from '../lib/control-plane-repository.js';
 import { createInvitation, validateNotLastOwner } from '../lib/invitations.js';
 import { logger } from '../lib/logger.js';
 import {
@@ -48,6 +49,7 @@ import {
   readOrganizationRole,
 } from '../lib/organization-roles.js';
 import { createPaginatedResponse, parsePaginationParams } from '../lib/pagination.js';
+import { oauthCallbackUrl, publicApiBase } from '../lib/public-api-base.js';
 import {
   isPlatformDefaultService,
   PLATFORM_DEFAULT_SERVICE_SETTINGS,
@@ -762,6 +764,14 @@ export function createDashboardRouter(
         )
         .limit(1);
 
+      /*
+       * Built here, never in the browser. The dashboard runs on its own origin in development, so
+       * a URI assembled there would name the wrong host and the provider would reject the redirect.
+       * An owner registering their own OAuth application has no other way to learn this string —
+       * it was the missing half of the setup instructions.
+       */
+      const redirectUri = oauthCallbackUrl(publicApiBase(c.req.url), serviceId);
+
       if (!orgService) {
         // Never configured, so it follows the platform default rather than being off.
         return c.json({
@@ -770,6 +780,7 @@ export function createDashboardRouter(
             serviceId,
             enabled: isPlatformDefaultService(serviceId),
             toolAccessPolicy: PLATFORM_DEFAULT_SERVICE_SETTINGS.toolAccessPolicy,
+            redirectUri,
           },
           error: null,
         });
@@ -784,6 +795,7 @@ export function createDashboardRouter(
           customClientId: orgService.oauthClientId,
           // Indicate if API key is set without revealing it
           apiKey: orgService.apiKeySecretId ? '********' : undefined,
+          redirectUri,
           createdAt: orgService.createdAt?.toISOString(),
           updatedAt: orgService.updatedAt?.toISOString(),
         },
@@ -880,7 +892,7 @@ export function createDashboardRouter(
           'TOOL_POLICY_REAUTHORIZATION_REQUIRED'
         );
       }
-      await cache?.delete(`control-plane:tenant-services:${org.id}`);
+      await cache?.delete(tenantServicesCacheKey(org.id));
 
       return c.json({
         data: {
@@ -990,7 +1002,7 @@ export function createDashboardRouter(
           target: [organizationServices.organizationId, organizationServices.serviceId],
           set: updateData,
         });
-      await cache?.delete(`control-plane:tenant-services:${org.id}`);
+      await cache?.delete(tenantServicesCacheKey(org.id));
 
       return c.json({
         data: { success: true },

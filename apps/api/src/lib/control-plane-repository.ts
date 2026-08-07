@@ -20,7 +20,24 @@ import type {
 } from '../routes/control-plane.js';
 import type { CacheStore } from './cache.js';
 import { recordCacheHit, recordCacheMiss } from './metrics.js';
+import {
+  connectabilityOf,
+  resolveBuiltInAuthorization,
+  resolveMcpAuthorization,
+} from './oauth-provider-resolution.js';
 import { serviceEnabledForOrganization, tenantServiceJoin } from './service-enablement.js';
+
+/**
+ * Where an organization's catalogue is cached.
+ *
+ * Exported because every route that changes what the catalogue would say has to drop this exact
+ * key. Written out at each of those call sites, one of them would eventually be spelled
+ * differently and a workspace would keep being told a service is unconnectable for five minutes
+ * after its owner fixed it.
+ */
+export function tenantServicesCacheKey(organizationId: string): string {
+  return `control-plane:tenant-services:${organizationId}`;
+}
 
 export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
   constructor(private readonly db: Database) {}
@@ -32,6 +49,7 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         name: services.name,
         authType: services.authType,
         enabled: organizationServices.enabled,
+        oauthClientId: organizationServices.oauthClientId,
         toolAccessPolicy: organizationServices.toolAccessPolicy,
         config: services.config,
       })
@@ -44,12 +62,31 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
           serviceEnabledForOrganization()
         )
       );
-    const builtIn = rows.map((row) => ({
-      ...row,
-      enabled: true,
-      toolAccessPolicy:
-        row.toolAccessPolicy === 'full' ? ('full' as const) : ('read_only' as const),
-    }));
+    const builtIn = rows.map(({ oauthClientId, ...row }) => {
+      /*
+       * A left join leaves this null for a service the organization never configured, which the
+       * where clause only admits when the platform can authorize it on its own credentials — so an
+       * absent row means on. This used to be a hardcoded `true`, which happened to agree with the
+       * query and would have gone on agreeing with it silently after the query changed.
+       */
+      const enabled = row.enabled ?? true;
+      return {
+        ...row,
+        kind: 'service' as const,
+        enabled,
+        toolAccessPolicy:
+          row.toolAccessPolicy === 'full' ? ('full' as const) : ('read_only' as const),
+        ...connectabilityOf(
+          resolveBuiltInAuthorization({
+            serviceId: row.id,
+            authType: row.authType,
+            enabled,
+            config: row.config,
+            tenantOAuthClientId: oauthClientId,
+          })
+        ),
+      };
+    });
 
     // Servers the tenant registered itself. They are not in `services`, which is a global catalog,
     // so without this the SDK would never surface them and no user could be offered one.
@@ -60,7 +97,8 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         id: server.id,
         name: server.name,
         authType: server.authType,
-        enabled: true,
+        kind: 'mcp_server' as const,
+        enabled: server.enabled,
         // Per-tool risk is stored on the contract, so the service-level policy stays permissive
         // and the read_only decision is made per tool when they are issued.
         toolAccessPolicy: 'full' as const,
@@ -78,6 +116,9 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
             provider_mcp: { endpoint: server.serverUrl },
           },
         },
+        // The whole row goes to the same resolver the authorize route calls, so the catalogue
+        // cannot advertise a connection that route would refuse.
+        ...connectabilityOf(resolveMcpAuthorization(server)),
       })),
     ];
   }
@@ -170,7 +211,7 @@ export class CachedControlPlaneRepository implements ControlPlaneRepository {
   ) {}
 
   async listTenantServices(organizationId: string) {
-    const key = `control-plane:tenant-services:${organizationId}`;
+    const key = tenantServicesCacheKey(organizationId);
     const cached =
       await this.cache.get<Awaited<ReturnType<ControlPlaneRepository['listTenantServices']>>>(key);
     if (cached) {

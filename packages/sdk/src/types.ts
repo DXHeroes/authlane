@@ -30,11 +30,29 @@ export interface ToolAnnotations {
   openWorldHint: boolean;
 }
 
+/** Why a listed service cannot be connected right now, and what its owner has to fix. */
+export type NotConnectableReason =
+  | 'missing_oauth_client'
+  | 'missing_authorization_url'
+  | 'disabled';
+
 export interface Service {
   id: string;
   name: string;
   authType: string;
+  /** A service from Authlane's global catalog, or an MCP server this workspace registered. */
+  kind: 'service' | 'mcp_server';
   enabled: boolean;
+  /**
+   * Whether starting a connection for this service would work right now.
+   *
+   * A service can be listed and enabled and still be unconnectable — most often because nobody has
+   * registered an OAuth application for it. Offering such a service in a UI produces a failure at
+   * the moment the user clicks, with nothing said beforehand, so check this before you render it.
+   */
+  connectable: boolean;
+  /** Present exactly when `connectable` is false. */
+  notConnectableReason?: NotConnectableReason;
   toolAccessPolicy: ToolAccessPolicy;
   config: Record<string, unknown>;
 }

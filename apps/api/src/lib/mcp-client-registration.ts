@@ -15,6 +15,7 @@ import type { Database, SecretStore } from '@authlane/database';
 import { saveMcpOAuthClient } from '@authlane/database';
 import { isSameRegistrableDomain } from '@authlane/shared';
 import type { McpDiscoveryDeps } from './mcp-discovery-run.js';
+import { oauthCallbackUrl } from './public-api-base.js';
 
 /** What a server returned when it accepted the registration. */
 export interface RegisteredOAuthClient {
@@ -34,12 +35,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * The callback the server must redirect back to.
  *
- * Identical in shape to the one `issueAuthorizationRedirect` builds at authorize time. If these ever
- * disagree the provider rejects the redirect, so they are derived the same way rather than written
- * twice with different intent.
+ * The same URI `issueAuthorizationRedirect` builds at authorize time, because it is now literally
+ * the same call. The comment here used to claim they were derived the same way while both were
+ * spelled out separately; if they ever disagreed the provider would reject the redirect and the
+ * failure would surface at the provider with nothing on our side to explain it.
  */
 export function mcpCallbackUrl(apiBaseUrl: string, serverId: string): string {
-  return new URL(`/api/v1/oauth/${serverId}/callback`, apiBaseUrl).toString();
+  return oauthCallbackUrl(apiBaseUrl, serverId);
 }
 
 export async function registerMcpOAuthClient(

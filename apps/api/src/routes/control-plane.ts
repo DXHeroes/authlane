@@ -17,13 +17,23 @@ import {
 } from '@authlane/shared';
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
+import type { NotConnectableReason } from '../lib/oauth-provider-resolution.js';
 import { requireScope } from '../middleware/scope.js';
 
 export interface ControlPlaneService {
   id: string;
   name: string;
   authType: string;
+  /** Whether this came from the global catalog or is a server the organization registered. */
+  kind: 'service' | 'mcp_server';
   enabled: boolean;
+  /**
+   * Whether POST /connect/:serviceId/authorize would get past the provider-configuration check
+   * right now. Decided by the same resolvers that route calls, never by this list.
+   */
+  connectable: boolean;
+  /** Present exactly when `connectable` is false. */
+  notConnectableReason?: NotConnectableReason;
   toolAccessPolicy: ToolAccessPolicy;
   config: unknown;
 }

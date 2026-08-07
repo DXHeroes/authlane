@@ -61,6 +61,7 @@ function OAuthConfigSection({
 }) {
   const [customClientId, setCustomClientId] = useState('');
   const [customClientSecret, setCustomClientSecret] = useState('');
+  const [copiedRedirectUri, setCopiedRedirectUri] = useState(false);
   const config = service.config as ServiceConfig;
 
   useEffect(() => {
@@ -68,6 +69,14 @@ function OAuthConfigSection({
       setCustomClientId(orgService.customClientId);
     }
   }, [orgService]);
+
+  const handleCopyRedirectUri = async () => {
+    if (!orgService?.redirectUri) return;
+    if (await copyToClipboard(orgService.redirectUri)) {
+      setCopiedRedirectUri(true);
+      setTimeout(() => setCopiedRedirectUri(false), 2000);
+    }
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -89,6 +98,29 @@ function OAuthConfigSection({
         Configure custom OAuth credentials for {service.name}. Leave blank to use default Authlane
         credentials.
       </p>
+
+      {orgService?.redirectUri && (
+        <Callout className="mb-6" tone="info" title="Redirect URI">
+          <p className="mb-2">
+            Register this exact URI in the provider's console before saving a client ID here. The
+            provider rejects the sign-in if it does not match.
+          </p>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={orgService.redirectUri}
+              className="min-w-0 flex-1 rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs"
+            />
+            <button
+              type="button"
+              onClick={handleCopyRedirectUri}
+              className="rounded-md bg-secondary px-3 py-2 text-sm font-medium hover:bg-secondary/80"
+            >
+              {copiedRedirectUri ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </Callout>
+      )}
 
       {config.developer_console_url && (
         <Callout className="mb-6" tone="info" title="Developer console">

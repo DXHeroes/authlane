@@ -182,8 +182,13 @@ describe('Task 04 OpenAPI 3.1 contract', () => {
     expect(oauthRuntime).toContain(
       "return c.json(errorResult(Errors.notFound('Enabled service', serviceId)), 404);"
     );
+    // The two branches once threw byte-identical text, so a caller could not tell an
+    // unconfigurable MCP server from an unconfigurable built-in service. Each now names its cause.
     expect(oauthRuntime).toContain(
-      "return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);"
+      'return c.json(errorResult(mcpAuthorizationConflict(resolution.reason)), 409);'
+    );
+    expect(oauthRuntime).toContain(
+      'return c.json(errorResult(builtInAuthorizationConflict(serviceId, resolution.reason)), 409);'
     );
     expect(oauthRuntime).toContain(
       "errorResult(Errors.oauthError('OAuth provider is no longer configured'))"

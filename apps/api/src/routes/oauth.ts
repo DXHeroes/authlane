@@ -47,9 +47,13 @@ import {
 } from '../lib/connect-session.js';
 import type { McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
 import { discoverAfterFirstAuthorization } from '../lib/mcp-first-authorization.js';
-import { resolveMcpAuthorization } from '../lib/oauth-provider-resolution.js';
+import type { NotConnectableReason } from '../lib/oauth-provider-resolution.js';
+import {
+  resolveBuiltInAuthorization,
+  resolveMcpAuthorization,
+} from '../lib/oauth-provider-resolution.js';
 import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
-import { publicApiBase } from '../lib/public-api-base.js';
+import { oauthCallbackUrl, publicApiBase } from '../lib/public-api-base.js';
 import {
   readTenantServiceSettings,
   serviceEnabledForOrganization,
@@ -159,6 +163,54 @@ async function listEnabledServiceIds(db: Database, organizationId: string): Prom
   return [...rows.map((row) => row.serviceId), ...tenantServers.map((server) => server.id)];
 }
 
+/**
+ * The 409 an unconfigurable service gets, named by cause.
+ *
+ * Every one of these read "OAuth provider is not configured", from both the MCP branch and the
+ * built-in one. A caller could not tell which kind of service had failed, nor a missing client id
+ * from a missing endpoint, so the only way to find out was to go and read the row. The wording
+ * follows the `notConnectableReason` the catalogue publishes for the same service.
+ */
+function mcpAuthorizationConflict(reason: NotConnectableReason) {
+  switch (reason) {
+    case 'disabled':
+      return Errors.oauthError(
+        'This MCP server is turned off',
+        'Enable the server in the Authlane dashboard. A server whose first discovery failed stays off until discovery succeeds.'
+      );
+    case 'missing_oauth_client':
+      return Errors.oauthError(
+        'This MCP server has no OAuth client',
+        'Authlane could not register itself with this server. Add an OAuth client for it under MCP servers in the Authlane dashboard.'
+      );
+    case 'missing_authorization_url':
+      return Errors.oauthError(
+        'This MCP server advertises no https authorization endpoint',
+        'Re-run discovery for the server. Its stored OAuth metadata has no authorization endpoint, or the endpoint is not https.'
+      );
+  }
+}
+
+function builtInAuthorizationConflict(serviceId: string, reason: NotConnectableReason) {
+  switch (reason) {
+    case 'disabled':
+      return Errors.oauthError(
+        `${serviceId} is turned off for this organization`,
+        'Enable the service in the Authlane dashboard.'
+      );
+    case 'missing_oauth_client':
+      return Errors.oauthError(
+        `No OAuth client is configured for ${serviceId}`,
+        `Add a client ID and secret for ${serviceId} in the Authlane dashboard, and register the redirect URI shown there with the provider.`
+      );
+    case 'missing_authorization_url':
+      return Errors.oauthError(
+        `${serviceId} has no authorization URL in the service catalog`,
+        'This is a defect in the Authlane service catalog rather than in your configuration. Please report it.'
+      );
+  }
+}
+
 interface AuthorizationRedirect {
   authorizationEndpoint: string;
   oauthClientId: string;
@@ -184,10 +236,7 @@ async function issueAuthorizationRedirect(
 ): Promise<string> {
   const { codeVerifier, codeChallenge } = generatePKCE();
   const state = generateState();
-  const callbackUrl = new URL(
-    `/api/v1/oauth/${serviceId}/callback`,
-    publicApiBase(requestUrl)
-  ).toString();
+  const callbackUrl = oauthCallbackUrl(publicApiBase(requestUrl), serviceId);
   const connectionId = crypto.randomUUID();
   const verifierBytes = Buffer.from(codeVerifier, 'utf8');
   let pkceSecretId: string;
@@ -558,7 +607,7 @@ export function createOAuthRouter(
           if (resolution.reason === 'not_oauth') {
             return c.json(errorResult(Errors.oauthError('This service does not use OAuth2')), 400);
           }
-          return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);
+          return c.json(errorResult(mcpAuthorizationConflict(resolution.reason)), 409);
         }
 
         const authorizationUrl = await issueAuthorizationRedirect(
@@ -588,21 +637,30 @@ export function createOAuthRouter(
       if (!service || !tenantService) {
         return c.json(errorResult(Errors.notFound('Enabled service', serviceId)), 404);
       }
-      if (service.authType !== 'oauth2') {
-        return c.json(errorResult(Errors.oauthError('This service does not use OAuth2')), 400);
-      }
 
       const config = service.config as {
-        authorization_url?: string;
         scopes?: unknown;
         default_scopes?: unknown;
         read_only_scopes?: unknown;
       };
-      // A tenant application wins; otherwise fall back to the platform-wide Authlane application.
-      const platformCredentials = getPlatformOAuthCredentials(serviceId);
-      const oauthClientId = tenantService.oauthClientId ?? platformCredentials?.clientId ?? null;
-      if (!config.authorization_url || !oauthClientId) {
-        return c.json(errorResult(Errors.oauthError('OAuth provider is not configured')), 409);
+      /*
+       * The resolver the catalogue reads, so a service it published as connectable gets past here.
+       *
+       * `enabled` is settled rather than re-derived: readTenantServiceSettings returns null for a
+       * service this organization may not use, and that already left as a 404 above.
+       */
+      const resolution = resolveBuiltInAuthorization({
+        serviceId,
+        authType: service.authType,
+        enabled: true,
+        config: service.config,
+        tenantOAuthClientId: tenantService.oauthClientId,
+      });
+      if (!resolution.ok) {
+        if (resolution.reason === 'not_oauth') {
+          return c.json(errorResult(Errors.oauthError('This service does not use OAuth2')), 400);
+        }
+        return c.json(errorResult(builtInAuthorizationConflict(serviceId, resolution.reason)), 409);
       }
 
       let authorizationEndpoint: string;
@@ -610,7 +668,7 @@ export function createOAuthRouter(
         authorizationEndpoint = validateOAuthEndpoint(
           serviceId,
           'authorization',
-          config.authorization_url
+          resolution.authorizationUrl
         );
       } catch {
         return c.json(
@@ -640,7 +698,7 @@ export function createOAuthRouter(
         serviceId,
         {
           authorizationEndpoint,
-          oauthClientId,
+          oauthClientId: resolution.oauthClientId,
           providerParameters: getOAuthAuthorizationParameters(serviceId, requestedScopes),
         }
       );

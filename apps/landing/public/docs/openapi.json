@@ -96,7 +96,9 @@
                           "id",
                           "name",
                           "authType",
+                          "kind",
                           "enabled",
+                          "connectable",
                           "toolAccessPolicy",
                           "config"
                         ],
@@ -114,8 +116,29 @@
                               "api_key"
                             ]
                           },
+                          "kind": {
+                            "type": "string",
+                            "description": "Whether the entry is a service from Authlane's global catalog or an MCP server this organization registered itself.",
+                            "enum": [
+                              "service",
+                              "mcp_server"
+                            ]
+                          },
                           "enabled": {
                             "type": "boolean"
+                          },
+                          "connectable": {
+                            "type": "boolean",
+                            "description": "Whether POST /connect/{serviceId}/authorize would get past the provider-configuration check right now. A service can be enabled and still not connectable, most often because no OAuth application has been registered for it. Check this before offering the service to a user, or the failure only appears once they click."
+                          },
+                          "notConnectableReason": {
+                            "type": "string",
+                            "description": "Present exactly when `connectable` is false.",
+                            "enum": [
+                              "missing_oauth_client",
+                              "missing_authorization_url",
+                              "disabled"
+                            ]
                           },
                           "toolAccessPolicy": {
                             "type": "string",
@@ -7439,7 +7462,9 @@
           "id",
           "name",
           "authType",
+          "kind",
           "enabled",
+          "connectable",
           "toolAccessPolicy",
           "config"
         ],
@@ -7457,8 +7482,29 @@
               "api_key"
             ]
           },
+          "kind": {
+            "type": "string",
+            "description": "Whether the entry is a service from Authlane's global catalog or an MCP server this organization registered itself.",
+            "enum": [
+              "service",
+              "mcp_server"
+            ]
+          },
           "enabled": {
             "type": "boolean"
+          },
+          "connectable": {
+            "type": "boolean",
+            "description": "Whether POST /connect/{serviceId}/authorize would get past the provider-configuration check right now. A service can be enabled and still not connectable, most often because no OAuth application has been registered for it. Check this before offering the service to a user, or the failure only appears once they click."
+          },
+          "notConnectableReason": {
+            "type": "string",
+            "description": "Present exactly when `connectable` is false.",
+            "enum": [
+              "missing_oauth_client",
+              "missing_authorization_url",
+              "disabled"
+            ]
           },
           "toolAccessPolicy": {
             "type": "string",
@@ -7489,7 +7535,9 @@
                 "id",
                 "name",
                 "authType",
+                "kind",
                 "enabled",
+                "connectable",
                 "toolAccessPolicy",
                 "config"
               ],
@@ -7507,8 +7555,29 @@
                     "api_key"
                   ]
                 },
+                "kind": {
+                  "type": "string",
+                  "description": "Whether the entry is a service from Authlane's global catalog or an MCP server this organization registered itself.",
+                  "enum": [
+                    "service",
+                    "mcp_server"
+                  ]
+                },
                 "enabled": {
                   "type": "boolean"
+                },
+                "connectable": {
+                  "type": "boolean",
+                  "description": "Whether POST /connect/{serviceId}/authorize would get past the provider-configuration check right now. A service can be enabled and still not connectable, most often because no OAuth application has been registered for it. Check this before offering the service to a user, or the failure only appears once they click."
+                },
+                "notConnectableReason": {
+                  "type": "string",
+                  "description": "Present exactly when `connectable` is false.",
+                  "enum": [
+                    "missing_oauth_client",
+                    "missing_authorization_url",
+                    "disabled"
+                  ]
                 },
                 "toolAccessPolicy": {
                   "type": "string",

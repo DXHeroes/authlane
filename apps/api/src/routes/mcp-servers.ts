@@ -26,6 +26,7 @@ import { Errors, MCP_SERVER_PRESETS } from '@authlane/shared';
 import { Hono } from 'hono';
 import type { CacheStore } from '../lib/cache.js';
 import { expireConnectionsForService } from '../lib/connection-invalidation.js';
+import { tenantServicesCacheKey } from '../lib/control-plane-repository.js';
 import { logger } from '../lib/logger.js';
 import { ensureMcpOAuthClient, mcpCallbackUrl } from '../lib/mcp-client-registration.js';
 import { discoverMcpServer, type McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
@@ -87,7 +88,7 @@ export function createMcpServersRouter(
    * stays invisible to the SDK for up to that long and looks broken to whoever just added it.
    */
   async function invalidateCatalog(organizationId: string): Promise<void> {
-    await cache?.delete(`control-plane:tenant-services:${organizationId}`);
+    await cache?.delete(tenantServicesCacheKey(organizationId));
   }
 
   /**

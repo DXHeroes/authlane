@@ -94,18 +94,34 @@ export async function listMcpServerToolsForReview(
   }));
 }
 
-/** Enabled MCP servers the organization owns, for catalog and connect-session listings. */
-export async function listEnabledMcpServers(db: Database, organizationId: string) {
-  return db
+/**
+ * Enabled MCP servers the organization owns, for catalog and connect-session listings.
+ *
+ * Each row is a whole {@link McpServerConnectConfig} rather than a name and a URL, so the catalog
+ * can put a server through the same readiness check the connect flow uses instead of guessing from
+ * a narrower row whether connecting would work.
+ */
+export async function listEnabledMcpServers(
+  db: Database,
+  organizationId: string
+): Promise<(McpServerConnectConfig & { name: string })[]> {
+  const rows = await db
     .select({
       id: mcpServers.id,
       name: mcpServers.name,
       authType: mcpServers.authType,
       serverUrl: mcpServers.serverUrl,
+      enabled: mcpServers.enabled,
+      oauthClientId: mcpServers.oauthClientId,
+      oauthClientSecretId: mcpServers.oauthClientSecretId,
+      oauthMetadata: mcpServers.oauthMetadata,
+      authorizationRequired: mcpServers.authorizationRequired,
     })
     .from(mcpServers)
     .where(and(eq(mcpServers.organizationId, organizationId), eq(mcpServers.enabled, true)))
     .orderBy(asc(mcpServers.name));
+
+  return rows.map((row) => ({ ...toConnectConfig(row), name: row.name }));
 }
 
 /**
@@ -353,6 +369,45 @@ export interface McpServerConnectConfig {
   authorizationRequired: boolean;
 }
 
+/** The columns a connect config is read from, whether one row or a whole organization's worth. */
+interface McpServerConnectRow {
+  id: string;
+  serverUrl: string;
+  authType: string;
+  enabled: boolean;
+  oauthClientId: string | null;
+  oauthClientSecretId: string | null;
+  oauthMetadata: unknown;
+  authorizationRequired: boolean;
+}
+
+/**
+ * The stored row as the connect flow sees it.
+ *
+ * Shared by the single-server read and the per-organization listing so both unwrap the discovery
+ * metadata the same way. Two copies of this would let the catalog decide a server has an
+ * authorization endpoint while the connect flow decided it has none.
+ */
+function toConnectConfig(row: McpServerConnectRow): McpServerConnectConfig {
+  const metadata = (row.oauthMetadata ?? null) as {
+    authorizationEndpoint?: unknown;
+    tokenEndpoint?: unknown;
+  } | null;
+
+  return {
+    id: row.id,
+    serverUrl: row.serverUrl,
+    authType: row.authType,
+    enabled: row.enabled,
+    oauthClientId: row.oauthClientId,
+    oauthClientSecretId: row.oauthClientSecretId,
+    authorizationEndpoint:
+      typeof metadata?.authorizationEndpoint === 'string' ? metadata.authorizationEndpoint : null,
+    tokenEndpoint: typeof metadata?.tokenEndpoint === 'string' ? metadata.tokenEndpoint : null,
+    authorizationRequired: row.authorizationRequired,
+  };
+}
+
 /**
  * Everything the connect flow needs about one tenant server.
  *
@@ -381,21 +436,5 @@ export async function readMcpServerConnectConfig(
 
   if (!row) return null;
 
-  const metadata = (row.oauthMetadata ?? null) as {
-    authorizationEndpoint?: unknown;
-    tokenEndpoint?: unknown;
-  } | null;
-
-  return {
-    id: row.id,
-    serverUrl: row.serverUrl,
-    authType: row.authType,
-    enabled: row.enabled,
-    oauthClientId: row.oauthClientId,
-    oauthClientSecretId: row.oauthClientSecretId,
-    authorizationEndpoint:
-      typeof metadata?.authorizationEndpoint === 'string' ? metadata.authorizationEndpoint : null,
-    tokenEndpoint: typeof metadata?.tokenEndpoint === 'string' ? metadata.tokenEndpoint : null,
-    authorizationRequired: row.authorizationRequired,
-  };
+  return toConnectConfig(row);
 }

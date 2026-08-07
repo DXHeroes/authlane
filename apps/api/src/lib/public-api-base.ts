@@ -14,3 +14,19 @@
 export function publicApiBase(requestUrl: string): string {
   return process.env.BETTER_AUTH_URL || new URL(requestUrl).origin;
 }
+
+/**
+ * The redirect URI for one service, built the one way.
+ *
+ * The authorize step sends this to the provider, the token exchange resends it, dynamic client
+ * registration registers it, and both dashboard pages show it to the owner to paste into a
+ * provider console. A second spelling anywhere in that set produces a redirect the provider
+ * rejects, with the failure surfacing at the provider and nothing here to explain it — which is
+ * exactly why a service owner could not previously work the URI out by hand.
+ *
+ * `serviceId` is a built-in catalog id or a tenant MCP server id; both callbacks are the same
+ * route.
+ */
+export function oauthCallbackUrl(apiBaseUrl: string, serviceId: string): string {
+  return new URL(`/api/v1/oauth/${serviceId}/callback`, apiBaseUrl).toString();
+}

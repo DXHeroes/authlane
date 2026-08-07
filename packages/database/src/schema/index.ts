@@ -12,8 +12,6 @@ export * from './connect-sessions.js';
 // Application tables
 export * from './connections.js';
 export * from './mcp-servers.js';
-// Better Auth oidc-provider tables (oauthApplication, oauthAccessToken, oauthConsent)
-export * from './oauth-provider.js';
 export * from './oauth-transactions.js';
 export * from './organization-services.js';
 export * from './outbox-events.js';

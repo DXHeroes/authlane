@@ -7,7 +7,6 @@ import {
   HomeIcon,
   KeyIcon,
   LinkIcon,
-  PuzzlePieceIcon,
   ServerStackIcon,
   ShieldCheckIcon,
   Squares2X2Icon,
@@ -29,7 +28,6 @@ const productNavigation = [
   { to: '/dashboard/mcp-servers', label: 'MCP Servers', icon: ServerStackIcon },
   { to: '/dashboard/sandbox', label: 'Sandbox', icon: BeakerIcon },
   { to: '/dashboard/api-keys', label: 'API Keys', icon: KeyIcon },
-  { to: '/dashboard/oauth-clients', label: 'Connected Apps', icon: PuzzlePieceIcon },
   { to: '/dashboard/security', label: 'Security', icon: ShieldCheckIcon },
 ] as const;
 

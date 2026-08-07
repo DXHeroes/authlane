@@ -1,22 +1,5 @@
 import { type FormEvent, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
-import {
-  authorizeUrl,
-  consentUrl,
-  type ParkedRequestKind,
-  takeParkedRequest,
-} from '@/lib/oauth-flow';
-
-/**
- * Where each kind of parked request resumes.
- *
- * The stash holds a kind and a query, never a URL, and this map is what turns the one into the
- * other — so the only destinations reachable from storage are the two written here.
- */
-const RESUME_TARGET: Record<ParkedRequestKind, (query: string) => string> = {
-  authorize: authorizeUrl,
-  consent: consentUrl,
-};
 
 export default function TwoFactorPage() {
   const [code, setCode] = useState('');
@@ -33,18 +16,7 @@ export default function TwoFactorPage() {
         ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice: false })
         : await authClient.twoFactor.verifyTotp({ code, trustDevice: false });
       if (result.error) throw new Error(result.error.message || 'Verification failed');
-
-      /**
-       * Finishes an OAuth sign-in here, rather than dropping the user on the dashboard.
-       *
-       * Verifying is what establishes the session, so a request parked on the login page has to
-       * survive the hop to this one — the login page stashes it for exactly this. The plugin's own
-       * `after` hook does fire on the verify response, but it expires its cookie on the way through
-       * and answers this `fetch` with a redirect the client follows asynchronously; an
-       * unconditional jump to /dashboard used to win that race and destroy the request.
-       */
-      const parked = takeParkedRequest();
-      window.location.assign(parked ? RESUME_TARGET[parked.kind](parked.query) : '/dashboard');
+      window.location.assign('/dashboard');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Verification failed');
     } finally {

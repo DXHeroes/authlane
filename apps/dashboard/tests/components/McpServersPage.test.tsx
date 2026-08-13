@@ -143,10 +143,21 @@ describe('the verified server catalogue', () => {
    * id — a value the MCP branch never reads. Following it changed nothing, and the server kept
    * answering 409.
    */
-  it('points a server without dynamic registration at its own form, not at Services', async () => {
+  it('promises nothing about registration it cannot yet know, and points at its own form', async () => {
+    /*
+     * An unregistered preset gets a neutral note: whether the provider allows Authlane to register
+     * itself is answered by that provider's metadata, which nobody has fetched yet. The note used
+     * to assert one way or the other from a hand-kept flag that was wrong for more than half the
+     * catalogue. What must stay true either way is where it sends the owner — this form, not the
+     * built-in Services page, which cannot configure a tenant's own server.
+     */
     render(<McpServersPage />);
 
-    expect(await screen.findByText(/does not let Authlane register itself/)).toBeInTheDocument();
+    // findAll, not find: every unregistered preset now carries the same neutral note, where the
+    // old copy differed per entry because it was asserting something it had no way to know.
+    expect(
+      (await screen.findAllByText(/Authlane will try to register itself/)).length
+    ).toBeGreaterThan(0);
     expect(screen.queryByText(/under Services/)).not.toBeInTheDocument();
   });
 });

@@ -15,6 +15,7 @@ import {
 import type { CacheStore } from '../lib/cache.js';
 import { logger } from '../lib/logger.js';
 import { createMcpDiscoveryDeps } from '../lib/mcp-discovery-deps.js';
+import { configuredApiBase } from '../lib/public-api-base.js';
 import { rediscoverStaleMcpServers } from './mcp-discovery.js';
 import { markExpiredConnections, processOutboxBatch } from './outbox.js';
 import { discoverProviderTools } from './provider-tool-discovery.js';
@@ -215,7 +216,8 @@ export function setupJobs(
     });
     mcpDiscoveryWorker = new Worker<Record<string, never>>(
       'mcp-discovery',
-      () => rediscoverStaleMcpServers(db, discoveryDeps, { cache }),
+      () =>
+        rediscoverStaleMcpServers(db, discoveryDeps, { cache, apiBaseUrl: configuredApiBase() }),
       { connection: connectionOptions }
     );
     mcpDiscoveryQueue.on('error', handleRedisError);

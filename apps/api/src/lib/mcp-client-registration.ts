@@ -12,8 +12,8 @@
  */
 
 import type { Database, SecretStore } from '@authlane/database';
-import { saveMcpOAuthClient } from '@authlane/database';
-import { isSameRegistrableDomain } from '@authlane/shared';
+import { saveMcpOAuthClient, saveMcpOAuthClientError } from '@authlane/database';
+import { isTrustedMcpEndpoint, type McpEndpointProvenance } from '@authlane/shared';
 import type { McpDiscoveryDeps } from './mcp-discovery-run.js';
 import { oauthCallbackUrl } from './public-api-base.js';
 
@@ -47,13 +47,21 @@ export function mcpCallbackUrl(apiBaseUrl: string, serverId: string): string {
 export async function registerMcpOAuthClient(
   serverId: string,
   registrationEndpoint: string,
-  options: { host: string; apiBaseUrl: string; deps: McpDiscoveryDeps }
+  options: { provenance: McpEndpointProvenance; apiBaseUrl: string; deps: McpDiscoveryDeps }
 ): Promise<ClientRegistrationResult> {
-  // Discovery already refuses a metadata document whose registration endpoint sits outside the
-  // registered domain. Checked again here because this function sends a request of its own, and a
-  // caller reaching it by another route must not be able to skip that.
-  if (!isSameRegistrableDomain(options.host, registrationEndpoint)) {
-    return { ok: false, message: 'The registration endpoint is outside the server domain' };
+  // The same judgement discovery made when it accepted this endpoint, re-applied because this
+  // function sends a request of its own and a caller arriving by another route must not skip it.
+  // It used to be a different judgement — the endpoint was re-tested against the MCP server's host,
+  // which discovery had never required of an issuer-declared endpoint — and that is what turned
+  // away every provider whose authorization server lives beside its MCP host.
+  if (!isTrustedMcpEndpoint(registrationEndpoint, options.provenance)) {
+    return {
+      ok: false,
+      message:
+        options.provenance.trust === 'issuer-declared'
+          ? 'The registration endpoint the issuer published is not https'
+          : `The registration endpoint is not on ${options.provenance.serverHost}, and no issuer vouched for it`,
+    };
   }
 
   const redirectUri = mcpCallbackUrl(options.apiBaseUrl, serverId);
@@ -93,9 +101,13 @@ export async function registerMcpOAuthClient(
 /**
  * Registers an OAuth client for a server that has not got one yet, and stores it.
  *
- * Shared by the registration route and the scheduled refresh so both behave the same. Returns the
- * reason it did nothing rather than throwing: a server whose tools were discovered is still useful
- * even when registration fails, and taking its tool list away over that would be the wrong trade.
+ * Called by the registration route, the manual rediscover route and the scheduled sweep, so all
+ * three behave the same. Returns the reason it did nothing rather than throwing: a server whose
+ * tools were discovered is still useful even when registration fails, and taking its tool list away
+ * over that would be the wrong trade.
+ *
+ * Whatever it reports is also persisted to `mcp_servers.oauth_client_error`, so the workspace owner
+ * reads the reason on the server's card instead of it existing only in an API log line.
  */
 export async function ensureMcpOAuthClient(
   db: Database,
@@ -103,7 +115,32 @@ export async function ensureMcpOAuthClient(
   input: {
     serverId: string;
     organizationId: string;
-    host: string;
+    provenance: McpEndpointProvenance;
+    authType: string;
+    registrationEndpoint: string | null;
+    existingClientId: string | null;
+    apiBaseUrl: string | null;
+    deps: McpDiscoveryDeps;
+  }
+): Promise<{ registered: boolean; message?: string }> {
+  const outcome = await attemptRegistration(db, secretStore, input);
+
+  // Recorded on every path that could leave the server without a client, and cleared when there is
+  // nothing to say, so the column never outlives the condition it describes. A server that already
+  // has a client reports nothing and clears nothing — saveMcpOAuthClient cleared it when it landed.
+  if (!outcome.registered && !input.existingClientId) {
+    await saveMcpOAuthClientError(db, input.serverId, outcome.message ?? null);
+  }
+  return outcome;
+}
+
+async function attemptRegistration(
+  db: Database,
+  secretStore: SecretStore,
+  input: {
+    serverId: string;
+    organizationId: string;
+    provenance: McpEndpointProvenance;
     authType: string;
     registrationEndpoint: string | null;
     existingClientId: string | null;
@@ -112,12 +149,12 @@ export async function ensureMcpOAuthClient(
   }
 ): Promise<{ registered: boolean; message?: string }> {
   if (input.authType !== 'oauth2') return { registered: false };
-  if (!input.registrationEndpoint) {
-    return { registered: false, message: 'The server does not offer dynamic client registration' };
-  }
   // Already registered. Registering again would abandon the previous client in the provider's
   // account on every refresh.
   if (input.existingClientId) return { registered: false };
+  if (!input.registrationEndpoint) {
+    return { registered: false, message: 'The server does not offer dynamic client registration' };
+  }
   if (!input.apiBaseUrl) {
     // A guessed redirect_uri would be accepted here and rejected at authorize time, which is a far
     // worse failure than not registering.
@@ -125,7 +162,7 @@ export async function ensureMcpOAuthClient(
   }
 
   const result = await registerMcpOAuthClient(input.serverId, input.registrationEndpoint, {
-    host: input.host,
+    provenance: input.provenance,
     apiBaseUrl: input.apiBaseUrl,
     deps: input.deps,
   });

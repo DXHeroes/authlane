@@ -73,7 +73,7 @@ describe('scheduled MCP rediscovery', () => {
 
     const result = await rediscoverStaleMcpServers(db, REACHABLE, { cache });
 
-    expect(result).toEqual({ checked: 1, updated: 1, failed: 0 });
+    expect(result).toEqual({ checked: 1, updated: 1, failed: 0, registered: 0 });
     expect(cache.delete).toHaveBeenCalledWith('control-plane:tenant-services:org-1');
   });
 
@@ -85,7 +85,7 @@ describe('scheduled MCP rediscovery', () => {
 
     const result = await rediscoverStaleMcpServers(db, UNREACHABLE, { cache });
 
-    expect(result).toEqual({ checked: 1, updated: 0, failed: 1 });
+    expect(result).toEqual({ checked: 1, updated: 0, failed: 1, registered: 0 });
     expect(db.updates).toEqual([{ id: 'unknown', kind: 'failure' }]);
     // Nothing changed, so nothing needs invalidating — and the users keep their tools.
     expect(cache.delete).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe('scheduled MCP rediscovery', () => {
 
     const result = await rediscoverStaleMcpServers(db, REACHABLE);
 
-    expect(result).toEqual({ checked: 0, updated: 0, failed: 0 });
+    expect(result).toEqual({ checked: 0, updated: 0, failed: 0, registered: 0 });
     expect(db.updates).toEqual([]);
   });
 });

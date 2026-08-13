@@ -1,0 +1,12 @@
+-- Why a server that discovered fine still has no OAuth client.
+--
+-- Every reason `ensureMcpOAuthClient` gives up for — the server offers no registration endpoint,
+-- the endpoint is not one discovery vouched for, APP_URL is unset, the provider refused the
+-- registration, the provider answered without a client_id — was returned as a message and dropped
+-- into a log line. The workspace owner saw an "OAuth client needed" badge and nothing else, and the
+-- only way to learn the cause was to read the API's logs.
+--
+-- Deliberately not `discovery_error`. That column means the contract could not be read and the row
+-- is disabled; this one belongs to a server that is enabled and serving its tools and merely cannot
+-- be authorized. Reusing it would badge a working server as "not discovered".
+ALTER TABLE "mcp_servers" ADD COLUMN "oauth_client_error" text;

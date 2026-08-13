@@ -9,12 +9,14 @@ import {
 function config(overrides: Record<string, unknown> = {}) {
   return {
     id: 'mcp-1',
+    serverUrl: 'https://mcp.example.com/mcp',
     authType: 'oauth2',
     enabled: true,
     oauthClientId: 'client-123',
     oauthClientSecretId: 'secret-1',
     authorizationEndpoint: 'https://mcp.example.com/authorize',
     tokenEndpoint: 'https://mcp.example.com/token',
+    endpointTrust: 'server-host' as const,
     ...overrides,
   };
 }
@@ -76,12 +78,56 @@ describe('resolveMcpAuthorization', () => {
   });
 
   it('never re-reads the endpoint from the server at connect time', () => {
-    // The endpoint comes from metadata validated at discovery. A plaintext or off-domain value
-    // cannot appear here because discovery refused to store it, but the guard is kept so a
-    // hand-edited row cannot slip one through.
+    /*
+     * The endpoint comes from metadata validated at discovery. A plaintext or off-domain value
+     * cannot appear here because discovery refused to store it, but the guard is kept so a
+     * hand-edited row cannot slip one through.
+     *
+     * The refusal reason is `untrusted_endpoint` rather than `missing_authorization_url`: the
+     * endpoint is present, it is simply not one this row earned the right to use. Callers of the
+     * catalogue see no difference — `connectabilityOf` folds the two together, because from
+     * outside "the stored metadata is unusable, re-run discovery" is the same instruction.
+     */
     expect(
       resolveMcpAuthorization(config({ authorizationEndpoint: 'http://mcp.example.com/authorize' }))
-    ).toEqual({ ok: false, reason: 'missing_authorization_url' });
+    ).toEqual({ ok: false, reason: 'untrusted_endpoint' });
+  });
+
+  it('accepts a sibling host when discovery recorded the issuer as its source', () => {
+    /*
+     * The Attio shape: mcp.attio.com points at app.attio.com through its own on-host metadata
+     * document, so the server named that issuer itself. Discovery settled that question and wrote
+     * `issuer-declared`; re-imposing "same host as the server" here is what used to strand
+     * thirteen providers that offer registration and publish it correctly.
+     */
+    expect(
+      resolveMcpAuthorization(
+        config({
+          authorizationEndpoint: 'https://app.example.com/authorize',
+          tokenEndpoint: 'https://app.example.com/token',
+          endpointTrust: 'issuer-declared',
+        })
+      )
+    ).toEqual({
+      ok: true,
+      authorizationEndpoint: 'https://app.example.com/authorize',
+      oauthClientId: 'client-123',
+      oauthClientSecretId: 'secret-1',
+    });
+  });
+
+  it('still refuses a sibling host on a row that never earned that trust', () => {
+    // Same endpoints, provenance `server-host` — the narrower treatment a row gets when discovery
+    // reached the endpoints by guessing paths, or predates provenance being recorded at all.
+    expect(
+      resolveMcpAuthorization(
+        config({
+          authorizationEndpoint: 'https://app.example.com/authorize',
+          tokenEndpoint: 'https://app.example.com/token',
+          endpointTrust: 'server-host',
+        })
+      )
+    ).toEqual({ ok: false, reason: 'untrusted_endpoint' });
   });
 });
 

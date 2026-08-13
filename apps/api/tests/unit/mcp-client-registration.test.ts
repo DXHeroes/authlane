@@ -18,7 +18,7 @@ import type { McpDiscoveryDeps } from '../../src/lib/mcp-discovery-run.js';
  * `fetch` and of the server, not of our code.
  *
  * The registration logic is then driven through an injected `deps`, because
- * `isSameRegistrableDomain` requires https and a locally generated certificate would make the suite
+ * `isSameHostOrSubdomain` requires https and a locally generated certificate would make the suite
  * depend on openssl being installed. What that leaves uncovered is only the wiring between two
  * halves that are each fully covered.
  */
@@ -145,7 +145,7 @@ describe('dynamic client registration', () => {
     const deps = recordingDeps({ client_id: 'abc123', client_secret: 'shhh' });
 
     const result = await registerMcpOAuthClient('mcp-1', 'https://mcp.example.com/register', {
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       apiBaseUrl: 'https://app.authlane.io',
       deps,
     });
@@ -162,7 +162,7 @@ describe('dynamic client registration', () => {
 
   it('accepts a public client that answers without a secret', async () => {
     const result = await registerMcpOAuthClient('mcp-1', 'https://mcp.example.com/register', {
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       apiBaseUrl: 'https://app.authlane.io',
       deps: recordingDeps({ client_id: 'public-client' }),
     });
@@ -172,7 +172,7 @@ describe('dynamic client registration', () => {
 
   it('treats a response with no client_id as a failure', async () => {
     const result = await registerMcpOAuthClient('mcp-1', 'https://mcp.example.com/register', {
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       apiBaseUrl: 'https://app.authlane.io',
       deps: recordingDeps({ note: 'nope' }),
     });
@@ -184,7 +184,7 @@ describe('dynamic client registration', () => {
     const deps = recordingDeps({ client_id: 'x' });
 
     const result = await registerMcpOAuthClient('mcp-1', 'https://evil.example.net/register', {
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       apiBaseUrl: 'https://app.authlane.io',
       deps,
     });
@@ -198,7 +198,7 @@ describe('dynamic client registration', () => {
     const deps = recordingDeps({ client_id: 'x' });
 
     const result = await registerMcpOAuthClient('mcp-1', 'http://mcp.example.com/register', {
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       apiBaseUrl: 'https://app.authlane.io',
       deps,
     });
@@ -216,7 +216,7 @@ describe('registering once and only once', () => {
     const outcome = await ensureMcpOAuthClient(db, store, {
       serverId: 'mcp-1',
       organizationId: 'org-1',
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       authType: 'oauth2',
       registrationEndpoint: 'https://mcp.example.com/register',
       existingClientId: null,
@@ -238,7 +238,7 @@ describe('registering once and only once', () => {
     const outcome = await ensureMcpOAuthClient(fakeDb(), fakeStore(), {
       serverId: 'mcp-1',
       organizationId: 'org-1',
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       authType: 'oauth2',
       registrationEndpoint: 'https://mcp.example.com/register',
       existingClientId: 'already-registered',
@@ -275,7 +275,7 @@ describe('registering once and only once', () => {
     const outcome = await ensureMcpOAuthClient(db, fakeStore(), {
       serverId: 'mcp-1',
       organizationId: 'org-1',
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       authType: 'oauth2',
       registrationEndpoint: 'https://mcp.example.com/register',
       existingClientId: null,
@@ -287,8 +287,18 @@ describe('registering once and only once', () => {
 
     expect(outcome.registered).toBe(false);
     expect(outcome.message).toMatch(/403/);
-    // Nothing written, and crucially no throw: the server keeps its tool list.
-    expect(db.updates).toEqual([]);
+    /*
+     * The refusal is written down, because a badge saying "OAuth client needed" with no reason is
+     * what used to send tenants to the logs. What must NOT happen is the discovered contract being
+     * disturbed: no throw, no client id, and nothing touching the tool list — the server stays
+     * exactly as usable as it was, minus the client it could not get.
+     */
+    expect(db.updates).toEqual([
+      {
+        oauthClientError: 'Client registration was refused: 403 from provider',
+        updatedAt: expect.any(Date),
+      },
+    ]);
   });
 
   it('refuses to guess a redirect URI when no base URL is configured', async () => {
@@ -297,7 +307,7 @@ describe('registering once and only once', () => {
     const outcome = await ensureMcpOAuthClient(fakeDb(), fakeStore(), {
       serverId: 'mcp-1',
       organizationId: 'org-1',
-      host: 'mcp.example.com',
+      provenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
       authType: 'oauth2',
       registrationEndpoint: 'https://mcp.example.com/register',
       existingClientId: null,

@@ -11,15 +11,12 @@
  * That combination is what makes dynamic client registration possible, and therefore what makes an
  * entry cost one row instead of an OAuth application registered by hand.
  *
- * Known limitation, measured rather than assumed: `isSameRegistrableDomain` accepts the registered
- * host and its subdomains, not its registrable domain. A vendor that publishes its authorization
- * server beside its MCP host — Attio at `app.attio.com`, Vercel at `vercel.com`, Figma at
- * `api.figma.com`, monday at `auth.monday.com`, every Cloudflare server at `mcp.cloudflare.com` —
- * is turned away at discovery with `MCP_DISCOVERY_UNTRUSTED_ENDPOINT`. Those entries are still worth
- * listing, because the URL is right and the rule is what needs deciding: widening it wants either a
- * public suffix list or an authorization-server host carried per entry, and neither is a change to
- * make quietly inside a catalogue. `apps/api/tests/unit/mcp-discovery-run.test.ts` pins the current
- * behaviour so it cannot drift by accident.
+ * A vendor that publishes its authorization server beside its MCP host — Attio at `app.attio.com`,
+ * Vercel at `api.vercel.com`, Figma at `api.figma.com`, monday at `auth.monday.com` — is registered
+ * and connected like any other. Those endpoints are trusted because the server named that issuer
+ * through a pointer served from its own host and the issuer then declared itself, not because of
+ * any host relationship between the two. `packages/shared/src/mcp-discovery.ts` states that rule
+ * once and `apps/api/tests/unit/mcp-discovery-run.test.ts` pins it.
  *
  * Also absent: one error-monitoring vendor whose integration and SDK were removed from Authlane in
  * `00ad2c4`, and whose reintroduction `scripts/removed-service-contract.test.ts` forbids by name. Its
@@ -39,17 +36,23 @@ export interface McpServerPreset {
   authType: 'oauth2' | 'api_key';
   category: McpPresetCategory;
   docsUrl: string;
-  /**
-   * Whether the server offers RFC 7591 dynamic client registration.
-   *
-   * `false` means the tenant has to bring their own OAuth application; the preset still saves them
-   * finding the URL. Kept explicit so the dashboard can say which is which instead of letting
-   * someone discover it when authorization fails.
-   */
-  dynamicRegistration: boolean;
   /** ISO date the endpoint was last confirmed to answer. Shown so a stale entry is visible. */
   verifiedAt: string;
 }
+
+/*
+ * There is deliberately no `dynamicRegistration` flag here.
+ *
+ * There used to be, and 24 of these 44 entries disagreed with the live servers — in both
+ * directions, so it was not even conservatively wrong: Webflow was labelled as not self-registering
+ * while it self-registers perfectly. The flag gated nothing; its only reader was a sentence on the
+ * dashboard card, which therefore told workspace owners the opposite of the truth for more than
+ * half the catalogue. Correcting 24 literals by hand would have bought a year before the same
+ * drift, because nothing keeps a hand-maintained boolean beside a URL honest.
+ *
+ * The dashboard now reads whether the stored metadata carries a `registration_endpoint`, which is
+ * the server's own answer, recorded at discovery and refreshed by every sweep.
+ */
 
 export type McpPresetCategory =
   | 'productivity'
@@ -63,28 +66,13 @@ export type McpPresetCategory =
 
 const VERIFIED = '2026-08-04';
 
-/**
- * Chain confirmed all the way to a `registration_endpoint`, so Authlane can register itself.
- * Everything else advertises RFC 9728 but was not individually walked to the registration document.
- */
-const DCR_CONFIRMED = new Set([
-  'linear',
-  'asana',
-  'notion',
-  'canva',
-  'vercel',
-  'neon',
-  'attio',
-  'cloudflare-bindings',
-]);
-
 function preset(
   key: string,
   name: string,
   serverUrl: string,
   category: McpPresetCategory,
   docsUrl: string,
-  options: { authType?: 'oauth2' | 'api_key'; dynamicRegistration?: boolean } = {}
+  options: { authType?: 'oauth2' | 'api_key' } = {}
 ): McpServerPreset {
   return {
     key,
@@ -93,7 +81,6 @@ function preset(
     authType: options.authType ?? 'oauth2',
     category,
     docsUrl,
-    dynamicRegistration: options.dynamicRegistration ?? DCR_CONFIRMED.has(key),
     verifiedAt: VERIFIED,
   };
 }
@@ -147,8 +134,7 @@ export const MCP_SERVER_PRESETS: readonly McpServerPreset[] = Object.freeze([
     'Slack',
     'https://mcp.slack.com/mcp',
     'productivity',
-    'https://docs.slack.dev/ai/slack-mcp-server/',
-    { dynamicRegistration: false }
+    'https://docs.slack.dev/ai/slack-mcp-server/'
   ),
   preset(
     'fireflies',
@@ -171,8 +157,7 @@ export const MCP_SERVER_PRESETS: readonly McpServerPreset[] = Object.freeze([
     'HubSpot',
     'https://mcp.hubspot.com',
     'crm',
-    'https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server',
-    { dynamicRegistration: false }
+    'https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server'
   ),
   preset('close', 'Close', 'https://mcp.close.com/mcp', 'crm', 'https://developer.close.com'),
   preset(

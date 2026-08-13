@@ -1,4 +1,9 @@
-import type { DiscoveredTool, DiscoveredToolRisk } from '@authlane/shared';
+import type {
+  DiscoveredTool,
+  DiscoveredToolRisk,
+  McpEndpointProvenance,
+  McpEndpointTrust,
+} from '@authlane/shared';
 import { isMcpServerId, MCP_SERVER_ID_PREFIX } from '@authlane/shared';
 import { and, asc, eq, lt } from 'drizzle-orm';
 import type { Database } from './client.js';
@@ -144,6 +149,10 @@ export async function listMcpServersForOrganization(db: Database, organizationId
       discoveryError: mcpServers.discoveryError,
       oauthClientId: mcpServers.oauthClientId,
       oauthClientSource: mcpServers.oauthClientSource,
+      oauthClientError: mcpServers.oauthClientError,
+      // Read so the dashboard can say whether the server offers dynamic registration from what the
+      // server actually published, rather than from a flag maintained by hand beside a URL.
+      oauthMetadata: mcpServers.oauthMetadata,
       createdAt: mcpServers.createdAt,
     })
     .from(mcpServers)
@@ -195,6 +204,11 @@ export async function listMcpServersDueForDiscovery(
       id: mcpServers.id,
       organizationId: mcpServers.organizationId,
       serverUrl: mcpServers.serverUrl,
+      // Carried so the sweep can also attempt registration for a server that still has no client.
+      // A provider that adds dynamic registration after a server was added would otherwise never be
+      // noticed, because nothing outside the manual route ever registers one.
+      authType: mcpServers.authType,
+      oauthClientId: mcpServers.oauthClientId,
     })
     .from(mcpServers)
     .where(and(eq(mcpServers.enabled, true), lt(mcpServers.discoveredAt, discoveredBefore)))
@@ -314,8 +328,28 @@ export async function saveMcpOAuthClient(
       oauthClientId: client.clientId,
       oauthClientSecretId: client.clientSecretId,
       oauthClientSource: client.source,
+      // The server now has a client, so whatever stopped it before no longer describes it.
+      oauthClientError: null,
       updatedAt: new Date(),
     })
+    .where(eq(mcpServers.id, serverId));
+}
+
+/**
+ * Records why a server that discovered successfully still has no OAuth client.
+ *
+ * Written on every registration attempt, with null when there is nothing to report, so the column
+ * always describes the most recent attempt rather than accumulating a stale reason. `enabled` and
+ * the tool contract are deliberately untouched: this server works, it just cannot be authorized.
+ */
+export async function saveMcpOAuthClientError(
+  db: Database,
+  serverId: string,
+  message: string | null
+): Promise<void> {
+  await db
+    .update(mcpServers)
+    .set({ oauthClientError: message, updatedAt: new Date() })
     .where(eq(mcpServers.id, serverId));
 }
 
@@ -357,7 +391,7 @@ export async function updateMcpServerTool(
 
 export interface McpServerConnectConfig {
   id: string;
-  /** The URL the tenant registered. Endpoints are re-checked against its host at use time. */
+  /** The URL the tenant registered. Anchors `server-host` provenance at use time. */
   serverUrl: string;
   authType: string;
   enabled: boolean;
@@ -365,8 +399,22 @@ export interface McpServerConnectConfig {
   oauthClientSecretId: string | null;
   authorizationEndpoint: string | null;
   tokenEndpoint: string | null;
+  /**
+   * How discovery established the two endpoints above, carried so authorize and the callback can
+   * apply the same rule. Null for a row stored before provenance was recorded, which falls to the
+   * narrower `server-host` treatment.
+   */
+  endpointTrust: McpEndpointTrust | null;
   /** True while the server has only ever been asked without a credential. */
   authorizationRequired: boolean;
+}
+
+/** The provenance to hand `validateOAuthEndpoint` for one stored server. */
+export function mcpEndpointProvenance(config: {
+  serverUrl: string;
+  endpointTrust: McpEndpointTrust | null;
+}): McpEndpointProvenance {
+  return { serverHost: new URL(config.serverUrl).hostname, trust: config.endpointTrust };
 }
 
 /** The columns a connect config is read from, whether one row or a whole organization's worth. */
@@ -392,6 +440,7 @@ function toConnectConfig(row: McpServerConnectRow): McpServerConnectConfig {
   const metadata = (row.oauthMetadata ?? null) as {
     authorizationEndpoint?: unknown;
     tokenEndpoint?: unknown;
+    endpointTrust?: unknown;
   } | null;
 
   return {
@@ -404,8 +453,15 @@ function toConnectConfig(row: McpServerConnectRow): McpServerConnectConfig {
     authorizationEndpoint:
       typeof metadata?.authorizationEndpoint === 'string' ? metadata.authorizationEndpoint : null,
     tokenEndpoint: typeof metadata?.tokenEndpoint === 'string' ? metadata.tokenEndpoint : null,
+    // Only the two values discovery writes are honoured. Anything else in the column — including a
+    // row from before provenance existed — reads as null and gets the narrower rule.
+    endpointTrust: readEndpointTrust(metadata?.endpointTrust),
     authorizationRequired: row.authorizationRequired,
   };
+}
+
+export function readEndpointTrust(value: unknown): McpEndpointTrust | null {
+  return value === 'issuer-declared' || value === 'server-host' ? value : null;
 }
 
 /**

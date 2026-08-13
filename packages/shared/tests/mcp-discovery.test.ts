@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isPrivateAddress,
-  isSameRegistrableDomain,
+  isSameHostOrSubdomain,
   normalizeDiscoveredTools,
   parseServerUrl,
 } from '../src/mcp-discovery.js';
@@ -82,31 +82,31 @@ describe('isPrivateAddress', () => {
   });
 });
 
-describe('isSameRegistrableDomain', () => {
+describe('isSameHostOrSubdomain', () => {
   it('accepts the same host', () => {
-    expect(isSameRegistrableDomain('mcp.example.com', 'https://mcp.example.com/token')).toBe(true);
+    expect(isSameHostOrSubdomain('mcp.example.com', 'https://mcp.example.com/token')).toBe(true);
   });
 
   it('accepts a subdomain of the registered host', () => {
-    expect(isSameRegistrableDomain('example.com', 'https://auth.example.com/token')).toBe(true);
+    expect(isSameHostOrSubdomain('example.com', 'https://auth.example.com/token')).toBe(true);
   });
 
   it('rejects a different domain', () => {
-    expect(isSameRegistrableDomain('mcp.example.com', 'https://evil.com/token')).toBe(false);
+    expect(isSameHostOrSubdomain('mcp.example.com', 'https://evil.com/token')).toBe(false);
   });
 
   it('rejects a suffix that is not a domain boundary', () => {
     // notexample.com must not pass as a subdomain of example.com.
-    expect(isSameRegistrableDomain('example.com', 'https://notexample.com/token')).toBe(false);
+    expect(isSameHostOrSubdomain('example.com', 'https://notexample.com/token')).toBe(false);
   });
 
   it('rejects a parent of the registered host', () => {
     // Registering mcp.example.com must not authorise example.com.
-    expect(isSameRegistrableDomain('mcp.example.com', 'https://example.com/token')).toBe(false);
+    expect(isSameHostOrSubdomain('mcp.example.com', 'https://example.com/token')).toBe(false);
   });
 
   it('rejects plaintext endpoints', () => {
-    expect(isSameRegistrableDomain('example.com', 'http://auth.example.com/token')).toBe(false);
+    expect(isSameHostOrSubdomain('example.com', 'http://auth.example.com/token')).toBe(false);
   });
 });
 

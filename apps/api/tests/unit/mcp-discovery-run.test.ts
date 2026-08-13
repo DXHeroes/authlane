@@ -105,6 +105,9 @@ describe('discoverMcpServer', () => {
       authorizationEndpoint: 'https://auth.mcp.example.com/authorize',
       tokenEndpoint: 'https://auth.mcp.example.com/token',
       registrationEndpoint: null,
+      // Reached without an issuer naming them, so they get the narrower treatment later.
+      issuer: null,
+      endpointTrust: 'server-host',
     });
   });
 
@@ -367,6 +370,10 @@ describe('an authorization server the resource document declares', () => {
       authorizationEndpoint: 'https://app.example.com/authorize',
       tokenEndpoint: 'https://app.example.com/token',
       registrationEndpoint: 'https://app.example.com/register',
+      // Recorded so registration and the token exchange can honour the same decision made here,
+      // rather than re-imposing "same host as the server" on endpoints this server itself named.
+      issuer: 'https://app.example.com',
+      endpointTrust: 'issuer-declared',
     });
   });
 

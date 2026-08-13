@@ -53,6 +53,18 @@ export const mcpServers = pgTable(
      * dashboard offers, never whether an authorization may start.
      */
     oauthClientSource: text('oauth_client_source'),
+    /**
+     * Why the server still has no OAuth client.
+     *
+     * Separate from `discovery_error` because the two describe different servers. A discovery
+     * error means the contract could not be read at all and the row is disabled; this one belongs
+     * to a server that discovered perfectly, is enabled, serves its tools, and simply cannot be
+     * authorized yet. Folding them together would render such a server as "not discovered", which
+     * is both false and the wrong thing to go and fix.
+     *
+     * Cleared on every successful registration attempt, so it never outlives the condition.
+     */
+    oauthClientError: text('oauth_client_error'),
     // Stays false until a discovery succeeds, so an unreachable server is never offered to users.
     enabled: boolean('enabled').default(false).notNull(),
     /**

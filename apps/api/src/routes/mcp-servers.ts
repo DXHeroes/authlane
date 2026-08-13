@@ -29,7 +29,11 @@ import { expireConnectionsForService } from '../lib/connection-invalidation.js';
 import { tenantServicesCacheKey } from '../lib/control-plane-repository.js';
 import { logger } from '../lib/logger.js';
 import { ensureMcpOAuthClient, mcpCallbackUrl } from '../lib/mcp-client-registration.js';
-import { discoverMcpServer, type McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
+import {
+  discoverMcpServer,
+  type McpDiscoveryDeps,
+  type McpOAuthMetadata,
+} from '../lib/mcp-discovery-run.js';
 import { removeMcpOAuthClient, saveManualMcpOAuthClient } from '../lib/mcp-manual-oauth-client.js';
 import {
   parseMcpOAuthClientInput,
@@ -38,6 +42,19 @@ import {
 } from '../lib/mcp-server-input.js';
 import { resolveMcpAuthorization } from '../lib/oauth-provider-resolution.js';
 import { publicApiBase } from '../lib/public-api-base.js';
+
+/**
+ * Whether a stored metadata document named a registration endpoint.
+ *
+ * Null rather than false when there is no metadata at all: a server discovery has not reached yet,
+ * and one that authenticates by API key, are both "not known" rather than "does not support it".
+ */
+function readsRegistrationEndpoint(oauthMetadata: unknown): boolean | null {
+  if (!oauthMetadata || typeof oauthMetadata !== 'object' || Array.isArray(oauthMetadata)) {
+    return null;
+  }
+  return typeof Reflect.get(oauthMetadata, 'registrationEndpoint') === 'string';
+}
 
 export function createMcpServersRouter(
   db: Database,
@@ -60,13 +77,19 @@ export function createMcpServersRouter(
     serverUrl: string,
     authType: string,
     existingClientId: string | null,
-    metadata: { registrationEndpoint: string | null } | null,
+    metadata: McpOAuthMetadata | null,
     requestUrl: string
   ): Promise<void> {
     const outcome = await ensureMcpOAuthClient(db, secretStore, {
       serverId,
       organizationId,
-      host: new URL(serverUrl).hostname,
+      // The endpoint is judged by how discovery came by it, not by its host. An issuer the server
+      // itself named through its on-host RFC 9728 pointer may publish its registration endpoint
+      // wherever it likes; a document found by guessing a path may not.
+      provenance: {
+        serverHost: new URL(serverUrl).hostname,
+        trust: metadata?.endpointTrust ?? null,
+      },
       authType,
       registrationEndpoint: metadata?.registrationEndpoint ?? null,
       existingClientId,
@@ -113,10 +136,20 @@ export function createMcpServersRouter(
     const servers = await listMcpServersForOrganization(db, org.id);
     const apiBaseUrl = publicApiBase(c.req.url);
     return c.json({
-      data: servers.map((server) => ({
+      data: servers.map(({ oauthMetadata, ...server }) => ({
         ...server,
         discoveredAt: server.discoveredAt?.toISOString() ?? null,
         createdAt: server.createdAt.toISOString(),
+        /*
+         * Whether the server publishes an RFC 7591 registration endpoint, read from the metadata it
+         * actually served.
+         *
+         * The dashboard used to state this from a hand-maintained flag on the preset list, which
+         * disagreed with reality for 24 of 44 entries in both directions. The metadata is the only
+         * copy that cannot drift. Null before the first discovery, when nothing is known yet — and
+         * saying nothing is the honest answer at that point.
+         */
+        supportsDynamicRegistration: readsRegistrationEndpoint(oauthMetadata),
         // Built here, never in the browser: the dashboard runs on its own origin in development,
         // and a tenant who pastes that one into their provider gets a redirect we never send.
         redirectUri: server.authType === 'oauth2' ? mcpCallbackUrl(apiBaseUrl, server.id) : null,

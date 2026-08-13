@@ -16,6 +16,18 @@ export function publicApiBase(requestUrl: string): string {
 }
 
 /**
+ * The same origin for work that has no request to read it from.
+ *
+ * A scheduled sweep can register an OAuth client, and a registration has to declare the redirect
+ * URI the callback will send back. Null rather than a guess when nothing is configured: a client
+ * registered against the wrong origin is accepted at registration and rejected at authorize time,
+ * which is a worse failure than not registering at all.
+ */
+export function configuredApiBase(): string | null {
+  return process.env.BETTER_AUTH_URL || null;
+}
+
+/**
  * The redirect URI for one service, built the one way.
  *
  * The authorize step sends this to the provider, the token exchange resends it, dynamic client

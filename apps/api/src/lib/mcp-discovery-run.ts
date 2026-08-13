@@ -1,7 +1,8 @@
 import {
   type DiscoveredTool,
   isPrivateAddress,
-  isSameRegistrableDomain,
+  isSameHostOrSubdomain,
+  type McpEndpointTrust,
   normalizeDiscoveredTools,
   parseServerUrl,
 } from '@authlane/shared';
@@ -49,6 +50,17 @@ export interface McpOAuthMetadata {
   authorizationEndpoint: string;
   tokenEndpoint: string;
   registrationEndpoint: string | null;
+  /** The issuer that declared these endpoints, or null when they came from the guessed path. */
+  issuer: string | null;
+  /**
+   * How these endpoints were established.
+   *
+   * Stored beside them because every later step — registering a client, redirecting a user,
+   * exchanging a code — has to make the same judgement discovery made, and by then the evidence
+   * (a challenge header, a document fetched once) is gone. Re-deriving it there is what produced
+   * the split where an endpoint good enough to store was not good enough to use.
+   */
+  endpointTrust: McpEndpointTrust;
 }
 
 export type McpDiscoveryFailureCode =
@@ -110,7 +122,11 @@ function withoutTrailingSlash(value: string): string {
  */
 function readOAuthMetadata(
   payload: unknown,
-  isTrusted: (endpoint: string) => boolean
+  source: {
+    isTrusted: (endpoint: string) => boolean;
+    issuer: string | null;
+    trust: McpEndpointTrust;
+  }
 ): McpOAuthMetadata | 'untrusted' | null {
   if (!isRecord(payload)) return null;
   const authorization = payload.authorization_endpoint;
@@ -118,16 +134,18 @@ function readOAuthMetadata(
   if (typeof authorization !== 'string' && typeof token !== 'string') return null;
 
   if (typeof authorization !== 'string' || typeof token !== 'string') return 'untrusted';
-  if (!isTrusted(authorization)) return 'untrusted';
-  if (!isTrusted(token)) return 'untrusted';
+  if (!source.isTrusted(authorization)) return 'untrusted';
+  if (!source.isTrusted(token)) return 'untrusted';
 
   const registration = payload.registration_endpoint;
-  if (typeof registration === 'string' && !isTrusted(registration)) return 'untrusted';
+  if (typeof registration === 'string' && !source.isTrusted(registration)) return 'untrusted';
 
   return {
     authorizationEndpoint: authorization,
     tokenEndpoint: token,
     registrationEndpoint: typeof registration === 'string' ? registration : null,
+    issuer: source.issuer,
+    endpointTrust: source.trust,
   };
 }
 
@@ -156,12 +174,22 @@ async function readAuthorizationMetadata(
       if (typeof declared !== 'string' || withoutTrailingSlash(declared) !== issuer) {
         return 'untrusted';
       }
-      return readOAuthMetadata(document, isHttpsUrl);
+      return readOAuthMetadata(document, {
+        isTrusted: isHttpsUrl,
+        issuer,
+        trust: 'issuer-declared',
+      });
     }
   }
 
   const guessed = await deps.fetchJson(`${server.url}/.well-known/oauth-authorization-server`);
-  return readOAuthMetadata(guessed, (endpoint) => isSameRegistrableDomain(server.host, endpoint));
+  return readOAuthMetadata(guessed, {
+    isTrusted: (endpoint) => isSameHostOrSubdomain(server.host, endpoint),
+    // Nothing declared this document; it was found by constructing a path. There is no issuer to
+    // record, and its endpoints never earn more than the host they were found on.
+    issuer: null,
+    trust: 'server-host',
+  });
 }
 
 /**
@@ -178,7 +206,7 @@ async function resolveDeclaredIssuer(
 ): Promise<string | null> {
   const resourceMetadata = challenge?.match(/resource_metadata="?([^",\s]+)"?/)?.[1];
   if (!resourceMetadata) return null;
-  if (!isSameRegistrableDomain(serverHost, resourceMetadata)) return null;
+  if (!isSameHostOrSubdomain(serverHost, resourceMetadata)) return null;
 
   let resource: unknown;
   try {

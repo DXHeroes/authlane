@@ -99,6 +99,13 @@
       "when": 1786077515023,
       "tag": "0013_drop_oauth_provider",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786080000000,
+      "tag": "0014_mcp_oauth_client_error",
+      "breakpoints": true
     }
   ]
 }

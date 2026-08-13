@@ -117,9 +117,17 @@ const OAUTH_SERVER: ServerRow = {
   oauthClientSecretId: null,
   oauthClientSource: null,
   serverUrl: 'https://mcp.slack.com/mcp',
+  /*
+   * Slack's real shape, and the reason provenance is stored rather than re-derived: the pointer on
+   * mcp.slack.com names mcp.slack.com as its own issuer, and that issuer publishes its endpoints on
+   * the parent domain. Comparing hosts at connect time would refuse a server that told us about
+   * these endpoints through the document we trust it to serve.
+   */
   oauthMetadata: {
     authorizationEndpoint: 'https://slack.com/oauth/v2/authorize',
     tokenEndpoint: 'https://slack.com/api/oauth.v2.access',
+    issuer: 'https://mcp.slack.com',
+    endpointTrust: 'issuer-declared',
   },
 };
 

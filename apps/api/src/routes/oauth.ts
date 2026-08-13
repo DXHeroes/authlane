@@ -9,6 +9,7 @@ import {
   inArray,
   isNull,
   listEnabledMcpServers,
+  mcpEndpointProvenance,
   oauthTransactions,
   organizationServices,
   outboxEvents,
@@ -47,7 +48,7 @@ import {
 } from '../lib/connect-session.js';
 import type { McpDiscoveryDeps } from '../lib/mcp-discovery-run.js';
 import { discoverAfterFirstAuthorization } from '../lib/mcp-first-authorization.js';
-import type { NotConnectableReason } from '../lib/oauth-provider-resolution.js';
+import type { AuthorizationRefusal } from '../lib/oauth-provider-resolution.js';
 import {
   resolveBuiltInAuthorization,
   resolveMcpAuthorization,
@@ -171,8 +172,15 @@ async function listEnabledServiceIds(db: Database, organizationId: string): Prom
  * from a missing endpoint, so the only way to find out was to go and read the row. The wording
  * follows the `notConnectableReason` the catalogue publishes for the same service.
  */
-function mcpAuthorizationConflict(reason: NotConnectableReason) {
+function mcpAuthorizationConflict(
+  reason: Exclude<AuthorizationRefusal, 'not_found' | 'not_oauth'>
+) {
   switch (reason) {
+    case 'untrusted_endpoint':
+      return Errors.oauthError(
+        'This MCP server has a stored OAuth endpoint Authlane will not use',
+        'Re-run discovery for the server. Its stored authorization or token endpoint is not one the server, or the issuer the server named, published.'
+      );
     case 'disabled':
       return Errors.oauthError(
         'This MCP server is turned off',
@@ -191,8 +199,16 @@ function mcpAuthorizationConflict(reason: NotConnectableReason) {
   }
 }
 
-function builtInAuthorizationConflict(serviceId: string, reason: NotConnectableReason) {
+function builtInAuthorizationConflict(
+  serviceId: string,
+  reason: Exclude<AuthorizationRefusal, 'not_found' | 'not_oauth'>
+) {
   switch (reason) {
+    case 'untrusted_endpoint':
+      return Errors.oauthError(
+        `${serviceId} has an authorization URL Authlane will not use`,
+        'This is a defect in the Authlane service catalog rather than in your configuration. Please report it.'
+      );
     case 'disabled':
       return Errors.oauthError(
         `${serviceId} is turned off for this organization`,
@@ -781,7 +797,10 @@ export function createOAuthRouter(
       const tokenUrl = isMcpServerId(serviceId)
         ? (mcpServer?.tokenEndpoint ?? null)
         : ((service?.config as { token_url?: string } | undefined)?.token_url ?? null);
-      const registeredHost = mcpServer ? new URL(mcpServer.serverUrl).hostname : undefined;
+      // The rule discovery accepted the token endpoint under, carried to the one place that acts on
+      // it. Re-deriving a stricter rule here is what used to break the exchange for every server
+      // whose issuer sits beside its MCP host.
+      const mcpProvenance = mcpServer ? mcpEndpointProvenance(mcpServer) : undefined;
       const clientSecretId = isMcpServerId(serviceId)
         ? (mcpServer?.oauthClientSecretId ?? null)
         : (tenantService?.oauthClientSecretId ?? null);
@@ -847,7 +866,7 @@ export function createOAuthRouter(
         tokenResult = await fetchOAuthToken(serviceId, tokenUrl, tokenBody, {
           clientId: oauthClientId,
           clientSecret,
-          registeredHost,
+          mcpProvenance,
         });
       } catch {
         await db

@@ -119,7 +119,10 @@ describe('provider OAuth endpoint allowlist', () => {
 });
 
 describe('validateOAuthEndpoint for tenant MCP servers', () => {
-  const server = { registeredHost: 'mcp.example.com' };
+  /** What discovery stored for a server whose endpoints sit on its own host. */
+  const server = {
+    mcpProvenance: { serverHost: 'mcp.example.com', trust: 'server-host' as const },
+  };
 
   it('accepts an endpoint on the registered host', () => {
     expect(validateOAuthEndpoint('mcp-1', 'token', 'https://mcp.example.com/token', server)).toBe(
@@ -151,6 +154,35 @@ describe('validateOAuthEndpoint for tenant MCP servers', () => {
     expect(() => validateOAuthEndpoint('mcp-1', 'token', 'https://mcp.example.com/token')).toThrow(
       /not allowlisted/
     );
+  });
+
+  it('accepts an endpoint anywhere https once an issuer vouched for it', () => {
+    /*
+     * Slack's real shape: the pointer on mcp.slack.com names mcp.slack.com as its own issuer, and
+     * that issuer publishes its endpoints on the parent domain. Discovery settled who was speaking;
+     * comparing hosts again here would refuse an endpoint the server itself told us to use.
+     */
+    const issuerDeclared = {
+      mcpProvenance: { serverHost: 'mcp.slack.com', trust: 'issuer-declared' as const },
+    };
+
+    expect(
+      validateOAuthEndpoint(
+        'mcp-1',
+        'token',
+        'https://slack.com/api/oauth.v2.access',
+        issuerDeclared
+      )
+    ).toBe('https://slack.com/api/oauth.v2.access');
+    // Provenance widens which host is acceptable, never which scheme.
+    expect(() =>
+      validateOAuthEndpoint(
+        'mcp-1',
+        'token',
+        'http://slack.com/api/oauth.v2.access',
+        issuerDeclared
+      )
+    ).toThrow(/not allowlisted/);
   });
 
   it('does not let a registered host loosen a built-in provider', () => {

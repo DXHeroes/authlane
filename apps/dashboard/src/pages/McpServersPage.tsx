@@ -28,6 +28,15 @@ interface McpServer {
   oauthClientId: string | null;
   /** Whether Authlane registered the client itself, or the tenant pasted one in. */
   oauthClientSource: 'dynamic' | 'manual' | null;
+  /** Why the server still has no OAuth client, when it has none. */
+  oauthClientError: string | null;
+  /**
+   * Whether the server published an RFC 7591 registration endpoint.
+   *
+   * Read from the metadata the server itself served at discovery. Null before any discovery has
+   * run, when the honest answer is that nobody knows yet.
+   */
+  supportsDynamicRegistration: boolean | null;
   /** The exact URI the provider must redirect back to. Built by the API, never by the browser. */
   redirectUri: string | null;
   createdAt: string;
@@ -40,7 +49,6 @@ interface McpServerPreset {
   authType: 'oauth2' | 'api_key';
   category: string;
   docsUrl: string;
-  dynamicRegistration: boolean;
   verifiedAt: string;
 }
 
@@ -443,11 +451,22 @@ function ServerCard({
         )}
         {needsOAuthClient && (
           <p className="mb-3 text-sm text-muted-foreground">
-            Authlane could not register itself with this server, so it needs an OAuth application
-            you own. Open <strong>OAuth client</strong> below to add one.
+            {/*
+              The reason, not just the fact. Every one of these was already known at the moment
+              registration gave up — it went into a log line the workspace owner cannot read, and
+              the card said only that a client was needed.
+            */}
+            {server?.oauthClientError ?? 'Authlane could not register itself with this server.'}{' '}
+            Open <strong>OAuth client</strong> below to add an application you own, or retry.
           </p>
         )}
         {!registered && note && <p className="mb-3 text-xs text-muted-foreground">{note}</p>}
+        {registered && server?.enabled && server.supportsDynamicRegistration === false && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            This server publishes no dynamic registration endpoint, so it needs an OAuth application
+            you create in the provider console.
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
           <Switch
@@ -458,9 +477,15 @@ function ServerCard({
           />
 
           <div className="flex items-center gap-3">
-            {failed && (
+            {/*
+              Shown whenever there is something a retry could fix, not only when discovery failed.
+              A server whose discovery succeeded but whose registration did not is enabled, so the
+              old `failed` condition hid the button on exactly the row that needed it and left
+              delete-and-re-add as the only route back.
+            */}
+            {(failed || needsOAuthClient) && (
               <Button variant="link" disabled={busy} onClick={onRediscover}>
-                Retry discovery
+                {failed ? 'Retry discovery' : 'Retry registration'}
               </Button>
             )}
             {server && authType === 'oauth2' && (
@@ -756,9 +781,17 @@ export default function McpServersPage() {
                     onChanged={refreshAll}
                     note={
                       <>
-                        {entry.dynamicRegistration
-                          ? 'Authlane registers itself with this server, so there is nothing to set up.'
-                          : 'This server does not let Authlane register itself. Turn it on, then open OAuth client on its card to paste credentials from an application you create in the provider console.'}{' '}
+                        {/*
+                          Said only before the server is registered, when nobody can yet know which
+                          way it will go: the answer comes from the provider's own metadata, which
+                          discovery reads on the way in. This used to be a hand-kept flag on the
+                          preset, and it disagreed with reality for more than half the catalogue —
+                          including one that self-registers perfectly while the note said it could
+                          not. Once registered, the card reports what discovery actually found.
+                        */}
+                        Turn it on and Authlane will try to register itself. If this provider does
+                        not allow that, its card will say so and you can paste credentials from an
+                        application you create in the provider console.{' '}
                         <a
                           href={entry.docsUrl}
                           target="_blank"

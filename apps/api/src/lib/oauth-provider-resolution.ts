@@ -1,5 +1,5 @@
-import type { McpServerConnectConfig } from '@authlane/database';
-import { getPlatformOAuthCredentials } from '@authlane/shared';
+import { type McpServerConnectConfig, mcpEndpointProvenance } from '@authlane/database';
+import { getPlatformOAuthCredentials, isTrustedMcpEndpoint } from '@authlane/shared';
 
 /**
  * Why a service cannot be connected right now.
@@ -20,7 +20,24 @@ export type NotConnectableReason =
  * Beyond the connectability reasons there are two that say nothing about provider configuration:
  * the service is not there at all, and the service is not connected over OAuth in the first place.
  */
-export type AuthorizationRefusal = NotConnectableReason | 'not_found' | 'not_oauth';
+/**
+ * Every way an authorization can fail before a redirect is minted.
+ *
+ * Beyond the connectability reasons there are three that say nothing about provider configuration:
+ * the service is not there at all, the service is not connected over OAuth in the first place, and
+ * a stored endpoint no longer passes the rule discovery accepted it under.
+ *
+ * `untrusted_endpoint` is deliberately not a {@link NotConnectableReason}: those are published to
+ * SDK consumers as `notConnectableReason`, and widening that vocabulary for a state only a
+ * hand-edited row can reach would make every caller's exhaustive switch a breaking change.
+ * {@link connectabilityOf} folds it into `missing_authorization_url`, which is what it means to
+ * anybody looking at the catalogue — the stored metadata is not usable, so re-run discovery.
+ */
+export type AuthorizationRefusal =
+  | NotConnectableReason
+  | 'not_found'
+  | 'not_oauth'
+  | 'untrusted_endpoint';
 
 export type McpAuthorizationResolution =
   | {
@@ -34,10 +51,17 @@ export type McpAuthorizationResolution =
 /**
  * Decides whether a tenant MCP server can start an authorization redirect.
  *
- * The endpoint comes from the metadata stored at discovery, which was checked to be https and on
- * the registered domain. It is never re-read from the server here, so a server cannot present one
- * endpoint at discovery and another when a user connects. The https check is repeated anyway, so a
- * hand-edited row cannot slip a plaintext endpoint past this point.
+ * The endpoints come from the metadata stored at discovery and are never re-read from the server
+ * here, so a server cannot present one endpoint at discovery and another when a user connects. Both
+ * are re-checked against the provenance discovery recorded, so a hand-edited row cannot slip an
+ * endpoint past this point either.
+ *
+ * The token endpoint is checked here, at authorize time, even though nothing uses it until the
+ * callback. That is the point: the callback applies this same rule through `fetchOAuthToken`, and
+ * when only the callback checked it a workspace owner could register an application in the
+ * provider's console, paste the credentials, watch their user consent, and lose the whole flow at
+ * the last step to `OAUTH_TOKEN_EXCHANGE_FAILED` — a message that named nothing they could act on.
+ * A manual client now either works end to end or is refused up front with a reason.
  *
  * `enabled` is settled before `authType` on purpose: a server that is off cannot be connected by
  * any route, and reporting it as "not an OAuth server" would send its owner looking for the wrong
@@ -51,8 +75,16 @@ export function resolveMcpAuthorization(
   if (!config.enabled) return { ok: false, reason: 'disabled' };
   if (config.authType !== 'oauth2') return { ok: false, reason: 'not_oauth' };
   if (!config.oauthClientId) return { ok: false, reason: 'missing_oauth_client' };
-  if (!config.authorizationEndpoint?.startsWith('https://')) {
+  if (!config.authorizationEndpoint || !config.tokenEndpoint) {
     return { ok: false, reason: 'missing_authorization_url' };
+  }
+
+  const provenance = mcpEndpointProvenance(config);
+  if (
+    !isTrustedMcpEndpoint(config.authorizationEndpoint, provenance) ||
+    !isTrustedMcpEndpoint(config.tokenEndpoint, provenance)
+  ) {
+    return { ok: false, reason: 'untrusted_endpoint' };
   }
 
   return {
@@ -144,6 +176,14 @@ export function connectabilityOf(
      */
     case 'not_found':
       return { connectable: false, notConnectableReason: 'disabled' };
+    /*
+     * A stored endpoint no longer passes the rule discovery accepted it under, which after a
+     * rediscovery can only mean the row was edited outside Authlane. The catalogue's published
+     * vocabulary stays as it is: to a caller this is the same practical position as having no
+     * usable authorization URL, and the fix is the same one — re-run discovery.
+     */
+    case 'untrusted_endpoint':
+      return { connectable: false, notConnectableReason: 'missing_authorization_url' };
     default:
       return { connectable: false, notConnectableReason: resolution.reason };
   }

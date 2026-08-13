@@ -1,4 +1,4 @@
-import { isSameRegistrableDomain } from './mcp-discovery.js';
+import { isTrustedMcpEndpoint, type McpEndpointProvenance } from './mcp-discovery.js';
 import { isMcpServerId } from './supported-services.js';
 
 import type { OAuthProviderContext } from './types.js';
@@ -110,8 +110,8 @@ export interface FetchOAuthTokenOptions {
   clientId?: string;
   clientSecret?: string;
   fetchImpl?: (input: string, init: RequestInit) => Promise<Response>;
-  /** Registered host for a tenant MCP server; ignored for built-in providers. */
-  registeredHost?: string;
+  /** Endpoint provenance for a tenant MCP server; ignored for built-in providers. */
+  mcpProvenance?: McpEndpointProvenance;
 }
 
 const PROVIDER_CONTEXT_FIELDS: Record<
@@ -215,10 +215,10 @@ export function getOAuthAuthorizationParameters(
 
 export interface OAuthEndpointOptions {
   /**
-   * Host a tenant registered for an MCP server. A built-in provider ignores this and stays pinned
-   * to its static allowlist, so passing one can never loosen a known provider.
+   * Where a tenant MCP server's endpoints came from. A built-in provider ignores this and stays
+   * pinned to its static allowlist, so passing one can never loosen a known provider.
    */
-  registeredHost?: string;
+  mcpProvenance?: McpEndpointProvenance;
 }
 
 export function validateOAuthEndpoint(
@@ -234,11 +234,11 @@ export function validateOAuthEndpoint(
     throw new Error(`OAuth ${kind} endpoint is not a valid URL`);
   }
 
-  // A tenant server has no static allowlist; its guarantee is that the endpoint stays on the
-  // domain the tenant registered. That is checked here, at use time, rather than trusted because
-  // discovery wrote it: a directly edited row must not be enough to redirect a token exchange.
+  // A tenant server has no static allowlist. Its guarantee is the one discovery established when
+  // it accepted the endpoint, re-applied here rather than assumed: a code path that arrives with an
+  // endpoint no discovery ever validated has no provenance to offer and is refused.
   if (isMcpServerId(serviceId)) {
-    if (!options.registeredHost || !isSameRegistrableDomain(options.registeredHost, normalized)) {
+    if (!isTrustedMcpEndpoint(normalized, options.mcpProvenance)) {
       throw new Error(`OAuth ${kind} endpoint is not allowlisted for ${serviceId}`);
     }
     return normalized;
@@ -293,7 +293,7 @@ export async function fetchOAuthToken(
   options: FetchOAuthTokenOptions = {}
 ): Promise<{ response: Response; body: Record<string, unknown> }> {
   const endpoint = validateOAuthEndpoint(serviceId, 'token', tokenUrl, {
-    registeredHost: options.registeredHost,
+    mcpProvenance: options.mcpProvenance,
   });
   const fetchImpl = options.fetchImpl ?? fetch;
   const requestBody = new URLSearchParams(body);

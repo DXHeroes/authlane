@@ -54,6 +54,12 @@ export interface Service {
   authType: 'oauth2' | 'api_key' | 'none';
   config: ServiceConfig;
   enabled: boolean;
+  /** The same display metadata a downstream application receives, so both show the same thing. */
+  description: string | null;
+  iconUrl: string | null;
+  brandColor: string | null;
+  initials: string;
+  category: string | null;
 }
 
 export interface OrganizationService {

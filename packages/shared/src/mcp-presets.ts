@@ -28,6 +28,8 @@
  * point a client straight at it.
  */
 
+import type { ServiceCategory } from './service-categories.js';
+
 export interface McpServerPreset {
   /** Stable key for the catalogue UI. Never a service id — those are pinned to the built-in list. */
   key: string;
@@ -54,15 +56,12 @@ export interface McpServerPreset {
  * the server's own answer, recorded at discovery and refreshed by every sweep.
  */
 
-export type McpPresetCategory =
-  | 'productivity'
-  | 'engineering'
-  | 'crm'
-  | 'design'
-  | 'finance'
-  | 'infrastructure'
-  | 'observability'
-  | 'security';
+/**
+ * Presets file themselves under the same vocabulary a built-in service uses, so the hosted connect
+ * UI can offer one filter over both kinds. Kept as an alias rather than a second union: two lists
+ * drifted apart once already.
+ */
+export type McpPresetCategory = ServiceCategory;
 
 const VERIFIED = '2026-08-04';
 

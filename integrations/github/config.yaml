@@ -1,6 +1,11 @@
 id: github
 name: GitHub
 auth_type: oauth2
+branding:
+  description: Repositories, issues, pull requests, and code search.
+  brand_color: '#181717'
+  initials: GH
+  category: engineering
 config:
   authorization_url: https://github.com/login/oauth/authorize
   token_url: https://github.com/login/oauth/access_token

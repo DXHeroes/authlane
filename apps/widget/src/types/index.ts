@@ -1,12 +1,29 @@
 export type ConnectionStatus = 'pending' | 'connected' | 'disconnected' | 'expired' | 'error';
 
+export type ServiceCategory =
+  | 'communication'
+  | 'productivity'
+  | 'crm'
+  | 'engineering'
+  | 'storage'
+  | 'finance'
+  | 'design'
+  | 'infrastructure'
+  | 'observability'
+  | 'security';
+
 export interface Service {
   id: string;
   name: string;
   authType: string;
-  category: string;
-  icon: string;
-  description: string;
+  /** Null for a server the workspace registered itself, which declares no category. */
+  category: ServiceCategory | null;
+  /** Absolute URL, or null when Authlane ships no mark. Fall back to initials over brandColor. */
+  iconUrl: string | null;
+  description: string | null;
+  brandColor: string | null;
+  /** One or two characters. Always present, so a card can always draw something. */
+  initials: string;
   status: ConnectionStatus;
 }
 

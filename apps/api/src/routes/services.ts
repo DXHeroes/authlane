@@ -8,6 +8,8 @@ import { Errors, getAllowedServiceIds, isSupportedServiceId } from '@authlane/sh
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
 import { logger } from '../lib/logger.js';
+import { publicApiBase } from '../lib/public-api-base.js';
+import { brandingOf } from '../lib/service-branding.js';
 
 export function createServicesRouter(db: Database) {
   const router = new Hono();
@@ -23,8 +25,12 @@ export function createServicesRouter(db: Database) {
         .from(services)
         .where(and(eq(services.enabled, true), inArray(services.id, getAllowedServiceIds())));
 
+      const apiBaseUrl = publicApiBase(c.req.url);
       return c.json({
-        data: allServices,
+        data: allServices.map(({ iconPath, ...service }) => ({
+          ...service,
+          ...brandingOf({ ...service, iconPath }, apiBaseUrl),
+        })),
         error: null,
       });
     } catch (error) {
@@ -51,8 +57,11 @@ export function createServicesRouter(db: Database) {
         return c.json(errorResult(Errors.notFound('Service', serviceId)), 404);
       }
 
+      const { iconPath, ...rest } = service;
       return c.json({
-        data: service,
+        // Absolute here too: in development the dashboard runs on its own origin, so a stored
+        // path would resolve against the wrong one.
+        data: { ...rest, ...brandingOf(service, publicApiBase(c.req.url)) },
         error: null,
       });
     } catch (error) {

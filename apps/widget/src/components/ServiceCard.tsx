@@ -15,7 +15,11 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick, pend
   // Clicking a connected service disconnects it. That used to happen on the first click
   // with nothing asked, so a misplaced tap dropped an authorization silently.
   const [confirming, setConfirming] = useState(false);
+  // A mark can 404 or be blocked by the host page's own CSP. Falling back on error means one bad
+  // request leaves initials rather than an empty square.
+  const [iconFailed, setIconFailed] = useState(false);
   const isConnected = service.status === 'connected';
+  const showIcon = Boolean(service.iconUrl) && !iconFailed;
 
   const getStatusIcon = () => {
     switch (service.status) {
@@ -41,13 +45,18 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick, pend
   const body = (
     <>
       <div className="service-card__header">
-        <div className="service-card__icon">
-          {service.icon ? (
-            <img src={service.icon} alt={service.name} />
+        <div
+          className="service-card__icon"
+          style={
+            service.brandColor && !showIcon
+              ? ({ '--service-brand-color': service.brandColor } as React.CSSProperties)
+              : undefined
+          }
+        >
+          {showIcon ? (
+            <img src={service.iconUrl as string} alt="" onError={() => setIconFailed(true)} />
           ) : (
-            <div className="service-card__icon-placeholder">
-              {service.name.charAt(0).toUpperCase()}
-            </div>
+            <div className="service-card__icon-placeholder">{service.initials}</div>
           )}
         </div>
         {service.status && <div className="service-card__status-badge">{getStatusIcon()}</div>}
@@ -55,7 +64,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick, pend
 
       <div className="service-card__content">
         <h3 className="service-card__name">{service.name}</h3>
-        <p className="service-card__description">{service.description}</p>
+        {service.description && <p className="service-card__description">{service.description}</p>}
 
         {service.status && <ConnectionStatus status={service.status} compact />}
       </div>

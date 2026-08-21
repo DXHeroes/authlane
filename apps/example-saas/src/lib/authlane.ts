@@ -15,6 +15,12 @@ interface Service {
   name: string;
   authType: 'oauth2' | 'api_key' | 'none';
   enabled: boolean;
+  /** Everything below comes from Authlane, so this app hardcodes no logo and no copy. */
+  description: string | null;
+  iconUrl: string | null;
+  brandColor: string | null;
+  initials: string;
+  category: string | null;
 }
 
 interface GitHubRepository {

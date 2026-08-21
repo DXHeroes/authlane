@@ -52,9 +52,9 @@ export const useWidget = (initialConfig?: WidgetConfig) => {
       setServices(
         result.data.services.map((service: Partial<Service> & Pick<Service, 'id' | 'name'>) => ({
           authType: 'oauth2',
-          category: 'other',
-          icon: '',
-          description: `Connect ${service.name}`,
+          // Everything a card renders now arrives from the API. This used to invent `icon: ''`,
+          // `category: 'other'`, and "Connect X" — which is why the icon branch below never once
+          // rendered and the category filter always came back empty.
           status: 'disconnected',
           ...service,
         }))

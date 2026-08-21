@@ -6,6 +6,42 @@ interface ConnectionWithService extends Connection {
   service?: Service;
 }
 
+/**
+ * The service's own mark, or its initials over its brand colour.
+ *
+ * Nothing here is specific to a provider: this app hardcodes no logo and no copy, because the
+ * catalogue response carries both. That is what those fields are for.
+ */
+function ServiceMark({
+  service,
+  fallbackClassName,
+}: {
+  service: { name: string; iconUrl: string | null; brandColor: string | null; initials: string };
+  fallbackClassName: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (service.iconUrl && !failed) {
+    return (
+      <img
+        src={service.iconUrl}
+        alt=""
+        className="w-10 h-10 rounded-lg object-contain bg-white p-1.5"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${fallbackClassName}`}
+      style={service.brandColor ? { background: service.brandColor, color: '#fff' } : undefined}
+    >
+      {service.initials}
+    </div>
+  );
+}
+
 export default function ConnectionStatus() {
   const [connections, setConnections] = useState<ConnectionWithService[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -111,9 +147,7 @@ export default function ConnectionStatus() {
                 className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-sm font-bold text-gray-600">
-                    {service.name.substring(0, 2).toUpperCase()}
-                  </div>
+                  <ServiceMark service={service} fallbackClassName="bg-gray-100 text-gray-600" />
                   <div>
                     <p className="font-medium text-gray-900">{service.name}</p>
                     <p className="text-sm text-gray-500">
@@ -152,9 +186,7 @@ export default function ConnectionStatus() {
               className="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-sm font-bold text-green-700">
-                  {service.name.substring(0, 2).toUpperCase()}
-                </div>
+                <ServiceMark service={service} fallbackClassName="bg-green-100 text-green-700" />
                 <div>
                   <p className="font-medium text-gray-900">{service.name}</p>
                   <p className="text-sm text-green-600">✓ Always available</p>

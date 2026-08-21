@@ -19,3 +19,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Excluded from the grant above: the third-party brand marks under
+`integrations/*/icon.svg`. Those files are not Authlane's to license. Each mark
+remains the property of its owner and is included only to identify the service an
+end user is connecting. See integrations/THIRD_PARTY_NOTICES.md for the source,
+license, and owner of every one of them.

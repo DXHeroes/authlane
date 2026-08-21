@@ -1,6 +1,11 @@
 id: gmail
 name: Gmail
 auth_type: oauth2
+branding:
+  description: Read, search, and send mail from your Gmail account.
+  brand_color: '#ea4335'
+  initials: GM
+  category: communication
 config:
   authorization_url: https://accounts.google.com/o/oauth2/v2/auth
   token_url: https://oauth2.googleapis.com/token

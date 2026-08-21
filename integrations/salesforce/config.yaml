@@ -1,6 +1,11 @@
 id: salesforce
 name: Salesforce
 auth_type: oauth2
+branding:
+  description: Accounts, opportunities, and custom objects in your org.
+  brand_color: '#00a1e0'
+  initials: SF
+  category: crm
 config:
   authorization_url: https://login.salesforce.com/services/oauth2/authorize
   token_url: https://login.salesforce.com/services/oauth2/token

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { ServiceMark } from '@/components/ServiceMark';
 import Badge, { type BadgeTone } from '@/components/ui/Badge';
 import Callout from '@/components/ui/Callout';
 import { LoadingRegion, Skeleton } from '@/components/ui/Skeleton';
@@ -522,16 +523,16 @@ export default function ServiceDetailPage() {
 
       <div className="mb-8 flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary/10 text-2xl font-bold text-primary">
-            {service.name.substring(0, 2).toUpperCase()}
-          </div>
+          <ServiceMark service={service} className="size-16 text-2xl" />
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold">{service.name}</h1>
               <AuthTypeBadge authType={service.authType} />
             </div>
-            {service.config?.description && (
-              <p className="mt-1 text-muted-foreground">{service.config.description}</p>
+            {(service.description ?? service.config?.description) && (
+              <p className="mt-1 text-muted-foreground">
+                {service.description ?? service.config?.description}
+              </p>
             )}
           </div>
         </div>

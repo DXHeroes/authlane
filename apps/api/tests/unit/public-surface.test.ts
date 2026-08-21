@@ -89,6 +89,7 @@ describe('public surface path policy', () => {
       '/register/confirm',
       '/dashboard',
       '/dashboard/settings',
+      '/service-icons/github.svg',
     ]) {
       expect(isProductOnlyPath(path)).toBe(true);
     }

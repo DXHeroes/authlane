@@ -400,6 +400,27 @@ describe('a tenant MCP server in the hosted connect page', () => {
     assertOpenApiResponse('/api/v1/connect/session', 'post', 200, body);
   });
 
+  it('is drawn from its own name, since a tenant declares no branding for it', async () => {
+    const { db } = fakeDatabase({ selectResults: [[mcpSession], [], [mcpServer], []] });
+
+    const response = await appFor(db).request('/api/v1/connect/session', {
+      method: 'POST',
+      headers: { authorization: 'ConnectSession acs_test', 'content-type': 'application/json' },
+      body: JSON.stringify({ parentOrigin: 'https://saas.example' }),
+    });
+
+    const [service] = (await response.json()).data.services;
+
+    expect(service).toMatchObject({
+      description: null,
+      iconUrl: null,
+      brandColor: null,
+      category: null,
+      initials: 'SL',
+    });
+    expect(service).not.toHaveProperty('iconPath');
+  });
+
   it('stays hidden once the tenant turns it off', async () => {
     // listEnabledMcpServers only returns enabled ones, so a disabled server simply is not there.
     const { db } = fakeDatabase({ selectResults: [[mcpSession], [], [], []] });

@@ -19,6 +19,7 @@ import {
   tenantServicesCacheKey,
 } from '../../src/lib/control-plane-repository.js';
 import type { ControlPlaneRepository } from '../../src/routes/control-plane.js';
+import { createControlPlaneRouter } from '../../src/routes/control-plane.js';
 import { createDashboardRouter } from '../../src/routes/dashboard.js';
 
 const CATALOG = [
@@ -32,6 +33,11 @@ const CATALOG = [
     notConnectableReason: 'missing_oauth_client' as const,
     toolAccessPolicy: 'read_only' as const,
     config: {},
+    description: 'Repositories, issues, pull requests, and code search.',
+    iconPath: '/service-icons/github.svg',
+    brandColor: '#181717',
+    initials: 'GH',
+    category: 'engineering',
   },
 ];
 
@@ -135,5 +141,67 @@ describe('configuring a service drops the cached catalogue', () => {
     expect(response.status).toBe(200);
 
     expect(await cache.get(tenantServicesCacheKey('org_1'))).toBeUndefined();
+  });
+});
+
+describe('the icon URL is resolved per request, never cached', () => {
+  /** The catalogue route, behind the real cache, with a principal the scope check accepts. */
+  function catalogApp(cache: MemoryCacheStore) {
+    const app = new Hono();
+    app.use('*', async (c, next) => {
+      c.set('principal', {
+        kind: 'api_key',
+        organizationId: 'org_1',
+        scopes: ['catalog:read'],
+      } as never);
+      await next();
+    });
+    app.route(
+      '/',
+      createControlPlaneRouter(
+        new CachedControlPlaneRepository(sourceRepository(), cache),
+        {} as never,
+        {} as never
+      )
+    );
+    return app;
+  }
+
+  it('sends an absolute URL while the cache keeps only the path', async () => {
+    // If absolutization ever moves into the repository, the first request's origin is frozen into
+    // a five-minute cache and handed to every other host. This is the assertion that catches it.
+    const cache = new MemoryCacheStore();
+    const response = await catalogApp(cache).request(
+      'https://app.authlane.io/catalog/services'
+    );
+    const body = (await response.json()) as { data: Array<Record<string, unknown>> };
+
+    expect(body.data[0]).toMatchObject({
+      iconUrl: 'https://app.authlane.io/service-icons/github.svg',
+      description: 'Repositories, issues, pull requests, and code search.',
+      brandColor: '#181717',
+      initials: 'GH',
+      category: 'engineering',
+    });
+    expect(body.data[0]).not.toHaveProperty('iconPath');
+
+    const cached = (await cache.get(tenantServicesCacheKey('org_1'))) as Array<
+      Record<string, unknown>
+    >;
+    expect(cached[0]).toMatchObject({ iconPath: '/service-icons/github.svg' });
+    expect(cached[0]).not.toHaveProperty('iconUrl');
+  });
+
+  it('answers a second host with that host, from the same cached row', async () => {
+    const cache = new MemoryCacheStore();
+    const app = catalogApp(cache);
+
+    await app.request('https://app.authlane.io/catalog/services');
+    const response = await app.request('https://app.authlane.localhost/catalog/services');
+    const body = (await response.json()) as { data: Array<Record<string, unknown>> };
+
+    expect(body.data[0]).toMatchObject({
+      iconUrl: 'https://app.authlane.localhost/service-icons/github.svg',
+    });
   });
 });

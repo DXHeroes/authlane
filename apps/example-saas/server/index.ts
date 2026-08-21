@@ -51,7 +51,7 @@ app.use('*', async (c, next) => {
   const authlaneOrigin = new URL(process.env.AUTHLANE_API_URL ?? 'http://localhost:3000').origin;
   c.header(
     'Content-Security-Policy',
-    `default-src 'self'; base-uri 'none'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src ${authlaneOrigin}; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'`
+    `default-src 'self'; base-uri 'none'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src ${authlaneOrigin}; img-src 'self' data: ${authlaneOrigin}; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'`
   );
   c.header('Referrer-Policy', 'no-referrer');
   c.header('X-Content-Type-Options', 'nosniff');

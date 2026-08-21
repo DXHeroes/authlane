@@ -1,6 +1,11 @@
 id: stripe
 name: Stripe
 auth_type: oauth2
+branding:
+  description: Customers, payments, subscriptions, and invoices.
+  brand_color: '#635bff'
+  initials: ST
+  category: finance
 config:
   authorization_url: https://connect.stripe.com/oauth/authorize
   token_url: https://connect.stripe.com/oauth/token

@@ -34,6 +34,10 @@ const oauthProviderMigration = readFileSync(
   join(import.meta.dirname, '../drizzle/0012_oauth_provider.sql'),
   'utf8'
 );
+const serviceBrandingMigration = readFileSync(
+  join(import.meta.dirname, '../drizzle/0015_service_branding.sql'),
+  'utf8'
+);
 const roles = readFileSync(join(import.meta.dirname, '../sql/roles.sql'), 'utf8');
 
 describe('control-plane migration', () => {
@@ -221,5 +225,21 @@ describe('OAuth authorization-server migration', () => {
     expect(oauthProviderMigration).toContain(
       'CONSTRAINT "oauth_application_client_id_unique" UNIQUE("client_id")'
     );
+  });
+
+  it('adds every display column a consumer needs to render a service', () => {
+    for (const column of ['description', 'icon_path', 'brand_color', 'initials', 'category']) {
+      expect(serviceBrandingMigration).toContain(
+        `ALTER TABLE "services" ADD COLUMN "${column}" text`
+      );
+    }
+  });
+
+  it('leaves the display columns nullable, so the migration can land before the API', () => {
+    // Old code selects explicit columns and never sees these, so shipping the schema first is
+    // safe — but only while nothing is NOT NULL. A default of '' would also make "absent" and
+    // "empty" the same value, and the demo provider is inserted with no branding at all.
+    expect(serviceBrandingMigration).not.toContain('NOT NULL');
+    expect(serviceBrandingMigration).not.toContain('DEFAULT');
   });
 });

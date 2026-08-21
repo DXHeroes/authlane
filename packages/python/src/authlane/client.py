@@ -99,6 +99,13 @@ def _parse_service(value: Any) -> Service:
         enabled=_required_bool(item.get("enabled")),
         config=dict(config),
         tool_access_policy=cast(Any, tool_access_policy),
+        # Defaulted rather than required, so a client on this version keeps working against an
+        # older API that does not send them yet.
+        description=_optional_string(item.get("description")),
+        icon_url=_optional_string(item.get("iconUrl")),
+        brand_color=_optional_string(item.get("brandColor")),
+        initials=_optional_string(item.get("initials")) or "?",
+        category=_optional_string(item.get("category")),
     )
 
 

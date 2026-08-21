@@ -1,6 +1,11 @@
 id: discord
 name: Discord
 auth_type: oauth2
+branding:
+  description: Servers, channels, and messages your account can reach.
+  brand_color: '#5865f2'
+  initials: DC
+  category: communication
 config:
   authorization_url: https://discord.com/api/oauth2/authorize
   token_url: https://discord.com/api/oauth2/token

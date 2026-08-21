@@ -1,6 +1,11 @@
 id: linear
 name: Linear
 auth_type: oauth2
+branding:
+  description: Issues, projects, and cycles in your Linear workspace.
+  brand_color: '#5e6ad2'
+  initials: LN
+  category: engineering
 config:
   authorization_url: https://linear.app/oauth/authorize
   token_url: https://api.linear.app/oauth/token

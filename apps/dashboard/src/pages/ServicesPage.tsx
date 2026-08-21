@@ -1,6 +1,7 @@
 import { Squares2X2Icon } from '@heroicons/react/16/solid';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
+import { ServiceMark } from '@/components/ServiceMark';
 import Badge, { type BadgeTone } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
@@ -139,9 +140,7 @@ export default function ServicesPage() {
                 >
                   <div className="mb-3 flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
-                        {service.name.substring(0, 2).toUpperCase()}
-                      </div>
+                      <ServiceMark service={service} />
                       <div>
                         <h3 className="font-semibold">{service.name}</h3>
                         <AuthTypeBadge authType={service.authType} />
@@ -149,9 +148,13 @@ export default function ServicesPage() {
                     </div>
                   </div>
 
-                  {config?.description && (
+                  {/*
+                   * `config.description` was never populated for any supported service, so this
+                   * block never rendered. The column is the real source now.
+                   */}
+                  {(service.description ?? config?.description) && (
                     <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
-                      {config.description}
+                      {service.description ?? config?.description}
                     </p>
                   )}
 

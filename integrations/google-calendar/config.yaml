@@ -1,6 +1,11 @@
 id: google-calendar
 name: Google Calendar
 auth_type: oauth2
+branding:
+  description: Events, availability, and scheduling across your calendars.
+  brand_color: '#4285f4'
+  initials: GC
+  category: productivity
 config:
   authorization_url: https://accounts.google.com/o/oauth2/v2/auth
   token_url: https://oauth2.googleapis.com/token

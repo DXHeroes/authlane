@@ -1,6 +1,11 @@
 id: microsoft-mail
 name: Microsoft Mail
 auth_type: oauth2
+branding:
+  description: Read, search, and send mail from your Outlook mailbox.
+  brand_color: '#0078d4'
+  initials: MM
+  category: communication
 config:
   authorization_url: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
   token_url: https://login.microsoftonline.com/common/oauth2/v2.0/token

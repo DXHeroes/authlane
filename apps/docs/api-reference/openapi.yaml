@@ -747,7 +747,8 @@ components:
           $ref: '#/components/schemas/AuthlaneError'
     Service:
       type: object
-      required: [id, name, authType, kind, enabled, connectable, toolAccessPolicy, config]
+      required:
+        [id, name, authType, kind, enabled, connectable, toolAccessPolicy, config, iconUrl, initials]
       properties:
         id:
           type: string
@@ -779,6 +780,51 @@ components:
           $ref: '#/components/schemas/ToolAccessPolicy'
         config:
           $ref: '#/components/schemas/JsonSchema'
+        description:
+          type: string
+          nullable: true
+          description: >-
+            One sentence describing what connecting this service gives an end user. Null for an MCP
+            server the organization registered itself, which has nowhere to declare one yet.
+        iconUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: >-
+            Absolute URL of the service's mark, ready for an img element. No credentials are needed
+            to fetch it. Null when Authlane ships no mark for the service, because not every owner
+            permits theirs to be redistributed; render initials over brandColor in that case, and
+            also when the image fails to load.
+        brandColor:
+          type: string
+          nullable: true
+          description: The provider's own colour as lowercase hex, or null where none was sourced.
+          example: '#181717'
+        initials:
+          type: string
+          description: One or two characters to draw when there is no icon. Always present.
+          example: GH
+        category:
+          $ref: '#/components/schemas/ServiceCategory'
+    ServiceCategory:
+      type: string
+      nullable: true
+      description: >-
+        What the service is for, so a picker can group or filter. Null for an MCP server the
+        organization registered itself.
+      enum:
+        [
+          communication,
+          productivity,
+          crm,
+          engineering,
+          storage,
+          finance,
+          design,
+          infrastructure,
+          observability,
+          security,
+        ]
     CatalogResult:
       type: object
       required: [data, error]
@@ -1063,7 +1109,7 @@ components:
           type: 'null'
     HostedConnectService:
       type: object
-      required: [id, name, authType, status]
+      required: [id, name, authType, status, iconUrl, initials]
       properties:
         id:
           type: string
@@ -1075,6 +1121,23 @@ components:
         status:
           type: string
           enum: [disconnected, pending, connected, expired, error]
+        description:
+          type: string
+          nullable: true
+        iconUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: >-
+            Absolute URL of the service's mark. Null when Authlane ships none, in which case draw
+            initials over brandColor.
+        brandColor:
+          type: string
+          nullable: true
+        initials:
+          type: string
+        category:
+          $ref: '#/components/schemas/ServiceCategory'
     HostedConnectSessionResult:
       type: object
       required: [data, error]

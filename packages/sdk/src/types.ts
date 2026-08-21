@@ -55,7 +55,42 @@ export interface Service {
   notConnectableReason?: NotConnectableReason;
   toolAccessPolicy: ToolAccessPolicy;
   config: Record<string, unknown>;
+  /**
+   * One sentence describing what connecting this service gives an end user.
+   *
+   * Null for an MCP server the workspace registered itself: there is nowhere for its owner to
+   * write one yet.
+   */
+  description: string | null;
+  /**
+   * Absolute URL of the service's mark, ready for `<img src>`. No credentials are needed to fetch
+   * it and no CORS request is involved.
+   *
+   * Null when Authlane ships no mark for the service — some owners do not permit theirs to be
+   * redistributed. Render `initials` over `brandColor` instead, which is also what to do when the
+   * image itself fails to load.
+   */
+  iconUrl: string | null;
+  /** The provider's own colour as lowercase hex, or null where none could be sourced. */
+  brandColor: string | null;
+  /** One or two characters to draw when there is no icon. Always present. */
+  initials: string;
+  /** What the service is for, so a picker can group or filter. Null for a registered MCP server. */
+  category: ServiceCategory | null;
 }
+
+/** The vocabulary `Service.category` draws from. */
+export type ServiceCategory =
+  | 'communication'
+  | 'productivity'
+  | 'crm'
+  | 'engineering'
+  | 'storage'
+  | 'finance'
+  | 'design'
+  | 'infrastructure'
+  | 'observability'
+  | 'security';
 
 export interface Connection {
   serviceId: string;

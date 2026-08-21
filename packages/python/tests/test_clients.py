@@ -100,6 +100,73 @@ def test_network_decode_and_validation_failures_are_redacted_results() -> None:
     assert validation.error.code == "VALIDATION_ERROR"
 
 
+def test_service_carries_what_a_consumer_renders() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return envelope(
+            [
+                {
+                    "id": "github",
+                    "name": "GitHub",
+                    "authType": "oauth2",
+                    "enabled": True,
+                    "config": {},
+                    "description": "Repositories, issues, pull requests, and code search.",
+                    "iconUrl": "https://app.authlane.io/service-icons/github.svg",
+                    "brandColor": "#181717",
+                    "initials": "GH",
+                    "category": "engineering",
+                }
+            ]
+        )
+
+    with Authlane(
+        api_key="ak_test",
+        base_url="https://authlane.test",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        result = client.services.list()
+
+    assert result.error is None and result.data is not None
+    service = result.data[0]
+    assert service.description == "Repositories, issues, pull requests, and code search."
+    assert service.icon_url == "https://app.authlane.io/service-icons/github.svg"
+    assert service.brand_color == "#181717"
+    assert service.initials == "GH"
+    assert service.category == "engineering"
+
+
+def test_service_without_branding_still_parses() -> None:
+    """An older API sends none of these fields, and a client on this version must survive it."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return envelope(
+            [
+                {
+                    "id": "github",
+                    "name": "GitHub",
+                    "authType": "oauth2",
+                    "enabled": True,
+                    "config": {},
+                }
+            ]
+        )
+
+    with Authlane(
+        api_key="ak_test",
+        base_url="https://authlane.test",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        result = client.services.list()
+
+    assert result.error is None and result.data is not None
+    service = result.data[0]
+    assert service.description is None
+    assert service.icon_url is None
+    assert service.brand_color is None
+    assert service.category is None
+    assert service.initials == "?"
+
+
 @pytest.mark.anyio
 async def test_async_client_uses_async_transport_and_closes() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:

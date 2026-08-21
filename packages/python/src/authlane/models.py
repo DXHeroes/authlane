@@ -40,6 +40,16 @@ class Service:
     enabled: bool
     config: dict[str, Any]
     tool_access_policy: Literal["read_only", "full"] = "read_only"
+    #: One sentence for a card or list row. None for a workspace's own MCP server.
+    description: str | None = None
+    #: Absolute URL for an <img>. None when Authlane ships no mark; draw initials over brand_color.
+    icon_url: str | None = None
+    #: The provider's own colour as lowercase hex, or None where none was sourced.
+    brand_color: str | None = None
+    #: One or two characters to draw when there is no icon.
+    initials: str = "?"
+    #: What the service is for, so a picker can group or filter.
+    category: str | None = None
 
 
 ConnectionStatus = Literal["disconnected", "pending", "connected", "expired", "error"]

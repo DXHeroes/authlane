@@ -1,17 +1,21 @@
 version: 2
 updates:
+  # Monthly, and one grouped PR rather than two. In August eight Dependabot pull requests cost
+  # roughly 590 minutes — 290 of its own runs plus the CI and Security runs each rebase retriggered
+  # — which was 41% of the repository's entire Actions spend. Security fixes do not wait for this
+  # schedule: Dependabot security alerts are enabled and report CVEs independently.
   - package-ecosystem: npm
     directory: /
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 10
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 3
     groups:
-      production-dependencies:
-        dependency-type: production
-      development-dependencies:
-        dependency-type: development
+      dependencies:
+        patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 3
   - package-ecosystem: docker
     directory: /apps/api
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 3

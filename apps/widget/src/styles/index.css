@@ -296,10 +296,27 @@ body {
   object-fit: cover;
 }
 
+/*
+ * The placeholder for a service Authlane ships no mark for, and for one whose image failed.
+ * --service-brand-color is set inline from the API's brandColor; services that declare none fall
+ * back to the widget's own theme rather than to an invented colour.
+ */
 .service-card__icon-placeholder {
-  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.25rem;
   font-weight: 600;
-  color: var(--primary-color);
+  letter-spacing: 0.02em;
+  background: var(--service-brand-color, transparent);
+  color: var(--service-brand-color, var(--primary-color));
+}
+
+/* Over a filled brand colour the initials have to read as knockout text, not as the colour. */
+.service-card__icon[style*='--service-brand-color'] .service-card__icon-placeholder {
+  color: #fff;
 }
 
 .service-card__status-badge {

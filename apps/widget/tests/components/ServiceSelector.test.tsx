@@ -13,45 +13,34 @@ vi.mock('@/components/ServiceCard', () => ({
   ),
 }));
 
+function service(
+  id: string,
+  name: string,
+  category: Service['category'],
+  description: string | null
+): Service {
+  return {
+    id,
+    name,
+    authType: 'oauth2',
+    category,
+    iconUrl: null,
+    description,
+    brandColor: null,
+    initials: name.slice(0, 2).toUpperCase(),
+    status: 'disconnected',
+  };
+}
+
 describe('ServiceSelector', () => {
   const mockOnServiceSelect = vi.fn();
 
   const mockServices: Service[] = [
-    {
-      id: 'github',
-      name: 'GitHub',
-      category: 'development',
-      icon: '',
-      description: 'Version control and collaboration',
-    },
-    {
-      id: 'slack',
-      name: 'Slack',
-      category: 'communication',
-      icon: '',
-      description: 'Team communication platform',
-    },
-    {
-      id: 'salesforce',
-      name: 'Salesforce',
-      category: 'crm',
-      icon: '',
-      description: 'Customer relationship management',
-    },
-    {
-      id: 'google-drive',
-      name: 'Google Drive',
-      category: 'storage',
-      icon: '',
-      description: 'Cloud storage solution',
-    },
-    {
-      id: 'trello',
-      name: 'Trello',
-      category: 'productivity',
-      icon: '',
-      description: 'Project management tool',
-    },
+    service('github', 'GitHub', 'engineering', 'Version control and collaboration'),
+    service('slack', 'Slack', 'communication', 'Team communication platform'),
+    service('salesforce', 'Salesforce', 'crm', 'Customer relationship management'),
+    service('google-drive', 'Google Drive', 'storage', 'Cloud storage solution'),
+    service('trello', 'Trello', 'productivity', 'Project management tool'),
   ];
 
   beforeEach(() => {
@@ -73,16 +62,33 @@ describe('ServiceSelector', () => {
       expect(searchInput).toBeInTheDocument();
     });
 
-    it('renders all category buttons', () => {
+    it('renders a button for every category present, and no others', () => {
+      // The list used to be hardcoded and included categories nothing was ever filed under, so
+      // those tabs could only ever empty the grid.
       render(<ServiceSelector services={mockServices} onServiceSelect={mockOnServiceSelect} />);
 
-      expect(screen.getByRole('button', { name: /All/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Communication/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Crm/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Development/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Productivity/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Storage/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Other/i })).toBeInTheDocument();
+      for (const label of [
+        /All/i,
+        /Communication/i,
+        /Crm/i,
+        /Engineering/i,
+        /Productivity/i,
+        /Storage/i,
+      ]) {
+        expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+      }
+      expect(screen.queryByRole('button', { name: /Other/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Finance/i })).not.toBeInTheDocument();
+    });
+
+    it('offers no category a service could be missing from', () => {
+      // A server a workspace registered itself declares no category. It must stay reachable, so
+      // the filter is hidden rather than silently excluding it behind a tab.
+      const uncategorized = [service('mcp-1', 'Acme CRM', null, null)];
+      render(<ServiceSelector services={uncategorized} onServiceSelect={mockOnServiceSelect} />);
+
+      expect(screen.queryByRole('button', { name: /^Crm$/i })).not.toBeInTheDocument();
+      expect(screen.getByTestId('service-card-mcp-1')).toBeInTheDocument();
     });
 
     it('has "All" category selected by default', () => {
@@ -182,11 +188,11 @@ describe('ServiceSelector', () => {
       expect(screen.queryByTestId('service-card-salesforce')).not.toBeInTheDocument();
     });
 
-    it('filters services by development category', async () => {
+    it('filters services by engineering category', async () => {
       const user = userEvent.setup();
       render(<ServiceSelector services={mockServices} onServiceSelect={mockOnServiceSelect} />);
 
-      const developmentButton = screen.getByRole('button', { name: /Development/i });
+      const developmentButton = screen.getByRole('button', { name: /^Engineering$/i });
       await user.click(developmentButton);
 
       expect(screen.getByTestId('service-card-github')).toBeInTheDocument();
@@ -209,7 +215,7 @@ describe('ServiceSelector', () => {
       render(<ServiceSelector services={mockServices} onServiceSelect={mockOnServiceSelect} />);
 
       // First select a specific category
-      const developmentButton = screen.getByRole('button', { name: /Development/i });
+      const developmentButton = screen.getByRole('button', { name: /^Engineering$/i });
       await user.click(developmentButton);
       expect(screen.queryByTestId('service-card-slack')).not.toBeInTheDocument();
 
@@ -227,7 +233,7 @@ describe('ServiceSelector', () => {
       const user = userEvent.setup();
       render(<ServiceSelector services={mockServices} onServiceSelect={mockOnServiceSelect} />);
 
-      const developmentButton = screen.getByRole('button', { name: /Development/i });
+      const developmentButton = screen.getByRole('button', { name: /^Engineering$/i });
       await user.click(developmentButton);
 
       expect(developmentButton).toHaveClass('service-selector__category--active');
@@ -236,13 +242,11 @@ describe('ServiceSelector', () => {
       );
     });
 
-    it('shows no results message when category has no matching services', async () => {
+    it('shows the empty state when a search matches nothing', async () => {
       const user = userEvent.setup();
-      const noOtherServices = mockServices; // No services with "other" category
-      render(<ServiceSelector services={noOtherServices} onServiceSelect={mockOnServiceSelect} />);
+      render(<ServiceSelector services={mockServices} onServiceSelect={mockOnServiceSelect} />);
 
-      const otherButton = screen.getByRole('button', { name: /Other/i });
-      await user.click(otherButton);
+      await user.type(screen.getByPlaceholderText('Search services...'), 'nothing-matches-this');
 
       expect(screen.getByText('No services found matching your criteria')).toBeInTheDocument();
     });
@@ -253,13 +257,7 @@ describe('ServiceSelector', () => {
       const user = userEvent.setup();
       const servicesWithMultipleInCategory: Service[] = [
         ...mockServices,
-        {
-          id: 'gitlab',
-          name: 'GitLab',
-          category: 'development',
-          icon: '',
-          description: 'DevOps platform',
-        },
+        service('gitlab', 'GitLab', 'engineering', 'DevOps platform'),
       ];
 
       render(
@@ -269,8 +267,8 @@ describe('ServiceSelector', () => {
         />
       );
 
-      // Select development category
-      const developmentButton = screen.getByRole('button', { name: /Development/i });
+      // Select engineering category
+      const developmentButton = screen.getByRole('button', { name: /^Engineering$/i });
       await user.click(developmentButton);
 
       // Both GitHub and GitLab should be visible

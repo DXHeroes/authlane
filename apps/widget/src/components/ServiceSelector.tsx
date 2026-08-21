@@ -12,15 +12,21 @@ interface ServiceSelectorProps {
   pendingServiceId?: string | null;
 }
 
-const CATEGORIES = [
-  'all',
-  'communication',
-  'crm',
-  'development',
-  'productivity',
-  'storage',
-  'other',
-];
+/**
+ * The categories actually present, rather than a fixed list.
+ *
+ * This used to be seven hardcoded names that did not match the vocabulary the API files services
+ * under — and it did not matter, because every service arrived forced to 'other', so picking any
+ * tab but "All" emptied the grid. Deriving the tabs means none of them can ever come back empty,
+ * and a service with no category (a server the workspace registered itself) simply has no tab.
+ */
+function categoriesOf(services: Service[]): string[] {
+  const present = new Set<string>();
+  for (const service of services) {
+    if (service.category) present.add(service.category);
+  }
+  return ['all', ...[...present].sort()];
+}
 
 /**
  * Placeholders in the shape of the cards they stand in for.
@@ -52,11 +58,14 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  const categories = useMemo(() => categoriesOf(services), [services]);
+
   const filteredServices = useMemo(() => {
+    const query = searchTerm.toLowerCase();
     return services.filter((service) => {
       const matchesSearch =
-        service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        service.description.toLowerCase().includes(searchTerm.toLowerCase());
+        service.name.toLowerCase().includes(query) ||
+        (service.description ?? '').toLowerCase().includes(query);
       const matchesCategory = selectedCategory === 'all' || service.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
@@ -84,9 +93,9 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
         />
       </div>
 
-      <fieldset className="service-selector__categories">
+      <fieldset className="service-selector__categories" hidden={categories.length < 3}>
         <legend className="service-selector__sr-only">Filter services by category</legend>
-        {CATEGORIES.map((category) => (
+        {categories.map((category) => (
           <button
             type="button"
             key={category}

@@ -28,11 +28,19 @@ describe('ConnectionStatus', () => {
       id: 'github',
       name: 'GitHub',
       authType: 'oauth2' as const,
+      // Authlane serves a mark for GitHub.
+      iconUrl: 'https://app.authlane.io/service-icons/github.svg',
+      brandColor: '#181717',
+      initials: 'GH',
     },
     {
       id: 'slack',
       name: 'Slack',
       authType: 'oauth2' as const,
+      // It serves none for Slack, whose owner does not permit redistribution.
+      iconUrl: null,
+      brandColor: '#611f69',
+      initials: 'SL',
     },
   ];
 
@@ -41,6 +49,9 @@ describe('ConnectionStatus', () => {
       id: 'pokeapi',
       name: 'PokeAPI',
       authType: 'none' as const,
+      iconUrl: null,
+      brandColor: null,
+      initials: 'PO',
     },
   ];
 
@@ -166,13 +177,17 @@ describe('ConnectionStatus', () => {
       });
     });
 
-    it('shows service abbreviation icon', async () => {
+    it('renders the mark Authlane serves, and the initials where it serves none', async () => {
+      // Both come from the catalogue. This app has no id-to-logo map, which is the whole point.
       render(<ConnectionStatus />);
 
       await waitFor(() => {
-        expect(screen.getByText('GI')).toBeInTheDocument(); // GitHub
-        expect(screen.getByText('SL')).toBeInTheDocument(); // Slack
+        expect(screen.getByText('SL')).toBeInTheDocument();
       });
+
+      const mark = document.querySelector('img[src*="service-icons/github.svg"]');
+      expect(mark).toBeInTheDocument();
+      expect(screen.queryByText('GI')).not.toBeInTheDocument();
     });
 
     it('shows connected status for connected services', async () => {

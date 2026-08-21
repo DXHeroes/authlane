@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ServiceCard } from '@/components/ServiceCard';
 import type { Service } from '@/types';
-import { render, screen } from '../utils/test-utils';
+import { fireEvent, render, screen } from '../utils/test-utils';
 
 // Mock ConnectionStatus component
 vi.mock('@/components/ConnectionStatus', () => ({
@@ -19,10 +19,17 @@ describe('ServiceCard', () => {
   const baseService: Service = {
     id: 'github',
     name: 'GitHub',
-    category: 'development',
-    icon: 'https://example.com/github-icon.png',
+    authType: 'oauth2',
+    category: 'engineering',
+    iconUrl: 'https://app.authlane.io/service-icons/github.svg',
     description: 'Connect your GitHub account',
+    brandColor: '#181717',
+    initials: 'GH',
+    status: 'disconnected',
   };
+
+  /** A card rendered before any connection state is known. */
+  const withoutStatus = { ...baseService, status: undefined } as unknown as Service;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -36,27 +43,46 @@ describe('ServiceCard', () => {
       expect(screen.getByText('Connect your GitHub account')).toBeInTheDocument();
     });
 
-    it('displays service icon when icon URL is provided', () => {
-      render(<ServiceCard service={baseService} onClick={mockOnClick} />);
+    it('displays the mark Authlane serves', () => {
+      const { container } = render(<ServiceCard service={baseService} onClick={mockOnClick} />);
 
-      const icon = screen.getByAltText('GitHub');
-      expect(icon).toBeInTheDocument();
-      expect(icon).toHaveAttribute('src', 'https://example.com/github-icon.png');
+      const icon = container.querySelector('.service-card__icon img');
+      // Decorative: the service name is already the heading right beside it, so alt text here
+      // would make a screen reader say it twice.
+      expect(icon).toHaveAttribute('src', 'https://app.authlane.io/service-icons/github.svg');
+      expect(icon).toHaveAttribute('alt', '');
     });
 
-    it('displays first letter placeholder when icon is not provided', () => {
-      const serviceWithoutIcon = { ...baseService, icon: '' };
-      render(<ServiceCard service={serviceWithoutIcon} onClick={mockOnClick} />);
+    it('draws the initials over the brand colour when no mark is served', () => {
+      // Slack, Salesforce, and the Microsoft services take this path: their owners do not permit
+      // the mark to be redistributed, so the API sends iconUrl: null on purpose.
+      const withoutIcon = { ...baseService, iconUrl: null };
+      const { container } = render(<ServiceCard service={withoutIcon} onClick={mockOnClick} />);
 
-      expect(screen.getByText('G')).toBeInTheDocument();
-      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+      expect(screen.getByText('GH')).toBeInTheDocument();
+      expect(container.querySelector('.service-card__icon img')).toBeNull();
+      expect(container.querySelector('.service-card__icon')).toHaveStyle({
+        '--service-brand-color': '#181717',
+      });
     });
 
-    it('capitalizes first letter in placeholder', () => {
-      const lowercaseService = { ...baseService, name: 'github', icon: '' };
-      render(<ServiceCard service={lowercaseService} onClick={mockOnClick} />);
+    it('falls back to the initials when the image itself fails', async () => {
+      // One 404 or a host-page CSP should leave initials, not an empty square.
+      const { container } = render(<ServiceCard service={baseService} onClick={mockOnClick} />);
+      const icon = container.querySelector('.service-card__icon img') as HTMLImageElement;
 
-      expect(screen.getByText('G')).toBeInTheDocument();
+      fireEvent.error(icon);
+
+      expect(screen.getByText('GH')).toBeInTheDocument();
+      expect(container.querySelector('.service-card__icon img')).toBeNull();
+    });
+
+    it('renders no description paragraph when the service declares none', () => {
+      const { container } = render(
+        <ServiceCard service={{ ...baseService, description: null }} onClick={mockOnClick} />
+      );
+
+      expect(container.querySelector('.service-card__description')).toBeNull();
     });
   });
 
@@ -72,7 +98,9 @@ describe('ServiceCard', () => {
     });
 
     it('does not show ConnectionStatus when status is not provided', () => {
-      render(<ServiceCard service={baseService} onClick={mockOnClick} />);
+      // The card guards on status, and this pins that guard. The fixture states the absence
+      // explicitly now that Service declares status, rather than relying on an incomplete object.
+      render(<ServiceCard service={withoutStatus} onClick={mockOnClick} />);
 
       expect(screen.queryByTestId('connection-status')).not.toBeInTheDocument();
     });
@@ -138,7 +166,7 @@ describe('ServiceCard', () => {
     });
 
     it('does not show status badge when status is not provided', () => {
-      const { container } = render(<ServiceCard service={baseService} onClick={mockOnClick} />);
+      const { container } = render(<ServiceCard service={withoutStatus} onClick={mockOnClick} />);
 
       const statusBadge = container.querySelector('.service-card__status-badge');
       expect(statusBadge).not.toBeInTheDocument();

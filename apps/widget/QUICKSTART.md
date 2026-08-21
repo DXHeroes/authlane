@@ -235,7 +235,6 @@ Make sure to include the CSS file:
 
 - Read the full README.md for detailed documentation
 - Check public/example.html for a complete working example
-- Review PHASE_4.2_WIDGET_IMPLEMENTATION_SUMMARY.md for architecture details
 
 ## Support
 

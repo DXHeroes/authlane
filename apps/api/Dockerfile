@@ -1,4 +1,4 @@
-FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS builder
+FROM node:26-alpine@sha256:aadf416b2cdce311a8811ba3f0608a61b77dbf997500e2eafe781b51f6a0b019 AS builder
 
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 ENV PUPPETEER_SKIP_DOWNLOAD=true
@@ -23,7 +23,7 @@ RUN pnpm --filter @authlane/api... build \
   && pnpm --filter @authlane/widget build \
   && pnpm --filter @authlane/landing build
 
-FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS runtime-base
+FROM node:26-alpine@sha256:aadf416b2cdce311a8811ba3f0608a61b77dbf997500e2eafe781b51f6a0b019 AS runtime-base
 
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 WORKDIR /app

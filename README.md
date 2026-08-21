@@ -1,5 +1,10 @@
 # Authlane
 
+[![CI](https://github.com/DXHeroes/authlane/actions/workflows/ci.yml/badge.svg)](https://github.com/DXHeroes/authlane/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/%40authlane%2Fsdk?label=%40authlane%2Fsdk)](https://www.npmjs.com/package/@authlane/sdk)
+[![PyPI](https://img.shields.io/pypi/v/authlane)](https://pypi.org/project/authlane/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 Give every signed-in user tools backed by their own GitHub, Slack, Google, CRM, and productivity
 connections—without putting another proxy in the provider request path.
 
@@ -238,6 +243,8 @@ The monorepo uses Node.js 22, Hono, React, PostgreSQL 16, Drizzle, Redis, BullMQ
 Vitest, and Playwright. See [AGENTS.md](./AGENTS.md) for repository conventions and
 [security operations](./docs/security/OPERATIONS.md) for production procedures. Maintainers should
 follow the manual OIDC [release guide](./docs/releasing.md); merging code never publishes packages.
+New contributors should start with [CONTRIBUTING.md](./CONTRIBUTING.md).
+New contributors should start with [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## AI coding plugin marketplace
 

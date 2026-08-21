@@ -244,7 +244,6 @@ Vitest, and Playwright. See [AGENTS.md](./AGENTS.md) for repository conventions 
 [security operations](./docs/security/OPERATIONS.md) for production procedures. Maintainers should
 follow the manual OIDC [release guide](./docs/releasing.md); merging code never publishes packages.
 New contributors should start with [CONTRIBUTING.md](./CONTRIBUTING.md).
-New contributors should start with [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## AI coding plugin marketplace
 

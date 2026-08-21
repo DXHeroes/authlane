@@ -412,9 +412,8 @@ VITE_API_URL=http://localhost:3000/api/v1/dashboard
 ## Support
 
 For issues or questions:
-- GitHub Issues: [authlane/issues](https://github.com/authlane/authlane/issues)
+- GitHub Issues: [DXHeroes/authlane/issues](https://github.com/DXHeroes/authlane/issues)
 - Documentation: [authlane.io/docs](https://authlane.io/docs)
-- Email: support@authlane.com
 
 ---
 

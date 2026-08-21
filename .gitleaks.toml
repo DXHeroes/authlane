@@ -1,0 +1,21 @@
+# Gitleaks configuration for CI secret scans (see .github/workflows/ci.yml and security.yml).
+# Everything allowlisted here is a test fixture or a documentation placeholder, never a real value.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Unit, integration, and e2e test fixtures"
+paths = [
+  '''(^|/)tests?/''',
+  '''^e2e/''',
+  '''\.test\.(ts|tsx|py)$''',
+  '''\.spec\.ts$''',
+]
+
+[[allowlists]]
+description = "Documentation placeholders"
+regexes = [
+  '''YOUR_SCOPED_API_KEY''',
+  '''1234567890abcdef1234567890abcdef''',
+]

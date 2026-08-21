@@ -70,7 +70,7 @@ Generates:
   <script src="authlane-widget.iife.js"></script>
   <script>
     const widget = new AuthlaneWidget({
-      apiUrl: 'https://api.authlane.com',
+      apiUrl: 'https://app.authlane.io',
       apiKey: 'your-api-key',
       userId: 'user-123',
       onConnect: (serviceId) => {
@@ -96,7 +96,7 @@ Generates:
 import { AuthlaneWidget } from '@authlane/widget';
 
 const widget = new AuthlaneWidget({
-  apiUrl: 'https://api.authlane.com',
+  apiUrl: 'https://app.authlane.io',
   apiKey: 'your-api-key',
   userId: 'user-123'
 });
@@ -108,7 +108,7 @@ const instance = widget.mount('container-id');
 
 ```javascript
 const widget = new AuthlaneWidget({
-  apiUrl: 'https://api.authlane.com',
+  apiUrl: 'https://app.authlane.io',
   apiKey: 'your-api-key',
   userId: 'user-123',
   theme: {

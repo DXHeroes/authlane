@@ -5,7 +5,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const expectedRepository = 'git+https://github.com/dxheroes/authlane.git';
+const expectedRepository = 'git+https://github.com/DXHeroes/authlane.git';
 const rootLicense = readFileSync(join(repositoryRoot, 'LICENSE'), 'utf8');
 const publicPackages = ['packages', 'integrations']
   .flatMap((workspace) =>

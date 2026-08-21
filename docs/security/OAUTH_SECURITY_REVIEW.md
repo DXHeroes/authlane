@@ -224,20 +224,20 @@ if (process.env.NODE_ENV === 'production' && !redirectUri.startsWith('https://')
 
 #### ✅ Open Redirect Attack:
 ```
-❌ BLOCKED: https://authlane.com/callback?redirect=https://evil.com
-✅ ALLOWED: https://authlane.com/callback (exact match)
+❌ BLOCKED: https://authlane.io/callback?redirect=https://evil.com
+✅ ALLOWED: https://authlane.io/callback (exact match)
 ```
 
 #### ✅ Subdomain Attack:
 ```
-❌ BLOCKED: https://evil.authlane.com/callback (not registered)
-✅ ALLOWED: https://app.authlane.com/callback (if registered)
+❌ BLOCKED: https://evil.authlane.io/callback (not registered)
+✅ ALLOWED: https://app.authlane.io/callback (if registered)
 ```
 
 #### ✅ Path Traversal:
 ```
-❌ BLOCKED: https://app.authlane.com/callback/../evil
-✅ ALLOWED: https://app.authlane.com/callback (exact match)
+❌ BLOCKED: https://app.authlane.io/callback/../evil
+✅ ALLOWED: https://app.authlane.io/callback (exact match)
 ```
 
 ### Test Coverage:

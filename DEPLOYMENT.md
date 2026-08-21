@@ -52,27 +52,26 @@ Required production configuration includes:
 Never set the removed `ENCRYPTION_KEY`. Never put any populated `.env`, key file, provider token,
 database dump, or backup key in the repository or container image.
 
-## Coolify demo deployment
+## Coolify deployment
 
 Deploy `docker-compose.coolify.yml` as one Git-backed Docker Compose Application. The `app` service is
 the only public runtime; PostgreSQL, Redis, and the one-shot migrator have no host ports or domains.
 Do not add custom Compose networks: Coolify attaches its proxy network to the public service.
 
-For the DX Heroes demo use:
+The compose file ships with the hosted Authlane Cloud host names as documented defaults; override every host-dependent variable for your installation. For example, with `example.com` as the landing host and `app.example.com` as the dashboard host:
 
-- repository `DXHeroes/authlane`, branch `main`, and compose path `/docker-compose.coolify.yml`;
-- both public service domains on the same `app` service: `https://authlane.io:3000` and
-  `https://app.authlane.io:3000`;
-- `APP_URL=https://app.authlane.io`, `BETTER_AUTH_URL=https://app.authlane.io`, and
-  `CORS_ORIGIN=https://app.authlane.io` plus only explicitly required tenant origins;
-- `AUTHLANE_LANDING_HOSTS=authlane.io`, `AUTHLANE_APP_HOSTS=app.authlane.io`, and
+- your repository (or a fork of `DXHeroes/authlane`), branch `main`, and compose path `/docker-compose.coolify.yml`;
+- both public service domains on the same `app` service: `https://example.com:3000` and
+  `https://app.example.com:3000`;
+- `APP_URL=https://app.example.com`, `BETTER_AUTH_URL=https://app.example.com`, and
+  `CORS_ORIGIN=https://app.example.com` plus only explicitly required tenant origins;
+- `AUTHLANE_LANDING_HOSTS=example.com`, `AUTHLANE_APP_HOSTS=app.example.com`, and
   `AUTHLANE_AUTH_MODE=magic-link`, `AUTHLANE_ALLOW_SIGNUP=true`;
 - a new masked, runtime-only `RESEND_API_KEY` and
-  `EMAIL_FROM=Authlane <auth@mail.authlane.io>` after Resend verifies DKIM and SPF for
-  `mail.authlane.io`;
+  `EMAIL_FROM=Authlane <auth@mail.example.com>` after Resend verifies DKIM and SPF for
+  `mail.example.com`;
 - independent URL-safe 64-hex database/Redis passwords, `v1:<64-hex>` keyrings,
   `1:<64-hex>` Better Auth secrets, and a 64-hex metrics token;
-- `RATE_LIMIT_MAX_REQUESTS=30000` and `RATE_LIMIT_WINDOW_MS=60000` for the acceptance benchmark;
 - empty `TRUSTED_PROXY_CIDRS` unless the exact immediate Coolify proxy CIDR is known.
 
 Create the resource with instant deployment disabled. Add the domain and masked, literal,
@@ -82,21 +81,21 @@ deployment has an exited-zero `migrate` container, healthy PostgreSQL and Redis,
 container responding on `/health`.
 
 The apex host serves only the public landing. Dashboard, authentication, docs, connect, and API
-routes are served only from `app.authlane.io`. No gateway, MCP, provider proxy, or tool-execution
+routes are served only from `app.example.com`. No gateway, MCP, provider proxy, or tool-execution
 service belongs in this stack; SaaS runtimes call providers directly.
 
 ### First-owner bootstrap
 
-1. Verify Resend DNS, revoke any disclosed sending key, and create a new sending-only key.
+1. Verify Resend DNS and create a sending-only key.
 2. Set the four passwordless variables above and deploy.
 3. Request a link in the browser, complete onboarding, and verify the organization is active.
-4. Keep sign-up open for Authlane Cloud, or set `AUTHLANE_ALLOW_SIGNUP=false` for a closed
+4. Keep sign-up open for a multi-tenant installation, or set `AUTHLANE_ALLOW_SIGNUP=false` for a closed
    self-hosted installation. Existing users can still request links when sign-up is closed.
 
-For GitHub OAuth create an app with homepage `https://app.authlane.io` and callback
-`https://app.authlane.io/api/v1/oauth/github/callback`. Enter its client ID and secret only in
+For GitHub OAuth create an app with homepage `https://app.example.com` and callback
+`https://app.example.com/api/v1/oauth/github/callback`. Enter its client ID and secret only in
 the Authlane dashboard. Roll back application code through Coolify deployment history; never perform
-a destructive database rollback. This demo keeps data on local named volumes and does not provide a
+a destructive database rollback. This setup keeps data on local named volumes and does not provide a
 production backup SLA. Move PostgreSQL and Redis to managed, backed-up services before production.
 
 ## Release gate

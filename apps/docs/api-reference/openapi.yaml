@@ -781,23 +781,20 @@ components:
         config:
           $ref: '#/components/schemas/JsonSchema'
         description:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: >-
             One sentence describing what connecting this service gives an end user. Null for an MCP
             server the organization registered itself, which has nowhere to declare one yet.
         iconUrl:
-          type: string
+          type: [string, 'null']
           format: uri
-          nullable: true
           description: >-
             Absolute URL of the service's mark, ready for an img element. No credentials are needed
             to fetch it. Null when Authlane ships no mark for the service, because not every owner
             permits theirs to be redistributed; render initials over brandColor in that case, and
             also when the image fails to load.
         brandColor:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: The provider's own colour as lowercase hex, or null where none was sourced.
           example: '#181717'
         initials:
@@ -807,8 +804,7 @@ components:
         category:
           $ref: '#/components/schemas/ServiceCategory'
     ServiceCategory:
-      type: string
-      nullable: true
+      type: [string, 'null']
       description: >-
         What the service is for, so a picker can group or filter. Null for an MCP server the
         organization registered itself.
@@ -824,6 +820,7 @@ components:
           infrastructure,
           observability,
           security,
+          null,
         ]
     CatalogResult:
       type: object
@@ -1122,18 +1119,15 @@ components:
           type: string
           enum: [disconnected, pending, connected, expired, error]
         description:
-          type: string
-          nullable: true
+          type: [string, 'null']
         iconUrl:
-          type: string
+          type: [string, 'null']
           format: uri
-          nullable: true
           description: >-
             Absolute URL of the service's mark. Null when Authlane ships none, in which case draw
             initials over brandColor.
         brandColor:
-          type: string
-          nullable: true
+          type: [string, 'null']
         initials:
           type: string
         category:

@@ -128,7 +128,9 @@ describe('Task 04 OpenAPI 3.1 contract', () => {
     expect(schema).not.toContain('allowedOrigin:');
 
     const service = section('    HostedConnectService:', '    HostedConnectSessionResult:');
-    expect(service).toContain('required: [id, name, authType, status]');
+    // iconUrl and initials are required because a renderer depends on both: something can always
+    // be drawn, and a null iconUrl is the explicit instruction to draw the fallback.
+    expect(service).toContain('required: [id, name, authType, status, iconUrl, initials]');
   });
 
   it('matches the source-captured disconnect result', () => {

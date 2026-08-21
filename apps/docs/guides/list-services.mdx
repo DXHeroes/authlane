@@ -53,11 +53,22 @@ theirs to be redistributed, and for MCP servers a workspace registered itself. D
 blank square:
 
 ```tsx
-{service.iconUrl ? (
-  <img src={service.iconUrl} alt="" onError={(e) => (e.currentTarget.hidden = true)} />
-) : (
-  <span style={{ background: service.brandColor ?? '#e5e5e5' }}>{service.initials}</span>
-)}
+import { useState } from 'react';
+import type { Service } from '@authlane/sdk';
+
+export function ServiceMark({ service }: { service: Service }) {
+  const [failed, setFailed] = useState(false);
+
+  if (service.iconUrl && !failed) {
+    return <img src={service.iconUrl} alt="" onError={() => setFailed(true)} />;
+  }
+
+  return (
+    <span style={service.brandColor ? { background: service.brandColor } : undefined}>
+      {service.initials}
+    </span>
+  );
+}
 ```
 
 ## Handle errors

@@ -155,19 +155,25 @@
                             "additionalProperties": true
                           },
                           "description": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": [
+                              "string",
+                              "null"
+                            ],
                             "description": "One sentence describing what connecting this service gives an end user. Null for an MCP server the organization registered itself, which has nowhere to declare one yet."
                           },
                           "iconUrl": {
-                            "type": "string",
+                            "type": [
+                              "string",
+                              "null"
+                            ],
                             "format": "uri",
-                            "nullable": true,
                             "description": "Absolute URL of the service's mark, ready for an img element. No credentials are needed to fetch it. Null when Authlane ships no mark for the service, because not every owner permits theirs to be redistributed; render initials over brandColor in that case, and also when the image fails to load."
                           },
                           "brandColor": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": [
+                              "string",
+                              "null"
+                            ],
                             "description": "The provider's own colour as lowercase hex, or null where none was sourced.",
                             "example": "#181717"
                           },
@@ -177,8 +183,10 @@
                             "example": "GH"
                           },
                           "category": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": [
+                              "string",
+                              "null"
+                            ],
                             "description": "What the service is for, so a picker can group or filter. Null for an MCP server the organization registered itself.",
                             "enum": [
                               "communication",
@@ -190,7 +198,8 @@
                               "design",
                               "infrastructure",
                               "observability",
-                              "security"
+                              "security",
+                              null
                             ]
                           }
                         }
@@ -3699,25 +3708,33 @@
                                 ]
                               },
                               "description": {
-                                "type": "string",
-                                "nullable": true
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
                               },
                               "iconUrl": {
-                                "type": "string",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
                                 "format": "uri",
-                                "nullable": true,
                                 "description": "Absolute URL of the service's mark. Null when Authlane ships none, in which case draw initials over brandColor."
                               },
                               "brandColor": {
-                                "type": "string",
-                                "nullable": true
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
                               },
                               "initials": {
                                 "type": "string"
                               },
                               "category": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
                                 "description": "What the service is for, so a picker can group or filter. Null for an MCP server the organization registered itself.",
                                 "enum": [
                                   "communication",
@@ -3729,7 +3746,8 @@
                                   "design",
                                   "infrastructure",
                                   "observability",
-                                  "security"
+                                  "security",
+                                  null
                                 ]
                               }
                             }
@@ -7598,19 +7616,25 @@
             "additionalProperties": true
           },
           "description": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "One sentence describing what connecting this service gives an end user. Null for an MCP server the organization registered itself, which has nowhere to declare one yet."
           },
           "iconUrl": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uri",
-            "nullable": true,
             "description": "Absolute URL of the service's mark, ready for an img element. No credentials are needed to fetch it. Null when Authlane ships no mark for the service, because not every owner permits theirs to be redistributed; render initials over brandColor in that case, and also when the image fails to load."
           },
           "brandColor": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "The provider's own colour as lowercase hex, or null where none was sourced.",
             "example": "#181717"
           },
@@ -7620,8 +7644,10 @@
             "example": "GH"
           },
           "category": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "What the service is for, so a picker can group or filter. Null for an MCP server the organization registered itself.",
             "enum": [
               "communication",
@@ -7633,14 +7659,17 @@
               "design",
               "infrastructure",
               "observability",
-              "security"
+              "security",
+              null
             ]
           }
         }
       },
       "ServiceCategory": {
-        "type": "string",
-        "nullable": true,
+        "type": [
+          "string",
+          "null"
+        ],
         "description": "What the service is for, so a picker can group or filter. Null for an MCP server the organization registered itself.",
         "enum": [
           "communication",
@@ -7652,7 +7681,8 @@
           "design",
           "infrastructure",
           "observability",
-          "security"
+          "security",
+          null
         ]
       },
       "CatalogResult": {
@@ -7729,19 +7759,25 @@
                   "additionalProperties": true
                 },
                 "description": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "description": "One sentence describing what connecting this service gives an end user. Null for an MCP server the organization registered itself, which has nowhere to declare one yet."
                 },
                 "iconUrl": {
-                  "type": "string",
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "format": "uri",
-                  "nullable": true,
                   "description": "Absolute URL of the service's mark, ready for an img element. No credentials are needed to fetch it. Null when Authlane ships no mark for the service, because not every owner permits theirs to be redistributed; render initials over brandColor in that case, and also when the image fails to load."
                 },
                 "brandColor": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "description": "The provider's own colour as lowercase hex, or null where none was sourced.",
                   "example": "#181717"
                 },
@@ -7751,8 +7787,10 @@
                   "example": "GH"
                 },
                 "category": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "description": "What the service is for, so a picker can group or filter. Null for an MCP server the organization registered itself.",
                   "enum": [
                     "communication",
@@ -7764,7 +7802,8 @@
                     "design",
                     "infrastructure",
                     "observability",
-                    "security"
+                    "security",
+                    null
                   ]
                 }
               }
@@ -9179,25 +9218,33 @@
             ]
           },
           "description": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "iconUrl": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uri",
-            "nullable": true,
             "description": "Absolute URL of the service's mark. Null when Authlane ships none, in which case draw initials over brandColor."
           },
           "brandColor": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "initials": {
             "type": "string"
           },
           "category": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "What the service is for, so a picker can group or filter. Null for an MCP server the organization registered itself.",
             "enum": [
               "communication",
@@ -9209,7 +9256,8 @@
               "design",
               "infrastructure",
               "observability",
-              "security"
+              "security",
+              null
             ]
           }
         }
@@ -9269,25 +9317,33 @@
                       ]
                     },
                     "description": {
-                      "type": "string",
-                      "nullable": true
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "iconUrl": {
-                      "type": "string",
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "format": "uri",
-                      "nullable": true,
                       "description": "Absolute URL of the service's mark. Null when Authlane ships none, in which case draw initials over brandColor."
                     },
                     "brandColor": {
-                      "type": "string",
-                      "nullable": true
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "initials": {
                       "type": "string"
                     },
                     "category": {
-                      "type": "string",
-                      "nullable": true,
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "description": "What the service is for, so a picker can group or filter. Null for an MCP server the organization registered itself.",
                       "enum": [
                         "communication",
@@ -9299,7 +9355,8 @@
                         "design",
                         "infrastructure",
                         "observability",
-                        "security"
+                        "security",
+                        null
                       ]
                     }
                   }

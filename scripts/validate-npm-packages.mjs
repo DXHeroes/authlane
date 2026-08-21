@@ -61,7 +61,7 @@ try {
     );
     assert(manifest.homepage === 'https://authlane.io/docs', `${manifest.name}: homepage mismatch`);
     assert(
-      manifest.bugs?.url === 'https://github.com/dxheroes/authlane/issues',
+      manifest.bugs?.url === 'https://github.com/DXHeroes/authlane/issues',
       `${manifest.name}: bugs URL mismatch`
     );
     assert(manifest.publishConfig?.access === 'public', `${manifest.name}: public access missing`);

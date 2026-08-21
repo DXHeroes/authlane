@@ -25,8 +25,8 @@ def validate_metadata(metadata: str) -> None:
     urls = set(message.get_all("Project-URL", []))
     assert "Homepage, https://authlane.io/docs" in urls
     assert "Documentation, https://authlane.io/docs/sdk/python" in urls
-    assert "Repository, https://github.com/dxheroes/authlane" in urls
-    assert "Issues, https://github.com/dxheroes/authlane/issues" in urls
+    assert "Repository, https://github.com/DXHeroes/authlane" in urls
+    assert "Issues, https://github.com/DXHeroes/authlane/issues" in urls
     dependencies = message.get_all("Requires-Dist", [])
     assert any(
         "httpx<1,>=0.27" in dependency.replace(" ", "") for dependency in dependencies

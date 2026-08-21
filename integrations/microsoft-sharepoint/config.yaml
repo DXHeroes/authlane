@@ -1,6 +1,11 @@
 id: microsoft-sharepoint
 name: Microsoft Drive (SharePoint)
 auth_type: oauth2
+branding:
+  description: Sites, document libraries, and files in SharePoint.
+  brand_color: '#038387'
+  initials: SP
+  category: storage
 config:
   authorization_url: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
   token_url: https://login.microsoftonline.com/common/oauth2/v2.0/token

@@ -1,6 +1,11 @@
 id: jira
 name: Jira
 auth_type: oauth2
+branding:
+  description: Issues, projects, and sprints across your Jira sites.
+  brand_color: '#0052cc'
+  initials: JR
+  category: engineering
 config:
   authorization_url: https://auth.atlassian.com/authorize
   token_url: https://auth.atlassian.com/oauth/token

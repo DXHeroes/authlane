@@ -17,6 +17,7 @@ export * from './oauth-endpoints.js';
 export * from './platform-oauth.js';
 export * from './provider-tool-factories.js';
 export * from './provider-tool-merge.js';
+export * from './service-categories.js';
 export * from './supported-services.js';
 export * from './tool-safety.js';
 export * from './types.js';

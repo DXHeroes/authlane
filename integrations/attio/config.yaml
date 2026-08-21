@@ -1,6 +1,11 @@
 id: attio
 name: Attio CRM
 auth_type: oauth2
+branding:
+  description: Records, lists, notes, and tasks in your CRM workspace.
+  brand_color: '#5e35b1'
+  initials: AO
+  category: crm
 config:
   authorization_url: https://app.attio.com/oidc/authorize
   token_url: https://app.attio.com/oidc/token

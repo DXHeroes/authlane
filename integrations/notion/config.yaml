@@ -1,6 +1,11 @@
 id: notion
 name: Notion
 auth_type: oauth2
+branding:
+  description: Pages, databases, and blocks in your Notion workspace.
+  brand_color: '#000000'
+  initials: NO
+  category: productivity
 config:
   authorization_url: https://api.notion.com/v1/oauth/authorize
   token_url: https://api.notion.com/v1/oauth/token

@@ -1,6 +1,11 @@
 id: google-drive
 name: Google Drive
 auth_type: oauth2
+branding:
+  description: Files and folders in Drive, including their contents.
+  brand_color: '#1fa463'
+  initials: GD
+  category: storage
 config:
   authorization_url: https://accounts.google.com/o/oauth2/v2/auth
   token_url: https://oauth2.googleapis.com/token

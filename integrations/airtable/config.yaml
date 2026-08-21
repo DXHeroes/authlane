@@ -1,6 +1,11 @@
 id: airtable
 name: Airtable
 auth_type: oauth2
+branding:
+  description: Bases, tables, and records, with the schema behind them.
+  brand_color: '#18bfff'
+  initials: AT
+  category: productivity
 config:
   authorization_url: https://airtable.com/oauth2/v1/authorize
   token_url: https://airtable.com/oauth2/v1/token

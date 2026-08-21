@@ -1,6 +1,11 @@
 id: pipedrive
 name: Pipedrive
 auth_type: oauth2
+branding:
+  description: Deals, contacts, and activities in your sales pipeline.
+  brand_color: '#017737'
+  initials: PD
+  category: crm
 config:
   authorization_url: https://oauth.pipedrive.com/oauth/authorize
   token_url: https://oauth.pipedrive.com/oauth/token

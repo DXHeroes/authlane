@@ -1,6 +1,11 @@
 id: hubspot
 name: HubSpot
 auth_type: oauth2
+branding:
+  description: Contacts, companies, deals, and engagements in your CRM.
+  brand_color: '#ff7a59'
+  initials: HS
+  category: crm
 config:
   authorization_url: https://mcp.hubspot.com/oauth/authorize/user
   token_url: https://mcp.hubspot.com/oauth/v3/token

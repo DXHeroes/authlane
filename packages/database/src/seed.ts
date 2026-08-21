@@ -3,9 +3,14 @@
  * Populates initial data with production-ready service configurations
  */
 
-import { SUPPORTED_SERVICE_IDS, type SupportedServiceId } from '@authlane/shared';
+import {
+  type ServiceCategory,
+  SUPPORTED_SERVICE_IDS,
+  type SupportedServiceId,
+} from '@authlane/shared';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { CANONICAL_INTEGRATION_BRANDING } from './integration-branding.js';
 import { CANONICAL_INTEGRATION_CONFIGS } from './integration-configs.js';
 import { services } from './schema/index.js';
 
@@ -15,6 +20,11 @@ export interface ProductionService {
   authType: 'oauth2';
   config: Record<string, unknown>;
   enabled: boolean;
+  description: string;
+  iconPath: string;
+  brandColor: string;
+  initials: string;
+  category: ServiceCategory;
 }
 
 /**
@@ -1039,10 +1049,21 @@ export const productionServices: ProductionService[] = SUPPORTED_SERVICE_IDS.map
   );
   const defaultScopes = new Set<string>(canonical.default_scopes);
 
+  const branding = CANONICAL_INTEGRATION_BRANDING[service.id as SupportedServiceId];
+
   return {
     ...service,
     id: service.id as SupportedServiceId,
     authType: 'oauth2' as const,
+    // The manifest's own spelling wins over any literal above and over the title-cased id, so a
+    // consumer and the integration's own README never disagree about what the service is called.
+    name: branding.name,
+    description: branding.description,
+    // Named by the same id as `integrations/<id>/icon.svg`, which is the file the route serves.
+    iconPath: `/service-icons/${service.id}.svg`,
+    brandColor: branding.brandColor,
+    initials: branding.initials,
+    category: branding.category,
     config: {
       ...existingConfig,
       ...canonical,

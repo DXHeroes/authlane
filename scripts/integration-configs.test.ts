@@ -4,11 +4,18 @@ import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 import { getProviderMcpPolicy } from '../packages/ai/src/provider-mcp.js';
 import { productionServices } from '../packages/database/src/seed.js';
+import { isServiceCategory } from '../packages/shared/src/service-categories.js';
 import { SUPPORTED_SERVICE_IDS } from '../packages/shared/src/supported-services.js';
 
 interface SourceConfig {
   id: string;
   auth_type: string;
+  branding: {
+    description: string;
+    brand_color: string;
+    initials: string;
+    category: string;
+  };
   config: {
     authorization_url: string;
     token_url: string;
@@ -115,6 +122,48 @@ describe('runtime integration configuration', () => {
       expect(runtimePolicy?.endpoint).toBe(execution.provider_mcp?.endpoint);
     } else {
       expect(runtimePolicy).toBeUndefined();
+    }
+  });
+  it.each(SUPPORTED_SERVICE_IDS)('%s renders from config.yaml, not from the consumer', (id) => {
+    // Everything a downstream application needs to draw a service card is declared here and
+    // travels to the API untouched. If this drifts, the consumer's only recourse is to hardcode
+    // the copy and the logo again, which is the whole thing these columns exist to stop.
+    const source = YAML.parse(
+      readFileSync(resolve(root, 'integrations', id, 'config.yaml'), 'utf8')
+    ) as SourceConfig;
+    const seeded = productionServices.find((service) => service.id === id);
+
+    expect(seeded?.name).toBe((source as unknown as { name: string }).name);
+    expect(seeded?.description).toBe(source.branding.description);
+    expect(seeded?.brandColor).toBe(source.branding.brand_color);
+    expect(seeded?.initials).toBe(source.branding.initials);
+    expect(seeded?.category).toBe(source.branding.category);
+  });
+
+  it.each(SUPPORTED_SERVICE_IDS)('%s declares branding a card can actually use', (id) => {
+    const { branding } = YAML.parse(
+      readFileSync(resolve(root, 'integrations', id, 'config.yaml'), 'utf8')
+    ) as SourceConfig;
+
+    expect(branding.description.length).toBeGreaterThan(0);
+    // Two lines in a card at the widget's width. Longer copy is silently clipped there, so the
+    // limit belongs where an author sees it fail rather than in CSS.
+    expect(branding.description.length).toBeLessThanOrEqual(140);
+    expect(branding.brand_color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(branding.initials).toMatch(/^[A-Z0-9]{1,2}$/);
+    expect(isServiceCategory(branding.category)).toBe(true);
+  });
+
+  it('keeps branding out of the config blob the OAuth layer reads', () => {
+    // `config` is mirrored field-for-field into the jsonb column and consumed as the OAuth and
+    // execution contract. Display metadata living there would both break that alignment and reach
+    // consumers as an untyped record.
+    for (const id of SUPPORTED_SERVICE_IDS) {
+      const source = YAML.parse(
+        readFileSync(resolve(root, 'integrations', id, 'config.yaml'), 'utf8')
+      ) as SourceConfig & { config: Record<string, unknown> };
+      expect(source.config.branding).toBeUndefined();
+      expect(source.config.description).toBeUndefined();
     }
   });
 });

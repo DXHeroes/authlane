@@ -1,6 +1,11 @@
 id: slack
 name: Slack
 auth_type: oauth2
+branding:
+  description: Channels, messages, and files across your workspace.
+  brand_color: '#611f69'
+  initials: SL
+  category: communication
 config:
   authorization_url: https://slack.com/oauth/v2_user/authorize
   token_url: https://slack.com/api/oauth.v2.user.access

@@ -57,6 +57,6 @@ describe('Authlane licensing contract', () => {
     expect(staleAuthlaneLicenseClaim.test('❌ Offer as a competing SaaS')).toBe(true);
     expect(staleAuthlaneLicenseClaim.test('Authlane is fully open but restricted SaaS')).toBe(true);
     expect(isThirdPartyLicenseNotice('THIRD_PARTY_NOTICES.md')).toBe(true);
-    expect(isThirdPartyLicenseNotice('marketing/notice.md')).toBe(false);
+    expect(isThirdPartyLicenseNotice('internal/notice.md')).toBe(false);
   });
 });

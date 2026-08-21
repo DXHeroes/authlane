@@ -311,13 +311,13 @@ Source of truth: `packages/shared/src/supported-services.ts`.
 
 ## Resources
 
-- **Specification**: See `authlane-specification.md` for complete technical and business requirements
+- **Product rationale**: `apps/docs/concepts/how-authlane-works.mdx` and `apps/docs/concepts/core-concepts.mdx`
 - **Documentation**: `apps/docs/` (Mintlify)
 - **API Reference**: `apps/docs/api-reference/openapi.yaml`
 
 ## When Implementing Features
 
-1. **Read the specification** (`authlane-specification.md`) for detailed requirements
+1. **Read the docs sources** in `apps/docs/` (start with `concepts/how-authlane-works.mdx`) for behavior and boundaries
 2. **Follow the monorepo structure** - place code in appropriate packages/apps
 3. **Maintain type safety** - use TypeScript strictly, leverage Drizzle types
 4. **Consider multi-tenancy** - always validate tenant context
@@ -328,8 +328,8 @@ Source of truth: `packages/shared/src/supported-services.ts`.
 ## Questions to Ask
 
 If you're unsure about:
-- **Architecture decisions**: Check the specification document
-- **Database schema**: See the schema section in specification
+- **Architecture decisions**: Check `apps/docs/concepts/` and this file
+- **Database schema**: See `packages/database/src/schema/` (source of truth)
 - **API design**: Follow Supabase/Stripe patterns
 - **Integration structure**: Follow the pattern in `integrations/` directory
 - **Security concerns**: Always err on the side of caution, encrypt everything sensitive

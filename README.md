@@ -249,4 +249,5 @@ hosted MCP server, provider access, tenant API key, or external credential.
 ## License
 
 [MIT](./LICENSE) © 2026 Authlane contributors. You may use, copy, modify, merge, publish, distribute,
-sublicense, and sell copies subject to the MIT License terms.
+sublicense, and sell copies subject to the MIT License terms. Third-party service marks under
+`integrations/*/icon.svg` are excluded — see [THIRD_PARTY_NOTICES](./integrations/THIRD_PARTY_NOTICES.md).

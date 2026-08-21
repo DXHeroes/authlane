@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Versioned, language-neutral public integration contracts for Authlane",
   "license": "MIT",
+  "author": "Authlane",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -41,12 +42,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dxheroes/authlane.git",
+    "url": "git+https://github.com/DXHeroes/authlane.git",
     "directory": "packages/integration-contracts"
   },
   "homepage": "https://authlane.io/docs",
   "bugs": {
-    "url": "https://github.com/dxheroes/authlane/issues"
+    "url": "https://github.com/DXHeroes/authlane/issues"
   },
   "publishConfig": {
     "access": "public"

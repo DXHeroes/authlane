@@ -4,6 +4,15 @@
   "private": true,
   "description": "Open-source platform for managing third-party integrations in AI agents and SaaS applications",
   "license": "MIT",
+  "author": "Authlane",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DXHeroes/authlane.git"
+  },
+  "homepage": "https://authlane.io",
+  "bugs": {
+    "url": "https://github.com/DXHeroes/authlane/issues"
+  },
   "pnpm": {
     "overrides": {
       "@babel/core": "7.29.6",

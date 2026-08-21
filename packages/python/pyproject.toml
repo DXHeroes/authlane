@@ -29,8 +29,8 @@ dependencies = [
 [project.urls]
 Homepage = "https://authlane.io/docs"
 Documentation = "https://authlane.io/docs/sdk/python"
-Repository = "https://github.com/dxheroes/authlane"
-Issues = "https://github.com/dxheroes/authlane/issues"
+Repository = "https://github.com/DXHeroes/authlane"
+Issues = "https://github.com/DXHeroes/authlane/issues"
 
 [project.optional-dependencies]
 agno = ["agno>=2.0,<3"]

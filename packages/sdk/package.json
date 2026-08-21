@@ -45,9 +45,9 @@
     "@authlane/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   },
   "homepage": "https://authlane.io/docs",
   "bugs": {

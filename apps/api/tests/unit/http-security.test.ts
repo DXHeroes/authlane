@@ -94,6 +94,16 @@ describe('HTTP security helpers', () => {
     );
   });
 
+  it('collapses the icon path, which is unauthenticated and unmetered', () => {
+    // /service-icons is outside /api/v1, so it passes neither the auth middleware nor the rate
+    // limiter. Left uncollapsed, anyone could mint an unbounded number of Prometheus labels by
+    // requesting a new filename each time.
+    expect(sanitizeMetricRoute('/service-icons/github.svg')).toBe('/service-icons/:id');
+    expect(sanitizeMetricRoute('/service-icons/whatever-they-typed.svg')).toBe(
+      '/service-icons/:id'
+    );
+  });
+
   it('accepts only exact secure frame origins in production', () => {
     expect(exactFrameOrigin('https://tenant.example', 'production')).toBe('https://tenant.example');
     expect(exactFrameOrigin('http://tenant.example', 'production')).toBeNull();

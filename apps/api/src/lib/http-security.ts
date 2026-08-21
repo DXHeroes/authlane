@@ -5,6 +5,7 @@ const HIGH_CARDINALITY_SEGMENTS = new Set([
   'invitations',
   'members',
   'organizations',
+  'service-icons',
   'services',
   'users',
 ]);

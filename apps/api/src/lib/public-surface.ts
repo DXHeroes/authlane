@@ -90,6 +90,7 @@ const PRODUCT_PREFIXES = [
   '/reauth',
   '/two-factor',
   '/dashboard',
+  '/service-icons',
 ];
 
 export function isProductOnlyPath(path: string): boolean {

@@ -54,6 +54,7 @@ import {
   RedisRateLimitStore,
 } from './middleware/rate-limit.js';
 import { createApiRouter } from './routes/index.js';
+import { createServiceIconsRouter } from './routes/service-icons.js';
 
 const ROOT_DOCUMENTATION_ASSETS = new Set(['/llms.txt', '/llms-full.txt']);
 
@@ -445,6 +446,9 @@ export function createApp(
   );
 
   app.all('/api/*', (c) => c.json(errorResult(Errors.notFound('API route', c.req.path)), 404));
+
+  // Outside /api, because an <img> cannot send the Authorization header /api/v1/* demands.
+  app.route('/service-icons', createServiceIconsRouter());
 
   // Landing-built assets are shared by the apex docs and app product shell.
   app.get('/_next/static/*', async (c) => {

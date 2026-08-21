@@ -3,7 +3,7 @@ name: Google Drive
 auth_type: oauth2
 branding:
   description: Files and folders in Drive, including their contents.
-  brand_color: '#1fa463'
+  brand_color: '#4285f4'
   initials: GD
   category: storage
 config:

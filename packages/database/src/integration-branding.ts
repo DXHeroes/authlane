@@ -23,8 +23,14 @@ export interface CanonicalIntegrationBranding {
   name: string;
   /** One sentence an end user reads to decide whether to connect. Kept under 140 characters. */
   description: string;
-  /** The provider's own mark colour, lowercase hex. Used behind the initials when the icon fails. */
-  brandColor: string;
+  /**
+   * The provider's own mark colour, lowercase hex, shown behind the initials when no icon loads.
+   *
+   * Optional because a colour nobody can source is a lie a consumer cannot detect. A service that
+   * declares none gets the consumer's own neutral placeholder, which is the same path a tenant's
+   * MCP server takes.
+   */
+  brandColor?: string;
   /** Hand-tuned rather than derived: GitHub reads as GH, and three Microsoft services would collide. */
   initials: string;
   category: ServiceCategory;
@@ -44,7 +50,6 @@ export const CANONICAL_INTEGRATION_BRANDING: Record<
   attio: {
     name: 'Attio CRM',
     description: 'Records, lists, notes, and tasks in your CRM workspace.',
-    brandColor: '#5e35b1',
     initials: 'AO',
     category: 'crm',
   },
@@ -79,7 +84,7 @@ export const CANONICAL_INTEGRATION_BRANDING: Record<
   'google-drive': {
     name: 'Google Drive',
     description: 'Files and folders in Drive, including their contents.',
-    brandColor: '#1fa463',
+    brandColor: '#4285f4',
     initials: 'GD',
     category: 'storage',
   },

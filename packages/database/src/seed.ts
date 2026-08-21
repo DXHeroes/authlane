@@ -22,7 +22,7 @@ export interface ProductionService {
   enabled: boolean;
   description: string;
   iconPath: string;
-  brandColor: string;
+  brandColor: string | null;
   initials: string;
   category: ServiceCategory;
 }
@@ -1061,7 +1061,7 @@ export const productionServices: ProductionService[] = SUPPORTED_SERVICE_IDS.map
     description: branding.description,
     // Named by the same id as `integrations/<id>/icon.svg`, which is the file the route serves.
     iconPath: `/service-icons/${service.id}.svg`,
-    brandColor: branding.brandColor,
+    brandColor: branding.brandColor ?? null,
     initials: branding.initials,
     category: branding.category,
     config: {

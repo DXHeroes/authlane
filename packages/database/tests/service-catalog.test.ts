@@ -30,7 +30,9 @@ describe('production service catalog', () => {
     for (const service of SUPPORTED_SERVICE_CATALOG) {
       expect(service.description.length).toBeGreaterThan(0);
       expect(service.description.length).toBeLessThanOrEqual(140);
-      expect(service.brandColor).toMatch(/^#[0-9a-f]{6}$/);
+      if (service.brandColor !== null) {
+        expect(service.brandColor).toMatch(/^#[0-9a-f]{6}$/);
+      }
       expect(service.initials).toMatch(/^[A-Z0-9]{1,2}$/);
       expect(isServiceCategory(service.category)).toBe(true);
     }

@@ -12,7 +12,7 @@ interface SourceConfig {
   auth_type: string;
   branding: {
     description: string;
-    brand_color: string;
+    brand_color?: string;
     initials: string;
     category: string;
   };
@@ -135,7 +135,7 @@ describe('runtime integration configuration', () => {
 
     expect(seeded?.name).toBe((source as unknown as { name: string }).name);
     expect(seeded?.description).toBe(source.branding.description);
-    expect(seeded?.brandColor).toBe(source.branding.brand_color);
+    expect(seeded?.brandColor).toBe(source.branding.brand_color ?? null);
     expect(seeded?.initials).toBe(source.branding.initials);
     expect(seeded?.category).toBe(source.branding.category);
   });
@@ -149,7 +149,11 @@ describe('runtime integration configuration', () => {
     // Two lines in a card at the widget's width. Longer copy is silently clipped there, so the
     // limit belongs where an author sees it fail rather than in CSS.
     expect(branding.description.length).toBeLessThanOrEqual(140);
-    expect(branding.brand_color).toMatch(/^#[0-9a-f]{6}$/);
+    // Optional, because a colour nobody can source is worse than none: the consumer falls back
+    // to its own neutral placeholder and nothing claims to be the provider's colour.
+    if (branding.brand_color !== undefined) {
+      expect(branding.brand_color).toMatch(/^#[0-9a-f]{6}$/);
+    }
     expect(branding.initials).toMatch(/^[A-Z0-9]{1,2}$/);
     expect(isServiceCategory(branding.category)).toBe(true);
   });

@@ -165,4 +165,81 @@ describe('Sandbox agent thread', () => {
 
     expect(agentThreadReducer(dirty, { type: 'reset' })).toEqual(initialAgentThreadState);
   });
+  it('accumulates streamed deltas into one assistant entry and keeps the final text', () => {
+    const run = buildUserRun(initialAgentThreadState, {
+      runId: 'run_1',
+      externalUserId: 'sandbox_user',
+      provider: 'openai',
+      model: 'gpt-5-mini',
+      text: 'List my repositories',
+    });
+    let state = agentThreadReducer(initialAgentThreadState, { type: 'run_started', run });
+    state = agentThreadReducer(state, {
+      type: 'run_stream_event',
+      runId: 'run_1',
+      event: { type: 'text-delta', text: 'You have ' },
+    });
+    state = agentThreadReducer(state, {
+      type: 'run_stream_event',
+      runId: 'run_1',
+      event: { type: 'text-delta', text: 'one repository.' },
+    });
+
+    const streaming = state.entries.filter((entry) => entry.kind === 'assistant');
+    expect(streaming).toHaveLength(1);
+    expect(streaming[0]).toMatchObject({ text: 'You have one repository.' });
+    expect(state.entries.some((entry) => entry.kind === 'progress')).toBe(false);
+
+    state = agentThreadReducer(state, {
+      type: 'run_succeeded',
+      runId: 'run_1',
+      response: {
+        status: 'succeeded',
+        text: 'You have one repository.',
+        responseMessages: [{ role: 'assistant', content: 'You have one repository.' }],
+      },
+    });
+
+    expect(state.entries.filter((entry) => entry.kind === 'assistant')).toHaveLength(1);
+  });
+
+  it('completes the existing tool entry instead of adding a second one', () => {
+    const run = buildUserRun(initialAgentThreadState, {
+      runId: 'run_1',
+      externalUserId: 'sandbox_user',
+      provider: 'openai',
+      model: 'gpt-5-mini',
+      text: 'List my repositories',
+    });
+    let state = agentThreadReducer(initialAgentThreadState, { type: 'run_started', run });
+    state = agentThreadReducer(state, {
+      type: 'run_stream_event',
+      runId: 'run_1',
+      event: {
+        type: 'tool-call',
+        toolCallId: 'call_1',
+        toolName: 'github_list_repositories',
+        input: { visibility: 'all' },
+      },
+    });
+    expect(state.entries.filter((entry) => entry.kind === 'tool')).toMatchObject([
+      { state: 'running', toolName: 'github_list_repositories' },
+    ]);
+
+    state = agentThreadReducer(state, {
+      type: 'run_stream_event',
+      runId: 'run_1',
+      event: {
+        type: 'tool-result',
+        toolCallId: 'call_1',
+        toolName: 'github_list_repositories',
+        output: { repositories: [] },
+        truncated: true,
+      },
+    });
+
+    expect(state.entries.filter((entry) => entry.kind === 'tool')).toMatchObject([
+      { state: 'done', truncated: true, output: { repositories: [] } },
+    ]);
+  });
 });

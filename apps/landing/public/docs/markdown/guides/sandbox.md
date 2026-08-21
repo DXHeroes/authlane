@@ -9,10 +9,16 @@ connector before exposing it in their SaaS. It uses the real Authlane control-pl
 
 ## Prepare a dedicated identity
 
-1. Create a test user in your SaaS whose external ID starts with `sandbox_`, for example
-   `sandbox_user_001`. Authlane rejects other IDs at the Sandbox boundary; never use a real end user.
-2. Create a normal connect session for that `externalUserId` and connect the services you need.
-3. In **Dashboard → Sandbox**, enter the exact external user ID and select **Load sandbox user**.
+Sandbox opens on a suggested identity: the one in your organization that already has connections,
+or a freshly generated `sandbox_…` ID when there is none. **New identity** generates another one,
+and the picker lists every known identity with how many services it has connected.
+
+A generated identity has nothing connected yet, so connect it once:
+
+1. Create a normal connect session for that `externalUserId` through your usual backend call, and
+   complete hosted connect for the services you need. External IDs must start with `sandbox_`;
+   Authlane rejects any other ID at the Sandbox boundary, so never point it at a real end user.
+2. Back in **Dashboard → Sandbox**, pick the identity and select **Load sandbox user**.
 
 The displayed services and tools come from the same capabilities hot read as your production
 backend. The tenant's `read_only` or `full` service policy is applied before tools reach Sandbox.
@@ -28,7 +34,7 @@ runtime. The provider request goes directly from the Authlane application runtim
 administrator explicitly initiated a Sandbox test. This narrow testing path does not change the
 normal product boundary: Authlane never proxies end-user provider traffic.
 
-## Run a Vercel AI SDK agent
+## Chat with a Vercel AI SDK agent
 
 Configure at least one model provider key on the Authlane server:
 
@@ -38,13 +44,18 @@ ANTHROPIC_API_KEY=
 GOOGLE_GENERATIVE_AI_API_KEY=
 ```
 
-Only the provider you select needs a key. In the **AI agent** tab, choose OpenAI, Anthropic, or
-Google, confirm the model ID, enter a test prompt, and run it. The server calls Vercel AI SDK
-`generateText` with tools from `vercelAI({ approval: 'write-and-destructive' })`. If a model selects
-a write or destructive tool, Sandbox returns the approval request before execution.
+Only the provider you select needs a key. Sandbox marks providers with no key on the server and
+starts on one that has it.
+
+The **AI agent** tab is a multi-turn chat. Ask for something the connected service actually holds.
+The server calls Vercel AI SDK `streamText` with tools from
+`vercelAI({ approval: 'write-and-destructive' })` and streams the run back: every tool call appears
+in the thread with its arguments and result while the answer is still being written. A write or
+destructive tool stops at an approval card inside the thread; approving or denying continues the
+same conversation.
 
 Model IDs remain editable because availability can differ by account and region. The UI defaults
-to `gpt-5-mini`, `claude-sonnet-4-5`, and `gemini-2.5-flash`; use a model enabled for your account.
+to `gpt-5-mini`, `claude-opus-5`, and `gemini-2.5-flash`; use a model enabled for your account.
 
 ## Data handling and audit
 
@@ -59,10 +70,15 @@ No tenant API key or provider credential is exposed to the browser.
 
 ## Troubleshooting
 
-- **No connected services:** connect the exact dedicated external user ID through hosted connect.
+- **`SANDBOX_NO_TOOLS`:** the identity has no connected tools. Connect the exact dedicated external
+  user ID through hosted connect.
+- **`SANDBOX_PROVIDER_NOT_CONFIGURED`:** the named environment variable is missing on the server.
+- **`SANDBOX_MODEL_REJECTED`:** the provider does not serve that model ID for your account or
+  region. Edit the model field.
+- **`SANDBOX_HISTORY_TOO_LARGE`:** the thread outgrew what Sandbox forwards to a model. Select
+  **New chat**.
 - **Tool not available:** verify service policy, connection state, and the selected integration's
   required OAuth scopes.
-- **Agent run failed:** configure the selected provider key and verify the editable model ID.
 - **Provider returned 401/403:** reconnect the service and confirm its app registration, consent,
   scopes, and provider-side permissions.
 - **Approval keeps appearing:** expected for every write or destructive call; approvals are not

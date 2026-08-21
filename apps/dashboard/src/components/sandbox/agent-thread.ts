@@ -6,6 +6,22 @@ export interface ApprovalRequest {
   toolCall: { toolName: string; input: unknown };
 }
 
+/** The event set `POST /sandbox/agent-runs/stream` emits while a run is still in flight. */
+export type AgentStreamEvent =
+  | { type: 'text-delta'; text: string }
+  | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
+  | {
+      type: 'tool-result';
+      toolCallId: string;
+      toolName: string;
+      output: unknown;
+      truncated: boolean;
+    }
+  | { type: 'tool-error'; toolCallId: string; toolName: string }
+  | { type: 'tool-denied'; toolCallId: string; toolName: string };
+
+export type ToolEntryState = 'running' | 'done' | 'error' | 'denied';
+
 export interface AgentResult {
   status: 'succeeded' | 'failed' | 'approval_required';
   text?: string;
@@ -13,7 +29,7 @@ export interface AgentResult {
   responseMessages?: unknown[];
   approvalRequests?: ApprovalRequest[];
   usage?: unknown;
-  error?: { code: string; message: string };
+  error?: { code: string; message: string; hint?: string };
 }
 
 export interface AgentRunRequest {
@@ -49,7 +65,18 @@ export type ChatEntry =
       runId: string;
       decision?: boolean;
     }
-  | { id: string; kind: 'error'; message: string; runId: string };
+  | { id: string; kind: 'error'; message: string; hint?: string; runId: string }
+  | {
+      id: string;
+      kind: 'tool';
+      runId: string;
+      toolCallId: string;
+      toolName: string;
+      input: unknown;
+      output?: unknown;
+      truncated?: boolean;
+      state: ToolEntryState;
+    };
 
 export interface PendingRun {
   id: string;
@@ -72,6 +99,7 @@ export interface AgentThreadState {
 export type AgentThreadAction =
   | { type: 'draft_changed'; draft: string }
   | { type: 'run_started'; run: PendingRun }
+  | { type: 'run_stream_event'; runId: string; event: AgentStreamEvent }
   | { type: 'run_succeeded'; runId: string; response: AgentResult }
   | { type: 'run_failed'; runId: string; error: RunError }
   | { type: 'run_selected'; runId: string }
@@ -202,13 +230,83 @@ function startRun(state: AgentThreadState, run: PendingRun): AgentThreadState {
   };
 }
 
+/**
+ * Folds one streamed event into the thread. Tool steps become their own entries so the operator
+ * can see the agent actually reach the connected service instead of watching a spinner.
+ */
+function applyStreamEvent(
+  state: AgentThreadState,
+  runId: string,
+  event: AgentStreamEvent
+): AgentThreadState {
+  const entries = state.entries.filter(
+    (entry) => !(entry.runId === runId && entry.kind === 'progress')
+  );
+
+  if (event.type === 'text-delta') {
+    const assistantId = `${runId}_assistant`;
+    const existing = entries.find((entry) => entry.id === assistantId);
+    if (existing?.kind === 'assistant') {
+      return {
+        ...state,
+        entries: entries.map((entry) =>
+          entry.id === assistantId && entry.kind === 'assistant'
+            ? { ...entry, text: entry.text + event.text }
+            : entry
+        ),
+      };
+    }
+    return {
+      ...state,
+      entries: [...entries, { id: assistantId, kind: 'assistant', text: event.text, runId }],
+    };
+  }
+
+  const toolId = `${runId}_tool_${event.toolCallId}`;
+  if (event.type === 'tool-call') {
+    return {
+      ...state,
+      entries: [
+        ...entries,
+        {
+          id: toolId,
+          kind: 'tool',
+          runId,
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          input: event.input,
+          state: 'running',
+        },
+      ],
+    };
+  }
+
+  const patch =
+    event.type === 'tool-result'
+      ? { state: 'done' as const, output: event.output, truncated: event.truncated }
+      : { state: (event.type === 'tool-error' ? 'error' : 'denied') as ToolEntryState };
+
+  return {
+    ...state,
+    entries: entries.map((entry) =>
+      entry.id === toolId && entry.kind === 'tool' ? { ...entry, ...patch } : entry
+    ),
+  };
+}
+
 function failRun(state: AgentThreadState, runId: string, error: RunError): AgentThreadState {
   return {
     ...state,
     status: 'failed',
     entries: [
       ...state.entries.filter((entry) => !(entry.runId === runId && entry.kind === 'progress')),
-      { id: `${runId}_error`, kind: 'error', message: error.message, runId },
+      {
+        id: `${runId}_error`,
+        kind: 'error',
+        message: error.message,
+        ...(error.hint ? { hint: error.hint } : {}),
+        runId,
+      },
     ],
     runs: state.runs.map((run) => (run.id === runId ? { ...run, error } : run)),
   };
@@ -232,15 +330,19 @@ function completeRun(
       id: `${runId}_error`,
       kind: 'error',
       message: response.error?.message ?? 'Agent execution failed.',
+      ...(response.error?.hint ? { hint: response.error.hint } : {}),
       runId,
     });
   } else if (response.text?.trim()) {
-    entries.push({
-      id: `${runId}_assistant`,
-      kind: 'assistant',
-      text: response.text,
-      runId,
-    });
+    // Streaming already created this entry; the final text is authoritative, so replace rather
+    // than append, otherwise the answer would show twice.
+    const assistantId = `${runId}_assistant`;
+    const streamed = entries.findIndex((entry) => entry.id === assistantId);
+    if (streamed === -1) {
+      entries.push({ id: assistantId, kind: 'assistant', text: response.text, runId });
+    } else {
+      entries[streamed] = { id: assistantId, kind: 'assistant', text: response.text, runId };
+    }
   }
 
   if (pendingApprovals.length > 0) {
@@ -284,6 +386,9 @@ export function agentThreadReducer(
   if (action.type === 'draft_changed') return { ...state, draft: action.draft };
   if (action.type === 'run_selected') return { ...state, selectedRunId: action.runId };
   if (action.type === 'run_started') return startRun(state, action.run);
+  if (action.type === 'run_stream_event') {
+    return applyStreamEvent(state, action.runId, action.event);
+  }
   if (action.type === 'run_failed') return failRun(state, action.runId, action.error);
   return completeRun(state, action.runId, action.response);
 }

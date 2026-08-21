@@ -20,6 +20,7 @@ import { api, DashboardApiError } from '@/lib/api';
 import {
   type AgentProvider,
   type AgentResult,
+  type AgentStreamEvent,
   agentThreadReducer,
   buildApprovalRun,
   buildUserRun,
@@ -31,9 +32,28 @@ import { SandboxAgentInspector } from './SandboxAgentInspector';
 
 const modelDefaults: Record<AgentProvider, string> = {
   openai: 'gpt-5-mini',
-  anthropic: 'claude-sonnet-4-5',
+  anthropic: 'claude-opus-5',
   google: 'gemini-2.5-flash',
 };
+
+const providerLabels: Record<AgentProvider, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google',
+};
+
+const THREAD_STREAM_EVENTS = new Set([
+  'text-delta',
+  'tool-call',
+  'tool-result',
+  'tool-error',
+  'tool-denied',
+]);
+
+export interface AgentProviderStatus {
+  id: AgentProvider;
+  configured: boolean;
+}
 
 const inputClass =
   'w-full rounded-md bg-background px-3 py-2.5 text-base ring-1 ring-border focus-visible:outline-2 -outline-offset-1 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground sm:py-2 sm:text-sm';
@@ -140,6 +160,55 @@ function ApprovalEntry({
   );
 }
 
+function ToolEntry({ entry }: { entry: Extract<ChatEntry, { kind: 'tool' }> }) {
+  const label = {
+    running: 'Running',
+    done: 'Result',
+    error: 'Failed',
+    denied: 'Denied',
+  }[entry.state];
+  const tone =
+    entry.state === 'error'
+      ? 'text-red-700 dark:text-red-300'
+      : entry.state === 'done'
+        ? 'text-emerald-700 dark:text-emerald-300'
+        : 'text-muted-foreground';
+
+  return (
+    <div className="min-w-0 rounded-lg bg-muted/60 p-3 ring-1 ring-foreground/5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 break-all font-mono text-base font-medium sm:text-sm">
+          {entry.toolName}
+        </p>
+        <span className={`flex items-center gap-1.5 text-base sm:text-sm ${tone}`}>
+          {entry.state === 'running' && (
+            <BoltIcon className="size-4 shrink-0 animate-pulse fill-current" aria-hidden="true" />
+          )}
+          {label}
+        </span>
+      </div>
+      <details className="pt-2">
+        <summary className="cursor-pointer text-base text-muted-foreground sm:text-sm">
+          Arguments and result
+        </summary>
+        <pre className="overflow-x-auto whitespace-pre-wrap break-all pt-2 font-mono text-base text-muted-foreground sm:text-sm">
+          {JSON.stringify(entry.input, null, 2)}
+        </pre>
+        {entry.output !== undefined && (
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all pt-2 font-mono text-base text-foreground sm:text-sm">
+            {typeof entry.output === 'string'
+              ? entry.output
+              : JSON.stringify(entry.output, null, 2)}
+            {entry.truncated
+              ? '\n\n[truncated for display — the model received the full result]'
+              : ''}
+          </pre>
+        )}
+      </details>
+    </div>
+  );
+}
+
 function ConversationEntry({
   entry,
   isSubmitting,
@@ -175,6 +244,10 @@ function ConversationEntry({
     );
   }
 
+  if (entry.kind === 'tool') {
+    return <ToolEntry entry={entry} />;
+  }
+
   if (entry.kind === 'error') {
     return (
       <div className="flex flex-col gap-3 rounded-lg bg-red-500/10 p-4 ring-1 ring-red-600/20">
@@ -188,6 +261,11 @@ function ConversationEntry({
             <p className="text-pretty text-base text-red-900/80 sm:text-sm dark:text-red-200/80">
               {entry.message}
             </p>
+            {entry.hint && (
+              <p className="text-pretty text-base text-red-900/70 sm:text-sm dark:text-red-200/70">
+                {entry.hint}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -233,10 +311,19 @@ function ConversationEntry({
   );
 }
 
-export function SandboxAgentWorkspace({ externalUserId }: { externalUserId: string }) {
+export function SandboxAgentWorkspace({
+  externalUserId,
+  providers = [],
+}: {
+  externalUserId: string;
+  providers?: AgentProviderStatus[];
+}) {
   const [state, dispatch] = useReducer(agentThreadReducer, initialAgentThreadState);
-  const [provider, setProvider] = useState<AgentProvider>('openai');
-  const [model, setModel] = useState(modelDefaults.openai);
+  // Starting on a provider with no server key would make the first message fail for a reason that
+  // has nothing to do with the connector under test.
+  const defaultProvider = providers.find((entry) => entry.configured)?.id ?? 'openai';
+  const [provider, setProvider] = useState<AgentProvider>(defaultProvider);
+  const [model, setModel] = useState(modelDefaults[defaultProvider]);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -263,10 +350,47 @@ export function SandboxAgentWorkspace({ externalUserId }: { externalUserId: stri
     }
   }, [state.status, state.runs.length]);
 
+  /**
+   * Streams the run and falls back to the request/response endpoint only when the transport itself
+   * failed before the first event — a proxy that buffers or drops `text/event-stream` must not
+   * take the chat down with it. A rejection the server explained is not retried.
+   */
+  async function streamRun(run: PendingRun): Promise<AgentResult> {
+    let received = false;
+    try {
+      let result: AgentResult | null = null;
+      for await (const frame of api.stream('/sandbox/agent-runs/stream', run.request)) {
+        received = true;
+        if (frame.event === 'done') {
+          result = (frame.data as { result: AgentResult }).result;
+          continue;
+        }
+        if (frame.event === 'error') {
+          result = { status: 'failed', ...(frame.data as { error: AgentResult['error'] }) };
+          continue;
+        }
+        // The approval card is rendered from the final payload, so only the entry-shaping events
+        // are folded into the thread here.
+        if (THREAD_STREAM_EVENTS.has(frame.event)) {
+          dispatch({
+            type: 'run_stream_event',
+            runId: run.id,
+            event: frame.data as AgentStreamEvent,
+          });
+        }
+      }
+      if (result) return result;
+      throw new Error('The agent stream ended without a result.');
+    } catch (cause) {
+      if (received || cause instanceof DashboardApiError) throw cause;
+      return api.post<AgentResult>('/sandbox/agent-runs', run.request);
+    }
+  }
+
   async function executeRun(run: PendingRun) {
     dispatch({ type: 'run_started', run });
     try {
-      const response = await api.post<AgentResult>('/sandbox/agent-runs', run.request);
+      const response = await streamRun(run);
       dispatch({ type: 'run_succeeded', runId: run.id, response });
     } catch (cause) {
       const error =
@@ -378,9 +502,16 @@ export function SandboxAgentWorkspace({ externalUserId }: { externalUserId: stri
                 }}
                 className={`${inputClass} col-span-full row-start-1 appearance-none pr-8`}
               >
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="google">Google</option>
+                {(['openai', 'anthropic', 'google'] as const).map((id) => {
+                  const configured =
+                    providers.find((entry) => entry.id === id)?.configured !== false;
+                  return (
+                    <option key={id} value={id}>
+                      {providerLabels[id]}
+                      {configured ? '' : ' — no server key'}
+                    </option>
+                  );
+                })}
               </select>
               <ChevronDownIcon
                 className="pointer-events-none col-start-2 row-start-1 size-4 place-self-center fill-muted-foreground"

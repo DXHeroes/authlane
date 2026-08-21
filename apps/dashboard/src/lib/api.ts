@@ -7,6 +7,11 @@ interface DashboardErrorBody {
   docUrl?: string;
 }
 
+export interface DashboardStreamFrame {
+  event: string;
+  data: unknown;
+}
+
 export class DashboardApiError extends Error {
   readonly code: string;
   readonly hint?: string;
@@ -63,6 +68,40 @@ class ApiClient {
     return this.handleResponse<T>(response, 'GET');
   }
 
+  /**
+   * Reads a server-sent event response frame by frame. `EventSource` cannot POST and cannot carry
+   * the session cookie the dashboard authenticates with, so this drives `fetch` directly.
+   */
+  async *stream(path: string, data?: unknown): AsyncGenerator<DashboardStreamFrame> {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: 'include',
+    });
+
+    if (!response.ok || !response.body) {
+      await this.handleResponse<unknown>(response, 'POST');
+      throw new DashboardApiError('The server did not open a stream.', 'STREAM_UNAVAILABLE');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary !== -1) {
+        const frame = parseEventStreamFrame(buffer.slice(0, boundary));
+        buffer = buffer.slice(boundary + 2);
+        if (frame) yield frame;
+        boundary = buffer.indexOf('\n\n');
+      }
+    }
+  }
+
   async post<T>(path: string, data?: unknown): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
@@ -100,6 +139,21 @@ class ApiClient {
       credentials: 'include',
     });
     return this.handleResponse<T>(response, 'DELETE');
+  }
+}
+
+function parseEventStreamFrame(frame: string): DashboardStreamFrame | null {
+  let event = 'message';
+  const dataLines: string[] = [];
+  for (const line of frame.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim();
+    if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+  }
+  if (dataLines.length === 0) return null;
+  try {
+    return { event, data: JSON.parse(dataLines.join('\n')) };
+  } catch {
+    return null;
   }
 }
 

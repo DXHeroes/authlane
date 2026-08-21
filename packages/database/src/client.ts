@@ -82,6 +82,18 @@ export function withTenantContext<T>(
   );
 }
 
+/**
+ * Runs work outside the caller's request-scoped database context.
+ *
+ * A streaming response returns to the adapter before its body has been produced, so the request
+ * transaction commits while the body is still being written. Anything that outlives the handler
+ * must therefore open its own transaction instead of reusing the closed one, or its queries wait
+ * forever on a connection that was already released.
+ */
+export function withoutDatabaseContext<T>(operation: () => Promise<T>): Promise<T> {
+  return asyncDatabaseContext.exit(operation);
+}
+
 /** Performs the narrow pre-authentication lookup permitted by an RLS lookup policy. */
 export function withSecurityLookupContext<T>(
   db: Database,

@@ -7,7 +7,7 @@ import { render } from '../utils/test-utils';
 
 vi.mock('@/lib/api', async () => {
   const actual = await vi.importActual<typeof import('@/lib/api')>('@/lib/api');
-  return { ...actual, api: { post: vi.fn() } };
+  return { ...actual, api: { post: vi.fn(), stream: vi.fn() } };
 });
 
 describe('SandboxAgentWorkspace', () => {
@@ -176,5 +176,118 @@ describe('SandboxAgentWorkspace', () => {
         messages: [{ role: 'user', content: 'Line one\nLine two' }],
       })
     );
+  });
+  it('shows the tool call and its result while the answer is still streaming', async () => {
+    vi.mocked(apiModule.api.stream).mockImplementation(async function* () {
+      yield {
+        event: 'tool-call',
+        data: {
+          type: 'tool-call',
+          toolCallId: 'call_1',
+          toolName: 'github_list_repositories',
+          input: { visibility: 'all' },
+        },
+      };
+      yield {
+        event: 'tool-result',
+        data: {
+          type: 'tool-result',
+          toolCallId: 'call_1',
+          toolName: 'github_list_repositories',
+          output: { repositories: ['authlane'] },
+          truncated: false,
+        },
+      };
+      yield { event: 'text-delta', data: { type: 'text-delta', text: 'You have ' } };
+      yield { event: 'text-delta', data: { type: 'text-delta', text: 'one repository.' } };
+      yield {
+        event: 'done',
+        data: {
+          result: {
+            status: 'succeeded',
+            text: 'You have one repository.',
+            responseMessages: [{ role: 'assistant', content: 'You have one repository.' }],
+          },
+        },
+      };
+    });
+    const user = userEvent.setup();
+    render(<SandboxAgentWorkspace externalUserId="sandbox_user" />);
+    const conversation = screen.getByRole('log', { name: 'Conversation' });
+
+    await user.type(screen.getByLabelText('Message'), 'List my repositories');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(await within(conversation).findByText('github_list_repositories')).toBeInTheDocument();
+    expect(within(conversation).getByText('Result')).toBeInTheDocument();
+    expect(within(conversation).getByText(/authlane/)).toBeInTheDocument();
+    expect(within(conversation).getByText('You have one repository.')).toBeInTheDocument();
+    expect(apiModule.api.post).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the non-streaming endpoint when the transport drops the stream', async () => {
+    vi.mocked(apiModule.api.stream).mockImplementation(() => {
+      throw new TypeError('Failed to fetch');
+    });
+    vi.mocked(apiModule.api.post).mockResolvedValueOnce({
+      status: 'succeeded',
+      text: 'Buffered answer',
+      responseMessages: [{ role: 'assistant', content: 'Buffered answer' }],
+    });
+    const user = userEvent.setup();
+    render(<SandboxAgentWorkspace externalUserId="sandbox_user" />);
+    const conversation = screen.getByRole('log', { name: 'Conversation' });
+
+    await user.type(screen.getByLabelText('Message'), 'List my repositories');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(await within(conversation).findByText('Buffered answer')).toBeInTheDocument();
+    expect(apiModule.api.post).toHaveBeenCalledWith(
+      '/sandbox/agent-runs',
+      expect.objectContaining({ externalUserId: 'sandbox_user' })
+    );
+  });
+
+  it('reports the cause of a failed run and its remedy', async () => {
+    vi.mocked(apiModule.api.stream).mockImplementation(async function* () {
+      yield {
+        event: 'error',
+        data: {
+          error: {
+            code: 'SANDBOX_PROVIDER_NOT_CONFIGURED',
+            message: 'The selected model provider is not configured on this server.',
+            hint: 'Set ANTHROPIC_API_KEY on the Authlane server.',
+          },
+        },
+      };
+    });
+    const user = userEvent.setup();
+    render(<SandboxAgentWorkspace externalUserId="sandbox_user" />);
+    const conversation = screen.getByRole('log', { name: 'Conversation' });
+
+    await user.type(screen.getByLabelText('Message'), 'List my repositories');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(
+      await within(conversation).findByText(/is not configured on this server/)
+    ).toBeInTheDocument();
+    expect(within(conversation).getByText(/Set ANTHROPIC_API_KEY/)).toBeInTheDocument();
+  });
+
+  it('starts on a provider that actually has a server key', async () => {
+    render(
+      <SandboxAgentWorkspace
+        externalUserId="sandbox_user"
+        providers={[
+          { id: 'openai', configured: false },
+          { id: 'anthropic', configured: true },
+          { id: 'google', configured: false },
+        ]}
+      />
+    );
+
+    expect(screen.getByLabelText('Provider')).toHaveValue('anthropic');
+    expect(screen.getByLabelText('Model')).toHaveValue('claude-opus-5');
+    expect(screen.getByRole('option', { name: /OpenAI — no server key/ })).toBeTruthy();
   });
 });

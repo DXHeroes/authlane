@@ -7,7 +7,8 @@ import {
   PlayIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/16/solid';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AgentProviderStatus } from '@/components/sandbox/SandboxAgentWorkspace';
 import { SandboxAgentWorkspace } from '@/components/sandbox/SandboxAgentWorkspace';
 import { api } from '@/lib/api';
 
@@ -32,6 +33,23 @@ interface SandboxService {
 interface SandboxContext {
   externalUserId: string;
   services: SandboxService[];
+  providers?: AgentProviderStatus[];
+}
+
+interface SandboxIdentity {
+  externalUserId: string;
+  connectedServices: number;
+  lastUsedAt: string | null;
+}
+
+interface SandboxIdentities {
+  identities: SandboxIdentity[];
+  suggested: string;
+}
+
+/** Mirrors the server generator so a brand-new identity can be offered without a round trip. */
+function generateExternalUserId(): string {
+  return `sandbox_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
 }
 
 interface SandboxResult {
@@ -66,6 +84,9 @@ function RiskBadge({ risk }: { risk: Risk }) {
 
 export default function SandboxPage() {
   const [externalUserId, setExternalUserId] = useState('');
+  const [identities, setIdentities] = useState<SandboxIdentity[]>([]);
+  // Set the moment the operator touches the field, so a slow suggestion cannot overwrite them.
+  const identityTouched = useRef(false);
   const [context, setContext] = useState<SandboxContext | null>(null);
   const [activeTab, setActiveTab] = useState<'tool' | 'agent'>('tool');
   const [serviceId, setServiceId] = useState('');
@@ -82,12 +103,7 @@ export default function SandboxPage() {
   const selectedService = connectedServices.find((service) => service.serviceId === serviceId);
   const selectedTool = selectedService?.tools.find((tool) => tool.name === toolName);
 
-  async function loadContext() {
-    const normalizedExternalUserId = externalUserId.trim();
-    if (!normalizedExternalUserId.startsWith('sandbox_')) {
-      setError('Use a dedicated external user ID that starts with sandbox_.');
-      return;
-    }
+  const fetchContext = useCallback(async (normalizedExternalUserId: string) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -106,7 +122,39 @@ export default function SandboxPage() {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  async function loadContext(candidate?: string) {
+    const normalizedExternalUserId = (candidate ?? externalUserId).trim();
+    if (!normalizedExternalUserId.startsWith('sandbox_')) {
+      setError('Use a dedicated external user ID that starts with sandbox_.');
+      return;
+    }
+    await fetchContext(normalizedExternalUserId);
   }
+
+  // Arrive ready: suggest the identity that already has connections, so the chat has tools on the
+  // first message instead of asking the operator to remember an ID.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<SandboxIdentities>('/sandbox/identities')
+      .then((data) => {
+        if (cancelled || identityTouched.current) return;
+        setIdentities(data.identities);
+        setExternalUserId(data.suggested);
+        if (data.identities.some((identity) => identity.externalUserId === data.suggested)) {
+          void fetchContext(data.suggested);
+        }
+      })
+      .catch(() => {
+        if (cancelled || identityTouched.current) return;
+        setExternalUserId(generateExternalUserId());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchContext]);
 
   function selectService(value: string) {
     setServiceId(value);
@@ -183,6 +231,36 @@ export default function SandboxPage() {
         </section>
 
         <section className="flex flex-col gap-3 border-b border-foreground/10 pb-6">
+          {identities.length > 0 && (
+            <label className="flex max-w-2xl flex-col gap-2 font-medium" htmlFor="sandbox-identity">
+              Known sandbox identities
+              <select
+                id="sandbox-identity"
+                name="identity"
+                value={
+                  identities.some((identity) => identity.externalUserId === externalUserId)
+                    ? externalUserId
+                    : ''
+                }
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  identityTouched.current = true;
+                  setExternalUserId(event.target.value);
+                  void loadContext(event.target.value);
+                }}
+                className={inputClass}
+              >
+                <option value="">Select an identity…</option>
+                {identities.map((identity) => (
+                  <option key={identity.externalUserId} value={identity.externalUserId}>
+                    {identity.externalUserId} — {identity.connectedServices} connected{' '}
+                    {identity.connectedServices === 1 ? 'service' : 'services'}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           <label htmlFor="sandbox-external-user" className="font-medium">
             External user ID
           </label>
@@ -192,22 +270,39 @@ export default function SandboxPage() {
               name="externalUserId"
               type="text"
               value={externalUserId}
-              onChange={(event) => setExternalUserId(event.target.value)}
+              onChange={(event) => {
+                identityTouched.current = true;
+                setExternalUserId(event.target.value);
+              }}
               placeholder="sandbox_user_001"
               className={`${inputClass} min-w-0 flex-1`}
               aria-describedby="sandbox-external-user-help"
             />
             <button
               type="button"
-              onClick={loadContext}
+              onClick={() => void loadContext()}
               disabled={isLoading || !externalUserId.trim()}
               className={context ? secondaryButtonClass : primaryButtonClass}
             >
               Load sandbox user
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                identityTouched.current = true;
+                setExternalUserId(generateExternalUserId());
+                setContext(null);
+                setError(null);
+              }}
+              disabled={isLoading}
+              className={secondaryButtonClass}
+            >
+              New identity
+            </button>
           </div>
           <p id="sandbox-external-user-help" className="text-sm text-muted-foreground">
-            Dedicated test IDs must start with <code className="font-mono">sandbox_</code>.
+            Dedicated test IDs must start with <code className="font-mono">sandbox_</code>. A new
+            identity has nothing connected until you run it through hosted connect.
           </p>
         </section>
 
@@ -215,6 +310,25 @@ export default function SandboxPage() {
           <div className="flex items-start gap-2 rounded-md bg-red-500/10 p-3 text-base text-red-700 sm:text-sm dark:text-red-300">
             <ExclamationTriangleIcon className="size-4 shrink-0 fill-current" aria-hidden="true" />
             <p>{error}</p>
+          </div>
+        )}
+
+        {context && connectedServices.length === 0 && (
+          <div className="flex items-start gap-2 rounded-md bg-amber-500/10 p-4 ring-1 ring-amber-600/20">
+            <ShieldCheckIcon className="size-4 shrink-0 fill-amber-700" aria-hidden="true" />
+            <div className="min-w-0">
+              <h2 className="font-medium text-amber-950 dark:text-amber-100">
+                Nothing is connected for this identity
+              </h2>
+              <p className="text-pretty text-base text-amber-900/80 sm:text-sm dark:text-amber-200/80">
+                Create a connect session for{' '}
+                <code className="font-mono">{context.externalUserId}</code> and connect a service
+                first — until then the tool runner and the agent have nothing to call.{' '}
+                <a className="underline" href="/docs/guides/sandbox">
+                  How to prepare a Sandbox identity
+                </a>
+              </p>
+            </div>
           </div>
         )}
 
@@ -357,6 +471,7 @@ export default function SandboxPage() {
               <SandboxAgentWorkspace
                 key={context.externalUserId}
                 externalUserId={context.externalUserId}
+                providers={context.providers}
               />
             )}
           </section>

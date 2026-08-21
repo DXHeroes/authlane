@@ -20,6 +20,25 @@ env:
   PNPM_VERSION: '10.23.0'
 
 jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      # Working-tree-only scan keeps the PR gate fast; the Monday scheduled run in
+      # security.yml still sweeps the full history. Same free binary, same reason:
+      # the gitleaks action needs an org licence this plan does not have.
+      - name: Run gitleaks
+        env:
+          GITLEAKS_VERSION: '8.30.1'
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --no-git --redact --exit-code 1
+
   quality:
     name: Quality and tests
     runs-on: ubuntu-latest

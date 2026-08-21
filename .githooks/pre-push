@@ -1,0 +1,13 @@
+#!/bin/sh
+# The repository had no local gate at all, so CI was the first place anyone learned a push was
+# broken — and CI runs on a metered budget that ran out. Lint and type-check are the cheap half of
+# what `quality` does in CI; they run here for free.
+#
+# Skip deliberately with `git push --no-verify` when you know what you are doing.
+set -e
+
+echo "pre-push: pnpm lint:runtime"
+pnpm lint:runtime
+
+echo "pre-push: pnpm type-check"
+pnpm type-check

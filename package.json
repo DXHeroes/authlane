@@ -37,6 +37,7 @@
     ]
   },
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "turbo run dev --filter=@authlane/api --filter=@authlane/dashboard --filter=@authlane/widget",
     "demo": "node scripts/demo.mjs start",
     "demo:test": "node scripts/demo.mjs test",

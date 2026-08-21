@@ -1,4 +1,4 @@
-import { isServiceCategory, SUPPORTED_SERVICE_IDS } from '@authlane/shared';
+import { hasServiceIcon, isServiceCategory, SUPPORTED_SERVICE_IDS } from '@authlane/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { productionServices } from '../src/seed.js';
 import { SUPPORTED_SERVICE_CATALOG, seedServiceCatalog } from '../src/service-catalog.js';
@@ -38,11 +38,15 @@ describe('production service catalog', () => {
     }
   });
 
-  it('points every icon path at the file named by the same service id', () => {
-    // The route serves `integrations/<id>/icon.svg` under this exact path. A second spelling here
-    // would be a 404 that only shows up as a missing logo in someone else's product.
+  it('points an icon path at a mark that exists, and at nothing when none does', () => {
+    // The route serves `integrations/<id>/icon.svg` under this exact path, so a second spelling
+    // would be a 404 that only shows up as a missing logo in someone else's product. A service
+    // Authlane ships no mark for gets null instead: a consumer reading a non-null iconUrl is
+    // promised a mark, and should not have to spend a request discovering there is none.
     for (const service of SUPPORTED_SERVICE_CATALOG) {
-      expect(service.iconPath).toBe(`/service-icons/${service.id}.svg`);
+      expect(service.iconPath).toBe(
+        hasServiceIcon(service.id) ? `/service-icons/${service.id}.svg` : null
+      );
     }
   });
 });

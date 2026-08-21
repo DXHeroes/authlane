@@ -4,6 +4,7 @@
  */
 
 import {
+  hasServiceIcon,
   type ServiceCategory,
   SUPPORTED_SERVICE_IDS,
   type SupportedServiceId,
@@ -21,7 +22,7 @@ export interface ProductionService {
   config: Record<string, unknown>;
   enabled: boolean;
   description: string;
-  iconPath: string;
+  iconPath: string | null;
   brandColor: string | null;
   initials: string;
   category: ServiceCategory;
@@ -1059,8 +1060,13 @@ export const productionServices: ProductionService[] = SUPPORTED_SERVICE_IDS.map
     // consumer and the integration's own README never disagree about what the service is called.
     name: branding.name,
     description: branding.description,
-    // Named by the same id as `integrations/<id>/icon.svg`, which is the file the route serves.
-    iconPath: `/service-icons/${service.id}.svg`,
+    /*
+     * Named by the same id as `integrations/<id>/icon.svg`, which is the file the route serves —
+     * and null when no such file ships. Pointing at one anyway would make every consumer spend a
+     * request to learn what null already tells them, and would break the documented contract that
+     * a non-null iconUrl means a mark exists.
+     */
+    iconPath: hasServiceIcon(service.id) ? `/service-icons/${service.id}.svg` : null,
     brandColor: branding.brandColor ?? null,
     initials: branding.initials,
     category: branding.category,

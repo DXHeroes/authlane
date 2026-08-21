@@ -7,6 +7,7 @@ export * from './api-scopes.js';
 export * from './capabilities.js';
 export * from './env.js';
 export * from './errors.js';
+export * from './generated/service-icon-ids.js';
 export * from './hash.js';
 export * from './integration-adapter.js';
 export * from './integration-loader.js';

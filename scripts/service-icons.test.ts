@@ -25,6 +25,18 @@ describe('service icons', () => {
     expect(Object.keys(SERVICE_ICON_ETAG).sort()).toEqual([...onDisk].sort());
   });
 
+  it('never promises a mark the route would answer 404 for', () => {
+    // The contract a consumer reads is that a non-null iconUrl means a mark exists. Seeding a path
+    // for all eighteen would break it for the seven that ship none.
+    for (const service of productionServices) {
+      if (SERVICE_ICON_SVG[service.id]) {
+        expect(service.iconPath).toBe(`/service-icons/${service.id}.svg`);
+      } else {
+        expect(service.iconPath).toBeNull();
+      }
+    }
+  });
+
   it('leaves a service without a mark renderable from its initials', () => {
     // Simple Icons does not carry Slack, Salesforce, Pipedrive, Attio, or the Microsoft marks:
     // their owners asked to be removed from the set. Those services ship no icon on purpose and

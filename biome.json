@@ -73,6 +73,7 @@
       "!!packages/integration-contracts/manifests",
       "!!packages/integration-contracts/src/generated",
       "!!packages/python/src/authlane/_generated",
+      "!!packages/shared/src/generated",
       "!!packages/python/tests/fixtures/typescript-provider-parity.json",
       "!!scripts/fixtures/cursor-plugin-schemas/plugin.schema.json",
       "!!**/playwright-report",

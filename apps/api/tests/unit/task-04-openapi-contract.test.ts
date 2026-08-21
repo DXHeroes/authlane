@@ -110,7 +110,9 @@ describe('Task 04 OpenAPI 3.1 contract', () => {
   });
 
   it('matches the source-captured hosted session service shape and required action body', () => {
-    expect(oauthRuntime).toContain('return { ...service, status };');
+    expect(oauthRuntime).toContain(
+      'return { ...rest, ...brandingOf(service, apiBaseUrl), status };'
+    );
     expect(oauthRuntime).toContain('if (!token || !body.parentOrigin)');
 
     const operation = section(

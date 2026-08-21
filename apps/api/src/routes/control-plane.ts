@@ -18,6 +18,8 @@ import {
 import { Hono } from 'hono';
 import { errorResult } from '../lib/api-response.js';
 import type { NotConnectableReason } from '../lib/oauth-provider-resolution.js';
+import { publicApiBase } from '../lib/public-api-base.js';
+import { brandingOf, type ServiceBranding } from '../lib/service-branding.js';
 import { requireScope } from '../middleware/scope.js';
 
 export interface ControlPlaneService {
@@ -36,7 +38,19 @@ export interface ControlPlaneService {
   notConnectableReason?: NotConnectableReason;
   toolAccessPolicy: ToolAccessPolicy;
   config: unknown;
+  /**
+   * How the row stores its icon. Turned into an absolute `iconUrl` on the way out, never here: the
+   * catalogue is cached per organization with no host in the key.
+   */
+  iconPath: string | null;
+  description: string | null;
+  brandColor: string | null;
+  initials: string | null;
+  category: string | null;
 }
+
+/** What a consumer receives: the row, with `iconPath` resolved into an absolute `iconUrl`. */
+export type CatalogService = Omit<ControlPlaneService, 'iconPath'> & ServiceBranding;
 
 export interface ControlPlaneConnection {
   id: string;
@@ -238,7 +252,14 @@ export function createControlPlaneRouter(
   router.get('/catalog/services', requireScope('catalog:read'), async (c) => {
     const principal = c.get('principal');
     const tenantServices = await repository.listTenantServices(principal.organizationId);
-    return c.json({ data: tenantServices, error: null });
+    const apiBaseUrl = publicApiBase(c.req.url);
+    const data = tenantServices.map(
+      ({ iconPath, ...service }): CatalogService => ({
+        ...service,
+        ...brandingOf({ ...service, iconPath }, apiBaseUrl),
+      })
+    );
+    return c.json({ data, error: null });
   });
 
   router.get('/users/:externalUserId/connections', requireScope('connections:read'), async (c) => {

@@ -55,6 +55,7 @@ import {
 } from '../lib/oauth-provider-resolution.js';
 import { fetchOAuthToken, validateOAuthEndpoint } from '../lib/provider-http.js';
 import { oauthCallbackUrl, publicApiBase } from '../lib/public-api-base.js';
+import { brandingOf, deriveInitials } from '../lib/service-branding.js';
 import {
   readTenantServiceSettings,
   serviceEnabledForOrganization,
@@ -506,9 +507,20 @@ export function createOAuthRouter(
       return c.json(errorResult(Errors.unauthorized('Connect session is invalid or expired')), 401);
     }
 
+    const apiBaseUrl = publicApiBase(c.req.url);
+
     return withTenantContext(db, session.organizationId, async () => {
       const builtInRows = await db
-        .select({ id: services.id, name: services.name, authType: services.authType })
+        .select({
+          id: services.id,
+          name: services.name,
+          authType: services.authType,
+          description: services.description,
+          iconPath: services.iconPath,
+          brandColor: services.brandColor,
+          initials: services.initials,
+          category: services.category,
+        })
         .from(services)
         .leftJoin(organizationServices, tenantServiceJoin(session.organizationId))
         .where(
@@ -531,7 +543,18 @@ export function createOAuthRouter(
        */
       const allowedMcpServers = (await listEnabledMcpServers(db, session.organizationId))
         .filter((server) => session.allowedServices.includes(server.id))
-        .map((server) => ({ id: server.id, name: server.name, authType: server.authType }));
+        .map((server) => ({
+          id: server.id,
+          name: server.name,
+          authType: server.authType,
+          // A tenant has nowhere to declare branding for its own server yet. Initials derive from
+          // the name it did give, so the card still has something to draw.
+          description: null,
+          iconPath: null,
+          brandColor: null,
+          initials: deriveInitials(server.name),
+          category: null,
+        }));
 
       const allowedServiceRows = [...builtInRows, ...allowedMcpServers];
       const visibleServiceIds = filterCurrentlyEnabledServices(
@@ -581,7 +604,8 @@ export function createOAuthRouter(
                   }
                 : null
             );
-            return { ...service, status };
+            const { iconPath, ...rest } = service;
+            return { ...rest, ...brandingOf(service, apiBaseUrl), status };
           }),
         },
         error: null,

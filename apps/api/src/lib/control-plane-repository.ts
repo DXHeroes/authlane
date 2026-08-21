@@ -25,6 +25,7 @@ import {
   resolveBuiltInAuthorization,
   resolveMcpAuthorization,
 } from './oauth-provider-resolution.js';
+import { deriveInitials } from './service-branding.js';
 import { serviceEnabledForOrganization, tenantServiceJoin } from './service-enablement.js';
 
 /**
@@ -52,6 +53,11 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         oauthClientId: organizationServices.oauthClientId,
         toolAccessPolicy: organizationServices.toolAccessPolicy,
         config: services.config,
+        description: services.description,
+        iconPath: services.iconPath,
+        brandColor: services.brandColor,
+        initials: services.initials,
+        category: services.category,
       })
       .from(services)
       .leftJoin(organizationServices, tenantServiceJoin(organizationId))
@@ -99,6 +105,16 @@ export class DrizzleControlPlaneRepository implements ControlPlaneRepository {
         authType: server.authType,
         kind: 'mcp_server' as const,
         enabled: server.enabled,
+        /*
+         * A tenant has nowhere to declare branding for its own server yet, so these are honestly
+         * absent rather than guessed. `initials` is the exception: it derives from the name the
+         * tenant already gave, so a card always has something to draw.
+         */
+        description: null,
+        iconPath: null,
+        brandColor: null,
+        initials: deriveInitials(server.name),
+        category: null,
         // Per-tool risk is stored on the contract, so the service-level policy stays permissive
         // and the read_only decision is made per tool when they are issued.
         toolAccessPolicy: 'full' as const,

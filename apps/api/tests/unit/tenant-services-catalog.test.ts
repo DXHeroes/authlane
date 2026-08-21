@@ -54,6 +54,11 @@ function builtInRow(overrides: Record<string, unknown> = {}) {
     oauthClientId: 'tenant-client',
     toolAccessPolicy: 'read_only',
     config: { authorization_url: 'https://github.com/login/oauth/authorize' },
+    description: 'Repositories, issues, pull requests, and code search.',
+    iconPath: '/service-icons/github.svg',
+    brandColor: '#181717',
+    initials: 'GH',
+    category: 'engineering',
     ...overrides,
   };
 }
@@ -414,5 +419,44 @@ describe('the catalogue and the authorize route agree', () => {
     expect(response.status).toBe(409);
     expect(body.error.message).toContain('MCP server has no OAuth client');
     expect(body.error.hint).toBeTruthy();
+  });
+});
+
+describe('what a consumer needs to render an entry', () => {
+  it('carries the icon as a path, so a cached row holds no origin', async () => {
+    // The catalogue is cached per organization under a key with no host in it. Resolving the URL
+    // here would freeze one request's origin and hand it to every later request from any other.
+    const repository = new DrizzleControlPlaneRepository(dbReturning([builtInRow()]));
+    listEnabledMcpServers.mockResolvedValue([]);
+
+    const [service] = await repository.listTenantServices('org-1');
+
+    expect(service).toMatchObject({
+      name: 'GitHub',
+      description: 'Repositories, issues, pull requests, and code search.',
+      iconPath: '/service-icons/github.svg',
+      brandColor: '#181717',
+      initials: 'GH',
+      category: 'engineering',
+    });
+    expect(service).not.toHaveProperty('iconUrl');
+  });
+
+  it('degrades a tenant\u2019s own server to nulls it can still draw', async () => {
+    // A tenant has nowhere to declare branding yet, so nothing is invented for it. Initials come
+    // from the name it did give, which is the one thing a card can always render.
+    const repository = new DrizzleControlPlaneRepository(dbWithNoBuiltIns());
+    listEnabledMcpServers.mockResolvedValue([mcpServer({ name: 'Acme CRM' })]);
+
+    const [server] = await repository.listTenantServices('org-1');
+
+    expect(server).toMatchObject({
+      kind: 'mcp_server',
+      description: null,
+      iconPath: null,
+      brandColor: null,
+      category: null,
+      initials: 'AC',
+    });
   });
 });

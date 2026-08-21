@@ -4,6 +4,9 @@
 **Version:** 1.0
 **Status:** ✅ PASSED
 
+> Point-in-time internal review by the maintainers, not a third-party audit.
+> Findings reflect the codebase as of the date above.
+
 ---
 
 ## Executive Summary

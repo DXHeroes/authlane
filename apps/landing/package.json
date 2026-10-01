@@ -12,26 +12,26 @@
   },
   "dependencies": {
     "@authlane/shared": "workspace:*",
-    "@scalar/api-reference-react": "^0.9.66",
-    "next": "^16.3.3",
+    "@scalar/api-reference-react": "^0.9.74",
+    "next": "^16.3.6",
     "next-mdx-remote": "^6.0.0",
     "prismjs": "1.30.0",
-    "react": "19.1.1",
-    "react-dom": "19.1.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "rehype-autolink-headings": "^7.1.0",
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.1",
-    "yaml": "2.8.3"
+    "yaml": "2.9.1"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.6",
-    "@types/node": "^26.4.0",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^26.6.3",
     "@types/prismjs": "^1.26.6",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
-    "happy-dom": "^20.11.15",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "happy-dom": "^20.14.5",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.2"
   }
 }

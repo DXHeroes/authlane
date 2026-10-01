@@ -8,6 +8,6 @@
     "preview": "mintlify preview"
   },
   "devDependencies": {
-    "mintlify": "^4.2.850"
+    "mintlify": "^4.2.941"
   }
 }

@@ -81,7 +81,7 @@ jobs:
           python3 scripts/smoke-python-artifact.py packages/python/dist/*.whl
           python3 scripts/smoke-python-artifact.py packages/python/dist/*.tar.gz
       - name: Publish with PyPI Trusted Publishing
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1, retrieved 2026-07-18
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1, retrieved 2026-07-18
         with:
           packages-dir: packages/python/dist
           attestations: true
